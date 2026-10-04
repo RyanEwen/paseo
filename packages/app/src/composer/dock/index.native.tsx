@@ -15,7 +15,11 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { useKeyboardShift } from "@/keyboard/shift";
-import { updateComposerCapacity, type ComposerCapacity } from "./internal/capacity";
+import {
+  resolveCenteredClearance,
+  updateComposerCapacity,
+  type ComposerCapacity,
+} from "./internal/capacity";
 
 const ViewportCapacity = createContext<SharedValue<number | undefined> | null>(null);
 
@@ -34,11 +38,12 @@ function ComposerViewport({
 }: ComposerViewportProps) {
   const measuredHeight = useSharedValue(0);
   const sizing = useSharedValue<ComposerCapacity | undefined>(undefined);
-  const { layoutShift } = useKeyboardShift();
+  const { layoutShift, bottomInset: safeAreaBottom } = useKeyboardShift();
   useAnimatedReaction(
     () => ({
       height: measuredHeight.value,
       bottomInset,
+      safeAreaBottom: safeAreaBottom.value,
       keyboardShift: layoutShift.value,
       centered,
     }),
@@ -80,7 +85,7 @@ function ComposerViewportContent({ style, ...props }: ViewProps) {
 }
 
 /** The keyboard only needs to move a centered form once it reaches the form's resting bottom. */
-function useCenteredClearance() {
+function useCenteredClearance(safeAreaBottom: number) {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [formBottom, setFormBottom] = useState(0);
   const measureViewport = useCallback((event: LayoutChangeEvent) => {
@@ -91,7 +96,7 @@ function useCenteredClearance() {
     setFormBottom(y + height);
   }, []);
   return {
-    value: Math.max(0, viewportHeight - formBottom),
+    value: resolveCenteredClearance({ viewportHeight, safeAreaBottom, formBottom }),
     measureViewport,
     measureForm,
   };
@@ -109,7 +114,7 @@ export function ComposerDock({
 }: ComposerDockProps) {
   const insets = useSafeAreaInsets();
   const contentMaxWidth = resolveContentMaxWidth(useAppSettings().settings);
-  const centeredClearance = useCenteredClearance();
+  const centeredClearance = useCenteredClearance(insets.bottom);
   // Preserve the existing centered form's visual balance on tablets.
   const bottomInset = centered ? HEADER_INNER_HEIGHT + 24 : 0;
   if (centered) {
