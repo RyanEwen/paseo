@@ -112,18 +112,10 @@ function parseNpmGlobalPaseoInstall(stdout: string): NpmGlobalPaseoInstall | nul
     version: cliPackage.data.version,
     packagePath: cliPackage.data.path,
     globalRootPath: list.data.path ?? null,
-    isLinked: isSymlink(cliPackage.data.path),
+    // npm links an install by making its node_modules entry a symlink (a junction
+    // on Windows), and `npm ls --json` reports no flag for it.
+    isLinked: lstatSync(cliPackage.data.path).isSymbolicLink(),
   };
-}
-
-// npm links an install by making its node_modules entry a symlink (a junction on
-// Windows), and `npm ls --json` reports no flag for it.
-function isSymlink(packagePath: string): boolean {
-  try {
-    return lstatSync(packagePath).isSymbolicLink();
-  } catch {
-    return false;
-  }
 }
 
 export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
