@@ -276,6 +276,42 @@ describe("Android video canvas document", () => {
     }
   });
 
+  it("decodes and presents a supported codec after configuration fails", async () => {
+    const page = await openCanvas();
+    try {
+      await send(page, {
+        type: "configure",
+        generation: 1,
+        config: { codec: "invalid-codec", codedWidth: 16, codedHeight: 16 },
+      });
+      await waitForMessage(page, "error");
+      expect((await messages(page)).at(-1)).toMatchObject({ type: "error", generation: 1 });
+
+      const dataBase64 = await keyframe({ page });
+      await send(page, {
+        type: "configure",
+        generation: 3,
+        config: { codec: "vp8", codedWidth: 16, codedHeight: 16 },
+      });
+      await send(page, {
+        type: "decode",
+        generation: 3,
+        chunk: { type: "key", timestamp: 1000, dataBase64 },
+      });
+      await waitForFrame(page, 1000);
+      const frame = (await messages(page)).find((message) => message.type === "frame")!.frame!;
+      await send(page, { type: "present", generation: 3, frameId: frame.id, requestId: 1 });
+      await waitForMessage(page, "presented");
+      expect((await messages(page)).at(-1)).toMatchObject({
+        type: "presented",
+        generation: 3,
+        requestId: 1,
+      });
+    } finally {
+      await page.close();
+    }
+  });
+
   it("blocks network requests from the private decoder document", async () => {
     const page = await openCanvas();
     let requested = false;

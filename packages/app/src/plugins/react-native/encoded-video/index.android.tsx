@@ -64,10 +64,14 @@ export const EncodedVideo = forwardRef<EncodedVideoHandle, EncodedVideoProps>(
       webview.current.injectJavaScript(`window.__PASEO_VIDEO__(${payload});true;`);
     }
     function fail(error: Error) {
-      ready.current = false;
       generation.current += 1;
       rejectPending(error);
       callbacks.current.onError(error);
+    }
+    /** Document failures require readiness again; codec errors keep the loaded bridge usable. */
+    function failBridge(error: Error) {
+      ready.current = false;
+      fail(error);
     }
 
     useImperativeHandle(
@@ -121,12 +125,12 @@ export const EncodedVideo = forwardRef<EncodedVideoHandle, EncodedVideoProps>(
       try {
         value = JSON.parse(event.nativeEvent.data);
       } catch {
-        fail(new Error("Invalid video decoder message"));
+        failBridge(new Error("Invalid video decoder message"));
         return;
       }
       const result = messageSchema.safeParse(value);
       if (!result.success) {
-        fail(new Error("Invalid video decoder message"));
+        failBridge(new Error("Invalid video decoder message"));
         return;
       }
       const message = result.data;
@@ -148,11 +152,11 @@ export const EncodedVideo = forwardRef<EncodedVideoHandle, EncodedVideoProps>(
       }
     }, []);
     const onError = useCallback<NonNullable<ComponentProps<typeof WebView>["onError"]>>(
-      (event) => fail(new Error(event.nativeEvent.description)),
+      (event) => failBridge(new Error(event.nativeEvent.description)),
       [],
     );
     const onRenderProcessGone = useCallback(
-      () => fail(new Error("Video decoder process stopped")),
+      () => failBridge(new Error("Video decoder process stopped")),
       [],
     );
 
