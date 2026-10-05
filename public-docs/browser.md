@@ -63,6 +63,8 @@ a declared popup are listed but cannot be opened from this menu.
 
 Paseo supports Electron's Chrome extension APIs. Some extensions require APIs
 Electron does not provide, so installation does not guarantee every feature works.
+Electron also has a [storage-change notification bug](https://github.com/electron/electron/issues/52451)
+that can leave an extension worker showing outdated state while its popup is current.
 Extensions are not updated automatically; remove and reinstall a Store extension
 to get its latest version.
 

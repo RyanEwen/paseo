@@ -35,6 +35,28 @@ import {
 const CHANNEL = "paseo:extension-compatibility";
 const EVENTS = `${CHANNEL}:event`;
 const RequestSchema = z.object({ method: z.string(), args: z.array(z.unknown()) });
+const EventSubscriptionSchema = z.strictObject({
+  name: z.enum([
+    "tabs.onActivated",
+    "tabs.onCreated",
+    "tabs.onRemoved",
+    "tabs.onUpdated",
+    "windows.onCreated",
+    "windows.onRemoved",
+    "windows.onFocusChanged",
+    "webNavigation.onCommitted",
+    "webNavigation.onCompleted",
+    "webNavigation.onErrorOccurred",
+    "contextMenus.onClicked",
+    "alarms.onAlarm",
+    "notifications.onClicked",
+    "notifications.onButtonClicked",
+    "notifications.onClosed",
+    "permissions.onAdded",
+    "permissions.onRemoved",
+  ]),
+  subscribed: z.boolean(),
+});
 const ManifestSchema = z.object({
   permissions: z.array(z.string()).default([]),
   host_permissions: z.array(z.string()).default([]),
@@ -51,16 +73,24 @@ const QuerySchema = z.strictObject({
   url: z.union([z.string(), z.array(z.string())]).optional(),
 });
 
-/** Add the browser-owned APIs required by MV3 password-manager startup. Native supported APIs remain Chromium-owned. */
+/** Add browser-owned extension APIs and normal MV3 worker wake-up behavior. Native supported APIs remain Chromium-owned. */
 export function registerBrowserExtensionCompatibility(profile: Session) {
   registerBrowserExtensionWorkerActivity(profile);
   const popupOwners = new Map<number, number>();
+  // Lazy worker subscriptions survive normal sleep, but never extension unload/replacement.
+  const workerListeners = new Map<string, Set<string>>();
+  const workerGenerations = new Map<string, number>();
+  profile.extensions.on("extension-unloaded", (_event, extension) => {
+    workerListeners.delete(extension.id);
+    workerGenerations.set(extension.id, (workerGenerations.get(extension.id) ?? 0) + 1);
+  });
   const readyWorkers = new Map<number, Promise<boolean>>();
   const trackedWorkers = new Map<number, ServiceWorkerMain>();
   const workerReadinessResolvers = new Map<number, (ready: boolean) => void>();
   const deliverEvent = createExtensionEventDelivery({
     profile,
     emit,
+    hasWorkerListener: (id, name) => workerListeners.get(id)?.has(name) ?? false,
     async waitForWorkerReady(versionId) {
       const ready = readyWorkers.get(versionId);
       if (!ready) {
@@ -74,7 +104,10 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
       }
     },
   });
-  const requestNotification = createExtensionNotifications(deliverEvent);
+  const notifications = createExtensionNotifications(deliverEvent);
+  profile.extensions.on("extension-unloaded", (_event, extension) =>
+    notifications.forgetExtension(extension.id),
+  );
   const alarms = createExtensionAlarms({
     storagePath: path.join(app.getPath("userData"), "browser-extension-alarms.json"),
     getExtension: (id) => profile.extensions.getExtension(id),
@@ -270,6 +303,21 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     throw new Error(`Extension API ${method} is not supported in Paseo.`);
   }
 
+  /** Record only worker registrations; renderer listeners never require a worker wake-up. */
+  function setWorkerSubscription(id: string, senderId: number | null, input: unknown): void {
+    const subscription = EventSubscriptionSchema.parse(input);
+    if (senderId !== null) {
+      return;
+    }
+    const listeners = workerListeners.get(id) ?? new Set<string>();
+    if (subscription.subscribed) {
+      listeners.add(subscription.name);
+    } else {
+      listeners.delete(subscription.name);
+    }
+    workerListeners.set(id, listeners);
+  }
+
   async function request(url: string, senderId: number | null, input: unknown): Promise<unknown> {
     const extension = extensionForUrl(url);
     const manifest = ManifestSchema.parse(extension.manifest);
@@ -282,6 +330,10 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
           manifest.host_permissions.some((grant) => coversExtensionOrigin(grant, origin)),
         )
       );
+    }
+    if (method === "events.set-subscription") {
+      setWorkerSubscription(extension.id, senderId, args[0]);
+      return undefined;
     }
     if (method === "permissions.request") {
       // Optional permissions cannot be granted until Paseo owns a consent and persistence flow.
@@ -316,7 +368,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
       if (!manifest.permissions.includes("notifications")) {
         throw new Error("The notifications permission is required.");
       }
-      return requestNotification(method, args, extension.id);
+      return notifications.request(method, args, extension.id);
     }
     if (method.startsWith("contextMenus.")) {
       return contextMenus.request(extension.id, method, args);
@@ -361,7 +413,19 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     );
     readyWorkers.set(details.versionId, ready);
     worker.ipc.removeHandler(CHANNEL);
-    worker.ipc.handle(CHANNEL, (_event, input: unknown) => request(worker.scriptURL, null, input));
+    const extensionId = new URL(worker.scriptURL).hostname;
+    const generation = workerGenerations.get(extensionId) ?? 0;
+    worker.ipc.handle(CHANNEL, (_event, input: unknown) => {
+      // Stale IPC must not mutate subscriptions or state belonging to a replacement extension.
+      if (
+        worker.isDestroyed() ||
+        trackedWorkers.get(worker.versionId) !== worker ||
+        generation !== (workerGenerations.get(extensionId) ?? 0)
+      ) {
+        throw new Error("The extension worker is no longer active.");
+      }
+      return request(worker.scriptURL, null, input);
+    });
   });
 
   registerExtensionTabs({ profile, emit: deliverEvent });

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile, rename, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -67,6 +67,24 @@ afterEach(async () => {
 });
 
 describe("browser-owned extension alarms", () => {
+  it("retries failed persistence without losing an overdue alarm or spinning", async () => {
+    const alarms = scheduler();
+    await alarms.loaded(id);
+    await alarms.request(id, "alarms.create", ["retry", { delayInMinutes: 1 }]);
+    const storage = path.join(directory, "alarms.json");
+    const backup = path.join(directory, "saved.json");
+    await rename(storage, backup);
+    await mkdir(storage);
+    await tick(alarms, time + 60_000);
+    expect(onError).toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+    expect(delay).toBe(30_000);
+    await rm(storage, { recursive: true });
+    await rename(backup, storage);
+    await tick(alarms, time + 30_000);
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(await alarms.request(id, "alarms.getAll", [])).toEqual([]);
+  });
   it("supports unnamed and object-name overloads, isolated replacement and snapshot reads", async () => {
     const alarms = scheduler();
     await alarms.loaded(id);
@@ -323,7 +341,6 @@ describe("browser-owned extension alarms", () => {
     await writeFile(path.join(directory, "alarms.json.tmp"), "blocked");
     // A directory at the temporary destination forces a real filesystem write failure.
     await rm(path.join(directory, "alarms.json.tmp"));
-    const { mkdir } = await import("node:fs/promises");
     await mkdir(path.join(directory, "alarms.json.tmp"));
     await expect(alarms.request(id, "alarms.create", [{ delayInMinutes: 1 }])).rejects.toThrow();
     expect(await alarms.request(id, "alarms.getAll", [])).toEqual([]);

@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useFetchQuery } from "@/data/query";
 import { getDesktopHost, type DesktopBrowserExtensionAction } from "@/desktop/host";
-import { useToast } from "@/contexts/toast-context";
+import { Alert } from "@/components/ui/alert";
 import { buildSettingsSectionRoute } from "@/utils/host-routes";
 import {
   DropdownMenu,
@@ -39,7 +39,6 @@ interface ExtensionsMenuProps {
 export function ExtensionsMenu({ browserId, triggerStyle, tooltipTextStyle }: ExtensionsMenuProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  const toast = useToast();
   const [open, setOpen] = useState(false);
   const bridge = getDesktopHost()?.browser?.extensions;
   const actions = useFetchQuery({
@@ -65,9 +64,7 @@ export function ExtensionsMenu({ browserId, triggerStyle, tooltipTextStyle }: Ex
         await bridge.openPopup(id, browserId);
       }
     },
-    onError: (error) => {
-      toast.error(`${t("workspace.browser.extensions.openFailed")} ${error.message}`);
-    },
+    onError: () => setOpen(true),
   });
   const label = t("workspace.browser.extensions.label");
   const { mutate } = action;
@@ -106,7 +103,15 @@ export function ExtensionsMenu({ browserId, triggerStyle, tooltipTextStyle }: Ex
           <Text style={tooltipTextStyle}>{label}</Text>
         </TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" scrollable maxHeight={360}>
+      <DropdownMenuContent align="end" width={300} scrollable maxHeight={360}>
+        {action.error ? (
+          <Alert
+            variant="error"
+            size="sm"
+            title={t("workspace.browser.extensions.openFailed")}
+            description={action.error.message}
+          />
+        ) : null}
         {status}
         {(actions.data ?? []).map((extension) => (
           <ExtensionMenuItem

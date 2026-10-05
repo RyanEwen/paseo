@@ -126,7 +126,12 @@ export class BrowserExtensionCatalog {
   public setEnabled(id: string, enabled: boolean): Promise<void> {
     return this.serialize(async () => {
       const entry = this.requireEntry(id);
+      if (entry.enabled === enabled && this.runtime.isLoaded(id) === enabled) {
+        this.errors.delete(id);
+        return;
+      }
       if (enabled) {
+        const wasLoaded = this.runtime.isLoaded(id);
         const loaded = await this.runtime.load(entry.path);
         if (loaded.id !== id) {
           this.runtime.unload(loaded.id);
@@ -137,7 +142,9 @@ export class BrowserExtensionCatalog {
             this.entries.map((item) => (item.id === id ? { ...item, ...loaded, enabled } : item)),
           );
         } catch (error) {
-          this.runtime.unload(id);
+          if (!wasLoaded) {
+            this.runtime.unload(id);
+          }
           throw error;
         }
       } else {

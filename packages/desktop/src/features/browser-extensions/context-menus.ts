@@ -5,6 +5,8 @@ import { z } from "zod";
 import log from "electron-log";
 import { matchesExtensionUrl } from "./host-patterns.js";
 import { describeExtensionFrame } from "./frames.js";
+import type { BrowserExtensionTab } from "./tab-projection.js";
+import { describeVisibleExtensionTab } from "./tab-access.js";
 
 const IdSchema = z.union([z.string().min(1), z.number().int()]);
 const PropertiesSchema = z.strictObject({
@@ -46,7 +48,7 @@ type PageContext = Pick<
 interface MenuContext {
   params: PageContext;
   frameId: number;
-  tab: unknown;
+  tab: BrowserExtensionTab;
   isCurrent(): boolean;
 }
 const PermissionSchema = z.object({ permissions: z.array(z.string()).default([]) });
@@ -269,7 +271,7 @@ export function createExtensionContextMenus(options: ContextMenuOptions) {
         currentItem = current;
       });
     }
-    permission(extensionId);
+    const extension = permission(extensionId);
     if (!context.isCurrent()) {
       return;
     }
@@ -291,7 +293,12 @@ export function createExtensionContextMenus(options: ContextMenuOptions) {
         ? { wasChecked, checked }
         : {}),
     };
-    options.emit(extensionId, "contextMenus.onClicked", info, context.tab);
+    options.emit(
+      extensionId,
+      "contextMenus.onClicked",
+      info,
+      describeVisibleExtensionTab(extension, context.tab),
+    );
   }
 
   return {
@@ -389,7 +396,7 @@ interface BrowserContextMenus {
 }
 interface BrowserMenuProvider {
   menus: BrowserContextMenus;
-  getTab(contents: WebContents): unknown;
+  getTab(contents: WebContents): BrowserExtensionTab | null;
 }
 const registeredMenus = new WeakMap<Session, BrowserMenuProvider>();
 
@@ -397,7 +404,7 @@ const registeredMenus = new WeakMap<Session, BrowserMenuProvider>();
 export function registerBrowserExtensionContextMenus(
   profile: Session,
   menus: BrowserContextMenus,
-  getTab: (contents: WebContents) => unknown,
+  getTab: (contents: WebContents) => BrowserExtensionTab | null,
 ): void {
   registeredMenus.set(profile, { menus, getTab });
 }

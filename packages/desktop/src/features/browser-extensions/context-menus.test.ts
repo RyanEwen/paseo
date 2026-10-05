@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MenuItemConstructorOptions } from "electron";
+import type { BrowserExtensionTab } from "./tab-projection.js";
 import { createExtensionContextMenus } from "./context-menus.js";
 
 const id = "a".repeat(32);
@@ -16,7 +17,19 @@ const params = {
   isEditable: false,
   selectionText: "",
 };
-const context = { params, frameId: 0, tab: { id: 123, windowId: 12 }, isCurrent: () => true };
+const tab: BrowserExtensionTab = {
+  id: 123,
+  windowId: 12,
+  active: true,
+  highlighted: true,
+  url: params.pageURL,
+  title: "Private title",
+  incognito: false,
+  status: "complete",
+  index: 0,
+};
+const { url: _url, title: _title, ...publicTab } = tab;
+const context = { params, frameId: 0, tab, isCurrent: () => true };
 let directory: string;
 let enabled = true;
 let permitted = true;
@@ -87,8 +100,31 @@ describe("extension context menus", () => {
         selectionText: "fixture text",
         frameId: 0,
       }),
-      context.tab,
+      publicTab,
     );
+  });
+
+  it("does not expose sensitive tab metadata through a context-menu grant", async () => {
+    const menus = createExtensionContextMenus(options());
+    await menus.request(id, "contextMenus.create", ["action", { title: "Action" }]);
+    select(menus.buildMenuItems(context)[0]);
+    expect(emit).toHaveBeenCalledWith(
+      id,
+      "contextMenus.onClicked",
+      expect.objectContaining({ pageUrl: params.pageURL }),
+      publicTab,
+    );
+    const granted = createExtensionContextMenus({
+      ...options(),
+      getExtension: () => ({
+        id,
+        name: "Fixture",
+        manifest: { permissions: ["contextMenus", "tabs"] },
+      }),
+    });
+    await granted.ready();
+    select(granted.buildMenuItems(context)[0]);
+    expect(emit).toHaveBeenLastCalledWith(id, "contextMenus.onClicked", expect.any(Object), tab);
   });
 
   it("enforces permission, independent IDs and parent ownership", async () => {
@@ -236,7 +272,7 @@ describe("extension context menus", () => {
         id,
         "contextMenus.onClicked",
         expect.objectContaining({ checked: true, wasChecked: false }),
-        context.tab,
+        publicTab,
       ),
     );
     expect(menus.buildMenuItems(context)[0].checked).toBe(true);
@@ -260,7 +296,7 @@ describe("extension context menus", () => {
         id,
         "contextMenus.onClicked",
         expect.objectContaining({ parentMenuItemId: "parent", wasChecked: true, checked: false }),
-        context.tab,
+        publicTab,
       ),
     );
   });
