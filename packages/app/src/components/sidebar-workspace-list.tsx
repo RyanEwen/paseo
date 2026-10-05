@@ -2544,6 +2544,7 @@ function ProjectModeList({
         project whose chats are all pinned leaves `unpinnedProjects` empty, and without its term
         the header would go with it, taking the only route back to the filter page. */}
       {unpinnedProjects.length > 0 ||
+      pinnedChats.length > 0 ||
       emptyProjectContent ||
       hasActiveHostFilter ||
       hasActiveProjectFilter ||

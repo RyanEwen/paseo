@@ -16,8 +16,10 @@ import {
 import { DEFAULT_SIDEBAR_CHECKS_DISPLAY, type SidebarChecksDisplay } from "./checks-display";
 import { DEFAULT_SIDEBAR_ROW_ITEMS, type SidebarRowItem, type SidebarRowItems } from "./row-items";
 
-/** The trailing slot holds one thing, so these are a choice rather than toggles. */
-export type SidebarTrailingChoice = Exclude<SidebarWorkspaceTrailing, "none">;
+import {
+  toggleSidebarTrailingItem,
+  type SidebarTrailingChoice,
+} from "../workspace-trailing/selection";
 
 export interface SidebarDisplayPreferences {
   workspaceSorting: SidebarWorkspaceSortMode;
@@ -39,7 +41,7 @@ export interface SidebarDisplayPreferences {
   checksDisplay: SidebarChecksDisplay;
   setChecksDisplay: (display: SidebarChecksDisplay) => void;
   trailing: SidebarWorkspaceTrailing;
-  /** Picking the choice that is already showing clears the slot. */
+  /** Each trailing item can be shown independently. */
   toggleTrailing: (choice: SidebarTrailingChoice) => void;
   hostFilters: readonly string[];
   toggleHostFilter: (serverId: string) => void;
@@ -120,7 +122,10 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
   const toggleTrailing = useCallback(
     (choice: SidebarTrailingChoice) => {
       void updateSettings({
-        sidebarWorkspaceTrailing: sidebarWorkspaceTrailing === choice ? "none" : choice,
+        sidebarWorkspaceTrailing: toggleSidebarTrailingItem({
+          trailing: sidebarWorkspaceTrailing,
+          choice,
+        }),
       });
     },
     [updateSettings, sidebarWorkspaceTrailing],

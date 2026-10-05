@@ -1,4 +1,8 @@
 import {
+  isSidebarTrailingItemEnabled,
+  type SidebarTrailingChoice,
+} from "../workspace-trailing/selection";
+import {
   useCallback,
   useMemo,
   useState,
@@ -58,7 +62,7 @@ import {
 import { workspaceLabelKey, type WorkspaceLabelColor } from "@getpaseo/protocol/workspace-labels";
 import type { WorkspaceTitleSource } from "@/hooks/use-settings";
 import { SIDEBAR_CHECKS_DISPLAYS, type SidebarChecksDisplay } from "./checks-display";
-import { useSidebarDisplayPreferences, type SidebarTrailingChoice } from "./model";
+import { useSidebarDisplayPreferences } from "./model";
 import { SIDEBAR_ROW_ITEMS, type SidebarRowItem } from "./row-items";
 import { useWorkspaceLabelProjection } from "@/workspace-labels";
 import { WorkspaceLabelDot } from "@/workspace-labels/swatch";
@@ -690,8 +694,8 @@ function OptionList<Value extends string>({
 
 /**
  * Two groups, split by the separator. Above it, what a row may say about a workspace — each one
- * independent. Below it, the one thing the slot to the right of the title holds, so picking the
- * one already showing empties the slot and gives the width back to the title.
+ * independent. Below it, diff stats and last activity are independent toggles for the slot
+ * to the right of the title. Hiding both gives that width back to the title.
  *
  * CI is the one item above the separator with three answers rather than two, so it opens a page
  * instead of ticking, and it goes last: a row that navigates does not belong in the middle of a
@@ -721,7 +725,7 @@ function ShowPage({ preferences }: { preferences: Preferences }): ReactElement {
           value={choice}
           icon={TRAILING_ICONS[choice]}
           label={t(TRAILING_LABEL_KEYS[choice])}
-          selected={preferences.trailing === choice}
+          selected={isSidebarTrailingItemEnabled({ trailing: preferences.trailing, choice })}
           closeOnSelect={false}
           onSelect={preferences.toggleTrailing}
           testID={`sidebar-workspace-trailing-${choice}`}
