@@ -4037,7 +4037,11 @@ function WorkspaceScreenContent({
 
   const workspaceCenterColumn = (
     <View style={styles.centerColumn}>
-      {rendersDesktopSplitContent ? null : renderWorkspaceScreenHeader()}
+      {rendersDesktopSplitContent ? null : (
+        <NewTabLauncherProvider value={newTabLauncher}>
+          {renderWorkspaceScreenHeader()}
+        </NewTabLauncherProvider>
+      )}
 
       {isMobile ? (
         <MobileWorkspaceTabSwitcher
