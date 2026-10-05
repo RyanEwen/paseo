@@ -1,4 +1,4 @@
-import { useSettings } from "@/hooks/use-settings";
+import { useAppSettings } from "@/hooks/use-settings";
 import React, { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import {
   useSidebarWorkspacesList,
@@ -59,7 +59,7 @@ export function SidebarModelProvider({
   const list = useSidebarWorkspacesList({ enabled: active });
   const {
     settings: { workspaceTitleSource },
-  } = useSettings();
+  } = useAppSettings();
   const workspaceSortMode = useSidebarViewStore((state) => state.workspaceSortMode);
   const statusWorkspaceOrder = useSidebarOrderStore((state) => state.statusWorkspaceOrder);
   const sortMode = useSidebarViewStore((state) => state.sortMode);
