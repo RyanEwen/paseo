@@ -74,8 +74,15 @@ function installCompatibility(): void {
   function event(name: string): CompatibilityEvent {
     const listeners = new Set<(...args: unknown[]) => void>();
     bridge.listen(name, (...args) => {
-      for (const listener of listeners) {
-        listener(...args);
+      // Snapshot registrations so a listener added during delivery waits for the next event.
+      const registered = Array.from(listeners);
+      for (const listener of registered) {
+        try {
+          listener(...args);
+        } catch (error) {
+          // Chrome reports one listener's failure without suppressing the remaining listeners.
+          console.error("Extension event listener failed", error);
+        }
       }
     });
     return {
@@ -83,10 +90,28 @@ function installCompatibility(): void {
         if (filter !== undefined) {
           throw new Error("Filtered extension events are not supported in Paseo.");
         }
+        if (typeof callback !== "function") {
+          throw new TypeError("An extension event listener must be a function.");
+        }
+        const alreadySubscribed = listeners.size > 0;
         listeners.add(callback);
+        if (!alreadySubscribed) {
+          void bridge
+            .invoke("events.set-subscription", [{ name, subscribed: true }])
+            .catch((error) => {
+              console.error("Could not register extension event listener", error);
+            });
+        }
       },
       removeListener(callback) {
-        listeners.delete(callback);
+        const removed = listeners.delete(callback);
+        if (removed && listeners.size === 0) {
+          void bridge
+            .invoke("events.set-subscription", [{ name, subscribed: false }])
+            .catch((error) => {
+              console.error("Could not remove extension event listener", error);
+            });
+        }
       },
       hasListener(callback) {
         return listeners.has(callback);

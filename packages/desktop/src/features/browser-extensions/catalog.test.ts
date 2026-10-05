@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
@@ -58,6 +58,8 @@ async function fixture() {
     uninstalled,
     create,
     unloadExternally: () => loadedIds.delete(extension.id),
+    loadExternally: () => loadedIds.add(extension.id),
+    isLoaded: () => loadedIds.has(extension.id),
     failLoad: () => {
       loadError = new Error("Missing extension folder");
     },
@@ -65,6 +67,40 @@ async function fixture() {
 }
 
 describe("browser extension catalog", () => {
+  test("repeated enable and disable requests do not reload a running extension", async () => {
+    const f = await fixture();
+    const catalog = f.create();
+    await catalog.remember(f.extension);
+    f.failLoad();
+    await catalog.setEnabled(f.extension.id, true);
+    expect(f.loaded).toEqual([]);
+    expect(f.unloaded).toEqual([]);
+    await catalog.setEnabled(f.extension.id, false);
+    await catalog.setEnabled(f.extension.id, false);
+    expect(f.unloaded).toEqual([f.extension.id]);
+    await expect(catalog.setEnabled(f.extension.id, true)).rejects.toThrow(
+      "Missing extension folder",
+    );
+  });
+  test.each([true, false])(
+    "failed enable saves preserve only preexisting runtime state (%s)",
+    async (preexisting) => {
+      const f = await fixture();
+      const catalog = f.create();
+      await catalog.remember(f.extension);
+      await catalog.setEnabled(f.extension.id, false);
+      if (preexisting) {
+        f.loadExternally();
+      }
+      await rm(f.filePath);
+      await mkdir(f.filePath);
+      await expect(catalog.setEnabled(f.extension.id, true)).rejects.toThrow();
+      expect(f.isLoaded()).toBe(preexisting);
+      expect((await catalog.list())[0].enabled).toBe(false);
+      expect(f.unloaded).toEqual(preexisting ? [f.extension.id] : [f.extension.id, f.extension.id]);
+    },
+  );
+
   test("Store-page removals are forgotten without reviving deleted installations", async () => {
     const f = await fixture();
     const catalog = f.create();

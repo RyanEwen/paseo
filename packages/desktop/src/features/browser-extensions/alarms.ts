@@ -150,13 +150,25 @@ export function createExtensionAlarms(options: AlarmOptions) {
     if (!Number.isFinite(nextTime)) {
       return;
     }
-    timer = setTimer(
-      () => {
-        timer = undefined;
-        void serialize(fireDue).catch(options.onError);
-      },
-      Math.max(0, Math.min(2_147_483_647, nextTime - now())),
-    );
+    timer = setTimer(runTimer, Math.max(0, Math.min(2_147_483_647, nextTime - now())));
+  }
+
+  /** Join elapsed timers to the same mutation queue and keep failures recoverable. */
+  async function runTimer(): Promise<void> {
+    timer = undefined;
+    try {
+      await serialize(fireDue);
+    } catch (error) {
+      retryAfterFailure(error);
+    }
+  }
+
+  /** Retry transient persistence failures without spinning on an overdue alarm or stopping all delivery. */
+  function retryAfterFailure(error: unknown): void {
+    if (!disposed && timer === undefined) {
+      timer = setTimer(runTimer, 30_000);
+    }
+    options.onError(error);
   }
 
   /** Coalesce missed repeats into one event and schedule the next period from this wake. */

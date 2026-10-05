@@ -15,18 +15,14 @@ export function createExtensionNotifications(
   emit: (id: string, name: string, ...args: unknown[]) => void,
 ) {
   const notifications = new Map<string, Notification>();
-  return function requestNotification(
-    method: string,
-    args: unknown[],
-    extensionId: string,
-  ): unknown {
+  function requestNotification(method: string, args: unknown[], extensionId: string): unknown {
     const hasId = typeof args[0] === "string";
     const id =
       method === "notifications.create" && !hasId ? randomUUID() : z.string().parse(args[0]);
     const key = `${extensionId}:${id}`;
     if (method === "notifications.clear") {
       const notification = notifications.get(key);
-      notification?.removeAllListeners("close");
+      notification?.removeAllListeners();
       notification?.close();
       notifications.delete(key);
       if (notification) {
@@ -40,7 +36,7 @@ export function createExtensionNotifications(
         throw new Error("Extension notification buttons are not supported on this platform.");
       }
       const notification = new Notification({ title: options.title, body: options.message });
-      notifications.get(key)?.removeAllListeners("close");
+      notifications.get(key)?.removeAllListeners();
       notifications.get(key)?.close();
       notifications.set(key, notification);
       notification.on("click", () => emit(extensionId, "notifications.onClicked", id));
@@ -54,5 +50,19 @@ export function createExtensionNotifications(
       return id;
     }
     throw new Error(`Extension notification API ${method} is not supported.`);
+  }
+
+  return {
+    request: requestNotification,
+    /** Disabled or replaced extensions cannot retain native notifications or their old callbacks. */
+    forgetExtension(extensionId: string): void {
+      for (const [key, notification] of notifications) {
+        if (key.startsWith(`${extensionId}:`)) {
+          notifications.delete(key);
+          notification.removeAllListeners();
+          notification.close();
+        }
+      }
+    },
   };
 }

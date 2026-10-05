@@ -3349,6 +3349,17 @@ async function assertBrowserExtensionCompatibility(
       referencePopup: popup,
     });
     pass("generic extension windows work without tab access and preserve metadata permissions");
+    const { assertExtensionEventSubscriptions } = require("./event-subscription-fixture.js");
+    await assertExtensionEventSubscriptions({
+      profile,
+      root: ROOT,
+      owner,
+      firstGuest,
+      secondGuest,
+      stopWorker: stopCompatibilityWorker,
+      outputDir: OUT_DIR,
+    });
+    pass("extension events wake only subscribed workers and isolate throwing listeners");
     // The first popup message proves the newly registered worker is ready before navigation.
     await popup.webContents.executeJavaScript("chrome.storage.local.set({commits: []})");
     firstGuest.reload();
@@ -3548,6 +3559,7 @@ async function runBrowserProfileGroup() {
       { group: "browser-profile", check: "extension-enable-disable", pass: true },
       { group: "browser-profile", check: "extension-popup", pass: true },
       { group: "browser-profile", check: "extension-compatibility", pass: true },
+      { group: "browser-profile", check: "extension-event-subscriptions", pass: true },
       ...(BROWSER_PROFILE_PHASE === "write"
         ? [
             { group: "browser-profile", check: "extension-worker-websocket-activity", pass: true },
