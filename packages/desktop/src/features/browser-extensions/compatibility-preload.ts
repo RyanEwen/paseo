@@ -24,6 +24,7 @@ interface CompatibilityChrome {
   notifications?: Record<string, unknown>;
   permissions?: Record<string, unknown>;
   windows?: Record<string, unknown>;
+  contextMenus?: Record<string, unknown>;
 }
 declare global {
   var chrome: CompatibilityChrome;
@@ -178,6 +179,92 @@ function installCompatibility(): void {
     create: method("notifications.create"),
     clear: method("notifications.clear"),
   };
+  const contextMenuClicked = event("contextMenus.onClicked");
+  const onclickHandlers = new Map<string | number, (...args: unknown[]) => void>();
+  contextMenuClicked.addListener((info, tab) => {
+    if (
+      typeof info === "object" &&
+      info !== null &&
+      "menuItemId" in info &&
+      (typeof info.menuItemId === "string" || typeof info.menuItemId === "number")
+    ) {
+      onclickHandlers.get(info.menuItemId)?.(info, tab);
+    }
+  });
+  function menuProperties(properties: unknown) {
+    if (typeof properties !== "object" || properties === null) {
+      throw new Error("Context menu properties are required.");
+    }
+    const input = { ...properties };
+    const onclick = "onclick" in input ? input.onclick : undefined;
+    if (onclick !== undefined && typeof onclick !== "function") {
+      throw new Error("Context menu onclick must be a function.");
+    }
+    if (typeof onclick === "function" && typeof window === "undefined") {
+      throw new Error("Service workers must use contextMenus.onClicked instead of onclick.");
+    }
+    if ("onclick" in input) {
+      delete input.onclick;
+    }
+    return { input, onclick };
+  }
+  chrome.contextMenus = {
+    onClicked: contextMenuClicked,
+    create(properties: unknown, callback?: unknown): string | number {
+      const { input, onclick } = menuProperties(properties);
+      const values = new Uint32Array(1);
+      crypto.getRandomValues(values);
+      const id = "id" in input ? input.id : values[0];
+      if (typeof id !== "string" && typeof id !== "number") {
+        throw new Error("A context menu ID must be a string or number.");
+      }
+      if ("id" in input) {
+        delete input.id;
+      }
+      const result = bridge.invoke("contextMenus.create", [id, input]).then(() => {
+        onclickHandlers.delete(id);
+        if (typeof onclick === "function") {
+          onclickHandlers.set(id, (...args) => onclick(...args));
+        }
+        return undefined;
+      });
+      if (typeof callback === "function") {
+        callbackResult(result, callback);
+      } else {
+        void result.catch((error) => console.error("Context menu creation failed", error));
+      }
+      return id;
+    },
+    update(id: unknown, properties: unknown, callback?: unknown) {
+      const { input, onclick } = menuProperties(properties);
+      async function update(): Promise<unknown> {
+        const result = await bridge.invoke("contextMenus.update", [id, input]);
+        if ((typeof id === "string" || typeof id === "number") && typeof onclick === "function") {
+          onclickHandlers.set(id, (...args) => onclick(...args));
+        }
+        return result;
+      }
+      return callbackResult(update(), callback);
+    },
+    remove(id: unknown, callback?: unknown) {
+      async function remove(): Promise<unknown> {
+        const result = await bridge.invoke("contextMenus.remove", [id]);
+        if (typeof id === "string" || typeof id === "number") {
+          onclickHandlers.delete(id);
+        }
+        return result;
+      }
+      return callbackResult(remove(), callback);
+    },
+    removeAll(callback?: unknown) {
+      async function removeAll(): Promise<unknown> {
+        const result = await bridge.invoke("contextMenus.removeAll", []);
+        onclickHandlers.clear();
+        return result;
+      }
+      return callbackResult(removeAll(), callback);
+    },
+  };
   chrome.permissions = {
     onAdded: event("permissions.onAdded"),
     onRemoved: event("permissions.onRemoved"),
@@ -197,5 +284,6 @@ function installCompatibility(): void {
   chrome.tabs.getCurrent = method("tabs.getCurrent");
   if (chrome.runtime.getManifest().permissions?.includes("tabs")) {
     chrome.tabs.query = method("tabs.query");
+    chrome.tabs.get = method("tabs.get");
   }
 }

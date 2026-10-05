@@ -99,6 +99,7 @@ import {
 import { runDesktopStartup } from "./desktop-startup.js";
 import { registerBrowserAutomationIpc } from "./features/browser-automation/ipc.js";
 import { registerBrowserExtensions } from "./features/browser-extensions/index.js";
+import { buildBrowserExtensionContextMenuItems } from "./features/browser-extensions/context-menus.js";
 import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
 import { installAppUpdateOnQuit } from "./features/auto-updater.js";
 import {
@@ -192,8 +193,17 @@ function showBrowserWebviewContextMenu(
   contents: Electron.WebContents,
   params: Electron.ContextMenuParams,
 ): void {
+  const items = buildStandardContextMenuItems(contents, params);
+  const extensionItems = buildBrowserExtensionContextMenuItems(contents, params);
+  if (extensionItems.length > 0) {
+    if (items.length > 0) {
+      items.push({ type: "separator" });
+    }
+    items.push(...extensionItems);
+  }
+
   const menu = Menu.buildFromTemplate([
-    ...buildStandardContextMenuItems(contents, params),
+    ...items,
     ...(app.isPackaged
       ? []
       : [

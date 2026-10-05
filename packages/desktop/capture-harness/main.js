@@ -2802,6 +2802,95 @@ async function assertBrowserExtensionWindowEvents({ owner, profile, runtime, gue
   }
 }
 
+/** Exercise the actual browser right-click parameters and wake an idle worker for a native menu action. */
+async function assertBrowserExtensionContextMenus({ owner, profile, runtime, guest, extension }) {
+  const { openBrowserExtensionPopup } = require("../dist/features/browser-extensions/actions.js");
+  const {
+    buildBrowserExtensionContextMenuItems,
+  } = require("../dist/features/browser-extensions/context-menus.js");
+  let popup;
+  guest.debugger.attach("1.3");
+  try {
+    popup = await openBrowserExtensionPopup({
+      owner,
+      profile,
+      extension,
+      show: false,
+      onCreated: (window) => runtime.registerPopup(window.webContents, guest),
+    });
+    const registration = await popup.webContents.executeJavaScript(
+      'chrome.runtime.sendMessage({type: "paseo-context-menu-register"})',
+    );
+    if (
+      registration.error ||
+      registration.id !== "fixture-context-menu" ||
+      !registration.synchronousId
+    ) {
+      fail(
+        `context menu registration did not preserve Chrome create semantics: ${JSON.stringify(registration)}`,
+      );
+    }
+    const requested = new Promise((resolve) =>
+      guest.once("context-menu", (_event, params) => resolve(params)),
+    );
+    guest.sendInputEvent({ type: "mouseDown", button: "right", x: 20, y: 20, clickCount: 1 });
+    guest.sendInputEvent({ type: "mouseUp", button: "right", x: 20, y: 20, clickCount: 1 });
+    const params = await withTimeout(
+      requested,
+      "native browser context menu",
+      BROWSER_PROFILE_TIMEOUT_MS,
+    );
+    const items = buildBrowserExtensionContextMenuItems(guest, params);
+    if (items.length !== 1 || items[0].label !== "Fixture browser action") {
+      fail("the real browser right-click menu did not include the registered extension action");
+    }
+    const menu = Menu.buildFromTemplate(items);
+    await stopCompatibilityWorker(guest, profile, extension.id);
+    menu.items[0].click(menu.items[0], owner, { triggeredByAccelerator: false });
+    const deadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
+    let delivered = false;
+    while (Date.now() < deadline) {
+      const { contextMenuClick } = await popup.webContents.executeJavaScript(
+        'chrome.storage.local.get("contextMenuClick")',
+      );
+      if (contextMenuClick) {
+        if (
+          contextMenuClick.info.menuItemId !== "fixture-context-menu" ||
+          contextMenuClick.info.frameId !== 0 ||
+          contextMenuClick.info.pageUrl !== guest.getURL() ||
+          contextMenuClick.tab.id !== guest.id ||
+          contextMenuClick.tab.windowId !== owner.id
+        ) {
+          fail(
+            "native context menu click delivered the wrong extension, frame or browser tab identity",
+          );
+        }
+        delivered = true;
+        break;
+      }
+      await delay(20);
+    }
+    if (!delivered) {
+      fail("native context menu click did not wake and reach its extension worker");
+    }
+    pass(
+      "real browser context menu includes extension actions and wakes an idle worker for onClicked",
+    );
+  } finally {
+    guest.debugger.detach();
+    if (popup) {
+      await closeHarnessWindow(popup);
+    }
+  }
+}
+
+/** Native tabs.get and query must describe the same actual selected app-owned browser. */
+function assertBrowserTabIdentity(tab, guest, owner) {
+  if (tab.id !== guest.id || tab.windowId !== owner.id || !tab.active) {
+    fail("extension tabs.get did not share the selected browser's actual window identity");
+  }
+}
+
 /** Verify selected-tab ownership and native content-script messaging through the MV3 worker. */
 async function assertBrowserExtensionCompatibility(
   owner,
@@ -2865,6 +2954,7 @@ async function assertBrowserExtensionCompatibility(
     if (result.error || result.tabs.length !== 1 || result.tabs[0].id !== firstGuest.id) {
       fail(`extension worker selected the wrong browser tab: ${JSON.stringify(result)}`);
     }
+    assertBrowserTabIdentity(result.tab, firstGuest, owner);
     if (state.currentTab !== undefined || state.window.id !== owner.id) {
       fail("extension popup window ownership did not match Chrome popup semantics");
     }
@@ -2908,6 +2998,13 @@ async function assertBrowserExtensionCompatibility(
       previousDocumentId: result.frame.documentId,
     });
     await assertBrowserExtensionWindowEvents({
+      owner,
+      profile,
+      runtime,
+      guest: firstGuest,
+      extension,
+    });
+    await assertBrowserExtensionContextMenus({
       owner,
       profile,
       runtime,

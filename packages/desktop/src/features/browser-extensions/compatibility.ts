@@ -3,6 +3,8 @@ import { createExtensionWindows } from "./windows.js";
 import { createExtensionEventDelivery } from "./events.js";
 import {
   BrowserWindow,
+  app,
+  dialog,
   ipcMain,
   webContents,
   type Session,
@@ -13,6 +15,10 @@ import { z } from "zod";
 import { matchesExtensionUrl, coversExtensionOrigin } from "./host-patterns.js";
 import { registerExtensionNavigation } from "./navigation.js";
 import { describeExtensionFrame } from "./frames.js";
+import {
+  createExtensionContextMenus,
+  registerBrowserExtensionContextMenus,
+} from "./context-menus.js";
 import { createExtensionNotifications } from "./notifications.js";
 import {
   getActivePaseoBrowserWebContentsForHostWindow,
@@ -53,9 +59,29 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
       }
       return ready;
     },
+    onError({ name, error }) {
+      if (name === "contextMenus.onClicked") {
+        showContextMenuError(error);
+      }
+    },
   });
   const requestNotification = createExtensionNotifications(deliverEvent);
   const registry = getPaseoBrowserWebviewRegistry();
+  const contextMenus = createExtensionContextMenus({
+    storagePath: path.join(app.getPath("userData"), "browser-extension-context-menus.json"),
+    getExtension: (id) => profile.extensions.getExtension(id),
+    emit: deliverEvent,
+    onError: showContextMenuError,
+  });
+  registerBrowserExtensionContextMenus(profile, contextMenus, (contents) =>
+    registry.getRegistrationForWebContents(contents.id) ? tab(contents) : null,
+  );
+
+  /** A requested native menu action needs a visible failure even when worker wakeup fails. */
+  function showContextMenuError(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    dialog.showErrorBox("Extension action failed", message);
+  }
 
   function extensionForUrl(url: string) {
     const parsed = new URL(url);
@@ -141,30 +167,28 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     emit: deliverEvent,
   });
 
-  async function request(url: string, senderId: number | null, input: unknown): Promise<unknown> {
-    const extension = extensionForUrl(url);
-    const manifest = ManifestSchema.parse(extension.manifest);
-    const { method, args } = RequestSchema.parse(input);
-    if (method === "permissions.contains") {
-      const requested = PermissionSchema.parse(args[0]);
-      return (
-        requested.permissions.every((permission) => manifest.permissions.includes(permission)) &&
-        requested.origins.every((origin) =>
-          manifest.host_permissions.some((grant) => coversExtensionOrigin(grant, origin)),
-        )
-      );
-    }
-    if (method === "permissions.request") {
-      // Optional permissions cannot be granted until Paseo owns a consent and persistence flow.
-      throw new Error("Optional extension permissions are not supported in Paseo.");
-    }
+  /** Keep tab lookups and queries on the same guest/window projection, rather than Chromium's partial window metadata. */
+  function requestTab(
+    method: string,
+    args: unknown[],
+    senderId: number | null,
+    permissions: string[],
+  ): unknown {
     if (method === "tabs.getCurrent") {
       return undefined;
     }
-    if (method === "tabs.query") {
-      if (!manifest.permissions.includes("tabs")) {
-        throw new Error("The tabs permission is required.");
+    if (!permissions.includes("tabs")) {
+      throw new Error("The tabs permission is required.");
+    }
+    if (method === "tabs.get") {
+      const id = z.number().int().positive().parse(args[0]);
+      const contents = tabs().find((candidate) => candidate.id === id);
+      if (!contents) {
+        throw new Error("Unknown browser tab.");
       }
+      return tab(contents);
+    }
+    if (method === "tabs.query") {
       const query = QuerySchema.parse(args[0]);
       const owner = ownerWindow(senderId);
       let urls: string[] = [];
@@ -184,6 +208,29 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
               item.windowId === (query.windowId === -2 ? owner?.id : query.windowId)) &&
             (urls.length === 0 || urls.some((pattern) => matchesExtensionUrl(pattern, item.url))),
         );
+    }
+    throw new Error(`Extension API ${method} is not supported in Paseo.`);
+  }
+
+  async function request(url: string, senderId: number | null, input: unknown): Promise<unknown> {
+    const extension = extensionForUrl(url);
+    const manifest = ManifestSchema.parse(extension.manifest);
+    const { method, args } = RequestSchema.parse(input);
+    if (method === "permissions.contains") {
+      const requested = PermissionSchema.parse(args[0]);
+      return (
+        requested.permissions.every((permission) => manifest.permissions.includes(permission)) &&
+        requested.origins.every((origin) =>
+          manifest.host_permissions.some((grant) => coversExtensionOrigin(grant, origin)),
+        )
+      );
+    }
+    if (method === "permissions.request") {
+      // Optional permissions cannot be granted until Paseo owns a consent and persistence flow.
+      throw new Error("Optional extension permissions are not supported in Paseo.");
+    }
+    if (method.startsWith("tabs.")) {
+      return requestTab(method, args, senderId, manifest.permissions);
     }
     if (method === "webNavigation.getFrame" || method === "webNavigation.getAllFrames") {
       if (!manifest.permissions.includes("webNavigation")) {
@@ -215,6 +262,9 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
         throw new Error("The notifications permission is required.");
       }
       return requestNotification(method, args, extension.id);
+    }
+    if (method.startsWith("contextMenus.")) {
+      return contextMenus.request(extension.id, method, args);
     }
     throw new Error(`Extension API ${method} is not supported in Paseo.`);
   }
@@ -259,6 +309,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
   profile.registerPreloadScript({ type: "frame", filePath: preload });
   profile.registerPreloadScript({ type: "service-worker", filePath: preload });
   return {
+    forgetExtensionContextMenus: contextMenus.forgetExtension,
     /** Associate popup API calls with the app window that owns the selected browser guest. */
     registerPopup(popup: WebContents, guest: WebContents): void {
       const registration = registry.getRegistrationForWebContents(guest.id);

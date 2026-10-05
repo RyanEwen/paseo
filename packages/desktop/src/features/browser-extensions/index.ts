@@ -131,9 +131,11 @@ export async function registerBrowserExtensions(): Promise<void> {
     const { id, enabled } = EnableInputSchema.parse(input);
     return catalog.setEnabled(id, enabled);
   });
-  ipcMain.handle("paseo:browser:extensions:remove", (event, id: unknown) => {
+  ipcMain.handle("paseo:browser:extensions:remove", async (event, input: unknown) => {
     assertAppSender(event);
-    return catalog.remove(ExtensionIdSchema.parse(id));
+    const id = ExtensionIdSchema.parse(input);
+    await catalog.remove(id);
+    await compatibility.forgetExtensionContextMenus(id);
   });
   ipcMain.handle("paseo:browser:extensions:load-unpacked", async (event) => {
     const owner = assertAppSender(event);

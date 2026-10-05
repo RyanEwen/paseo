@@ -6,7 +6,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { Puzzle } from "lucide-react-native";
+import { BrowserExtensionsIcon } from "@/components/icons/browser-extensions-icon";
 import { withUnistyles } from "react-native-unistyles";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-const ThemedPuzzle = withUnistyles(Puzzle);
+const ThemedPuzzle = withUnistyles(BrowserExtensionsIcon);
 const mutedIcon = (theme: { colors: { foregroundMuted: string } }) => ({
   color: theme.colors.foregroundMuted,
 });

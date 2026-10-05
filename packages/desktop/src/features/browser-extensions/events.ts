@@ -10,6 +10,13 @@ interface ExtensionEventDeliveryOptions {
   profile: Session;
   emit(id: string, name: string, ...args: unknown[]): void;
   waitForWorkerReady(versionId: number): Promise<boolean>;
+  onError?(failure: ExtensionEventDeliveryFailure): void;
+}
+
+interface ExtensionEventDeliveryFailure {
+  id: string;
+  name: string;
+  error: unknown;
 }
 
 /** Serialize browser events per extension and wake idle MV3 workers before delivering to their listeners. */
@@ -39,7 +46,9 @@ export function createExtensionEventDelivery(options: ExtensionEventDeliveryOpti
             worker = await options.profile.serviceWorkers.startWorkerForScope(scope);
           }
           if (!(await options.waitForWorkerReady(worker.versionId))) {
-            return;
+            throw new Error(
+              "The extension worker stopped before it could handle the browser event.",
+            );
           }
         }
         if (options.profile.extensions.getExtension(id)) {
@@ -47,6 +56,7 @@ export function createExtensionEventDelivery(options: ExtensionEventDeliveryOpti
         }
       } catch (error) {
         log.error(`Extension event ${name} delivery failed for ${id}`, error);
+        options.onError?.({ id, name, error });
       }
     }
 
