@@ -1,4 +1,6 @@
 import path from "node:path";
+import { createExtensionWindows } from "./windows.js";
+import { createExtensionEventDelivery } from "./events.js";
 import {
   BrowserWindow,
   ipcMain,
@@ -16,12 +18,6 @@ import {
   getActivePaseoBrowserWebContentsForHostWindow,
   getPaseoBrowserWebviewRegistry,
 } from "../browser-webviews/index.js";
-
-interface WindowRequest {
-  method: string;
-  args: unknown[];
-  owner: BrowserWindow | null;
-}
 
 const CHANNEL = "paseo:extension-compatibility";
 const EVENTS = `${CHANNEL}:event`;
@@ -47,7 +43,18 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
   const readyWorkers = new Map<number, Promise<boolean>>();
   const trackedWorkers = new Map<number, ServiceWorkerMain>();
   const workerReadinessResolvers = new Map<number, (ready: boolean) => void>();
-  const requestNotification = createExtensionNotifications(emit);
+  const deliverEvent = createExtensionEventDelivery({
+    profile,
+    emit,
+    async waitForWorkerReady(versionId) {
+      const ready = readyWorkers.get(versionId);
+      if (!ready) {
+        throw new Error("Extension worker has not started.");
+      }
+      return ready;
+    },
+  });
+  const requestNotification = createExtensionNotifications(deliverEvent);
   const registry = getPaseoBrowserWebviewRegistry();
 
   function extensionForUrl(url: string) {
@@ -124,51 +131,15 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     return contents ? BrowserWindow.fromWebContents(contents) : null;
   }
 
-  function requestWindow(input: WindowRequest): unknown {
-    const { method, args, owner } = input;
-    function describe(window: BrowserWindow) {
-      const bounds = window.getBounds();
-      let state = "normal";
-      if (window.isMaximized()) {
-        state = "maximized";
-      }
-      if (window.isMinimized()) {
-        state = "minimized";
-      }
-      return {
-        id: window.id,
-        focused: window.isFocused(),
-        incognito: false,
-        type: "normal",
-        state,
-        ...bounds,
-        tabs: tabs()
-          .map(tab)
-          .filter((item) => item.windowId === window.id),
-      };
-    }
-    if (method === "windows.getAll") {
-      return BrowserWindow.getAllWindows()
-        .filter((window) => tabs().some((contents) => tab(contents).windowId === window.id))
-        .map(describe);
-    }
-    if (method === "windows.getCurrent") {
-      const window = owner;
-      if (!window) {
-        throw new Error("No browser window is active.");
-      }
-      return describe(window);
-    }
-    if (method === "windows.get") {
-      const id = z.number().parse(args[0]);
-      const window = id === -2 ? owner : BrowserWindow.fromId(id);
-      if (!window || !tabs().some((contents) => tab(contents).windowId === window.id)) {
-        throw new Error("Unknown browser window.");
-      }
-      return describe(window);
-    }
-    throw new Error(`Extension window API ${method} is not supported.`);
-  }
+  const windows = createExtensionWindows({
+    profile,
+    getTabs: (windowId) =>
+      tabs()
+        .map(tab)
+        .filter((item) => item.windowId === windowId),
+    resolveOwner: (window) => ownerWindow(window.webContents.id),
+    emit: deliverEvent,
+  });
 
   async function request(url: string, senderId: number | null, input: unknown): Promise<unknown> {
     const extension = extensionForUrl(url);
@@ -237,7 +208,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
       if (!manifest.permissions.includes("tabs")) {
         throw new Error("The tabs permission is required.");
       }
-      return requestWindow({ method, args, owner: ownerWindow(senderId) });
+      return windows.request({ method, args, owner: ownerWindow(senderId) });
     }
     if (method.startsWith("notifications.")) {
       if (!manifest.permissions.includes("notifications")) {
@@ -282,13 +253,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     worker.ipc.handle(CHANNEL, (_event, input: unknown) => request(worker.scriptURL, null, input));
   });
 
-  registerExtensionNavigation(profile, emit, async (versionId) => {
-    const ready = readyWorkers.get(versionId);
-    if (!ready) {
-      throw new Error("Extension worker has not started.");
-    }
-    return ready;
-  });
+  registerExtensionNavigation(profile, deliverEvent);
 
   const preload = path.join(__dirname, "compatibility-preload.js");
   profile.registerPreloadScript({ type: "frame", filePath: preload });

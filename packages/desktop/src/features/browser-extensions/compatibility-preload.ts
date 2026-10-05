@@ -185,6 +185,9 @@ function installCompatibility(): void {
     request: method("permissions.request"),
   };
   chrome.windows = {
+    onCreated: event("windows.onCreated"),
+    onRemoved: event("windows.onRemoved"),
+    onFocusChanged: event("windows.onFocusChanged"),
     WINDOW_ID_CURRENT: -2,
     WINDOW_ID_NONE: -1,
     getCurrent: method("windows.getCurrent"),

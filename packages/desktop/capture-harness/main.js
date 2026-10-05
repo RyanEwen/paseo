@@ -2749,6 +2749,59 @@ async function assertBrowserExtensionWorkerWake({
   }
 }
 
+/** Window creation must wake an idle extension worker and deliver real create/close identities. */
+async function assertBrowserExtensionWindowEvents({ owner, profile, runtime, guest, extension }) {
+  const { openBrowserExtensionPopup } = require("../dist/features/browser-extensions/actions.js");
+  let popup;
+  let created;
+  guest.debugger.attach("1.3");
+  try {
+    await stopCompatibilityWorker(guest, profile, extension.id);
+    created = new BrowserWindow({
+      show: false,
+      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    const createdId = created.id;
+    popup = await openBrowserExtensionPopup({
+      owner,
+      profile,
+      extension,
+      show: false,
+      onCreated: (window) => runtime.registerPopup(window.webContents, guest),
+    });
+    async function waitForEvent(name) {
+      const deadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        const { windowEvents = [] } = await popup.webContents.executeJavaScript(
+          'chrome.storage.local.get("windowEvents")',
+        );
+        const found = windowEvents.some(
+          (event) =>
+            event.name === name && (event.detail?.id === createdId || event.detail === createdId),
+        );
+        if (found) {
+          return;
+        }
+        await delay(20);
+      }
+      fail(`extension worker lost native window event ${name}`);
+    }
+    await waitForEvent("onCreated");
+    await closeHarnessWindow(created);
+    created = null;
+    await waitForEvent("onRemoved");
+    pass("sleeping extension worker wakes for real window creation and receives window removal");
+  } finally {
+    guest.debugger.detach();
+    if (popup) {
+      await closeHarnessWindow(popup);
+    }
+    if (created) {
+      await closeHarnessWindow(created);
+    }
+  }
+}
+
 /** Verify selected-tab ownership and native content-script messaging through the MV3 worker. */
 async function assertBrowserExtensionCompatibility(
   owner,
@@ -2853,6 +2906,13 @@ async function assertBrowserExtensionCompatibility(
       guest: firstGuest,
       extension,
       previousDocumentId: result.frame.documentId,
+    });
+    await assertBrowserExtensionWindowEvents({
+      owner,
+      profile,
+      runtime,
+      guest: firstGuest,
+      extension,
     });
   } finally {
     if (popup) {
