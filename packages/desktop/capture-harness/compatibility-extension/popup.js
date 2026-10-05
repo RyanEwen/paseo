@@ -1,3 +1,6 @@
+if (window.parent !== window) {
+  window.privatePopupExecuted = true;
+}
 window.paseoCompatibilityResult = (async () => {
   const currentTab = await chrome.tabs.getCurrent();
   const window = await chrome.windows.getCurrent({ populate: true });

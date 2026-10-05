@@ -23,6 +23,7 @@ import { createExtensionNotifications } from "./notifications.js";
 import {
   getActivePaseoBrowserWebContentsForHostWindow,
   getPaseoBrowserWebviewRegistry,
+  isPreparedPaseoBrowserWebContents,
 } from "../browser-webviews/index.js";
 
 const CHANNEL = "paseo:extension-compatibility";
@@ -168,12 +169,12 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
   });
 
   /** Keep tab lookups and queries on the same guest/window projection, rather than Chromium's partial window metadata. */
-  function requestTab(
+  async function requestTab(
     method: string,
     args: unknown[],
     senderId: number | null,
     permissions: string[],
-  ): unknown {
+  ): Promise<unknown> {
     if (method === "tabs.getCurrent") {
       return undefined;
     }
@@ -182,9 +183,16 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     }
     if (method === "tabs.get") {
       const id = z.number().int().positive().parse(args[0]);
-      const contents = tabs().find((candidate) => candidate.id === id);
-      if (!contents) {
+      const contents = webContents.fromId(id);
+      const registered = registry.getRegistrationForWebContents(id);
+      const acceptedGuest = contents && (registered || isPreparedPaseoBrowserWebContents(contents));
+      if (!contents || contents.session !== profile || !acceptedGuest) {
         throw new Error("Unknown browser tab.");
+      }
+      // Document-start content scripts can ask before the renderer's dom-ready identity reaches main.
+      const registration = await registry.waitForRegistration(contents.id);
+      if (!registration || contents.isDestroyed()) {
+        throw new Error("The browser tab closed before it became available.");
       }
       return tab(contents);
     }

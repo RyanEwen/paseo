@@ -239,6 +239,8 @@ export function createExtensionContextMenus(options: ContextMenuOptions) {
           },
         };
         if (children.length > 0) {
+          // Electron does not infer submenu type when a normal row type is already specified.
+          menu.type = "submenu";
           menu.submenu = children;
         }
         return menu;

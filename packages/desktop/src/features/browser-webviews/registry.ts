@@ -9,6 +9,10 @@ export interface BrowserWebContentsRegistration {
 }
 
 export class PaseoBrowserWebviewRegistry {
+  private readonly pendingRegistrations = new Map<
+    number,
+    Set<(registration: BrowserWebContentsRegistration | null) => void>
+  >();
   private readonly registrationsByWebContentsId = new Map<number, BrowserWebContentsRegistration>();
   private readonly webContentsIdsByHostAndBrowserId = new Map<string, number>();
   private readonly workspaceIdsByBrowserId = new Map<string, string>();
@@ -41,9 +45,38 @@ export class PaseoBrowserWebviewRegistry {
       hostWebContentsId: input.hostWebContentsId,
     });
     this.webContentsIdsByHostAndBrowserId.set(hostBrowserKey, input.webContentsId);
+    this.resolvePendingRegistration(
+      input.webContentsId,
+      this.getRegistrationForWebContents(input.webContentsId),
+    );
+  }
+
+  /** Wait for the actual renderer identity; cancellation resolves null when a guest disappears. */
+  public waitForRegistration(
+    webContentsId: number,
+  ): Promise<BrowserWebContentsRegistration | null> {
+    const registration = this.getRegistrationForWebContents(webContentsId);
+    if (registration) {
+      return Promise.resolve(registration);
+    }
+    return new Promise((resolve) => {
+      const callbacks = this.pendingRegistrations.get(webContentsId) ?? new Set();
+      callbacks.add(resolve);
+      this.pendingRegistrations.set(webContentsId, callbacks);
+    });
+  }
+
+  private resolvePendingRegistration(
+    webContentsId: number,
+    registration: BrowserWebContentsRegistration | null,
+  ): void {
+    const callbacks = this.pendingRegistrations.get(webContentsId);
+    this.pendingRegistrations.delete(webContentsId);
+    callbacks?.forEach((resolve) => resolve(registration));
   }
 
   public unregisterWebContents(webContentsId: number): void {
+    this.resolvePendingRegistration(webContentsId, null);
     if (!this.registrationsByWebContentsId.has(webContentsId)) {
       return;
     }

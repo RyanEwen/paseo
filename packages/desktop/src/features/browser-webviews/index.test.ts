@@ -5,6 +5,7 @@ import {
   getPaseoBrowserWorkspaceId,
   isPaseoBrowserWebviewAttach,
   preparePaseoBrowserWebContents,
+  isPreparedPaseoBrowserWebContents,
   registerAttachedPaseoBrowser,
   unregisterPaseoBrowser,
   unregisterPaseoBrowserFromHost,
@@ -44,6 +45,14 @@ class FakeBrowserGuest {
 }
 
 describe("browser webview attachment", () => {
+  test("tracks accepted guest preparation only until its actual destruction", () => {
+    const guest = new FakeBrowserGuest(9901, new FakeRenderer(9900), {});
+    expect(isPreparedPaseoBrowserWebContents(guest)).toBe(false);
+    preparePaseoBrowserWebContents(guest);
+    expect(isPreparedPaseoBrowserWebContents(guest)).toBe(true);
+    guest.destroy();
+    expect(isPreparedPaseoBrowserWebContents(guest)).toBe(false);
+  });
   test("accepts only allowed URLs on the shared profile partition", () => {
     expect(
       isPaseoBrowserWebviewAttach({
