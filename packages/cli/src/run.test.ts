@@ -17,6 +17,8 @@ async function runCliWithClosedStdout(
   const script = `
     const { runCli } = await import(${JSON.stringify(runModuleUrl)});
     process.exitCode = await runCli(${JSON.stringify(argv)});
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    process.stderr.write("still running\\n");
   `;
   const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
     cwd: path.dirname(fileURLToPath(import.meta.url)),
@@ -99,13 +101,13 @@ describe("runCli", () => {
     ).toEqual(["node", "paseo", "hooks", "claude", "UserPromptSubmit"]);
   });
 
-  it("exits quietly when stdout is closed before the command writes its output", async () => {
+  it("finishes the command quietly when stdout is closed before it writes its output", async () => {
     const home = mkdtempSync(path.join(tmpdir(), "paseo-cli-closed-stdout-"));
 
     try {
       const result = await runCliWithClosedStdout(["daemon", "status", "--json", "--home", home]);
 
-      expect(result.stderr).not.toContain("EPIPE");
+      expect(result.stderr).toBe("still running\n");
       expect(result.code).toBe(0);
     } finally {
       rmSync(home, { recursive: true, force: true });

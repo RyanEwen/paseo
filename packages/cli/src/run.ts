@@ -38,17 +38,17 @@ export function createCliParseArgv(input: {
 
 // The program that started the CLI can close its end of stdout before the output
 // is written, as `paseo ls | head -1` or a launcher that discards output does.
-// Nobody is left to read, so exit instead of surfacing an uncaught write error.
-function exitWhenStdoutReaderIsGone(error: NodeJS.ErrnoException): void {
+// Drop the output nobody reads and let the command finish, instead of surfacing
+// the failed write as an uncaught error.
+function ignoreClosedStdout(error: NodeJS.ErrnoException): void {
   if (error.code !== "EPIPE") {
     throw error;
   }
-  process.exit(0);
 }
 
 export async function runCli(argv: string[], options: RunCliOptions = {}): Promise<number> {
-  if (!process.stdout.listeners("error").includes(exitWhenStdoutReaderIsGone)) {
-    process.stdout.on("error", exitWhenStdoutReaderIsGone);
+  if (!process.stdout.listeners("error").includes(ignoreClosedStdout)) {
+    process.stdout.on("error", ignoreClosedStdout);
   }
 
   const parseArgv = createCliParseArgv({
