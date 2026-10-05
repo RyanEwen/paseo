@@ -82,6 +82,26 @@ export function isAllowedBrowserWebviewUrl(value: string | undefined): boolean {
   }
 }
 
+/** Let Chromium check extension resource permissions in browser subframes, while keeping top-level URLs restricted. */
+export function isAllowedBrowserFrameNavigation(input: {
+  url: string | undefined;
+  isMainFrame: boolean;
+  isBrowserProfile: boolean;
+}): boolean {
+  if (isAllowedBrowserWebviewUrl(input.url)) {
+    return true;
+  }
+  if (input.isMainFrame || !input.isBrowserProfile || !input.url) {
+    return false;
+  }
+
+  try {
+    return new URL(input.url).protocol === "chrome-extension:";
+  } catch {
+    return false;
+  }
+}
+
 export function decideBrowserWindowOpenRequest(input: {
   url: string;
   disposition: BrowserWindowOpenDisposition;

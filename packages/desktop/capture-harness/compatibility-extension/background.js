@@ -25,22 +25,49 @@ chrome.webNavigation.onCommitted.addListener((detail) => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   void chrome.storage.local.set({ contextMenuClick: { info, tab } });
 });
-chrome.runtime.onMessage.addListener((message, _sender, reply) => {
+/** Await Chrome's callback while retaining create's synchronous ID for the native submenu assertion. */
+function createFixtureContextMenu(properties) {
+  return new Promise((resolve, reject) => {
+    const id = chrome.contextMenus.create(properties, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve({ id, synchronousId: typeof id === "string" });
+      }
+    });
+  });
+}
+chrome.runtime.onMessage.addListener((message, sender, reply) => {
+  if (message.type === "paseo-document-start-tab") {
+    void (async () => {
+      const key = `earlyTab:${sender.tab.id}`;
+      await chrome.storage.local.set({ [key]: { started: true } });
+      const tab = await chrome.tabs.get(sender.tab.id);
+      await chrome.storage.local.set({ [key]: { started: true, tab } });
+      return tab;
+    })().then(reply, (error) => reply({ error: String(error) }));
+    return true;
+  }
   if (message.type === "paseo-context-menu-register") {
     void (async () => {
       await chrome.contextMenus.removeAll();
       await chrome.storage.local.remove("contextMenuClick");
-      return new Promise((resolve, reject) => {
-        const id = chrome.contextMenus.create(
-          { id: "fixture-context-menu", title: "Fixture browser action", contexts: ["page"] },
-          () => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-            } else {
-              resolve({ id, synchronousId: typeof id === "string" });
-            }
-          },
-        );
+      await createFixtureContextMenu({
+        id: "fixture-parent",
+        title: "Fixture parent",
+        contexts: ["page"],
+      });
+      await createFixtureContextMenu({
+        id: "fixture-branch",
+        title: "Fixture branch",
+        parentId: "fixture-parent",
+        contexts: ["page"],
+      });
+      return createFixtureContextMenu({
+        id: "fixture-context-menu",
+        title: "Fixture browser action",
+        parentId: "fixture-branch",
+        contexts: ["page"],
       });
     })().then(reply, (error) => reply({ error: String(error) }));
     return true;

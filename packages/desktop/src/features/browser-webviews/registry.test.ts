@@ -2,6 +2,35 @@ import { describe, expect, it } from "vitest";
 import { PaseoBrowserWebviewRegistry } from "./registry.js";
 
 describe("PaseoBrowserWebviewRegistry", () => {
+  it("resolves early API lookups only after the actual guest identity registers", async () => {
+    const registry = new PaseoBrowserWebviewRegistry();
+    let resolved = false;
+    const waiting = registry.waitForRegistration(123).then((registration) => {
+      resolved = true;
+      return registration;
+    });
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+    registry.registerWebContents({
+      webContentsId: 123,
+      browserId: "browser-early",
+      hostWebContentsId: 17,
+    });
+    await expect(waiting).resolves.toEqual({ browserId: "browser-early", hostWebContentsId: 17 });
+    await expect(registry.waitForRegistration(123)).resolves.toEqual({
+      browserId: "browser-early",
+      hostWebContentsId: 17,
+    });
+  });
+
+  it("cancels waiting API lookups when an unregistered guest is destroyed", async () => {
+    const registry = new PaseoBrowserWebviewRegistry();
+    const first = registry.waitForRegistration(123);
+    const second = registry.waitForRegistration(123);
+    registry.unregisterWebContents(123);
+    await expect(first).resolves.toBeNull();
+    await expect(second).resolves.toBeNull();
+  });
   it("keeps one authoritative webContents target per host and browser", () => {
     const registry = new PaseoBrowserWebviewRegistry();
 

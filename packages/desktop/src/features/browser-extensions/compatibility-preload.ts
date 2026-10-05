@@ -39,14 +39,17 @@ const isExtension = contextBridge.executeInMainWorld({
   func: () => Boolean(globalThis.chrome?.runtime?.id),
 });
 if (isExtension) {
+  const eventListeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  // One native subscription handles all namespaces, so extensions can register many API events without listener warnings.
+  ipcRenderer.on(`${CHANNEL}:event`, (_event, eventName: string, args: unknown[]) => {
+    eventListeners.get(eventName)?.forEach((callback) => callback(...args));
+  });
   contextBridge.exposeInMainWorld("paseoExtensionCompatibility", {
     invoke: (method: string, args: unknown[]) => ipcRenderer.invoke(CHANNEL, { method, args }),
     listen(name: string, callback: (...args: unknown[]) => void) {
-      ipcRenderer.on(`${CHANNEL}:event`, (_event, eventName: string, args: unknown[]) => {
-        if (eventName === name) {
-          callback(...args);
-        }
-      });
+      const listeners = eventListeners.get(name) ?? new Set();
+      listeners.add(callback);
+      eventListeners.set(name, listeners);
     },
   });
   contextBridge.executeInMainWorld({ func: installCompatibility });

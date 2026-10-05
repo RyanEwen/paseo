@@ -75,6 +75,7 @@ describe("extension context menus", () => {
     });
     expect(items[0].label).toBe("Fixture");
     const root = children(items[0])[0];
+    expect(root.type).toBe("submenu");
     expect(children(root)[0].label).toBe("Search fixture text");
     select(children(root)[0]);
     expect(emit).toHaveBeenCalledWith(

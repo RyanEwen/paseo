@@ -2493,6 +2493,10 @@ async function createBrowserProfileHarnessWindow(partition, sourceUrl) {
   });
   const { win } = handle;
   installHarnessWebviewGuards(win);
+  const { preparePaseoBrowserWebContents } = require("../dist/features/browser-webviews/index.js");
+  win.webContents.on("did-attach-webview", (_event, guest) =>
+    preparePaseoBrowserWebContents(guest),
+  );
   const tracker = trackAttachedGuests(win);
   const guestsPromise = tracker.waitForAttachedGuests(2);
   await withTimeout(
@@ -2803,6 +2807,21 @@ async function assertBrowserExtensionWindowEvents({ owner, profile, runtime, gue
 }
 
 /** Exercise the actual browser right-click parameters and wake an idle worker for a native menu action. */
+function findNativeFixtureContextAction(menu) {
+  const parent = menu.items[0];
+  const branch = parent.submenu?.items[0];
+  const action = branch?.submenu?.items[0];
+  if (
+    parent.type !== "submenu" ||
+    branch?.type !== "submenu" ||
+    action?.label !== "Fixture browser action"
+  ) {
+    fail("extension menu parents did not become native submenus at each tree level");
+  }
+  return action;
+}
+
+/** Exercise the actual browser right-click parameters and wake an idle worker for a native menu action. */
 async function assertBrowserExtensionContextMenus({ owner, profile, runtime, guest, extension }) {
   const { openBrowserExtensionPopup } = require("../dist/features/browser-extensions/actions.js");
   const {
@@ -2841,12 +2860,13 @@ async function assertBrowserExtensionContextMenus({ owner, profile, runtime, gue
       BROWSER_PROFILE_TIMEOUT_MS,
     );
     const items = buildBrowserExtensionContextMenuItems(guest, params);
-    if (items.length !== 1 || items[0].label !== "Fixture browser action") {
+    if (items.length !== 1 || items[0].label !== "Fixture parent") {
       fail("the real browser right-click menu did not include the registered extension action");
     }
     const menu = Menu.buildFromTemplate(items);
+    const action = findNativeFixtureContextAction(menu);
     await stopCompatibilityWorker(guest, profile, extension.id);
-    menu.items[0].click(menu.items[0], owner, { triggeredByAccelerator: false });
+    action.click(action, owner, { triggeredByAccelerator: false });
     const deadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
     let delivered = false;
     while (Date.now() < deadline) {
@@ -2888,6 +2908,205 @@ async function assertBrowserExtensionContextMenus({ owner, profile, runtime, gue
 function assertBrowserTabIdentity(tab, guest, owner) {
   if (tab.id !== guest.id || tab.windowId !== owner.id || !tab.active) {
     fail("extension tabs.get did not share the selected browser's actual window identity");
+  }
+}
+
+/** Blocked webview subframes omit Electron load-failure events, so bind CDP's denial to the exact native navigation loader. */
+async function assertPrivateExtensionFrameDenied({ guest, privateUrl, extensionId }) {
+  const requestedLoaders = new Set();
+  let resolveDenial;
+  const denied = new Promise((resolve) => {
+    resolveDenial = resolve;
+  });
+  function onMessage(_event, method, details) {
+    if (method === "Page.frameStartedNavigating" && details.url === privateUrl) {
+      requestedLoaders.add(details.loaderId);
+    }
+    if (method === "Network.loadingFailed" && requestedLoaders.has(details.requestId)) {
+      resolveDenial(details);
+    }
+  }
+  guest.debugger.attach("1.3");
+  guest.debugger.on("message", onMessage);
+  try {
+    await guest.debugger.sendCommand("Page.enable");
+    await guest.debugger.sendCommand("Network.enable");
+    await guest.executeJavaScript(`(() => {
+      const frame = document.createElement("iframe");
+      frame.name = "paseo-private-extension-frame";
+      frame.src = ${JSON.stringify(privateUrl)};
+      document.body.appendChild(frame);
+    })()`);
+    const failure = await withTimeout(
+      denied,
+      "native private extension resource denial",
+      BROWSER_PROFILE_TIMEOUT_MS,
+    );
+    if (
+      failure.type !== "Document" ||
+      failure.errorText !== "net::ERR_BLOCKED_BY_CLIENT" ||
+      failure.canceled
+    ) {
+      fail(
+        `the private extension frame failed without the required native resource denial: ${JSON.stringify(failure)}`,
+      );
+    }
+    const frame = guest.mainFrame.framesInSubtree.find(
+      (candidate) => candidate.name === "paseo-private-extension-frame",
+    );
+    if (!frame) {
+      fail("the blocked private iframe could not be inspected for script nonexecution");
+    }
+    const state = await frame.executeJavaScript(
+      "({executed:Boolean(window.privatePopupExecuted),extensionId:globalThis.chrome?.runtime?.id,body:document.body?.textContent})",
+    );
+    if (state.executed || state.extensionId === extensionId || state.body?.trim()) {
+      fail("the denied private extension document or script unexpectedly executed");
+    }
+  } finally {
+    guest.debugger.removeListener("message", onMessage);
+    guest.debugger.detach();
+  }
+}
+
+/** Production navigation guards must permit native public extension overlays without exposing private documents. */
+async function assertBrowserExtensionResourceFrames({ profile, popup, guest, extension }) {
+  const {
+    registerBrowserWebviewNavigationGuards,
+  } = require("../dist/features/browser-webviews/index.js");
+  registerBrowserWebviewNavigationGuards(guest, { profileSession: profile });
+  const publicUrl = await popup.webContents.executeJavaScript(
+    'chrome.runtime.getURL("public.html")',
+  );
+  if (new URL(publicUrl).hostname === extension.id) {
+    fail("the public iframe fixture did not produce the required dynamic extension resource URL");
+  }
+  await guest.executeJavaScript(`(() => {
+    const frame = document.createElement("iframe");
+    frame.name = "paseo-public-extension-frame";
+    frame.src = ${JSON.stringify(publicUrl)};
+    document.body.appendChild(frame);
+  })()`);
+  const deadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
+  let publicState;
+  while (Date.now() < deadline) {
+    const frame = guest.mainFrame.framesInSubtree.find(
+      (candidate) => candidate.name === "paseo-public-extension-frame",
+    );
+    if (frame?.url.endsWith("/public.html")) {
+      publicState = await withTimeout(
+        frame.executeJavaScript("window.publicFixtureReady"),
+        "public extension iframe APIs",
+        BROWSER_PROFILE_TIMEOUT_MS,
+      );
+      if (publicState) {
+        break;
+      }
+    }
+    await delay(20);
+  }
+  if (
+    !publicState ||
+    publicState.extensionId !== extension.id ||
+    publicState.hasNode ||
+    publicState.hasPaseoBridge
+  ) {
+    fail(
+      "dynamic public extension iframe did not load real Chrome APIs with the expected isolation",
+    );
+  }
+  const stored = await popup.webContents.executeJavaScript(
+    'chrome.storage.local.get("publicFrameMarker")',
+  );
+  if (stored.publicFrameMarker !== publicState.marker) {
+    fail("public extension iframe did not share the native extension storage profile");
+  }
+  const privateUrl = await popup.webContents.executeJavaScript(
+    'chrome.runtime.getURL("popup.html")',
+  );
+  await assertPrivateExtensionFrameDenied({ guest, privateUrl, extensionId: extension.id });
+  await guest.executeJavaScript(
+    'document.querySelectorAll("iframe[name^=paseo-]").forEach((frame) => frame.remove())',
+  );
+  pass(
+    "dynamic public extension iframes load with native APIs and profile storage; private resources remain blocked by Chromium",
+  );
+}
+
+/** Hold real renderer identity until a document-start content sender has already requested its tab. */
+async function assertBrowserExtensionEarlyRegistration({ profile, popup, sourceUrl }) {
+  const browserWebviews = require("../dist/features/browser-webviews/index.js");
+  const fixture = await createBrowserProfileHarnessWindow(
+    "persist:paseo-browser-profile-harness-restart",
+    sourceUrl,
+  );
+  const owner = fixture.handle.win;
+  const [first, second] = resolveBrowserProfileGuests(fixture, profile);
+  try {
+    const key = `earlyTab:${first.id}`;
+    const deadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
+    let started = false;
+    while (Date.now() < deadline) {
+      const values = await popup.webContents.executeJavaScript(
+        `chrome.storage.local.get(${JSON.stringify(key)})`,
+      );
+      if (values[key]?.started) {
+        if (values[key].tab) {
+          fail(
+            "document-start tab lookup resolved before the actual renderer identity was assigned",
+          );
+        }
+        started = true;
+        break;
+      }
+      await delay(20);
+    }
+    if (!started) {
+      fail("the document-start content script did not issue its native sender tab lookup");
+    }
+    for (const [guest, browserId] of [
+      [first, "browser-first"],
+      [second, "browser-second"],
+    ]) {
+      const registered = browserWebviews.registerAttachedPaseoBrowser({
+        browserId,
+        workspaceId: "early-registration-workspace",
+        webContentsId: guest.id,
+        sender: owner.webContents,
+        profileSession: profile,
+        findWebContents: (id) => require("electron").webContents.fromId(id),
+      });
+      if (!registered) {
+        fail("document-start fixture could not bind its actual browser identity");
+      }
+    }
+    browserWebviews.setWorkspaceActivePaseoBrowserId({
+      hostWebContentsId: owner.webContents.id,
+      workspaceId: "early-registration-workspace",
+      browserId: "browser-first",
+    });
+    const lookupDeadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
+    let resolved = false;
+    while (Date.now() < lookupDeadline) {
+      const values = await popup.webContents.executeJavaScript(
+        `chrome.storage.local.get(${JSON.stringify(key)})`,
+      );
+      if (values[key]?.tab) {
+        assertBrowserTabIdentity(values[key].tab, first, owner);
+        resolved = true;
+        break;
+      }
+      await delay(20);
+    }
+    if (!resolved) {
+      fail("document-start tab lookup did not resume when its actual renderer identity arrived");
+    }
+    pass(
+      "document-start native content sender waits for real browser identity and receives its actual app window",
+    );
+  } finally {
+    browserWebviews.unregisterPaseoBrowserHost(owner.webContents.id);
+    await closeHarnessWindow(owner);
   }
 }
 
@@ -2940,6 +3159,12 @@ async function assertBrowserExtensionCompatibility(
       "extension worker tab messaging",
       BROWSER_PROFILE_TIMEOUT_MS,
     );
+    await assertBrowserExtensionEarlyRegistration({
+      profile,
+      popup,
+      sourceUrl: firstGuest.getURL(),
+    });
+    await assertBrowserExtensionResourceFrames({ profile, popup, guest: firstGuest, extension });
     // The first popup message proves the newly registered worker is ready before navigation.
     await popup.webContents.executeJavaScript("chrome.storage.local.set({commits: []})");
     firstGuest.reload();
