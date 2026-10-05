@@ -598,6 +598,14 @@ export const ja: TranslationResources = {
         submit: "添付",
         cancel: "キャンセル",
       },
+      extensions: {
+        label: "拡張機能",
+        empty: "有効な拡張機能はありません。",
+        noPopup: "ポップアップはありません",
+        loading: "拡張機能を読み込み中...",
+        manage: "拡張機能を管理",
+        openFailed: "拡張機能を開けませんでした",
+      },
       devices: {
         label: "デバイスサイズ",
         responsive: "レスポンシブ",
@@ -2074,6 +2082,25 @@ export const ja: TranslationResources = {
     general: {
       title: "一般",
       sending: "送信",
+      browserExtensions: {
+        title: "拡張機能",
+        compatibility:
+          "Chrome 拡張機能の一部の機能はサポートされていません。拡張機能は自動更新されません。",
+        store: "Chrome ウェブストア",
+        openStore: "ウェブストアを開く",
+        refresh: "更新",
+        enable: "有効にする",
+        disable: "無効にする",
+        retry: "再試行",
+        remove: "削除",
+        removeTitle: "{{name}} を削除しますか？",
+        removeMessage: "Paseo から拡張機能を削除します。展開済みのソースフォルダーは保持されます。",
+        loading: "拡張機能を読み込み中...",
+        empty: "拡張機能はインストールされていません。",
+        unpackedHint: "manifest.json を含むフォルダーから拡張機能を読み込みます。",
+        loadUnpacked: "展開済みを読み込む",
+        unavailable: "拡張機能を利用できません。デスクトップアプリを更新してください。",
+      },
       browserData: {
         title: "ブラウザーデータ",
         siteData: "Cookie とサイトデータ",

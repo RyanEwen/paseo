@@ -1,0 +1,17 @@
+diff --git a/node_modules/electron-chrome-web-store/dist/chrome-web-store.preload.js b/node_modules/electron-chrome-web-store/dist/chrome-web-store.preload.js
+--- a/node_modules/electron-chrome-web-store/dist/chrome-web-store.preload.js
++++ b/node_modules/electron-chrome-web-store/dist/chrome-web-store.preload.js
+@@ -278,7 +278,12 @@
+     import_electron.contextBridge.exposeInMainWorld("electronManagement", management);
+     import_electron.webFrame.executeJavaScript(`
+     (function () {
+-      chrome.webstorePrivate = globalThis.electronWebstore;
++      // Loading the first extension initializes Chromium's native Web Store bindings.
++      // Electron lacks the Chrome services those bindings need, so retain the shim.
++      Object.defineProperty(chrome, "webstorePrivate", {
++        get: () => globalThis.electronWebstore,
++        configurable: false
++      });
+       Object.assign(chrome.runtime, electronRuntime);
+       Object.assign(chrome.management, electronManagement);
+       void 0;

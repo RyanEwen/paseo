@@ -597,6 +597,14 @@ export const ptBR: TranslationResources = {
         submit: "Anexar",
         cancel: "Cancelar",
       },
+      extensions: {
+        label: "Extensões",
+        empty: "Nenhuma extensão ativada.",
+        noPopup: "Nenhuma janela fornecida",
+        loading: "Carregando extensões...",
+        manage: "Gerenciar extensões",
+        openFailed: "Não foi possível abrir a extensão",
+      },
       devices: {
         label: "Tamanho do dispositivo",
         responsive: "Responsivo",
@@ -2087,6 +2095,26 @@ export const ptBR: TranslationResources = {
     general: {
       title: "Geral",
       sending: "Envio",
+      browserExtensions: {
+        title: "Extensões",
+        compatibility:
+          "Alguns recursos das extensões do Chrome não são compatíveis. As extensões não são atualizadas automaticamente.",
+        store: "Chrome Web Store",
+        openStore: "Abrir Web Store",
+        refresh: "Atualizar",
+        enable: "Ativar",
+        disable: "Desativar",
+        retry: "Tentar novamente",
+        remove: "Remover",
+        removeTitle: "Remover {{name}}?",
+        removeMessage:
+          "Isso remove a extensão do Paseo. As pastas de origem sem compactação são mantidas.",
+        loading: "Carregando extensões...",
+        empty: "Nenhuma extensão instalada.",
+        unpackedHint: "Carregue uma extensão de uma pasta que contenha manifest.json.",
+        loadUnpacked: "Carregar sem compactação",
+        unavailable: "As extensões não estão disponíveis. Atualize o aplicativo para desktop.",
+      },
       browserData: {
         title: "Dados do navegador",
         siteData: "Cookies e dados de sites",

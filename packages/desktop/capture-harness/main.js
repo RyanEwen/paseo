@@ -156,9 +156,13 @@ async function startBrowserProfileServer() {
     port = Number(new URL(previousOrigin).port);
   }
 
-  const server = http.createServer((_request, response) => {
+  const server = http.createServer((request, response) => {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    response.end("<!doctype html><title>Shared browser profile</title><h1>Profile fixture</h1>");
+    const child =
+      request.url === "/child" ? "" : '<iframe src="/child" title="Child frame"></iframe>';
+    response.end(
+      `<!doctype html><title>Shared browser profile</title><h1>Profile fixture</h1>${child}`,
+    );
   });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -2505,7 +2509,7 @@ async function createBrowserProfileHarnessWindow(partition, sourceUrl) {
   await waitForInactiveReveal(handle, "browser profile window");
   const [guests, identities] = await withTimeout(
     Promise.all([guestsPromise, renderer(win, "window.captureHarness.profileIdentities()")]),
-    "browser profile did-attach",
+    "browser profile dom-ready identity",
     BROWSER_PROFILE_TIMEOUT_MS,
   );
   return { handle, guests, identities };
@@ -2566,6 +2570,66 @@ function resolveBrowserProfileGuests(profileWindow, profileSession) {
   return [firstGuest, secondGuest];
 }
 
+/** Exercise Store notifications after extension activation without downloading from the Store. */
+async function assertBrowserStoreNotification() {
+  const { installChromeWebStore } = require("electron-chrome-web-store");
+  const storeSession = session.fromPartition("persist:paseo-store-notification-harness");
+  const storeUrl = "https://chromewebstore.google.com/paseo-harness";
+  storeSession.protocol.handle(
+    "https",
+    () =>
+      new Response("<!doctype html><title>Paseo Store fixture</title>", {
+        headers: { "Content-Type": "text/html" },
+      }),
+  );
+  await installChromeWebStore({
+    session: storeSession,
+    extensionsPath: path.join(OUT_DIR, "store-notification-extensions"),
+    loadExtensions: false,
+    autoUpdate: false,
+  });
+
+  const storeWindow = new BrowserWindow({ show: false, webPreferences: { session: storeSession } });
+  let extension;
+  try {
+    await storeWindow.loadURL(storeUrl);
+    await storeWindow.webContents.executeJavaScript(`(() => {
+      window.storeNotification = new Promise(resolve => {
+        chrome.management.onInstalled.addListener(() => {
+          chrome.webstorePrivate.getExtensionStatus(window.fixtureExtensionId,
+            JSON.stringify({ manifest_version: 3 }), resolve);
+        });
+      });
+    })()`);
+    extension = await storeSession.extensions.loadExtension(path.join(ROOT, "extension"));
+    const retainsShim = await storeWindow.webContents.executeJavaScript(
+      "chrome.webstorePrivate === electronWebstore",
+    );
+    if (!retainsShim) {
+      fail("extension activation replaced the Store shim with unsafe native Chromium bindings");
+    }
+    await storeWindow.webContents.executeJavaScript(
+      `window.fixtureExtensionId = ${JSON.stringify(extension.id)}`,
+    );
+    storeWindow.webContents.mainFrame.send("chrome.management.onInstalled", { id: extension.id });
+    const status = await withTimeout(
+      storeWindow.webContents.executeJavaScript("window.storeNotification"),
+      "Store installation notification",
+      BROWSER_PROFILE_TIMEOUT_MS,
+    );
+    if (status !== "enabled") {
+      fail(`Store notification returned ${status} instead of the installed extension status`);
+    }
+    pass("Store notifications retain the Electron shim after extension activation");
+  } finally {
+    if (extension) {
+      storeSession.extensions.removeExtension(extension.id);
+    }
+    await closeHarnessWindow(storeWindow);
+    storeSession.protocol.unhandle("https");
+  }
+}
+
 async function prepareBrowserProfileValue(firstGuest, profileSession) {
   if (BROWSER_PROFILE_PHASE === "read") {
     return (await fsp.readFile(BROWSER_PROFILE_VALUE_FILE, "utf8")).trim();
@@ -2584,12 +2648,253 @@ async function prepareBrowserProfileValue(firstGuest, profileSession) {
   return profileValue;
 }
 
+/** Exercise the production popup host with actual extension APIs and persistent storage. */
+async function assertBrowserExtensionPopup(owner, profile, extensionId, profileValue) {
+  const { openBrowserExtensionPopup } = require("../dist/features/browser-extensions/actions.js");
+  const extension = profile.extensions.getExtension(extensionId);
+  const popup = await openBrowserExtensionPopup({
+    owner,
+    profile,
+    extension,
+    show: false,
+  });
+  try {
+    const state = await withTimeout(
+      popup.webContents.executeJavaScript("window.popupReady"),
+      "extension popup storage",
+      BROWSER_PROFILE_TIMEOUT_MS,
+    );
+    if (state.extensionId !== extensionId || state.hasNode || state.hasPaseoBridge) {
+      fail(`extension popup has incorrect identity or privileged APIs: ${JSON.stringify(state)}`);
+    }
+    if (popup.webContents.session !== profile) {
+      fail("extension popup did not use the shared browser profile");
+    }
+    if (BROWSER_PROFILE_PHASE === "read" && state.profileValue !== profileValue) {
+      fail("extension popup storage did not survive a desktop process restart");
+    }
+    await popup.webContents.executeJavaScript(
+      `chrome.storage.local.set({profileValue: ${JSON.stringify(profileValue)}})`,
+    );
+    pass(
+      "extension popup loads real Chrome APIs with shared persistent storage and no app privileges",
+    );
+  } finally {
+    await closeHarnessWindow(popup);
+  }
+}
+
+/** Stop an owned worker through DevTools and wait for its running context to disappear. */
+async function stopCompatibilityWorker(guest, profile, extensionId) {
+  const entry = Object.entries(profile.serviceWorkers.getAllRunning()).find(
+    ([, info]) => info.scope === `chrome-extension://${extensionId}/`,
+  );
+  if (!entry) {
+    fail("compatibility fixture worker was not running before the idle simulation");
+  }
+  await guest.debugger.sendCommand("ServiceWorker.enable");
+  await guest.debugger.sendCommand("ServiceWorker.stopWorker", { versionId: entry[0] });
+  const deadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
+  while (profile.serviceWorkers.getAllRunning()[entry[0]]) {
+    if (Date.now() >= deadline) {
+      fail("compatibility worker did not stop for the idle simulation");
+    }
+    await delay(20);
+  }
+}
+
+/** Navigation must wake an idle worker and retain the event that caused the wake. */
+async function assertBrowserExtensionWorkerWake({
+  owner,
+  profile,
+  runtime,
+  guest,
+  extension,
+  previousDocumentId,
+}) {
+  const { openBrowserExtensionPopup } = require("../dist/features/browser-extensions/actions.js");
+  let popup;
+  guest.debugger.attach("1.3");
+  try {
+    await stopCompatibilityWorker(guest, profile, extension.id);
+    guest.reload();
+    await waitForGuestLoad(guest);
+    popup = await openBrowserExtensionPopup({
+      owner,
+      profile,
+      extension,
+      show: false,
+      onCreated: (window) => runtime.registerPopup(window.webContents, guest),
+    });
+    const state = await withTimeout(
+      popup.webContents.executeJavaScript("window.paseoCompatibilityResult"),
+      "extension worker wake",
+      BROWSER_PROFILE_TIMEOUT_MS,
+    );
+    if (
+      state.result.error ||
+      !state.result.commits.some((detail) => detail.tabId === guest.id && detail.frameId === 0)
+    ) {
+      fail(`sleeping extension worker lost the wake navigation: ${JSON.stringify(state.result)}`);
+    }
+    if (state.result.frame.documentId === previousDocumentId) {
+      fail("extension worker frame lookup retained the previous page document identity");
+    }
+    pass("sleeping extension worker wakes for navigation and reads the new document identity");
+  } finally {
+    guest.debugger.detach();
+    if (popup) {
+      await closeHarnessWindow(popup);
+    }
+  }
+}
+
+/** Verify selected-tab ownership and native content-script messaging through the MV3 worker. */
+async function assertBrowserExtensionCompatibility(
+  owner,
+  profile,
+  runtime,
+  firstGuest,
+  secondGuest,
+) {
+  const browserWebviews = require("../dist/features/browser-webviews/index.js");
+  for (const [guest, browserId] of [
+    [firstGuest, "browser-first"],
+    [secondGuest, "browser-second"],
+  ]) {
+    browserWebviews.preparePaseoBrowserWebContents(guest);
+    const registered = browserWebviews.registerAttachedPaseoBrowser({
+      browserId,
+      workspaceId: "compatibility-workspace",
+      webContentsId: guest.id,
+      sender: owner.webContents,
+      profileSession: profile,
+      findWebContents: (id) => require("electron").webContents.fromId(id),
+    });
+    if (!registered) {
+      fail("compatibility fixture could not register its real browser guests");
+    }
+  }
+  browserWebviews.setWorkspaceActivePaseoBrowserId({
+    hostWebContentsId: owner.webContents.id,
+    workspaceId: "compatibility-workspace",
+    browserId: "browser-first",
+  });
+  const extension = await profile.extensions.loadExtension(
+    path.join(ROOT, "compatibility-extension"),
+  );
+  const { openBrowserExtensionPopup } = require("../dist/features/browser-extensions/actions.js");
+  let popup;
+  try {
+    popup = await openBrowserExtensionPopup({
+      owner,
+      profile,
+      extension,
+      show: false,
+      onCreated: (window) => runtime.registerPopup(window.webContents, firstGuest),
+    });
+    const state = await withTimeout(
+      popup.webContents.executeJavaScript("window.paseoCompatibilityResult"),
+      "extension worker tab messaging",
+      BROWSER_PROFILE_TIMEOUT_MS,
+    );
+    // The first popup message proves the newly registered worker is ready before navigation.
+    await popup.webContents.executeJavaScript("chrome.storage.local.set({commits: []})");
+    firstGuest.reload();
+    await waitForGuestLoad(firstGuest);
+    const result = await withTimeout(
+      popup.webContents.executeJavaScript(
+        `chrome.runtime.sendMessage({type: "paseo-compatibility-probe", windowId: ${owner.id}})`,
+      ),
+      "extension worker navigation and messaging",
+      BROWSER_PROFILE_TIMEOUT_MS,
+    );
+    if (result.error || result.tabs.length !== 1 || result.tabs[0].id !== firstGuest.id) {
+      fail(`extension worker selected the wrong browser tab: ${JSON.stringify(result)}`);
+    }
+    if (state.currentTab !== undefined || state.window.id !== owner.id) {
+      fail("extension popup window ownership did not match Chrome popup semantics");
+    }
+    if (state.tabs.length !== 1 || state.tabs[0].id !== firstGuest.id) {
+      fail("extension popup current-window query selected the wrong browser guest");
+    }
+    if (result.content.href !== firstGuest.getURL() || result.content.senderId !== extension.id) {
+      fail(
+        `selected guest IDs did not address native content-script messages: ${JSON.stringify(result.content)}`,
+      );
+    }
+    if (!result.permission || !state.optionalPermissionError) {
+      fail("extension required/optional permission boundaries were incorrect");
+    }
+    if (result.frame.frameId !== 0 || typeof result.frame.documentId !== "string") {
+      fail("extension frame details did not include the real current document identity");
+    }
+    if (
+      !result.allFrames.some(
+        (frame) =>
+          frame.frameId > 0 && frame.parentFrameId === 0 && typeof frame.documentId === "string",
+      )
+    ) {
+      fail("extension frame details did not identify the child document correctly");
+    }
+    if (!result.commits.some((detail) => detail.tabId === firstGuest.id && detail.frameId === 0)) {
+      fail("extension worker did not receive real browser navigation events");
+    }
+    pass(
+      "extension MV3 worker queries the selected guest, exchanges native content messages, and receives navigation events",
+    );
+    await popup.webContents.executeJavaScript("chrome.storage.local.set({commits: []})");
+    await closeHarnessWindow(popup);
+    popup = null;
+    await assertBrowserExtensionWorkerWake({
+      owner,
+      profile,
+      runtime,
+      guest: firstGuest,
+      extension,
+      previousDocumentId: result.frame.documentId,
+    });
+  } finally {
+    if (popup) {
+      await closeHarnessWindow(popup);
+    }
+    profile.extensions.removeExtension(extension.id);
+    browserWebviews.unregisterPaseoBrowserHost(owner.webContents.id);
+  }
+}
+
 async function runBrowserProfileGroup() {
   if (!["write", "read"].includes(BROWSER_PROFILE_PHASE)) {
     fail(`unknown browser profile phase ${BROWSER_PROFILE_PHASE}`);
   }
+  await assertBrowserStoreNotification();
   const partition = "persist:paseo-browser-profile-harness-restart";
   const profileSession = session.fromPartition(partition);
+  const {
+    registerBrowserExtensionCompatibility,
+  } = require("../dist/features/browser-extensions/compatibility.js");
+  const compatibility = registerBrowserExtensionCompatibility(profileSession);
+  const { BrowserExtensionCatalog } = require("../dist/features/browser-extensions/catalog.js");
+  const extensionCatalogPath = path.join(OUT_DIR, "browser-profile-extensions.json");
+  if (BROWSER_PROFILE_PHASE === "write") {
+    await fsp.rm(extensionCatalogPath, { force: true });
+  }
+  const extensions = new BrowserExtensionCatalog(
+    extensionCatalogPath,
+    path.join(OUT_DIR, "store"),
+    {
+      isLoaded: (id) => Boolean(profileSession.extensions.getExtension(id)),
+      load: (extensionPath) => profileSession.extensions.loadExtension(extensionPath),
+      unload: (id) => profileSession.extensions.removeExtension(id),
+      uninstall: async () => fail("the unpacked fixture must never be uninstalled from disk"),
+    },
+  );
+  await extensions.restore();
+  if (BROWSER_PROFILE_PHASE === "write") {
+    await extensions.remember(
+      await profileSession.extensions.loadExtension(path.join(ROOT, "extension")),
+    );
+  }
   const fixture = await startBrowserProfileServer();
   const windows = [];
   try {
@@ -2601,22 +2906,62 @@ async function runBrowserProfileGroup() {
     windows.push(profileWindow.handle);
     const [firstGuest, secondGuest] = resolveBrowserProfileGuests(profileWindow, profileSession);
     await Promise.all([waitForGuestLoad(firstGuest), waitForGuestLoad(secondGuest)]);
+    const extensionMarker = "document.documentElement.dataset.paseoExtensionFixture ?? null";
+    for (const guest of [firstGuest, secondGuest]) {
+      const marker = await guest.executeJavaScript(extensionMarker);
+      if (marker !== "loaded") {
+        fail(`extension content script missing from browser profile tab: ${marker}`);
+      }
+    }
+    pass("browser profile extension content scripts execute in both resident webviews");
+    const [extension] = await extensions.list();
+    await extensions.setEnabled(extension.id, false);
+    firstGuest.reload();
+    await waitForGuestLoad(firstGuest);
+    if ((await firstGuest.executeJavaScript(extensionMarker)) !== null) {
+      fail("disabled extension still injects into the browser profile");
+    }
+    await extensions.setEnabled(extension.id, true);
+    firstGuest.reload();
+    await waitForGuestLoad(firstGuest);
+    if ((await firstGuest.executeJavaScript(extensionMarker)) !== "loaded") {
+      fail("re-enabled extension did not inject into the browser profile");
+    }
+    pass("browser profile extensions disable and re-enable without restarting Paseo");
 
     const profileValue = await prepareBrowserProfileValue(firstGuest, profileSession);
+    await assertBrowserExtensionPopup(
+      profileWindow.handle.win,
+      profileSession,
+      extension.id,
+      profileValue,
+    );
+    await assertBrowserExtensionCompatibility(
+      profileWindow.handle.win,
+      profileSession,
+      compatibility,
+      firstGuest,
+      secondGuest,
+    );
 
     const firstState = await readBrowserProfileFixture(firstGuest);
     const secondState = await readBrowserProfileFixture(secondGuest);
     assertBrowserProfileFixture(firstState, profileValue, "browser profile first tab");
     assertBrowserProfileFixture(secondState, profileValue, "browser profile second tab");
 
-    pass("browser profile renderer did-attach identities match their main-process guests");
+    pass("browser profile renderer dom-ready identities match their main-process guests");
     pass("browser profile tabs share cookies, localStorage, and one persistent session");
     if (BROWSER_PROFILE_PHASE === "read") {
       pass("browser profile cookies and localStorage survived an Electron process restart");
     }
     const results = [
+      { group: "browser-profile", check: "store-install-notification", pass: true },
       { group: "browser-profile", check: "renderer-main-identity", pass: true },
       { group: "browser-profile", check: "shared-profile-data", pass: true },
+      { group: "browser-profile", check: "extension-content-scripts", pass: true },
+      { group: "browser-profile", check: "extension-enable-disable", pass: true },
+      { group: "browser-profile", check: "extension-popup", pass: true },
+      { group: "browser-profile", check: "extension-compatibility", pass: true },
     ];
     if (BROWSER_PROFILE_PHASE === "read") {
       results.push({

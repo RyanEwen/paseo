@@ -598,6 +598,14 @@ export const fr: TranslationResources = {
         submit: "Joindre",
         cancel: "Annuler",
       },
+      extensions: {
+        label: "Extensions",
+        empty: "Aucune extension activée.",
+        noPopup: "Aucune fenêtre fournie",
+        loading: "Chargement des extensions...",
+        manage: "Gérer les extensions",
+        openFailed: "Impossible d’ouvrir l’extension",
+      },
       devices: {
         label: "Taille de l'appareil",
         responsive: "Adaptatif",
@@ -2107,6 +2115,27 @@ export const fr: TranslationResources = {
     general: {
       title: "Général",
       sending: "Envoi",
+      browserExtensions: {
+        title: "Extensions",
+        compatibility:
+          "Certaines fonctionnalités des extensions Chrome ne sont pas prises en charge. Les extensions ne sont pas mises à jour automatiquement.",
+        store: "Chrome Web Store",
+        openStore: "Ouvrir le Web Store",
+        refresh: "Actualiser",
+        enable: "Activer",
+        disable: "Désactiver",
+        retry: "Réessayer",
+        remove: "Supprimer",
+        removeTitle: "Supprimer {{name}} ?",
+        removeMessage:
+          "Cette action supprime l’extension de Paseo. Les dossiers sources non empaquetés sont conservés.",
+        loading: "Chargement des extensions...",
+        empty: "Aucune extension installée.",
+        unpackedHint: "Chargez une extension depuis un dossier contenant manifest.json.",
+        loadUnpacked: "Charger un dossier",
+        unavailable:
+          "Les extensions ne sont pas disponibles. Mettez à jour l’application de bureau.",
+      },
       browserData: {
         title: "Données du navigateur",
         siteData: "Cookies et données des sites",

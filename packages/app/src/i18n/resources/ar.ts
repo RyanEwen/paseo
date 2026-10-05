@@ -592,6 +592,14 @@ export const ar: TranslationResources = {
         submit: "إرفاق",
         cancel: "إلغاء",
       },
+      extensions: {
+        label: "الإضافات",
+        empty: "لا توجد إضافات مفعّلة.",
+        noPopup: "لا تتوفر نافذة منبثقة",
+        loading: "جارٍ تحميل الإضافات...",
+        manage: "إدارة الإضافات",
+        openFailed: "تعذر فتح الإضافة",
+      },
       devices: {
         label: "حجم الجهاز",
         responsive: "متجاوب",
@@ -2054,6 +2062,25 @@ export const ar: TranslationResources = {
     general: {
       title: "عام",
       sending: "الإرسال",
+      browserExtensions: {
+        title: "الإضافات",
+        compatibility: "بعض ميزات إضافات Chrome غير مدعومة. لا يتم تحديث الإضافات تلقائيًا.",
+        store: "Chrome Web Store",
+        openStore: "فتح المتجر",
+        refresh: "تحديث",
+        enable: "تفعيل",
+        disable: "تعطيل",
+        retry: "إعادة المحاولة",
+        remove: "إزالة",
+        removeTitle: "إزالة {{name}}؟",
+        removeMessage:
+          "سيؤدي هذا إلى إزالة الإضافة من Paseo. يتم الاحتفاظ بمجلدات المصدر غير المضغوطة.",
+        loading: "جارٍ تحميل الإضافات...",
+        empty: "لا توجد إضافات مثبتة.",
+        unpackedHint: "حمّل إضافة من مجلد يحتوي على manifest.json.",
+        loadUnpacked: "تحميل إضافة غير مضغوطة",
+        unavailable: "الإضافات غير متاحة. حدّث تطبيق سطح المكتب.",
+      },
       browserData: {
         title: "بيانات المتصفح",
         siteData: "ملفات تعريف الارتباط وبيانات المواقع",

@@ -78,6 +78,7 @@ import {
   type BrowserElementSelection,
   type ElementSelectorOutcome,
 } from "./element-selector.electron";
+import { ExtensionsMenu } from "./extensions-menu.electron";
 
 type ElectronWebview = HTMLElement & {
   canGoBack?: () => boolean;
@@ -1480,6 +1481,11 @@ export function BrowserPane({
           />
         </View>
         <View style={styles.chromeRight}>
+          <ExtensionsMenu
+            browserId={browserId}
+            triggerStyle={baseIconButtonStyle}
+            tooltipTextStyle={styles.toolbarTooltipText}
+          />
           <DeviceSizeMenu
             selectedId={selectedDeviceSizeId}
             onSelect={handleSelectDeviceSize}

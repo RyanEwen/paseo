@@ -593,6 +593,14 @@ export const ko: TranslationResources = {
         submit: "첨부",
         cancel: "취소",
       },
+      extensions: {
+        label: "확장 프로그램",
+        empty: "활성화된 확장 프로그램이 없습니다.",
+        noPopup: "팝업이 제공되지 않음",
+        loading: "확장 프로그램 불러오는 중...",
+        manage: "확장 프로그램 관리",
+        openFailed: "확장 프로그램을 열 수 없습니다",
+      },
       devices: {
         label: "장치 크기",
         responsive: "반응형",
@@ -2064,6 +2072,25 @@ export const ko: TranslationResources = {
     general: {
       title: "일반",
       sending: "전송",
+      browserExtensions: {
+        title: "확장 프로그램",
+        compatibility:
+          "일부 Chrome 확장 프로그램 기능은 지원되지 않습니다. 확장 프로그램은 자동으로 업데이트되지 않습니다.",
+        store: "Chrome 웹 스토어",
+        openStore: "웹 스토어 열기",
+        refresh: "새로 고침",
+        enable: "사용",
+        disable: "사용 중지",
+        retry: "다시 시도",
+        remove: "삭제",
+        removeTitle: "{{name}}을(를) 삭제할까요?",
+        removeMessage: "Paseo에서 확장 프로그램을 삭제합니다. 압축 해제된 소스 폴더는 유지됩니다.",
+        loading: "확장 프로그램 로딩 중...",
+        empty: "설치된 확장 프로그램이 없습니다.",
+        unpackedHint: "manifest.json이 있는 폴더에서 확장 프로그램을 로드합니다.",
+        loadUnpacked: "압축 해제된 확장 로드",
+        unavailable: "확장 프로그램을 사용할 수 없습니다. 데스크톱 앱을 업데이트하세요.",
+      },
       browserData: {
         title: "브라우저 데이터",
         siteData: "쿠키 및 사이트 데이터",

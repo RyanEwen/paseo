@@ -598,6 +598,14 @@ export const es: TranslationResources = {
         submit: "Adjuntar",
         cancel: "Cancelar",
       },
+      extensions: {
+        label: "Extensiones",
+        empty: "No hay extensiones habilitadas.",
+        noPopup: "No incluye ventana emergente",
+        loading: "Cargando extensiones...",
+        manage: "Administrar extensiones",
+        openFailed: "No se pudo abrir la extensión",
+      },
       devices: {
         label: "Tamaño del dispositivo",
         responsive: "Adaptable",
@@ -2102,6 +2110,26 @@ export const es: TranslationResources = {
     general: {
       title: "General",
       sending: "Envío",
+      browserExtensions: {
+        title: "Extensiones",
+        compatibility:
+          "Algunas funciones de las extensiones de Chrome no son compatibles. Las extensiones no se actualizan automáticamente.",
+        store: "Chrome Web Store",
+        openStore: "Abrir Web Store",
+        refresh: "Actualizar",
+        enable: "Activar",
+        disable: "Desactivar",
+        retry: "Reintentar",
+        remove: "Eliminar",
+        removeTitle: "¿Eliminar {{name}}?",
+        removeMessage:
+          "Esto elimina la extensión de Paseo. Se conservan las carpetas de origen sin empaquetar.",
+        loading: "Cargando extensiones...",
+        empty: "No hay extensiones instaladas.",
+        unpackedHint: "Carga una extensión desde una carpeta que contenga manifest.json.",
+        loadUnpacked: "Cargar sin empaquetar",
+        unavailable: "Las extensiones no están disponibles. Actualiza la aplicación de escritorio.",
+      },
       browserData: {
         title: "Datos del navegador",
         siteData: "Cookies y datos de sitios",

@@ -114,6 +114,17 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
       ipcRenderer.invoke("paseo:menu:set-capturing-shortcut", capturing),
   },
   browser: {
+    extensions: {
+      list: () => ipcRenderer.invoke("paseo:browser:extensions:list"),
+      actions: () => ipcRenderer.invoke("paseo:browser:extensions:actions"),
+      openPopup: (id: string, browserId: string) =>
+        ipcRenderer.invoke("paseo:browser:extensions:open-popup", { id, browserId }),
+      setEnabled: (id: string, enabled: boolean) =>
+        ipcRenderer.invoke("paseo:browser:extensions:set-enabled", { id, enabled }),
+      remove: (id: string) => ipcRenderer.invoke("paseo:browser:extensions:remove", id),
+      loadUnpacked: () => ipcRenderer.invoke("paseo:browser:extensions:load-unpacked"),
+      openStore: () => ipcRenderer.invoke("paseo:browser:extensions:open-store"),
+    },
     setShortcutPolicy: (input: BrowserKeyboardPolicy) =>
       ipcRenderer.invoke("paseo:browser:set-shortcut-policy", input),
     profilePartition: PASEO_BROWSER_PROFILE_PARTITION,
