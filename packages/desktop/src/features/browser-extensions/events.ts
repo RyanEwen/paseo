@@ -1,0 +1,61 @@
+import type { Session } from "electron";
+import log from "electron-log";
+import { z } from "zod";
+
+const BackgroundSchema = z.object({
+  background: z.object({ service_worker: z.string().optional() }).optional(),
+});
+
+interface ExtensionEventDeliveryOptions {
+  profile: Session;
+  emit(id: string, name: string, ...args: unknown[]): void;
+  waitForWorkerReady(versionId: number): Promise<boolean>;
+}
+
+/** Serialize browser events per extension and wake idle MV3 workers before delivering to their listeners. */
+export function createExtensionEventDelivery(options: ExtensionEventDeliveryOptions) {
+  const deliveries = new Map<string, Promise<void>>();
+
+  return function deliverEvent(id: string, name: string, ...args: unknown[]): void {
+    const previous = deliveries.get(id) ?? Promise.resolve();
+
+    async function deliver(): Promise<void> {
+      await previous;
+      try {
+        const extension = options.profile.extensions.getExtension(id);
+        if (!extension) {
+          return;
+        }
+        const { background } = BackgroundSchema.parse(extension.manifest);
+        if (background?.service_worker) {
+          const scope = `chrome-extension://${id}/`;
+          const running = Object.entries(options.profile.serviceWorkers.getAllRunning()).find(
+            (entry) => entry[1].scope.startsWith(scope),
+          );
+          let worker = running
+            ? options.profile.serviceWorkers.getWorkerFromVersionID(Number(running[0]))
+            : undefined;
+          if (!worker) {
+            worker = await options.profile.serviceWorkers.startWorkerForScope(scope);
+          }
+          if (!(await options.waitForWorkerReady(worker.versionId))) {
+            return;
+          }
+        }
+        if (options.profile.extensions.getExtension(id)) {
+          options.emit(id, name, ...args);
+        }
+      } catch (error) {
+        log.error(`Extension event ${name} delivery failed for ${id}`, error);
+      }
+    }
+
+    const delivery = deliver();
+    deliveries.set(id, delivery);
+    void delivery.finally(() => {
+      if (deliveries.get(id) === delivery) {
+        deliveries.delete(id);
+      }
+    });
+  };
+}

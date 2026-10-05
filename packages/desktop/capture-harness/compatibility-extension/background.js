@@ -1,3 +1,16 @@
+let pendingWindowEvents = Promise.resolve();
+/** Preserve native window events in order so the harness can verify sleeping-worker delivery. */
+async function saveWindowEvent(previous, name, detail) {
+  await previous;
+  const { windowEvents = [] } = await chrome.storage.local.get("windowEvents");
+  await chrome.storage.local.set({ windowEvents: [...windowEvents, { name, detail }] });
+}
+for (const name of ["onCreated", "onRemoved", "onFocusChanged"]) {
+  chrome.windows[name].addListener((detail) => {
+    pendingWindowEvents = saveWindowEvent(pendingWindowEvents, name, detail);
+  });
+}
+
 let pendingCommits = Promise.resolve();
 /** Keep main-frame and child-frame storage writes ordered for the navigation assertion. */
 async function saveCommit(previous, detail) {

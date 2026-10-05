@@ -1,5 +1,4 @@
 import { app, type Session, type WebFrameMain } from "electron";
-import log from "electron-log";
 import { describeExtensionFrame } from "./frames.js";
 import { z } from "zod";
 import { getPaseoBrowserWebviewRegistry } from "../browser-webviews/index.js";
@@ -10,10 +9,8 @@ const NavigationManifestSchema = z.object({ permissions: z.array(z.string()).def
 export function registerExtensionNavigation(
   profile: Session,
   emit: (id: string, name: string, ...args: unknown[]) => void,
-  waitForWorkerReady: (versionId: number) => Promise<boolean>,
 ): void {
   const registry = getPaseoBrowserWebviewRegistry();
-  const deliveries = new Map<string, Promise<void>>();
   app.on("web-contents-created", (_createdEvent, contents) => {
     if (contents.session !== profile) {
       return;
@@ -35,49 +32,7 @@ export function registerExtensionNavigation(
         if (!manifest.permissions.includes("webNavigation")) {
           continue;
         }
-        const previous = deliveries.get(extension.id) ?? Promise.resolve();
-        async function deliver(): Promise<void> {
-          await previous;
-          try {
-            const background = z
-              .object({
-                background: z.object({ service_worker: z.string().optional() }).optional(),
-              })
-              .parse(extension.manifest).background;
-            if (!profile.extensions.getExtension(extension.id)) {
-              return;
-            }
-            if (background?.service_worker) {
-              const running = Object.entries(profile.serviceWorkers.getAllRunning()).find((entry) =>
-                entry[1].scope.startsWith(`chrome-extension://${extension.id}/`),
-              );
-              let worker = running
-                ? profile.serviceWorkers.getWorkerFromVersionID(Number(running[0]))
-                : undefined;
-              if (!worker) {
-                worker = await profile.serviceWorkers.startWorkerForScope(
-                  `chrome-extension://${extension.id}/`,
-                );
-              }
-              const listening = await waitForWorkerReady(worker.versionId);
-              if (!listening) {
-                return;
-              }
-            }
-            if (profile.extensions.getExtension(extension.id)) {
-              emit(extension.id, name, detail);
-            }
-          } catch (failure: unknown) {
-            log.error(`Extension navigation delivery failed for ${extension.id}`, failure);
-          }
-        }
-        const delivery = deliver();
-        deliveries.set(extension.id, delivery);
-        void delivery.finally(() => {
-          if (deliveries.get(extension.id) === delivery) {
-            deliveries.delete(extension.id);
-          }
-        });
+        emit(extension.id, name, detail);
       }
     }
     function findFrame(process: number, routing: number) {
