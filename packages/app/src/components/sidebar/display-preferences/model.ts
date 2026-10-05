@@ -7,6 +7,10 @@ import {
 import {
   useSidebarViewStore,
   type SidebarGroupMode,
+  type SidebarSortMode,
+  type SidebarWorkspaceSortMode,
+  type SidebarEmptyProjectSortMode,
+  type SidebarProjectVisibility,
   type SidebarLabelFilter,
 } from "@/stores/sidebar-view-store";
 import { DEFAULT_SIDEBAR_CHECKS_DISPLAY, type SidebarChecksDisplay } from "./checks-display";
@@ -16,6 +20,16 @@ import { DEFAULT_SIDEBAR_ROW_ITEMS, type SidebarRowItem, type SidebarRowItems } 
 export type SidebarTrailingChoice = Exclude<SidebarWorkspaceTrailing, "none">;
 
 export interface SidebarDisplayPreferences {
+  workspaceSorting: SidebarWorkspaceSortMode;
+  setWorkspaceSorting: (mode: SidebarWorkspaceSortMode) => void;
+  sorting: SidebarSortMode;
+  setSorting: (mode: SidebarSortMode) => void;
+  projectVisibility: SidebarProjectVisibility;
+  setProjectVisibility: (visibility: SidebarProjectVisibility) => void;
+  emptyProjectSorting: SidebarEmptyProjectSortMode;
+  setEmptyProjectSorting: (mode: SidebarEmptyProjectSortMode) => void;
+  groupEmptyProjects: boolean;
+  setGroupEmptyProjects: (enabled: boolean) => void;
   grouping: SidebarGroupMode;
   setGrouping: (mode: SidebarGroupMode) => void;
   titleSource: WorkspaceTitleSource;
@@ -48,6 +62,16 @@ export interface SidebarDisplayPreferences {
  * this for a value and set it; where it lands is this module's problem.
  */
 export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
+  const workspaceSorting = useSidebarViewStore((state) => state.workspaceSortMode);
+  const setWorkspaceSorting = useSidebarViewStore((state) => state.setWorkspaceSortMode);
+  const sorting = useSidebarViewStore((state) => state.sortMode);
+  const setSorting = useSidebarViewStore((state) => state.setSortMode);
+  const projectVisibility = useSidebarViewStore((state) => state.projectVisibility);
+  const setProjectVisibility = useSidebarViewStore((state) => state.setProjectVisibility);
+  const emptyProjectSorting = useSidebarViewStore((state) => state.emptyProjectSortMode);
+  const setEmptyProjectSorting = useSidebarViewStore((state) => state.setEmptyProjectSortMode);
+  const groupEmptyProjects = useSidebarViewStore((state) => state.groupEmptyProjects);
+  const setGroupEmptyProjects = useSidebarViewStore((state) => state.setGroupEmptyProjects);
   const grouping = useSidebarViewStore((state) => state.groupMode);
   const setGrouping = useSidebarViewStore((state) => state.setGroupMode);
   const hostFilters = useSidebarViewStore((state) => state.hostFilters);
@@ -104,6 +128,16 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
 
   return useMemo(
     () => ({
+      workspaceSorting,
+      setWorkspaceSorting,
+      sorting,
+      setSorting,
+      projectVisibility,
+      setProjectVisibility,
+      emptyProjectSorting,
+      setEmptyProjectSorting,
+      groupEmptyProjects,
+      setGroupEmptyProjects,
       grouping,
       setGrouping,
       titleSource: workspaceTitleSource,
@@ -125,6 +159,16 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       clearLabelFilter,
     }),
     [
+      workspaceSorting,
+      setWorkspaceSorting,
+      sorting,
+      setSorting,
+      projectVisibility,
+      setProjectVisibility,
+      emptyProjectSorting,
+      setEmptyProjectSorting,
+      groupEmptyProjects,
+      setGroupEmptyProjects,
       grouping,
       setGrouping,
       workspaceTitleSource,
