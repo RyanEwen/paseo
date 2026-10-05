@@ -22,7 +22,29 @@ async function saveCommit(previous, detail) {
 chrome.webNavigation.onCommitted.addListener((detail) => {
   pendingCommits = saveCommit(pendingCommits, detail);
 });
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  void chrome.storage.local.set({ contextMenuClick: { info, tab } });
+});
 chrome.runtime.onMessage.addListener((message, _sender, reply) => {
+  if (message.type === "paseo-context-menu-register") {
+    void (async () => {
+      await chrome.contextMenus.removeAll();
+      await chrome.storage.local.remove("contextMenuClick");
+      return new Promise((resolve, reject) => {
+        const id = chrome.contextMenus.create(
+          { id: "fixture-context-menu", title: "Fixture browser action", contexts: ["page"] },
+          () => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve({ id, synchronousId: typeof id === "string" });
+            }
+          },
+        );
+      });
+    })().then(reply, (error) => reply({ error: String(error) }));
+    return true;
+  }
   if (message.type !== "paseo-compatibility-probe") {
     return false;
   }
@@ -38,6 +60,7 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
       },
       { frameId: 0 },
     );
+    const tab = await chrome.tabs.get(tabs[0].id);
     const permission = await chrome.permissions.contains({ origins: ["https://example.com/*"] });
     const frame = await chrome.webNavigation.getFrame({ tabId: tabs[0].id, frameId: 0 });
     const allFrames = await new Promise((resolve) =>
@@ -45,7 +68,7 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     );
     await pendingCommits;
     const { commits = [] } = await chrome.storage.local.get("commits");
-    return { tabs, content, permission, commits, frame, allFrames };
+    return { tabs, tab, content, permission, commits, frame, allFrames };
   })().then(reply, (error) => reply({ error: String(error) }));
   return true;
 });
