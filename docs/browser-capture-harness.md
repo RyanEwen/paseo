@@ -62,6 +62,13 @@ Store fixture verifies that installation notifications still use the
 Electron Web Store shim after extension activation. Chromium's native Store status API requires
 Chrome services and can crash Electron if it replaces that shim.
 
+Extension-created document windows have real popup tab and window identities. The fixture
+checks their requested URL and geometry, profile storage, reuse and removal, and exclusion
+of toolbar action views from popup tab queries. Foreign extension and remote document URLs
+must fail before opening a window. A storage-only extension verifies that window creation
+does not require tab access, its own document retains tab metadata, and unrelated page URLs
+and titles stay hidden. Activating it must preserve existing compatibility API bindings.
+
 Extensions can make `did-attach` fire before `getWebContentsId()` is usable; register
 the guest identity at `dom-ready`.
 

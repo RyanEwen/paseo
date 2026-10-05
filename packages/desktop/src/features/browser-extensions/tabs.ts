@@ -1,15 +1,15 @@
 import { BrowserWindow, webContents, type Session, type WebContents } from "electron";
-import { z } from "zod";
 import { getPaseoBrowserWebviewRegistry } from "../browser-webviews/index.js";
 import { createBrowserTabProjection, type BrowserExtensionTab } from "./tab-projection.js";
+import { observeExtensionTab, type BrowserExtensionTabChanges } from "./tab-observation.js";
+import { describeVisibleExtensionTab, describeVisibleExtensionTabChanges } from "./tab-access.js";
 
-const ManifestSchema = z.object({ permissions: z.array(z.string()).default([]) });
 interface ExtensionTabsOptions {
   profile: Session;
   emit(id: string, name: string, ...args: unknown[]): void;
 }
 interface TabObservation {
-  tab: BrowserExtensionTab;
+  getCurrent(): BrowserExtensionTab;
   detach(): void;
 }
 
@@ -43,8 +43,27 @@ export function registerExtensionTabs(options: ExtensionTabsOptions): void {
 
   function emit(name: string, ...args: unknown[]): void {
     for (const extension of options.profile.extensions.getAllExtensions()) {
-      if (ManifestSchema.parse(extension.manifest).permissions.includes("tabs")) {
-        options.emit(extension.id, name, ...args);
+      options.emit(extension.id, name, ...args);
+    }
+  }
+
+  /** Tab creation and update payloads use each extension's own metadata grants. */
+  function emitCreated(tab: BrowserExtensionTab): void {
+    for (const extension of options.profile.extensions.getAllExtensions()) {
+      options.emit(extension.id, "tabs.onCreated", describeVisibleExtensionTab(extension, tab));
+    }
+  }
+  function emitUpdated(changes: BrowserExtensionTabChanges, tab: BrowserExtensionTab): void {
+    for (const extension of options.profile.extensions.getAllExtensions()) {
+      const visibleChanges = describeVisibleExtensionTabChanges(extension, changes, tab);
+      if (Object.keys(visibleChanges).length > 0) {
+        options.emit(
+          extension.id,
+          "tabs.onUpdated",
+          tab.id,
+          visibleChanges,
+          describeVisibleExtensionTab(extension, tab),
+        );
       }
     }
   }
@@ -54,44 +73,20 @@ export function registerExtensionTabs(options: ExtensionTabsOptions): void {
     previous?.detach();
     const initial = projection.describe(contents);
     observeOwner(initial.windowId);
-    function update(): void {
-      const observation = observed.get(contents.id);
-      if (!observation || !registry.getRegistrationForWebContents(contents.id)) {
-        return;
-      }
-      const current = projection.describe(contents);
-      const changes: Partial<Pick<BrowserExtensionTab, "url" | "title" | "status">> = {};
-      if (current.url !== observation.tab.url) {
-        changes.url = current.url;
-      }
-      if (current.title !== observation.tab.title) {
-        changes.title = current.title;
-      }
-      if (current.status !== observation.tab.status) {
-        changes.status = current.status;
-      }
-      observation.tab = current;
-      if (Object.keys(changes).length > 0) {
-        emit("tabs.onUpdated", contents.id, changes, current);
-      }
-    }
+    const observation = observeExtensionTab({
+      contents,
+      describe: () =>
+        registry.getRegistrationForWebContents(contents.id) ? projection.describe(contents) : null,
+      onUpdated: emitUpdated,
+    });
     function destroyed(): void {
       registry.unregisterWebContents(contents.id);
     }
-    contents.on("did-start-loading", update);
-    contents.on("did-stop-loading", update);
-    contents.on("did-navigate", update);
-    contents.on("did-navigate-in-page", update);
-    contents.on("page-title-updated", update);
     contents.once("destroyed", destroyed);
     observed.set(contents.id, {
-      tab: initial,
+      getCurrent: observation.getCurrent,
       detach() {
-        contents.removeListener("did-start-loading", update);
-        contents.removeListener("did-stop-loading", update);
-        contents.removeListener("did-navigate", update);
-        contents.removeListener("did-navigate-in-page", update);
-        contents.removeListener("page-title-updated", update);
+        observation.detach();
         contents.removeListener("destroyed", destroyed);
       },
     });
@@ -108,8 +103,8 @@ export function registerExtensionTabs(options: ExtensionTabsOptions): void {
         observed.delete(event.webContentsId);
         observation.detach();
         emit("tabs.onRemoved", event.webContentsId, {
-          windowId: observation.tab.windowId,
-          isWindowClosing: closingWindowIds.has(observation.tab.windowId),
+          windowId: observation.getCurrent().windowId,
+          isWindowClosing: closingWindowIds.has(observation.getCurrent().windowId),
         });
       }
       return;
@@ -123,7 +118,7 @@ export function registerExtensionTabs(options: ExtensionTabsOptions): void {
     }
     if (event.type === "registered") {
       observe(contents);
-      emit("tabs.onCreated", projection.describe(contents));
+      emitCreated(projection.describe(contents));
       return;
     }
     const tab = projection.describe(contents);

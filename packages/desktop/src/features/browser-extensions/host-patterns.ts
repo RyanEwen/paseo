@@ -5,8 +5,8 @@ interface HostPattern {
   path: string;
 }
 
-/** Parse Chrome match patterns. Paths are used for URL queries, while permission containment compares origins. */
-function parsePattern(pattern: string): HostPattern {
+/** Parse Chrome patterns; packaged extension schemes are allowed only for tab URL queries. */
+function parsePattern(pattern: string, allowExtensionScheme = false): HostPattern {
   if (pattern === "<all_urls>") {
     return {
       schemes: ["http:", "https:", "file:", "ftp:"],
@@ -15,7 +15,7 @@ function parsePattern(pattern: string): HostPattern {
       path: "/*",
     };
   }
-  const match = /^(\*|https?|file|ftp):\/\/([^/]*)(\/.*)$/.exec(pattern);
+  const match = /^(\*|https?|file|ftp|chrome-extension):\/\/([^/]*)(\/.*)$/.exec(pattern);
   if (!match) {
     throw new Error(`Invalid extension host pattern: ${pattern}`);
   }
@@ -24,6 +24,9 @@ function parsePattern(pattern: string): HostPattern {
   const pathname = match[3];
   if (scheme === undefined || rawHost === undefined || pathname === undefined) {
     throw new Error("Invalid extension host pattern.");
+  }
+  if (scheme === "chrome-extension" && !allowExtensionScheme) {
+    throw new Error("Packaged extension URLs cannot be used as host permission grants.");
   }
   const subdomains = rawHost.startsWith("*.");
   const host = subdomains ? rawHost.slice(2) : rawHost;
@@ -48,7 +51,7 @@ function hostMatches(pattern: HostPattern, host: string): boolean {
 
 /** Match URL-query patterns with escaped literal characters and Chrome wildcard host semantics. */
 export function matchesExtensionUrl(pattern: string, url: string): boolean {
-  const parsed = parsePattern(pattern);
+  const parsed = parsePattern(pattern, true);
   const target = new URL(url);
   if (!parsed.schemes.includes(target.protocol) || !hostMatches(parsed, target.hostname)) {
     return false;
@@ -57,6 +60,13 @@ export function matchesExtensionUrl(pattern: string, url: string): boolean {
   const escaped = pieces.map((piece) => piece.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const pathname = `${target.pathname}${target.search}`;
   return new RegExp(`^${escaped.join(".*")}$`).test(pathname);
+}
+
+/** Required host grants cover a page's scheme and host regardless of their path component. */
+export function matchesExtensionHostGrant(pattern: string, url: string): boolean {
+  const parsed = parsePattern(pattern);
+  const target = new URL(url);
+  return parsed.schemes.includes(target.protocol) && hostMatches(parsed, target.hostname);
 }
 
 /** Required host grants cover narrower origin patterns, including wildcard subdomains and all URLs. */

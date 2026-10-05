@@ -3336,6 +3336,19 @@ async function assertBrowserExtensionCompatibility(
       sourceUrl: firstGuest.getURL(),
     });
     await assertBrowserExtensionResourceFrames({ profile, popup, guest: firstGuest, extension });
+    const { assertExtensionDocumentPopout } = require("./extension-popout-fixture.js");
+    await assertExtensionDocumentPopout({ profile, toolbarPopup: popup, owner, extension });
+    pass("extension document popouts preserve routes, native tab identity and safe reuse/removal");
+    const { assertGenericExtensionWindows } = require("./generic-window-fixture.js");
+    await assertGenericExtensionWindows({
+      profile,
+      root: ROOT,
+      runtime,
+      owner,
+      guest: firstGuest,
+      referencePopup: popup,
+    });
+    pass("generic extension windows work without tab access and preserve metadata permissions");
     // The first popup message proves the newly registered worker is ready before navigation.
     await popup.webContents.executeJavaScript("chrome.storage.local.set({commits: []})");
     firstGuest.reload();

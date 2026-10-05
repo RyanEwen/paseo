@@ -1,4 +1,6 @@
 const workerInstance = crypto.randomUUID();
+const startupAlarmEvent = chrome.alarms.onAlarm;
+const startupUsesCompatibility = chrome.alarms.create.toString().includes("callbackResult");
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   await chrome.storage.local.set({
@@ -18,7 +20,13 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
       persistAcrossSessions: false,
     });
     const alarm = await chrome.alarms.get("paseo-idle-wake");
-    reply({ scheduledTime: alarm.scheduledTime, workerInstance });
+    reply({
+      scheduledTime: alarm.scheduledTime,
+      workerInstance,
+      startupUsesCompatibility,
+      createUsesCompatibility: chrome.alarms.create.toString().includes("callbackResult"),
+      sameAlarmEvent: startupAlarmEvent === chrome.alarms.onAlarm,
+    });
   }
 
   void schedule().catch((error) => reply({ error: String(error) }));
