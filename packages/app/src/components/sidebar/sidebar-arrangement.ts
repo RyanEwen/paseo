@@ -1,3 +1,5 @@
+import type { WorkspaceTitleSource } from "@/hooks/use-settings";
+import { resolveSidebarWorkspacePrimaryLabel } from "./sidebar-workspace-title";
 import type {
   SidebarProjectEntry,
   SidebarWorkspaceEntry,
@@ -76,6 +78,7 @@ export function sortSidebarProjectsByName({
 interface SidebarWorkspaceArrangement<T extends SidebarWorkspacePlacement> {
   workspaces: T[];
   mode: SidebarWorkspaceSortMode;
+  workspaceTitleSource: WorkspaceTitleSource;
   entries: ReadonlyMap<string, SidebarWorkspaceEntry>;
 }
 
@@ -84,12 +87,20 @@ export function arrangeSidebarWorkspaces<T extends SidebarWorkspacePlacement>({
   workspaces,
   mode,
   entries,
+  workspaceTitleSource,
 }: SidebarWorkspaceArrangement<T>): T[] {
   if (mode === "custom") return workspaces;
   return [...workspaces].sort((a, b) => {
     if (mode === "name") {
-      const aName = entries.get(a.workspaceKey)?.title ?? a.name;
-      const bName = entries.get(b.workspaceKey)?.title ?? b.name;
+      // Sort the same label the row renders, including the branch preference and its fallback.
+      const aName = resolveSidebarWorkspacePrimaryLabel({
+        workspace: entries.get(a.workspaceKey) ?? { name: a.name, currentBranch: null },
+        workspaceTitleSource,
+      });
+      const bName = resolveSidebarWorkspacePrimaryLabel({
+        workspace: entries.get(b.workspaceKey) ?? { name: b.name, currentBranch: null },
+        workspaceTitleSource,
+      });
       return aName.localeCompare(bName);
     }
     const aStatus = entries.get(a.workspaceKey)?.statusBucket ?? "done";

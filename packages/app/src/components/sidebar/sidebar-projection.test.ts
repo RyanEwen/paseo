@@ -82,6 +82,7 @@ function projectionInput(options?: {
     },
     pinnedWorkspaceOrder: [],
     workspaceSortMode: options?.groupMode === "status" ? ("status" as const) : ("custom" as const),
+    workspaceTitleSource: "title" as const,
     statusWorkspaceOrder: [],
     workspaceEntriesByKey: new Map([
       [pinned.entry.workspaceKey, pinned.entry],
@@ -153,17 +154,41 @@ describe("buildSidebarProjection", () => {
     zeta.entry.title = "Aardvark";
     const renamed = buildSidebarProjection({ ...input, workspaceSortMode: "name" });
     expect(renamed.pinnedGroups.unpinnedProjects[0].workspaces.map((row) => row.name)).toEqual([
-      "Zeta",
       "Alpha",
       "unpinned",
+      "Zeta",
     ]);
     expect([...renamed.shortcutModel.shortcutIndexByWorkspaceKey.keys()]).toEqual([
       "srv:pinned",
-      "srv:Zeta",
       "srv:Alpha",
       "srv:unpinned",
+      "srv:Zeta",
     ]);
   });
+
+  for (const groupMode of ["project", "status"] as const) {
+    it(`sorts by visible branches with name fallback in ${groupMode} grouping`, () => {
+      const alpha = makeWorkspace("Alpha");
+      const zeta = makeWorkspace("Zeta");
+      const fallback = makeWorkspace("Middle");
+      alpha.entry.currentBranch = "zeta-branch";
+      zeta.entry.currentBranch = "alpha-branch";
+      zeta.entry.title = "Hidden title";
+      const workspaces = [alpha, fallback, zeta];
+      const projection = buildSidebarProjection({
+        ...projectionInput({ groupMode }),
+        projects: [makeProject(workspaces.map((workspace) => workspace.placement))],
+        workspaceEntriesByKey: new Map(workspaces.map(({ entry }) => [entry.workspaceKey, entry])),
+        workspaceSortMode: "name",
+        workspaceTitleSource: "branch",
+      });
+      expect(projection.shortcutModel.shortcutTargets.map((target) => target.workspaceId)).toEqual([
+        "Zeta",
+        "Middle",
+        "Alpha",
+      ]);
+    });
+  }
 
   it("sorts within status groups and restores custom order across projects", () => {
     const input = twoProjectInput("status");

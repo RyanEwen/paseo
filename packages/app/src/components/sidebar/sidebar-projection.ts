@@ -1,3 +1,4 @@
+import type { WorkspaceTitleSource } from "@/hooks/use-settings";
 import { buildStatusGroups } from "@/hooks/sidebar-status-view-model";
 import {
   splitPinnedSidebarGroups,
@@ -44,6 +45,7 @@ export interface SidebarProjectionInput {
   projectNamesByViewKey: Map<string, string>;
   groupMode: SidebarGroupMode;
   workspaceSortMode: SidebarWorkspaceSortMode;
+  workspaceTitleSource: WorkspaceTitleSource;
   statusWorkspaceOrder: string[];
   pinnedCollapsed: boolean;
   collapsedProjectKeys: ReadonlySet<string>;
@@ -64,6 +66,7 @@ export function buildSidebarProjection(input: SidebarProjectionInput): SidebarPr
         workspaces: project.workspaces,
         mode: input.workspaceSortMode,
         entries: input.workspaceEntriesByKey,
+        workspaceTitleSource: input.workspaceTitleSource,
       }),
     }));
   }
@@ -133,6 +136,7 @@ function buildWorkspaceGroups(
           workspaces: rows,
           mode,
           entries: input.workspaceEntriesByKey,
+          workspaceTitleSource: input.workspaceTitleSource,
         });
         return group;
       });

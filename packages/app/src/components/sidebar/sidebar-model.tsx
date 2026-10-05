@@ -1,3 +1,4 @@
+import { useSettings } from "@/hooks/use-settings";
 import React, { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import {
   useSidebarWorkspacesList,
@@ -56,6 +57,9 @@ export function SidebarModelProvider({
   children: ReactNode;
 }) {
   const list = useSidebarWorkspacesList({ enabled: active });
+  const {
+    settings: { workspaceTitleSource },
+  } = useSettings();
   const workspaceSortMode = useSidebarViewStore((state) => state.workspaceSortMode);
   const statusWorkspaceOrder = useSidebarOrderStore((state) => state.statusWorkspaceOrder);
   const sortMode = useSidebarViewStore((state) => state.sortMode);
@@ -171,6 +175,7 @@ export function SidebarModelProvider({
       projectNamesByViewKey: list.projectNamesByViewKey,
       groupMode,
       workspaceSortMode,
+      workspaceTitleSource,
       statusWorkspaceOrder,
       pinnedCollapsed,
       collapsedProjectKeys,
@@ -181,6 +186,7 @@ export function SidebarModelProvider({
       collapsedWorkspaceGroupKeys,
       groupMode,
       workspaceSortMode,
+      workspaceTitleSource,
       statusWorkspaceOrder,
       list.projectNamesByViewKey,
       filteredProjects,

@@ -1,4 +1,4 @@
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import { projectEquivalenceViewKey } from "../support/helpers/project-view-key";
@@ -221,7 +221,8 @@ test("empty-project sorting is contextual and restores custom drag order in stat
   }
 });
 
-test("workspace sorting restores custom drag order in both grouping modes", async ({ page }) => {
+/** Seed two workspace rows whose names expose alphabetical and saved drag order. */
+async function seedSortableWorkspaceRows(page: Page) {
   const first = await seedWorkspace({ repoPrefix: "sidebar-workspace-sort-", title: "Zeta" });
   try {
     const created = await first.client.createWorkspace({
@@ -233,28 +234,55 @@ test("workspace sorting restores custom drag order in both grouping modes", asyn
     const alphaId = `sidebar-workspace-row-${getServerId()}:${created.workspace.id}`;
     await gotoAppShell(page);
     await waitForSidebarHydration(page);
-    const rows = page.locator(`[data-testid="${alphaId}"], [data-testid="${zetaId}"]`);
-    for (const mode of ["project", "status"] as const) {
-      if (mode === "status") await selectSidebarStatusGrouping(page);
-      await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
-      await page.getByTestId("sidebar-workspace-sorting-name").click();
-      await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
-      await quickDragFirstRowAfterSecond(rows, pressWorkspaceRow);
-      await page.getByTestId("sidebar-display-preferences-menu").click();
-      await expect(page.getByTestId("sidebar-display-workspace-sorting")).toContainText(
-        "Custom order",
-      );
-      await closeSidebarDisplayPreferences(page);
-      await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
-      await page.getByTestId("sidebar-workspace-sorting-name").click();
-      await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
-      await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
-      await page.getByTestId("sidebar-workspace-sorting-custom").click();
-      await expect.poll(() => rowTestIds(rows)).toEqual([zetaId, alphaId]);
-      await page.reload();
-      await expect.poll(() => rowTestIds(rows)).toEqual([zetaId, alphaId]);
-    }
-  } finally {
+    return {
+      rows: page.locator(`[data-testid="${alphaId}"], [data-testid="${zetaId}"]`),
+      alphaId,
+      zetaId,
+      cleanup: first.cleanup,
+    };
+  } catch (error) {
     await first.cleanup();
+    throw error;
+  }
+}
+
+/** Verify that alphabetical sorting leaves drag order available and saved across reloads. */
+async function expectWorkspaceSortingRestoresCustomOrder(
+  page: Page,
+  { rows, alphaId, zetaId }: Awaited<ReturnType<typeof seedSortableWorkspaceRows>>,
+) {
+  await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+  await page.getByTestId("sidebar-workspace-sorting-name").click();
+  await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
+  await quickDragFirstRowAfterSecond(rows, pressWorkspaceRow);
+  await page.getByTestId("sidebar-display-preferences-menu").click();
+  await expect(page.getByTestId("sidebar-display-workspace-sorting")).toContainText("Custom order");
+  await closeSidebarDisplayPreferences(page);
+  await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+  await page.getByTestId("sidebar-workspace-sorting-name").click();
+  await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
+  await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+  await page.getByTestId("sidebar-workspace-sorting-custom").click();
+  await expect.poll(() => rowTestIds(rows)).toEqual([zetaId, alphaId]);
+  await page.reload();
+  await expect.poll(() => rowTestIds(rows)).toEqual([zetaId, alphaId]);
+}
+
+test("workspace sorting restores custom drag order in project grouping", async ({ page }) => {
+  const seeded = await seedSortableWorkspaceRows(page);
+  try {
+    await expectWorkspaceSortingRestoresCustomOrder(page, seeded);
+  } finally {
+    await seeded.cleanup();
+  }
+});
+
+test("workspace sorting restores custom drag order in status grouping", async ({ page }) => {
+  const seeded = await seedSortableWorkspaceRows(page);
+  try {
+    await selectSidebarStatusGrouping(page);
+    await expectWorkspaceSortingRestoresCustomOrder(page, seeded);
+  } finally {
+    await seeded.cleanup();
   }
 });
