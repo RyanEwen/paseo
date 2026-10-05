@@ -41,6 +41,7 @@ const QuerySchema = z.strictObject({
   active: z.boolean().optional(),
   currentWindow: z.boolean().optional(),
   windowId: z.number().optional(),
+  windowType: z.enum(["normal", "popup", "panel", "app", "devtools"]).optional(),
   url: z.union([z.string(), z.array(z.string())]).optional(),
 });
 
@@ -198,6 +199,11 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     }
     if (method === "tabs.query") {
       const query = QuerySchema.parse(args[0]);
+      // The registry exposes app-owned browser windows as normal; extension popups are not browser tabs.
+      const matchesWindowType = query.windowType === undefined || query.windowType === "normal";
+      if (!matchesWindowType) {
+        return [];
+      }
       const owner = ownerWindow(senderId);
       let urls: string[] = [];
       if (typeof query.url === "string") {

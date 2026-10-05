@@ -2911,6 +2911,19 @@ function assertBrowserTabIdentity(tab, guest, owner) {
   }
 }
 
+/** Chrome window type filters must accept valid types without exposing app tabs as extension popup tabs. */
+function assertBrowserWindowTypeQuery(state, guest) {
+  if (
+    state.normalTabs.length !== 1 ||
+    state.normalTabs[0].id !== guest.id ||
+    state.popupTabs.length !== 0
+  ) {
+    fail(
+      "extension tabs.query windowType did not distinguish real browser windows from extension popups",
+    );
+  }
+}
+
 /** Blocked webview subframes omit Electron load-failure events, so bind CDP's denial to the exact native navigation loader. */
 async function assertPrivateExtensionFrameDenied({ guest, privateUrl, extensionId }) {
   const requestedLoaders = new Set();
@@ -3180,6 +3193,7 @@ async function assertBrowserExtensionCompatibility(
       fail(`extension worker selected the wrong browser tab: ${JSON.stringify(result)}`);
     }
     assertBrowserTabIdentity(result.tab, firstGuest, owner);
+    assertBrowserWindowTypeQuery(state, firstGuest);
     if (state.currentTab !== undefined || state.window.id !== owner.id) {
       fail("extension popup window ownership did not match Chrome popup semantics");
     }
