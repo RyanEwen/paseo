@@ -1,5 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import { DefaultNpmGlobalPaseoCli } from "./npm-global-cli.js";
 
 interface CommandCall {
@@ -13,21 +15,55 @@ const globalRoot = path.join(path.sep, "global", "lib");
 const globalNodeModules = path.join(globalRoot, "node_modules");
 const cliPackagePath = path.join(globalNodeModules, "@getpaseo", "cli");
 
-function npmGlobalPaseoCliJson(version: string, options?: { linked?: boolean }): string {
+function npmGlobalPaseoCliJson(
+  version: string,
+  options?: { root?: string; packagePath?: string; resolved?: string },
+): string {
   return JSON.stringify({
     name: "lib",
-    path: globalRoot,
+    path: options?.root ?? globalRoot,
     dependencies: {
       "@getpaseo/cli": {
         version,
-        path: cliPackagePath,
-        link: options?.linked === true,
+        ...(options?.resolved ? { resolved: options.resolved } : {}),
+        path: options?.packagePath ?? cliPackagePath,
       },
     },
   });
 }
 
 describe("DefaultNpmGlobalPaseoCli", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of tempDirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports a global install linked to a local checkout as linked", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "paseo-npm-global-"));
+    tempDirs.push(dir);
+    const checkoutCli = path.join(dir, "checkout", "packages", "cli");
+    const root = path.join(dir, "prefix", "lib");
+    const linkedPackagePath = path.join(root, "node_modules", "@getpaseo", "cli");
+    mkdirSync(checkoutCli, { recursive: true });
+    mkdirSync(path.dirname(linkedPackagePath), { recursive: true });
+    symlinkSync(checkoutCli, linkedPackagePath, "junction");
+    // npm 7+ `ls --json --long` output for a linked install: no link flag.
+    const cli = new DefaultNpmGlobalPaseoCli(async () => ({
+      exitCode: 0,
+      stdout: npmGlobalPaseoCliJson("0.1.15", {
+        root,
+        packagePath: linkedPackagePath,
+        resolved: `file:${path.relative(root, checkoutCli)}`,
+      }),
+      stderr: "",
+    }));
+
+    await expect(cli.inspect()).resolves.toMatchObject({ isLinked: true });
+  });
+
   test("inspects the npm global cli install with npm -g ls", async () => {
     const calls: CommandCall[] = [];
     const cli = new DefaultNpmGlobalPaseoCli(async (command, args, options) => {
