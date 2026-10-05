@@ -50,11 +50,14 @@ still present after the first Electron process exits and the second starts. It a
 extension content scripts in both tabs, enable/disable behavior, and extension restore across
 processes. The production popup host loads a real extension document, verifies its Chrome
 APIs and persistent storage, and checks that Node and the Paseo bridge are absent. A second
-MV3 fixture verifies selected-tab ownership, native content-script messaging, navigation
-events, child-frame IDs, and Chromium document IDs. Optional permission requests must fail
+MV3 fixture verifies selected-tab ownership, native content-script messaging, tab lifecycle
+events, navigation events, child-frame IDs, and Chromium document IDs. Optional permission requests must fail
 without granting access, including through Chrome's callback error path. DevTools explicitly
-stops the fixture worker; navigation must wake it without losing the triggering event or
-retaining the previous document identity. An offline
+stops the fixture worker; navigation and an actual tab selection must wake it without losing
+the triggering event or retaining the previous document identity. Separate fixtures verify that
+actual WebSocket traffic resets worker idle time, idle connections allow normal sleep, and a
+scheduled alarm wakes a naturally sleeping worker. Observe these fixtures from the main
+process without attaching a worker debugger, which changes worker lifetime. An offline
 Store fixture verifies that installation notifications still use the
 Electron Web Store shim after extension activation. Chromium's native Store status API requires
 Chrome services and can crash Electron if it replaces that shim.

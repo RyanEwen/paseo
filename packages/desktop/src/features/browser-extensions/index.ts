@@ -135,7 +135,11 @@ export async function registerBrowserExtensions(): Promise<void> {
     assertAppSender(event);
     const id = ExtensionIdSchema.parse(input);
     await catalog.remove(id);
-    await compatibility.forgetExtensionContextMenus(id);
+    // Both independent stores must clear even if one cleanup fails.
+    await Promise.all([
+      compatibility.forgetExtensionContextMenus(id),
+      compatibility.forgetExtensionAlarms(id),
+    ]);
   });
   ipcMain.handle("paseo:browser:extensions:load-unpacked", async (event) => {
     const owner = assertAppSender(event);

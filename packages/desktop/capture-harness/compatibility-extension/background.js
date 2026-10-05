@@ -1,3 +1,22 @@
+let pendingTabEvents = Promise.resolve();
+const tabWorkerStarted = (async () => {
+  const { tabWorkerStarts = 0 } = await chrome.storage.local.get("tabWorkerStarts");
+  await chrome.storage.local.set({ tabWorkerStarts: tabWorkerStarts + 1 });
+  return tabWorkerStarts + 1;
+})();
+/** Capture genuine browser events and the new worker instance that processes the wake event. */
+async function saveTabEvent(previous, name, args) {
+  await previous;
+  const workerStart = await tabWorkerStarted;
+  const { tabEvents = [] } = await chrome.storage.local.get("tabEvents");
+  await chrome.storage.local.set({ tabEvents: [...tabEvents, { name, args, workerStart }] });
+}
+for (const name of ["onCreated", "onRemoved", "onActivated", "onUpdated"]) {
+  chrome.tabs[name].addListener((...args) => {
+    pendingTabEvents = saveTabEvent(pendingTabEvents, name, args);
+  });
+}
+
 let pendingWindowEvents = Promise.resolve();
 /** Preserve native window events in order so the harness can verify sleeping-worker delivery. */
 async function saveWindowEvent(previous, name, detail) {

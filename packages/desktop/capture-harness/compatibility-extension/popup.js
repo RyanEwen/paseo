@@ -20,5 +20,17 @@ window.paseoCompatibilityResult = (async () => {
       resolve(chrome.runtime.lastError?.message),
     );
   });
-  return { currentTab, window, tabs, normalTabs, popupTabs, result, optionalPermissionError };
+  const alarmPermissionError = await new Promise((resolve) => {
+    chrome.alarms.getAll(() => resolve(chrome.runtime.lastError?.message));
+  });
+  return {
+    currentTab,
+    window,
+    tabs,
+    normalTabs,
+    popupTabs,
+    result,
+    optionalPermissionError,
+    alarmPermissionError,
+  };
 })();
