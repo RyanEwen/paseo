@@ -598,6 +598,14 @@ export const ru: TranslationResources = {
         submit: "Прикрепить",
         cancel: "Отмена",
       },
+      extensions: {
+        label: "Расширения",
+        empty: "Нет включённых расширений.",
+        noPopup: "Всплывающее окно не предусмотрено",
+        loading: "Загрузка расширений...",
+        manage: "Управление расширениями",
+        openFailed: "Не удалось открыть расширение",
+      },
       devices: {
         label: "Размер экрана устройства",
         responsive: "Адаптивный режим",
@@ -2069,6 +2077,26 @@ export const ru: TranslationResources = {
     general: {
       title: "Основные",
       sending: "Отправка",
+      browserExtensions: {
+        title: "Расширения",
+        compatibility:
+          "Некоторые функции расширений Chrome не поддерживаются. Расширения не обновляются автоматически.",
+        store: "Chrome Web Store",
+        openStore: "Открыть Web Store",
+        refresh: "Обновить",
+        enable: "Включить",
+        disable: "Отключить",
+        retry: "Повторить",
+        remove: "Удалить",
+        removeTitle: "Удалить {{name}}?",
+        removeMessage:
+          "Расширение будет удалено из Paseo. Исходные папки распакованных расширений сохраняются.",
+        loading: "Загрузка расширений...",
+        empty: "Нет установленных расширений.",
+        unpackedHint: "Загрузите расширение из папки, содержащей manifest.json.",
+        loadUnpacked: "Загрузить распакованное",
+        unavailable: "Расширения недоступны. Обновите настольное приложение.",
+      },
       browserData: {
         title: "Данные браузера",
         siteData: "Файлы cookie и данные сайтов",

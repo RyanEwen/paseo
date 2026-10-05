@@ -589,6 +589,14 @@ export const en = {
         submit: "Attach",
         cancel: "Cancel",
       },
+      extensions: {
+        label: "Extensions",
+        empty: "No enabled extensions.",
+        noPopup: "No popup provided",
+        loading: "Loading extensions...",
+        manage: "Manage extensions",
+        openFailed: "Couldn't open extension",
+      },
       devices: {
         label: "Device size",
         responsive: "Responsive",
@@ -2161,6 +2169,25 @@ export const en = {
     general: {
       title: "General",
       sending: "Sending",
+      browserExtensions: {
+        title: "Extensions",
+        compatibility:
+          "Some Chrome extension features are unsupported. Extensions are not updated automatically.",
+        store: "Chrome Web Store",
+        openStore: "Open Web Store",
+        refresh: "Refresh",
+        enable: "Enable",
+        disable: "Disable",
+        retry: "Retry",
+        remove: "Remove",
+        removeTitle: "Remove {{name}}?",
+        removeMessage: "This removes the extension from Paseo. Unpacked source folders are kept.",
+        loading: "Loading extensions...",
+        empty: "No extensions installed.",
+        unpackedHint: "Load an extension from a folder containing manifest.json.",
+        loadUnpacked: "Load unpacked",
+        unavailable: "Extension support is unavailable. Update the desktop app.",
+      },
       browserData: {
         title: "Browser data",
         siteData: "Cookies and site data",

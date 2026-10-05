@@ -46,6 +46,26 @@ The tools are part of the [Paseo MCP toolset](/docs/mcp), so **Enable Paseo tool
 
 Browser tabs are hosted by the Paseo desktop app. The daemon itself doesn't run a browser — it routes tool calls to a connected desktop app, and returns an error when none is connected. The wire contract is host-neutral, so other hosts can carry the same tools later.
 
+## Chrome extensions
+
+Open **Settings → Browser → Extensions → Open Web Store** to browse the Chrome
+Web Store in Paseo. Select an extension and choose **Add to Chrome**, then review
+its requested permissions before installing it.
+
+Installed extensions share Paseo's browser profile and are remembered across
+desktop restarts. Use the same settings page to disable, enable, or remove them.
+Reload existing tabs after changing extensions. **Load unpacked** accepts a folder
+containing `manifest.json`; removing it from Paseo keeps the source folder.
+
+Open the **Extensions** menu in a browser tab's toolbar to open an enabled
+extension's popup, visit the Web Store, or manage extensions. Extensions without
+a declared popup are listed but cannot be opened from this menu.
+
+Paseo supports Electron's Chrome extension APIs. Some extensions require APIs
+Electron does not provide, so installation does not guarantee every feature works.
+Extensions are not updated automatically; remove and reinstall a Store extension
+to get its latest version.
+
 ## How an agent sees a page
 
 The primary tool is `browser_snapshot`, which returns the page as an accessibility tree — headings, text, form state, and hierarchy — instead of raw HTML:
