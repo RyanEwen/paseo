@@ -25,6 +25,7 @@ interface CompatibilityChrome {
   permissions?: Record<string, unknown>;
   windows?: Record<string, unknown>;
   contextMenus?: Record<string, unknown>;
+  alarms?: Record<string, unknown>;
 }
 declare global {
   var chrome: CompatibilityChrome;
@@ -182,6 +183,14 @@ function installCompatibility(): void {
     create: method("notifications.create"),
     clear: method("notifications.clear"),
   };
+  chrome.alarms = {
+    onAlarm: event("alarms.onAlarm"),
+    create: method("alarms.create"),
+    get: method("alarms.get"),
+    getAll: method("alarms.getAll"),
+    clear: method("alarms.clear"),
+    clearAll: method("alarms.clearAll"),
+  };
   const contextMenuClicked = event("contextMenus.onClicked");
   const onclickHandlers = new Map<string | number, (...args: unknown[]) => void>();
   contextMenuClicked.addListener((info, tab) => {
@@ -284,6 +293,10 @@ function installCompatibility(): void {
     getAll: method("windows.getAll"),
     get: method("windows.get"),
   };
+  chrome.tabs.onActivated = event("tabs.onActivated");
+  chrome.tabs.onCreated = event("tabs.onCreated");
+  chrome.tabs.onRemoved = event("tabs.onRemoved");
+  chrome.tabs.onUpdated = event("tabs.onUpdated");
   chrome.tabs.getCurrent = method("tabs.getCurrent");
   if (chrome.runtime.getManifest().permissions?.includes("tabs")) {
     chrome.tabs.query = method("tabs.query");

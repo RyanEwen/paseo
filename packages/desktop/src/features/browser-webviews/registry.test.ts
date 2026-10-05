@@ -2,6 +2,105 @@ import { describe, expect, it } from "vitest";
 import { PaseoBrowserWebviewRegistry } from "./registry.js";
 
 describe("PaseoBrowserWebviewRegistry", () => {
+  it("publishes only actual registrations and active guest changes", () => {
+    const registry = new PaseoBrowserWebviewRegistry();
+    const events: unknown[] = [];
+    const unsubscribe = registry.subscribe((event) => events.push(event));
+    registry.setWorkspaceActiveBrowser({
+      hostWebContentsId: 10,
+      workspaceId: "workspace",
+      browserId: "first",
+    });
+    registry.registerWebContents({ webContentsId: 1, hostWebContentsId: 10, browserId: "first" });
+    registry.registerWebContents({ webContentsId: 1, hostWebContentsId: 10, browserId: "first" });
+    registry.setWorkspaceActiveBrowser({
+      hostWebContentsId: 10,
+      workspaceId: "workspace",
+      browserId: "first",
+    });
+    registry.registerWebContents({ webContentsId: 2, hostWebContentsId: 10, browserId: "second" });
+    registry.setWorkspaceActiveBrowser({
+      hostWebContentsId: 10,
+      workspaceId: "workspace",
+      browserId: "second",
+    });
+    expect(events).toEqual([
+      { type: "registered", webContentsId: 1, browserId: "first", hostWebContentsId: 10 },
+      {
+        type: "active-changed",
+        hostWebContentsId: 10,
+        previousWebContentsId: null,
+        webContentsId: 1,
+      },
+      { type: "registered", webContentsId: 2, browserId: "second", hostWebContentsId: 10 },
+      { type: "active-changed", hostWebContentsId: 10, previousWebContentsId: 1, webContentsId: 2 },
+    ]);
+    unsubscribe();
+    registry.unregisterWebContents(2);
+    expect(events).toHaveLength(4);
+  });
+
+  it("replaces an active guest with one activation and cleans the obsolete identity", () => {
+    const registry = new PaseoBrowserWebviewRegistry();
+    registry.registerWebContents({ webContentsId: 1, hostWebContentsId: 10, browserId: "first" });
+    registry.setWorkspaceActiveBrowser({
+      hostWebContentsId: 10,
+      workspaceId: "workspace",
+      browserId: "first",
+    });
+    const events: unknown[] = [];
+    registry.subscribe((event) => events.push(event));
+    registry.registerWebContents({ webContentsId: 2, hostWebContentsId: 10, browserId: "first" });
+    expect(events).toEqual([
+      { type: "unregistered", webContentsId: 1, browserId: "first", hostWebContentsId: 10 },
+      { type: "registered", webContentsId: 2, browserId: "first", hostWebContentsId: 10 },
+      { type: "active-changed", hostWebContentsId: 10, previousWebContentsId: 1, webContentsId: 2 },
+    ]);
+    registry.unregisterWebContents(1);
+    expect(events).toHaveLength(3);
+    expect(registry.getActiveBrowserIdForHostWindow(10)).toBe("first");
+  });
+
+  it("tracks guest ownership changes and never activates an unrelated host", () => {
+    const registry = new PaseoBrowserWebviewRegistry();
+    registry.registerWebContents({ webContentsId: 1, hostWebContentsId: 10, browserId: "first" });
+    registry.registerWebContents({ webContentsId: 2, hostWebContentsId: 20, browserId: "second" });
+    registry.setWorkspaceActiveBrowser({
+      hostWebContentsId: 10,
+      workspaceId: "workspace",
+      browserId: "first",
+    });
+    registry.setWorkspaceActiveBrowser({
+      hostWebContentsId: 20,
+      workspaceId: "workspace",
+      browserId: "second",
+    });
+    const events: unknown[] = [];
+    registry.subscribe((event) => events.push(event));
+    registry.registerWebContents({ webContentsId: 1, hostWebContentsId: 20, browserId: "first" });
+    expect(events).toEqual([
+      { type: "unregistered", webContentsId: 1, browserId: "first", hostWebContentsId: 10 },
+      {
+        type: "active-changed",
+        hostWebContentsId: 10,
+        previousWebContentsId: 1,
+        webContentsId: null,
+      },
+      { type: "registered", webContentsId: 1, browserId: "first", hostWebContentsId: 20 },
+    ]);
+    registry.unregisterHostWebContents(20);
+    expect(events.slice(3)).toEqual([
+      { type: "unregistered", webContentsId: 2, browserId: "second", hostWebContentsId: 20 },
+      {
+        type: "active-changed",
+        hostWebContentsId: 20,
+        previousWebContentsId: 2,
+        webContentsId: null,
+      },
+      { type: "unregistered", webContentsId: 1, browserId: "first", hostWebContentsId: 20 },
+    ]);
+  });
+
   it("resolves early API lookups only after the actual guest identity registers", async () => {
     const registry = new PaseoBrowserWebviewRegistry();
     let resolved = false;

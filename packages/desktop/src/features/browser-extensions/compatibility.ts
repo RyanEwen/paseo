@@ -1,5 +1,11 @@
 import path from "node:path";
+import log from "electron-log";
 import { createExtensionWindows } from "./windows.js";
+import { registerBrowserExtensionWorkerActivity } from "./worker-activity.js";
+import { createExtensionAlarms } from "./alarms.js";
+import { getBrowserExtensionSource } from "./catalog.js";
+import { createBrowserTabProjection } from "./tab-projection.js";
+import { registerExtensionTabs } from "./tabs.js";
 import { createExtensionEventDelivery } from "./events.js";
 import {
   BrowserWindow,
@@ -21,7 +27,6 @@ import {
 } from "./context-menus.js";
 import { createExtensionNotifications } from "./notifications.js";
 import {
-  getActivePaseoBrowserWebContentsForHostWindow,
   getPaseoBrowserWebviewRegistry,
   isPreparedPaseoBrowserWebContents,
 } from "../browser-webviews/index.js";
@@ -47,6 +52,7 @@ const QuerySchema = z.strictObject({
 
 /** Add the browser-owned APIs required by MV3 password-manager startup. Native supported APIs remain Chromium-owned. */
 export function registerBrowserExtensionCompatibility(profile: Session) {
+  registerBrowserExtensionWorkerActivity(profile);
   const popupOwners = new Map<number, number>();
   const readyWorkers = new Map<number, Promise<boolean>>();
   const trackedWorkers = new Map<number, ServiceWorkerMain>();
@@ -68,6 +74,38 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     },
   });
   const requestNotification = createExtensionNotifications(deliverEvent);
+  const alarms = createExtensionAlarms({
+    storagePath: path.join(app.getPath("userData"), "browser-extension-alarms.json"),
+    getExtension: (id) => profile.extensions.getExtension(id),
+    emit: deliverEvent,
+    onError: (error) => log.error("Extension alarm scheduling failed", error),
+    minimumDelayMs(id) {
+      const extension = profile.extensions.getExtension(id);
+      if (!extension) {
+        throw new Error("Extension is no longer enabled.");
+      }
+      const source = getBrowserExtensionSource(
+        path.join(app.getPath("userData"), "browser-extensions"),
+        extension.path,
+      );
+      // Chrome exempts unpacked developer extensions from its production alarm granularity.
+      if (source === "unpacked") {
+        return 1_000;
+      }
+      return 30_000;
+    },
+  });
+  profile.extensions.on("extension-loaded", (_event, extension) => {
+    void alarms
+      .loaded(extension.id)
+      .catch((error) => log.error("Could not load extension alarms", error));
+  });
+  profile.extensions.on("extension-unloaded", (_event, extension) => {
+    void alarms
+      .unloaded(extension.id)
+      .catch((error) => log.error("Could not unload extension alarms", error));
+  });
+  app.once("before-quit", () => alarms.dispose());
   const registry = getPaseoBrowserWebviewRegistry();
   const contextMenus = createExtensionContextMenus({
     storagePath: path.join(app.getPath("userData"), "browser-extension-context-menus.json"),
@@ -114,35 +152,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     }
   }
 
-  function tabs() {
-    return webContents
-      .getAllWebContents()
-      .filter(
-        (contents) =>
-          contents.session === profile && registry.getBrowserIdForWebContents(contents.id) !== null,
-      );
-  }
-
-  function tab(contents: WebContents) {
-    const registration = registry.getRegistrationForWebContents(contents.id);
-    if (!registration) {
-      throw new Error("This page is not a Paseo browser tab.");
-    }
-    const owner = webContents.fromId(registration.hostWebContentsId);
-    const window = owner ? BrowserWindow.fromWebContents(owner) : null;
-    const active = getActivePaseoBrowserWebContentsForHostWindow(registration.hostWebContentsId);
-    return {
-      id: contents.id,
-      windowId: window ? window.id : -1,
-      active: active?.id === contents.id,
-      highlighted: active?.id === contents.id,
-      url: contents.getURL(),
-      title: contents.getTitle(),
-      incognito: false,
-      status: contents.isLoading() ? "loading" : "complete",
-      index: tabs().findIndex((item) => item.id === contents.id),
-    };
-  }
+  const { list: tabs, describe: tab } = createBrowserTabProjection(profile);
 
   function ownerWindow(senderId: number | null) {
     if (senderId === null) {
@@ -280,6 +290,12 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     if (method.startsWith("contextMenus.")) {
       return contextMenus.request(extension.id, method, args);
     }
+    if (method.startsWith("alarms.")) {
+      if (!manifest.permissions.includes("alarms")) {
+        throw new Error("The alarms permission is required.");
+      }
+      return alarms.request(extension.id, method, args);
+    }
     throw new Error(`Extension API ${method} is not supported in Paseo.`);
   }
 
@@ -317,6 +333,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     worker.ipc.handle(CHANNEL, (_event, input: unknown) => request(worker.scriptURL, null, input));
   });
 
+  registerExtensionTabs({ profile, emit: deliverEvent });
   registerExtensionNavigation(profile, deliverEvent);
 
   const preload = path.join(__dirname, "compatibility-preload.js");
@@ -324,6 +341,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
   profile.registerPreloadScript({ type: "service-worker", filePath: preload });
   return {
     forgetExtensionContextMenus: contextMenus.forgetExtension,
+    forgetExtensionAlarms: alarms.forgetExtension,
     /** Associate popup API calls with the app window that owns the selected browser guest. */
     registerPopup(popup: WebContents, guest: WebContents): void {
       const registration = registry.getRegistrationForWebContents(guest.id);

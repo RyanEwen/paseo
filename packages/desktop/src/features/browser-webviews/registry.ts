@@ -8,7 +8,54 @@ export interface BrowserWebContentsRegistration {
   hostWebContentsId: number;
 }
 
+export type BrowserWebviewRegistryEvent =
+  | ({
+      type: "registered" | "unregistered";
+      webContentsId: number;
+    } & BrowserWebContentsRegistration)
+  | {
+      type: "active-changed";
+      hostWebContentsId: number;
+      previousWebContentsId: number | null;
+      webContentsId: number | null;
+    };
+
 export class PaseoBrowserWebviewRegistry {
+  private readonly listeners = new Set<(event: BrowserWebviewRegistryEvent) => void>();
+
+  /** Observe committed identity/selection changes; repeated renderer announcements produce no events. */
+  public subscribe(listener: (event: BrowserWebviewRegistryEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private emit(event: BrowserWebviewRegistryEvent): void {
+    for (const listener of this.listeners) {
+      listener(event);
+    }
+  }
+
+  private getActiveWebContentsId(hostWebContentsId: number): number | null {
+    const browserId = this.getActiveBrowserIdForHostWindow(hostWebContentsId);
+    return browserId === null
+      ? null
+      : this.getWebContentsIdForBrowserInHostWindow(hostWebContentsId, browserId);
+  }
+
+  private emitActiveChange(hostWebContentsId: number, previousWebContentsId: number | null): void {
+    const webContentsId = this.getActiveWebContentsId(hostWebContentsId);
+    if (webContentsId !== previousWebContentsId) {
+      this.emit({
+        type: "active-changed",
+        hostWebContentsId,
+        previousWebContentsId,
+        webContentsId,
+      });
+    }
+  }
+
   private readonly pendingRegistrations = new Map<
     number,
     Set<(registration: BrowserWebContentsRegistration | null) => void>
@@ -23,6 +70,7 @@ export class PaseoBrowserWebviewRegistry {
     browserId: string;
     hostWebContentsId: number;
   }): void {
+    const previousActive = this.getActiveWebContentsId(input.hostWebContentsId);
     const hostBrowserKey = this.hostBrowserKey(input.hostWebContentsId, input.browserId);
     const replacedWebContentsId = this.webContentsIdsByHostAndBrowserId.get(hostBrowserKey);
     const existingRegistration = this.registrationsByWebContentsId.get(input.webContentsId);
@@ -49,6 +97,8 @@ export class PaseoBrowserWebviewRegistry {
       input.webContentsId,
       this.getRegistrationForWebContents(input.webContentsId),
     );
+    this.emit({ type: "registered", ...input });
+    this.emitActiveChange(input.hostWebContentsId, previousActive);
   }
 
   /** Wait for the actual renderer identity; cancellation resolves null when a guest disappears. */
@@ -118,10 +168,7 @@ export class PaseoBrowserWebviewRegistry {
   public unregisterBrowser(browserId: string): void {
     for (const [webContentsId, registration] of this.registrationsByWebContentsId) {
       if (registration.browserId === browserId) {
-        this.registrationsByWebContentsId.delete(webContentsId);
-        this.webContentsIdsByHostAndBrowserId.delete(
-          this.hostBrowserKey(registration.hostWebContentsId, browserId),
-        );
+        this.unregisterWebContents(webContentsId);
       }
     }
     this.workspaceIdsByBrowserId.delete(browserId);
@@ -171,6 +218,7 @@ export class PaseoBrowserWebviewRegistry {
     workspaceId: string;
     browserId: string | null;
   }): void {
+    const previousActive = this.getActiveWebContentsId(input.hostWebContentsId);
     if (input.browserId === null) {
       const activeBrowserIdsByWorkspace = this.activeBrowserIdsByHostWindow.get(
         input.hostWebContentsId,
@@ -182,6 +230,7 @@ export class PaseoBrowserWebviewRegistry {
       if (activeBrowserIdsByWorkspace.size === 0) {
         this.activeBrowserIdsByHostWindow.delete(input.hostWebContentsId);
       }
+      this.emitActiveChange(input.hostWebContentsId, previousActive);
       return;
     }
     if (this.hasBrowser(input.browserId)) {
@@ -193,6 +242,7 @@ export class PaseoBrowserWebviewRegistry {
     activeBrowserIdsByWorkspace.set(input.workspaceId, input.browserId);
     this.activeBrowserIdsByHostWindow.delete(input.hostWebContentsId);
     this.activeBrowserIdsByHostWindow.set(input.hostWebContentsId, activeBrowserIdsByWorkspace);
+    this.emitActiveChange(input.hostWebContentsId, previousActive);
   }
 
   public getActiveBrowserIdForHostWindow(hostWebContentsId: number): string | null {
@@ -261,6 +311,7 @@ export class PaseoBrowserWebviewRegistry {
       return;
     }
     const { browserId, hostWebContentsId } = registration;
+    const previousActive = this.getActiveWebContentsId(hostWebContentsId);
 
     this.registrationsByWebContentsId.delete(webContentsId);
     this.webContentsIdsByHostAndBrowserId.delete(this.hostBrowserKey(hostWebContentsId, browserId));
@@ -270,6 +321,10 @@ export class PaseoBrowserWebviewRegistry {
       !this.hasBrowserInHostWindow(browserId, hostWebContentsId)
     ) {
       this.deleteActiveBrowserReferencesInHostWindow(browserId, hostWebContentsId);
+    }
+    this.emit({ type: "unregistered", webContentsId, ...registration });
+    if (!options.preserveActiveBrowser) {
+      this.emitActiveChange(hostWebContentsId, previousActive);
     }
   }
 

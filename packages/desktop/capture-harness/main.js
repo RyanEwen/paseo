@@ -2806,6 +2806,154 @@ async function assertBrowserExtensionWindowEvents({ owner, profile, runtime, gue
   }
 }
 
+/** Real browser selection must wake the worker, with creation/removal and load events sharing tab identity. */
+async function assertBrowserExtensionTabEvents({
+  owner,
+  profile,
+  runtime,
+  firstGuest,
+  secondGuest,
+  extension,
+}) {
+  const browserWebviews = require("../dist/features/browser-webviews/index.js");
+  const { openBrowserExtensionPopup } = require("../dist/features/browser-extensions/actions.js");
+  let popup;
+  let extraFixture;
+  firstGuest.debugger.attach("1.3");
+  try {
+    popup = await openBrowserExtensionPopup({
+      owner,
+      profile,
+      extension,
+      show: false,
+      onCreated: (window) => runtime.registerPopup(window.webContents, firstGuest),
+    });
+    const before = await popup.webContents.executeJavaScript(
+      'chrome.storage.local.get("tabWorkerStarts")',
+    );
+    await popup.webContents.executeJavaScript("chrome.storage.local.set({tabEvents: []})");
+    await stopCompatibilityWorker(firstGuest, profile, extension.id);
+    const selection = {
+      hostWebContentsId: owner.webContents.id,
+      workspaceId: "compatibility-workspace",
+      browserId: "browser-second",
+    };
+    browserWebviews.setWorkspaceActivePaseoBrowserId(selection);
+    browserWebviews.setWorkspaceActivePaseoBrowserId(selection);
+    async function waitForTabs(predicate, label) {
+      const deadline = Date.now() + BROWSER_PROFILE_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        const { tabEvents = [] } = await popup.webContents.executeJavaScript(
+          'chrome.storage.local.get("tabEvents")',
+        );
+        if (predicate(tabEvents)) {
+          return tabEvents;
+        }
+        await delay(20);
+      }
+      fail(`extension tab lifecycle missing ${label}`);
+    }
+    const activated = await waitForTabs(
+      (events) => events.some((event) => event.name === "onActivated"),
+      "selected-tab wake",
+    );
+    const activations = activated.filter((event) => event.name === "onActivated");
+    if (
+      activations.length !== 1 ||
+      activations[0].args[0].tabId !== secondGuest.id ||
+      activations[0].args[0].windowId !== owner.id ||
+      activations[0].workerStart <= before.tabWorkerStarts
+    ) {
+      fail(
+        "actual tab selection did not wake a fresh worker exactly once with the selected guest/window",
+      );
+    }
+    secondGuest.reload();
+    await waitForGuestLoad(secondGuest);
+    await waitForTabs(
+      (events) =>
+        events.some(
+          (event) =>
+            event.name === "onUpdated" &&
+            event.args[0] === secondGuest.id &&
+            event.args[1].status === "complete" &&
+            event.args[2].active,
+        ),
+      "real selected guest load completion",
+    );
+    extraFixture = await createBrowserProfileHarnessWindow(
+      "persist:paseo-browser-profile-harness-restart",
+      firstGuest.getURL(),
+    );
+    const extraOwner = extraFixture.handle.win;
+    const extraGuests = resolveBrowserProfileGuests(extraFixture, profile);
+    for (const [index, guest] of extraGuests.entries()) {
+      if (
+        !browserWebviews.registerAttachedPaseoBrowser({
+          browserId: `tab-event-${index}`,
+          workspaceId: "tab-event-workspace",
+          webContentsId: guest.id,
+          sender: extraOwner.webContents,
+          profileSession: profile,
+          findWebContents: (id) => require("electron").webContents.fromId(id),
+        })
+      ) {
+        fail("tab lifecycle fixture could not register real owned browser guests");
+      }
+    }
+    const extraIds = extraGuests.map((guest) => guest.id);
+    const created = await waitForTabs(
+      (events) =>
+        extraIds.every((id) =>
+          events.some(
+            (event) =>
+              event.name === "onCreated" &&
+              event.args[0].id === id &&
+              event.args[0].windowId === extraOwner.id,
+          ),
+        ),
+      "real guest creation",
+    );
+    if (
+      created.filter((event) => event.name === "onCreated" && extraIds.includes(event.args[0].id))
+        .length !== 2
+    ) {
+      fail("guest registration emitted duplicate tab creation events");
+    }
+    await closeHarnessWindow(extraOwner);
+    extraFixture = null;
+    await waitForTabs(
+      (events) =>
+        extraIds.every((id) =>
+          events.some(
+            (event) =>
+              event.name === "onRemoved" &&
+              event.args[0] === id &&
+              event.args[1].windowId === extraOwner.id &&
+              event.args[1].isWindowClosing,
+          ),
+        ),
+      "actual owner-close guest removal",
+    );
+    pass(
+      "real tab selection wakes a new extension worker; load, creation and owner-close removal events retain exact guest identity",
+    );
+  } finally {
+    browserWebviews.setWorkspaceActivePaseoBrowserId({
+      hostWebContentsId: owner.webContents.id,
+      workspaceId: "compatibility-workspace",
+      browserId: "browser-first",
+    });
+    firstGuest.debugger.detach();
+    if (extraFixture) {
+      await closeHarnessWindow(extraFixture.handle.win);
+    }
+    if (popup) {
+      await closeHarnessWindow(popup);
+    }
+  }
+}
+
 /** Exercise the actual browser right-click parameters and wake an idle worker for a native menu action. */
 function findNativeFixtureContextAction(menu) {
   const parent = menu.items[0];
@@ -3123,6 +3271,16 @@ async function assertBrowserExtensionEarlyRegistration({ profile, popup, sourceU
   }
 }
 
+/** Reject optional grants and alarm calls lacking the required manifest permission. */
+function assertBrowserExtensionPermissions(result, state) {
+  if (!result.permission || !state.optionalPermissionError) {
+    fail("extension required/optional permission boundaries were incorrect");
+  }
+  if (!state.alarmPermissionError?.includes("The alarms permission is required.")) {
+    fail("extension alarm access did not enforce its manifest permission");
+  }
+}
+
 /** Verify selected-tab ownership and native content-script messaging through the MV3 worker. */
 async function assertBrowserExtensionCompatibility(
   owner,
@@ -3205,9 +3363,7 @@ async function assertBrowserExtensionCompatibility(
         `selected guest IDs did not address native content-script messages: ${JSON.stringify(result.content)}`,
       );
     }
-    if (!result.permission || !state.optionalPermissionError) {
-      fail("extension required/optional permission boundaries were incorrect");
-    }
+    assertBrowserExtensionPermissions(result, state);
     if (result.frame.frameId !== 0 || typeof result.frame.documentId !== "string") {
       fail("extension frame details did not include the real current document identity");
     }
@@ -3241,6 +3397,14 @@ async function assertBrowserExtensionCompatibility(
       profile,
       runtime,
       guest: firstGuest,
+      extension,
+    });
+    await assertBrowserExtensionTabEvents({
+      owner,
+      profile,
+      runtime,
+      firstGuest,
+      secondGuest,
       extension,
     });
     await assertBrowserExtensionContextMenus({
@@ -3340,6 +3504,19 @@ async function runBrowserProfileGroup() {
       secondGuest,
     );
 
+    if (BROWSER_PROFILE_PHASE === "write") {
+      const { assertExtensionWorkerActivity } = require("./worker-activity-fixture.js");
+      const { assertSleepingExtensionAlarm } = require("./alarm-fixture.js");
+      await Promise.all([
+        assertExtensionWorkerActivity({ profile: profileSession, root: ROOT, outputDir: OUT_DIR }),
+        assertSleepingExtensionAlarm({ profile: profileSession, root: ROOT }),
+      ]);
+      pass(
+        "real inbound and outbound WebSocket traffic preserves extension workers; inactive workers stop normally",
+      );
+      pass("scheduled extension alarm wakes a naturally sleeping worker without retaining it");
+    }
+
     const firstState = await readBrowserProfileFixture(firstGuest);
     const secondState = await readBrowserProfileFixture(secondGuest);
     assertBrowserProfileFixture(firstState, profileValue, "browser profile first tab");
@@ -3358,6 +3535,12 @@ async function runBrowserProfileGroup() {
       { group: "browser-profile", check: "extension-enable-disable", pass: true },
       { group: "browser-profile", check: "extension-popup", pass: true },
       { group: "browser-profile", check: "extension-compatibility", pass: true },
+      ...(BROWSER_PROFILE_PHASE === "write"
+        ? [
+            { group: "browser-profile", check: "extension-worker-websocket-activity", pass: true },
+            { group: "browser-profile", check: "extension-worker-alarm-wake", pass: true },
+          ]
+        : []),
     ];
     if (BROWSER_PROFILE_PHASE === "read") {
       results.push({

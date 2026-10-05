@@ -1,5 +1,5 @@
-import path from "node:path";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { writeAtomicJson } from "./atomic-json.js";
 import type { ContextMenuParams, MenuItemConstructorOptions, Session, WebContents } from "electron";
 import { z } from "zod";
 import log from "electron-log";
@@ -95,10 +95,7 @@ export function createExtensionContextMenus(options: ContextMenuOptions) {
       await restored;
       const next = structuredClone(entries);
       operation(next);
-      await mkdir(path.dirname(options.storagePath), { recursive: true });
-      const temporaryPath = `${options.storagePath}.tmp`;
-      await writeFile(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-      await rename(temporaryPath, options.storagePath);
+      await writeAtomicJson(options.storagePath, next);
       entries = next;
     }
     const pending = queue.then(save);

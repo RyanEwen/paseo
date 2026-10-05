@@ -1,5 +1,6 @@
 import path from "node:path";
-import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { writeAtomicJson } from "./atomic-json.js";
 import { z } from "zod";
 
 const EntrySchema = z.object({
@@ -22,6 +23,18 @@ export interface BrowserExtensionRuntime {
   load(extensionPath: string): Promise<LoadedBrowserExtension>;
   unload(id: string): void;
   uninstall(id: string): Promise<void>;
+}
+
+/** Classify managed Store folders consistently for catalog display and packaged-extension API policy. */
+export function getBrowserExtensionSource(
+  storePath: string,
+  extensionPath: string,
+): BrowserExtensionEntry["source"] {
+  const relativePath = path.relative(storePath, extensionPath);
+  if (relativePath && !relativePath.startsWith("..") && !path.isAbsolute(relativePath)) {
+    return "store";
+  }
+  return "unpacked";
 }
 
 /** Owns saved extension choices; disabled extensions never execute during startup. */
@@ -101,11 +114,7 @@ export class BrowserExtensionCatalog {
   /** Track Web Store installs and unpacked loads in the same persistent catalog. */
   public remember(extension: LoadedBrowserExtension): Promise<void> {
     return this.serialize(async () => {
-      const relativePath = path.relative(this.storePath, extension.path);
-      const source =
-        relativePath && !relativePath.startsWith("..") && !path.isAbsolute(relativePath)
-          ? "store"
-          : "unpacked";
+      const source = getBrowserExtensionSource(this.storePath, extension.path);
       const next = this.entries.filter((entry) => entry.id !== extension.id);
       next.push({ ...extension, source, enabled: true });
       await this.save(next);
@@ -169,10 +178,7 @@ export class BrowserExtensionCatalog {
   }
 
   private async save(entries: BrowserExtensionEntry[]): Promise<void> {
-    await mkdir(path.dirname(this.filePath), { recursive: true });
-    const temporaryPath = `${this.filePath}.tmp`;
-    await writeFile(temporaryPath, `${JSON.stringify(entries, null, 2)}\n`, { mode: 0o600 });
-    await rename(temporaryPath, this.filePath);
+    await writeAtomicJson(this.filePath, entries);
     this.entries = entries;
   }
 }
