@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain, type Session, type WebContents } from "electron
 import { z } from "zod";
 import { getPaseoBrowserWebContentsForHostWindow } from "../browser-webviews/index.js";
 import { getExtensionPopupUrl } from "./manifest.js";
+import { openBrowserExtensionDocumentWindow } from "./document-window.js";
 
 const PopupInputSchema = z.object({
   id: z.string().regex(/^[a-p]{32}$/),
@@ -23,7 +24,7 @@ export function registerBrowserExtensionActions(options: ExtensionActionsOptions
   profile.extensions.on("extension-unloaded", (_event, extension) => {
     for (const [key, window] of windows) {
       if (key.endsWith(`:${extension.id}`)) {
-        window.close();
+        window.destroy();
       }
     }
   });
@@ -99,53 +100,14 @@ export async function openBrowserExtensionPopup({
   if (!url) {
     throw new Error("This extension does not provide a toolbar popup.");
   }
-  const window = new BrowserWindow({
-    parent: owner,
-    title: extension.name,
+  return openBrowserExtensionDocumentWindow({
+    owner,
+    profile,
+    extension,
+    url,
     width: 420,
     height: 640,
-    show: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      session: profile,
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
+    show,
+    onCreated,
   });
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  /** Redirects and direct navigation share the same extension-origin boundary. */
-  function guardNavigation(navigation: Electron.Event, targetUrl: string): void {
-    const target = new URL(targetUrl);
-    if (target.protocol !== "chrome-extension:" || target.hostname !== extension.id) {
-      navigation.preventDefault();
-    }
-  }
-  window.webContents.on("will-navigate", (navigation) =>
-    guardNavigation(navigation, navigation.url),
-  );
-  window.webContents.on("will-redirect", (navigation, targetUrl) =>
-    guardNavigation(navigation, targetUrl),
-  );
-  function closeWithOwner(): void {
-    if (!window.isDestroyed()) {
-      window.close();
-    }
-  }
-  owner.on("closed", closeWithOwner);
-  window.on("closed", () => owner.removeListener("closed", closeWithOwner));
-  try {
-    onCreated?.(window);
-    await window.loadURL(url);
-    if (show) {
-      window.show();
-      window.focus();
-    }
-    return window;
-  } catch (error) {
-    if (!window.isDestroyed()) {
-      window.close();
-    }
-    throw error;
-  }
 }

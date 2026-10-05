@@ -6,6 +6,7 @@ import { createExtensionAlarms } from "./alarms.js";
 import { getBrowserExtensionSource } from "./catalog.js";
 import { createBrowserTabProjection } from "./tab-projection.js";
 import { registerExtensionTabs } from "./tabs.js";
+import { describeVisibleExtensionTab } from "./tab-access.js";
 import { createExtensionEventDelivery } from "./events.js";
 import {
   BrowserWindow,
@@ -179,21 +180,77 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
     emit: deliverEvent,
   });
 
+  /** Query actual browser guests and extension popout tabs; toolbar action popups have no tab. */
+  function queryTabs(
+    args: unknown[],
+    senderId: number | null,
+    extension: Electron.Extension,
+  ): unknown[] {
+    const query = QuerySchema.parse(args[0]);
+    const normalTabs = tabs().map(tab);
+    const popupTabs = windows.getPopupTabs();
+    let available = [...normalTabs, ...popupTabs];
+    if (query.windowType === "normal") {
+      available = normalTabs;
+    } else if (query.windowType === "popup") {
+      available = popupTabs;
+    } else if (query.windowType !== undefined) {
+      return [];
+    }
+    const owner = ownerWindow(senderId);
+    let urls: string[] = [];
+    if (typeof query.url === "string") {
+      urls = [query.url];
+    } else if (Array.isArray(query.url)) {
+      urls = query.url;
+    }
+    return available
+      .map((item) => describeVisibleExtensionTab(extension, item))
+      .filter((item) => {
+        const url = item.url;
+        return (
+          (query.active === undefined || item.active === query.active) &&
+          (!query.currentWindow || item.windowId === owner?.id) &&
+          (query.windowId === undefined ||
+            item.windowId === (query.windowId === -2 ? owner?.id : query.windowId)) &&
+          (urls.length === 0 ||
+            (url !== undefined && urls.some((pattern) => matchesExtensionUrl(pattern, url))))
+        );
+      });
+  }
+
   /** Keep tab lookups and queries on the same guest/window projection, rather than Chromium's partial window metadata. */
   async function requestTab(
     method: string,
     args: unknown[],
     senderId: number | null,
-    permissions: string[],
+    extension: Electron.Extension,
   ): Promise<unknown> {
     if (method === "tabs.getCurrent") {
+      if (senderId === null) {
+        return undefined;
+      }
+      const popupTab = windows.getPopupTab(senderId);
+      if (popupTab) {
+        return describeVisibleExtensionTab(extension, popupTab);
+      }
+      const contents = webContents.fromId(senderId);
+      if (
+        contents &&
+        !contents.isDestroyed() &&
+        contents.session === profile &&
+        registry.getRegistrationForWebContents(senderId)
+      ) {
+        return describeVisibleExtensionTab(extension, tab(contents));
+      }
       return undefined;
-    }
-    if (!permissions.includes("tabs")) {
-      throw new Error("The tabs permission is required.");
     }
     if (method === "tabs.get") {
       const id = z.number().int().positive().parse(args[0]);
+      const popupTab = windows.getPopupTab(id);
+      if (popupTab) {
+        return describeVisibleExtensionTab(extension, popupTab);
+      }
       const contents = webContents.fromId(id);
       const registered = registry.getRegistrationForWebContents(id);
       const acceptedGuest = contents && (registered || isPreparedPaseoBrowserWebContents(contents));
@@ -205,33 +262,10 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
       if (!registration || contents.isDestroyed()) {
         throw new Error("The browser tab closed before it became available.");
       }
-      return tab(contents);
+      return describeVisibleExtensionTab(extension, tab(contents));
     }
     if (method === "tabs.query") {
-      const query = QuerySchema.parse(args[0]);
-      // The registry exposes app-owned browser windows as normal; extension popups are not browser tabs.
-      const matchesWindowType = query.windowType === undefined || query.windowType === "normal";
-      if (!matchesWindowType) {
-        return [];
-      }
-      const owner = ownerWindow(senderId);
-      let urls: string[] = [];
-      if (typeof query.url === "string") {
-        urls = [query.url];
-      }
-      if (Array.isArray(query.url)) {
-        urls = query.url;
-      }
-      return tabs()
-        .map(tab)
-        .filter(
-          (item) =>
-            (query.active === undefined || item.active === query.active) &&
-            (!query.currentWindow || item.windowId === owner?.id) &&
-            (query.windowId === undefined ||
-              item.windowId === (query.windowId === -2 ? owner?.id : query.windowId)) &&
-            (urls.length === 0 || urls.some((pattern) => matchesExtensionUrl(pattern, item.url))),
-        );
+      return queryTabs(args, senderId, extension);
     }
     throw new Error(`Extension API ${method} is not supported in Paseo.`);
   }
@@ -254,7 +288,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
       throw new Error("Optional extension permissions are not supported in Paseo.");
     }
     if (method.startsWith("tabs.")) {
-      return requestTab(method, args, senderId, manifest.permissions);
+      return requestTab(method, args, senderId, extension);
     }
     if (method === "webNavigation.getFrame" || method === "webNavigation.getAllFrames") {
       if (!manifest.permissions.includes("webNavigation")) {
@@ -276,10 +310,7 @@ export function registerBrowserExtensionCompatibility(profile: Session) {
       return details.find((frame) => frame.frameId === frameInput.frameId) ?? null;
     }
     if (method.startsWith("windows.")) {
-      if (!manifest.permissions.includes("tabs")) {
-        throw new Error("The tabs permission is required.");
-      }
-      return windows.request({ method, args, owner: ownerWindow(senderId) });
+      return windows.request({ method, args, owner: ownerWindow(senderId), extension });
     }
     if (method.startsWith("notifications.")) {
       if (!manifest.permissions.includes("notifications")) {

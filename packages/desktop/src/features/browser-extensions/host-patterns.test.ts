@@ -23,6 +23,16 @@ describe("extension URL patterns", () => {
     );
     expect(matchesExtensionUrl("https://example.com/a.b*", "https://example.com/aXb")).toBe(false);
   });
+  it("finds packaged popout URLs without granting access to extension origins", () => {
+    const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
+    expect(
+      matchesExtensionUrl(`${origin}/popup/index.html*`, `${origin}/popup/index.html?unlock`),
+    ).toBe(true);
+    expect(matchesExtensionUrl(`${origin}/popup/index.html*`, `${origin}/options.html`)).toBe(
+      false,
+    );
+    expect(() => coversExtensionOrigin(`${origin}/*`, `${origin}/*`)).toThrow("host permission");
+  });
 });
 
 describe("required extension host permission containment", () => {

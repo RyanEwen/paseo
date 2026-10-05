@@ -59,6 +59,18 @@ if (isExtension) {
 /** Install missing browser-owned namespaces while retaining Chromium storage, scripting and messaging. */
 function installCompatibility(): void {
   const bridge = globalThis.paseoExtensionCompatibility;
+  /** Keep Chromium's cached API object so a binding refresh preserves the installed compatibility methods. */
+  function installNamespace(
+    name: "webNavigation" | "notifications" | "permissions" | "windows" | "contextMenus" | "alarms",
+    implementation: Record<string, unknown>,
+  ): void {
+    const namespace = chrome[name];
+    if (namespace) {
+      Object.assign(namespace, implementation);
+    } else {
+      chrome[name] = implementation;
+    }
+  }
   function event(name: string): CompatibilityEvent {
     const listeners = new Set<(...args: unknown[]) => void>();
     bridge.listen(name, (...args) => {
@@ -131,11 +143,11 @@ function installCompatibility(): void {
       return callbackResult(result, callback);
     };
   }
-  chrome.webNavigation = {
+  installNamespace("webNavigation", {
     onCommitted: event("webNavigation.onCommitted"),
     onCompleted: event("webNavigation.onCompleted"),
     onErrorOccurred: event("webNavigation.onErrorOccurred"),
-  };
+  });
   /** Obtain document IDs from Chromium scripting results, so navigation races fail the caller's document guard. */
   async function frames(input: { tabId: number; frameId?: number }, all: boolean) {
     const methodName = all ? "webNavigation.getAllFrames" : "webNavigation.getFrame";
@@ -176,21 +188,21 @@ function installCompatibility(): void {
     chrome.webNavigation.getAllFrames = (input: { tabId: number }, callback?: unknown) =>
       callbackResult(frames(input, true), callback);
   }
-  chrome.notifications = {
+  installNamespace("notifications", {
     onClicked: event("notifications.onClicked"),
     onButtonClicked: event("notifications.onButtonClicked"),
     onClosed: event("notifications.onClosed"),
     create: method("notifications.create"),
     clear: method("notifications.clear"),
-  };
-  chrome.alarms = {
+  });
+  installNamespace("alarms", {
     onAlarm: event("alarms.onAlarm"),
     create: method("alarms.create"),
     get: method("alarms.get"),
     getAll: method("alarms.getAll"),
     clear: method("alarms.clear"),
     clearAll: method("alarms.clearAll"),
-  };
+  });
   const contextMenuClicked = event("contextMenus.onClicked");
   const onclickHandlers = new Map<string | number, (...args: unknown[]) => void>();
   contextMenuClicked.addListener((info, tab) => {
@@ -220,7 +232,7 @@ function installCompatibility(): void {
     }
     return { input, onclick };
   }
-  chrome.contextMenus = {
+  installNamespace("contextMenus", {
     onClicked: contextMenuClicked,
     create(properties: unknown, callback?: unknown): string | number {
       const { input, onclick } = menuProperties(properties);
@@ -276,14 +288,14 @@ function installCompatibility(): void {
       }
       return callbackResult(removeAll(), callback);
     },
-  };
-  chrome.permissions = {
+  });
+  installNamespace("permissions", {
     onAdded: event("permissions.onAdded"),
     onRemoved: event("permissions.onRemoved"),
     contains: method("permissions.contains"),
     request: method("permissions.request"),
-  };
-  chrome.windows = {
+  });
+  installNamespace("windows", {
     onCreated: event("windows.onCreated"),
     onRemoved: event("windows.onRemoved"),
     onFocusChanged: event("windows.onFocusChanged"),
@@ -292,14 +304,15 @@ function installCompatibility(): void {
     getCurrent: method("windows.getCurrent"),
     getAll: method("windows.getAll"),
     get: method("windows.get"),
-  };
+    create: method("windows.create"),
+    update: method("windows.update"),
+    remove: method("windows.remove"),
+  });
   chrome.tabs.onActivated = event("tabs.onActivated");
   chrome.tabs.onCreated = event("tabs.onCreated");
   chrome.tabs.onRemoved = event("tabs.onRemoved");
   chrome.tabs.onUpdated = event("tabs.onUpdated");
   chrome.tabs.getCurrent = method("tabs.getCurrent");
-  if (chrome.runtime.getManifest().permissions?.includes("tabs")) {
-    chrome.tabs.query = method("tabs.query");
-    chrome.tabs.get = method("tabs.get");
-  }
+  chrome.tabs.query = method("tabs.query");
+  chrome.tabs.get = method("tabs.get");
 }

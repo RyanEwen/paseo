@@ -30,6 +30,15 @@ async function assertSleepingExtensionAlarm({ profile, root }) {
     if (!scheduled || scheduled.error || typeof scheduled.scheduledTime !== "number") {
       throw new Error("The native extension fixture could not schedule its alarm.");
     }
+    if (
+      !scheduled.startupUsesCompatibility ||
+      !scheduled.createUsesCompatibility ||
+      !scheduled.sameAlarmEvent
+    ) {
+      throw new Error(
+        `Native bindings replaced the alarm compatibility API: ${JSON.stringify(scheduled)}`,
+      );
+    }
 
     await delay(35000);
     if (running()) {
