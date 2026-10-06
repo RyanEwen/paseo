@@ -2159,9 +2159,11 @@ async function verifyBackgroundAutomation(win, guest) {
     document.body.innerHTML = '<button id="background-click">Background click</button><button id="background-drop" style="margin-left: 80px">Background drop</button><div style="height: 2400px"></div>';
     window.backgroundInput = [];
     for (const type of ['mousemove', 'mousedown', 'mouseup', 'wheel', 'dblclick']) {
-      document.addEventListener(type, event => window.backgroundInput.push({type, trusted: event.isTrusted, buttons: event.buttons, detail: event.detail, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, deltaY: event.deltaY}), {passive: true});
+      document.addEventListener(type, event => window.backgroundInput.push({type, trusted: event.isTrusted, buttons: event.buttons, detail: event.detail, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, deltaY: event.deltaY, x: event.clientX, y: event.clientY, targetId: event.target.id}), {passive: true});
     }
     window.backgroundClicks = 0;
+    window.backgroundDrops = 0;
+    document.addEventListener("mouseup", event => { if (event.target.id === "background-drop") window.backgroundDrops++; });
     window.backgroundFrames = 0;
     const tick = () => { window.backgroundFrames++; requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
@@ -2228,6 +2230,9 @@ async function verifyBackgroundAutomation(win, guest) {
   results.push(
     await verifyStalledInput({ win, guest, command, registry, snapshotEngine, browserId }),
   );
+  results.push(
+    await verifyCancelledDragCleanup({ win, guest, registry, snapshotEngine, browserId, command }),
+  );
   return results;
 }
 
@@ -2285,6 +2290,95 @@ async function verifyStalledInput({ win, guest, command, registry, snapshotEngin
   return {
     group: "automation",
     check: "stalled-renderer",
+    runtime: process.versions.electron,
+    arch: process.arch,
+    elapsedMs: Date.now() - startedAt,
+    pass: true,
+  };
+}
+
+/** Withhold a real pointer acknowledgment to verify deadline cleanup independently
+ * of its queue barrier. Only this fixture guest and its own page are affected.
+ */
+async function verifyCancelledDragCleanup({
+  win,
+  guest,
+  registry,
+  snapshotEngine,
+  browserId,
+  command,
+}) {
+  const { executeAutomationCommand } = require("../dist/features/browser-automation/service.js");
+  win.hide();
+  const snapshot = await command("snapshot");
+  const ref = snapshot.snapshot.match(/button "Background click" \[ref=(@e\d+)\]/)?.[1];
+  const targetRef = snapshot.snapshot.match(/button "Background drop" \[ref=(@e\d+)\]/)?.[1];
+  if (!ref || !targetRef) fail("cancelled drag fixture refs missing");
+  const before = await guest.executeJavaScript(`(() => {
+    window.promptBeforeCancelledDrag = window.prompt;
+    return { drops: window.backgroundDrops, presses: window.backgroundInput.filter(event => event.type === "mousedown").length };
+  })()`);
+  const originalSend = guest.debugger.sendCommand;
+  let releaseAcknowledgment = () => {};
+  const withheld = new Promise((resolve) => {
+    releaseAcknowledgment = resolve;
+  });
+  let pressAcknowledged = false;
+  guest.debugger.sendCommand = async (...args) => {
+    const [method, params] = args;
+    const result = await originalSend.apply(guest.debugger, args);
+    if (
+      method === "Input.dispatchMouseEvent" &&
+      params?.type === "mousePressed" &&
+      !pressAcknowledged
+    ) {
+      pressAcknowledged = true;
+      await withheld;
+    }
+    return result;
+  };
+  const startedAt = Date.now();
+  try {
+    const response = await withTimeout(
+      executeAutomationCommand(
+        {
+          requestId: "background-cancelled-drag",
+          command: { command: "drag", args: { browserId, sourceRef: ref, targetRef } },
+        },
+        registry,
+        { snapshotEngine },
+      ),
+      "cancelled drag input deadline",
+      20_000,
+    );
+    if (response.ok || response.error.code !== "browser_timeout" || response.error.retryable)
+      fail(`cancelled drag outcome is not a non-retryable timeout: ${JSON.stringify(response)}`);
+    await delay(100);
+    const state = await guest.executeJavaScript(`({
+      restored: window.prompt === window.promptBeforeCancelledDrag,
+      drops: window.backgroundDrops,
+      release: window.backgroundInput.filter(event => event.type === "mouseup").at(-1),
+    })`);
+    if (!pressAcknowledged) fail("fixture did not dispatch the withheld press");
+    if (!state.restored) fail("timed-out drag left the page prompt replaced");
+    if (state.drops !== before.drops || state.release?.targetId !== "background-click")
+      fail(`cancelled drag synthesized a drop at its destination: ${JSON.stringify(state)}`);
+    if (!guest.getBackgroundThrottling() || win.isFocused())
+      fail("cancelled drag retained activity or focused the window");
+  } finally {
+    guest.debugger.sendCommand = originalSend;
+    releaseAcknowledgment();
+  }
+  await delay(300);
+  const after = await guest.executeJavaScript(
+    `({ drops: window.backgroundDrops, presses: window.backgroundInput.filter(event => event.type === "mousedown").length })`,
+  );
+  if (after.drops !== before.drops || after.presses !== before.presses + 1)
+    fail("late acknowledgment continued or replayed the cancelled drag");
+  pass("production cancelled drag restores prompt and releases at source before acknowledgment");
+  return {
+    group: "automation",
+    check: "cancelled-drag-and-prompt-cleanup",
     runtime: process.versions.electron,
     arch: process.arch,
     elapsedMs: Date.now() - startedAt,

@@ -10,7 +10,7 @@ import type {
 } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import { waitForActionableTarget } from "./actionability.js";
 import { BrowserSnapshotEngine } from "./snapshot-engine.js";
-import type { BrowserRegistry, TabContents, TabImage } from "./service.js";
+import type { BrowserRegistry, TabContents, TabImage, DialogCaptureOperation } from "./service.js";
 import { executeAutomationCommand } from "./service.js";
 import type { IsolatedKeyboardInputEvent } from "./trusted-input.js";
 
@@ -206,9 +206,9 @@ class FakeTab implements TabContents {
     return this.consoleMessages;
   }
 
-  public async captureDialogs<T>(
-    task: () => Promise<T>,
-  ): Promise<{ result: T; dialogs: BrowserAutomationDialogEvent[] }> {
+  public async captureDialogs<T>({
+    task,
+  }: DialogCaptureOperation<T>): Promise<{ result: T; dialogs: BrowserAutomationDialogEvent[] }> {
     return { result: await task(), dialogs: this.dialogsToCapture };
   }
 
