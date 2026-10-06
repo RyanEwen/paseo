@@ -11,6 +11,7 @@ export function resolveDesktopDistribution(metadata: unknown) {
     return {
       isPreview: true,
       appName: "Paseo Debug",
+      desktopName: "paseo-debug.desktop",
       daemonHomeName: ".paseo-debug",
       daemonListen: "127.0.0.1:6790",
     } as const;
@@ -19,6 +20,7 @@ export function resolveDesktopDistribution(metadata: unknown) {
   return {
     isPreview: false,
     appName: "Paseo",
+    desktopName: "Paseo.desktop",
     daemonHomeName: null,
     daemonListen: null,
   } as const;

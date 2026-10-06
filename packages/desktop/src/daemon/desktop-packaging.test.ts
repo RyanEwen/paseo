@@ -69,6 +69,7 @@ describe("desktop packaging", () => {
     expect(resolveDesktopDistribution({ paseoPreview: true })).toEqual({
       isPreview: true,
       appName: "Paseo Debug",
+      desktopName: "paseo-debug.desktop",
       daemonHomeName: ".paseo-debug",
       daemonListen: "127.0.0.1:6790",
     });
