@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "playwright/test";
+import securityPlugin from "./overview.fixture.json" with { type: "json" };
+import { expect, test, type Page, type Locator } from "playwright/test";
+import registry from "./registry.fixture.json" with { type: "json" };
 import { CATEGORIES } from "../src/plugins/categories";
 
 async function openPlugins(page: Page) {
@@ -34,7 +36,7 @@ test("browses from the directory into a category, a plugin, and its author", asy
   await expect(page.getByRole("heading", { name: "Fresh Worktrees" })).toHaveCount(1);
   await expect(page.getByText("paseo plugin install omercnet/fresh-worktrees")).toHaveCount(1);
   await expect(
-    page.getByRole("heading", { level: 2, name: "Link to this section Behavior", exact: true }),
+    page.getByRole("heading", { level: 2, name: "Behavior", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Copy to clipboard" }).click();
   await expect
@@ -167,7 +169,7 @@ test.describe("search engine visits without JavaScript", () => {
     expect(response?.headers()["x-robots-tag"]).toBeUndefined();
     await expect(page.getByText("paseo plugin install omercnet/fresh-worktrees")).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 2, name: "Link to this section Behavior", exact: true }),
+      page.getByRole("heading", { level: 2, name: "Behavior", exact: true }),
     ).toBeVisible();
     await expectPageMetadata(
       page,
@@ -306,6 +308,26 @@ test("keeps the directory unlinked until the coordinated announcement", async ({
 test.describe("registry fixture layout", () => {
   test.skip(Boolean(process.env.WEBSITE_TEST_URL), "Requires the local registry fixture");
 
+  test("uses density-aware card thumbnails and keeps detail screenshots original", async ({
+    page,
+  }) => {
+    const plugin = registry.plugins.find((entry) => entry.id === "alhassanaraouf/base2tone")!;
+    const source = plugin.screenshots[0];
+    await openPlugins(page);
+    await expectThumbnailCard(
+      page.getByRole("region", { name: "What’s new" }).getByRole("link", { name: /Base2Tone/ }),
+      source,
+      plugin.id,
+    );
+    await page.goto("/plugins/all");
+    const card = page.getByRole("main").getByRole("link", { name: /Base2Tone/ });
+    await expectThumbnailCard(card, source, plugin.id);
+    await card.click();
+    await expect(
+      page.getByRole("img", { name: "Base2Tone screenshot 1", exact: true }),
+    ).toHaveAttribute("src", source);
+  });
+
   test("lists the nine categories in order with counts, and the newest plugins first", async ({
     page,
   }) => {
@@ -320,3 +342,97 @@ test.describe("registry fixture layout", () => {
     ).toHaveText([/Base2Tone/, /Sayr/, /PromptKit/, /Defer/]);
   });
 });
+
+async function expectThumbnailCard(card: Locator, source: string, id: string) {
+  // Card screenshots are decorative and hidden from the accessibility tree.
+  const image = card.locator("img").first();
+  const path = (width: number) =>
+    `/plugins/thumb/${width}/${encodeURIComponent(source)}?plugin=${encodeURIComponent(id)}`;
+  await expect(image).toHaveAttribute("src", path(592));
+  await expect(image).toHaveAttribute("srcset", `${path(592)} 1x, ${path(1184)} 2x`);
+  await expect(image).toHaveAttribute("loading", "lazy");
+  await expect(image).toHaveAttribute("decoding", "async");
+  await image.scrollIntoViewIfNeeded();
+  await expect
+    .poll(
+      () =>
+        image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+  const box = await image.evaluate((element) => {
+    const rect = element.parentElement!.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  expect(box.width).toBeGreaterThan(0);
+  expect(box.width / box.height).toBeCloseTo(1.6, 2);
+}
+
+test("keeps author content inert through SSR and hydration", async ({
+  page,
+  request,
+}, testInfo) => {
+  await verifyPluginOverviewResponse(request);
+  await openUntrustedPlugin(page);
+  await expectPluginOverviewSafe(page);
+  await page.reload();
+  await expectPluginOverviewSafe(page);
+  await testInfo.attach("plugin-overview", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+async function verifyPluginOverviewResponse(request: import("playwright/test").APIRequestContext) {
+  const response = await request.get("/plugins/security/overview");
+  expect(response.status()).toBe(200);
+  const html = await response.text();
+  expect(html).not.toContain("<script>globalThis.__overviewExecuted=1</script>");
+  expect(html).toContain("\\x3C/script>");
+}
+
+async function openUntrustedPlugin(page: Page) {
+  await page.goto("/plugins/security/overview");
+  await expect(page.getByRole("heading", { name: "Overview security", exact: true })).toBeVisible();
+}
+
+async function expectPluginOverviewSafe(page: Page) {
+  expect(
+    await page.evaluate(() => (globalThis as { __overviewExecuted?: number }).__overviewExecuted),
+  ).toBeUndefined();
+  // Security assertions inspect every emitted attribute, including inaccessible injected elements.
+  const violations = await page.locator(".docs-prose").evaluate((root) => {
+    const bad: string[] = [];
+    for (const element of root.querySelectorAll("*")) {
+      if (
+        ["SCRIPT", "IFRAME", "SVG", "FORM", "INPUT", "META", "BASE", "STYLE"].includes(
+          element.tagName,
+        )
+      )
+        bad.push(element.tagName);
+      for (const attr of element.attributes) {
+        if (/^on|^style$|^srcdoc$/i.test(attr.name)) bad.push(attr.name);
+        if (["href", "src"].includes(attr.name) && !attr.value.startsWith("https://"))
+          bad.push(attr.value);
+      }
+      if (
+        element.tagName === "A" &&
+        (element.getAttribute("rel") !== "noopener noreferrer nofollow" ||
+          element.getAttribute("target") !== "_blank")
+      )
+        bad.push("unsafe anchor");
+    }
+    return bad;
+  });
+  expect(violations).toEqual([]);
+  await expect(page.getByRole("link", { name: "Source", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /screenshot/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(securityPlugin.name);
+  await expect(
+    page.getByRole("link", { name: securityPlugin.author.name, exact: true }),
+  ).toHaveAttribute("href", "/plugins/security");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    securityPlugin.description,
+  );
+}

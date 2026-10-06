@@ -1102,6 +1102,8 @@ export const fr: TranslationResources = {
         },
         thread: {
           discussion: "Fil de discussion",
+          resolved: "Résolu",
+          outdated: "Obsolète",
         },
         errors: {
           statusLoadFailed: "Impossible de charger le statut de la pull request",

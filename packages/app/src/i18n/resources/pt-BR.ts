@@ -1092,15 +1092,17 @@ export const ptBR: TranslationResources = {
         },
         activity: {
           commented: "Comentou",
-          approved: "Aprovado",
+          approved: "Aprovou",
           requestedChanges: "Solicitou alterações",
-          reviewed: "Revisado",
+          reviewed: "Revisou",
         },
         time: {
           justNow: "agora mesmo",
         },
         thread: {
           discussion: "Tópico de discussão",
+          resolved: "Resolvido",
+          outdated: "Desatualizado",
         },
         errors: {
           statusLoadFailed: "Não foi possível carregar o status da pull request",
