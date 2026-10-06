@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { dump, load } from "js-yaml";
 import { isMainModule } from "../is-main-module.mjs";
 import { resolvePreviewRelease } from "./metadata.mjs";
+import { syncWorkspaceVersions } from "../sync-workspace-versions.mjs";
 
 const require = createRequire(import.meta.url);
 const { getConfig } = require("app-builder-lib/out/util/config/config.js");
@@ -70,13 +71,11 @@ export async function preparePreviewBuild({
     };
   }
 
-  // Validate every input before mutating the build checkout.
-  for (const packageName of ["desktop", "app"]) {
-    const packagePath = path.join(root, "packages", packageName, "package.json");
-    const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
-    packageJson.version = release.version;
-    writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
-  }
+  // The desktop compares the running daemon version with its own version. Keep every
+  // bundled workspace aligned so an owned daemon is not restarted as perpetually outdated.
+  rootPackage.version = release.version;
+  writeFileSync(path.join(root, "package.json"), `${JSON.stringify(rootPackage, null, 2)}\n`);
+  syncWorkspaceVersions(root);
   writeFileSync(
     path.join(root, "packages/desktop/electron-builder.preview.local.yml"),
     dump(builderConfig),
@@ -91,6 +90,21 @@ if (isMainModule(import.meta.url)) {
     buildNumber: Number(process.env.PASEO_PREVIEW_BUILD_NUMBER),
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
   });
+  // Refresh only lock metadata after changing workspace versions; installed external
+  // dependency versions stay pinned and no lifecycle hooks run in this build checkout.
+  execFileSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    [
+      "install",
+      "--package-lock-only",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      "--workspaces",
+      "--include-workspace-root",
+    ],
+    { stdio: "inherit", shell: process.platform === "win32" },
+  );
   for (const [name, value] of Object.entries({
     version: release.version,
     tag: release.tag,
