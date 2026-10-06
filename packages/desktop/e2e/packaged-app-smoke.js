@@ -64,13 +64,25 @@ function assertExecutable(filePath, label) {
   }
 }
 
+/** Locate resources for both app bundles and ordinary desktop package directories. */
+function getPackagedResourcesDir(appPath) {
+  return process.platform === "darwin"
+    ? path.join(appPath, "Contents", "Resources")
+    : path.join(appPath, "resources");
+}
+
+/** Read the packaged release metadata used by Electron and its bundled daemon. */
+function getPackagedAppMetadata(appPath) {
+  return JSON.parse(
+    extractFile(path.join(getPackagedResourcesDir(appPath), "app.asar"), "package.json").toString(),
+  );
+}
+
 /** Read the build's executable identity so the smoke also covers fork packages. */
 function getPackagedExecutableName(appPath) {
-  const resourcesDir =
-    process.platform === "darwin"
-      ? path.join(appPath, "Contents", "Resources")
-      : path.join(appPath, "resources");
-  return fs.readFileSync(path.join(resourcesDir, "paseo-executable-name"), "utf8").trim();
+  return fs
+    .readFileSync(path.join(getPackagedResourcesDir(appPath), "paseo-executable-name"), "utf8")
+    .trim();
 }
 
 function getExecutablePath(appPath) {
@@ -858,9 +870,7 @@ async function assertSandboxState({ browser, page, expectedSandbox, stdout, stde
 function assertLinuxDesktopIdentity(appPath) {
   if (process.platform === "linux") {
     const executableName = getPackagedExecutableName(appPath);
-    const metadata = JSON.parse(
-      extractFile(path.join(appPath, "resources", "app.asar"), "package.json").toString(),
-    );
+    const metadata = getPackagedAppMetadata(appPath);
     if (metadata.desktopName !== `${executableName}.desktop`) {
       throw new Error(
         `Packaged Linux desktop identity ${JSON.stringify(metadata.desktopName)} does not match ${executableName}.desktop`,
@@ -949,7 +959,14 @@ async function smokePackagedDesktopApp({
       userData,
       deadline,
     });
-    console.log("Packaged desktop smoke: renderer-started desktop daemon reported running");
+    assert.equal(
+      status.version,
+      getPackagedAppMetadata(appPath).version,
+      "Packaged desktop and daemon must share one release version",
+    );
+    console.log(
+      "Packaged desktop smoke: renderer-started desktop daemon reported running with the matching release version",
+    );
     await assertBuiltinPluginsStarted(listen);
     console.log("Packaged desktop smoke: every built-in plugin started");
     await smokeCliShim({ appPath, env });

@@ -186,13 +186,30 @@ test("refuses a missing architecture, a mixed source commit, and a corrupt updat
 test("prepares a Windows ARM64 build with inherited packaging and required Azure signing", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "paseo-preview-prepare-"));
   try {
-    writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.11.0-beta.5" }));
-    for (const name of ["desktop", "app"]) {
+    writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({
+        version: "0.11.0-beta.5",
+        workspaces: [
+          "packages/desktop",
+          "packages/app",
+          "packages/server",
+          "packages/cli",
+          "packages/client",
+        ],
+      }),
+    );
+    for (const name of ["desktop", "app", "server", "cli", "client"]) {
       const folder = path.join(root, "packages", name);
       mkdirSync(folder, { recursive: true });
       writeFileSync(
         path.join(folder, "package.json"),
-        JSON.stringify({ name, version: "0.11.0-beta.5" }),
+        JSON.stringify({
+          name: `@getpaseo/${name}`,
+          version: "0.11.0-beta.5",
+          private: name === "desktop" || name === "app",
+          dependencies: name === "client" ? {} : { "@getpaseo/client": "0.11.0-beta.5" },
+        }),
       );
     }
     const desktop = path.join(root, "packages/desktop");
@@ -252,6 +269,17 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
     assert.match(desktopEntry, /^StartupWMClass=paseo-debug$/m);
     assert.equal(config.extraMetadata.paseoPreview, true);
     assert.equal(config.buildVersion, "0.11.0.12");
+    for (const name of ["desktop", "app", "server", "cli", "client"]) {
+      const pkg = JSON.parse(readFileSync(path.join(root, "packages", name, "package.json")));
+      assert.equal(pkg.version, "0.11.0-preview.12");
+      if (name !== "client") {
+        assert.equal(pkg.dependencies["@getpaseo/client"], pkg.private ? "*" : pkg.version);
+      }
+    }
+    assert.equal(
+      JSON.parse(readFileSync(path.join(root, "package.json"))).version,
+      "0.11.0-preview.12",
+    );
     assert.equal(config.forceCodeSigning, true);
     assert.deepEqual(config.win.target, [
       { target: "nsis", arch: ["arm64"] },
