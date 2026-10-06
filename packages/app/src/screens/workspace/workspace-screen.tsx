@@ -30,6 +30,7 @@ import { ScreenTitle } from "@/components/headers/screen-title";
 import { HostBadge } from "@/hosts/host-badge";
 import { useHostBadges } from "@/hosts/use-host-badges";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import { CONTROL_HEIGHTS } from "@/components/ui/control-geometry";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import {
   FloatingPanelPortalHost,
@@ -4285,6 +4286,7 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[2],
+    minHeight: CONTROL_HEIGHTS.field,
     paddingHorizontal: theme.spacing[2] + theme.spacing[3],
     paddingVertical: theme.spacing[2],
   },
