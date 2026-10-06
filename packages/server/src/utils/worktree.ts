@@ -215,6 +215,7 @@ export type WorktreeSource =
 export interface CreateWorktreeOptions {
   cwd: string;
   worktreeSlug: string;
+  exactNames?: boolean;
   source: WorktreeSource;
   runSetup: boolean;
   paseoHome?: string;
@@ -1042,14 +1043,25 @@ function resolveWorktreeCreatedAtIso(worktreePath: string): string {
   }
 }
 
+/** Git can retain prunable registrations whose checkout directory no longer exists. */
+function worktreeDirectoryExists(worktreePath: string): boolean {
+  try {
+    return statSync(worktreePath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 export async function listPaseoWorktrees({
   cwd,
   paseoHome,
   worktreesRoot,
+  includeAll,
 }: {
   cwd: string;
   paseoHome?: string;
   worktreesRoot?: string;
+  includeAll?: boolean;
 }): Promise<PaseoWorktreeInfo[]> {
   const projectWorktreesRoot = await getPaseoWorktreesRoot(cwd, paseoHome, worktreesRoot);
   const { stdout } = await runGitCommand(["worktree", "list", "--porcelain"], {
@@ -1059,7 +1071,11 @@ export async function listPaseoWorktrees({
 
   return parseWorktreeList(stdout)
     .map((entry) => Object.assign({}, entry, { path: normalizePathForOwnership(entry.path) }))
-    .filter((entry) => getRealpathAwareRelativePath(projectWorktreesRoot, entry.path) !== null)
+    .filter((entry) =>
+      includeAll
+        ? worktreeDirectoryExists(entry.path)
+        : getRealpathAwareRelativePath(projectWorktreesRoot, entry.path) !== null,
+    )
     .map((entry) =>
       Object.assign({}, entry, { createdAt: resolveWorktreeCreatedAtIso(entry.path) }),
     );
@@ -1220,21 +1236,37 @@ export const createWorktree = async ({
   cwd,
   source,
   worktreeSlug,
+  exactNames,
   runSetup,
   paseoHome,
   worktreesRoot,
 }: CreateWorktreeOptions): Promise<CreatedWorktree> => {
-  const sourcePlan = await resolveWorktreeSourcePlan({ cwd, source, desiredSlug: worktreeSlug });
   let worktreePath = join(await getPaseoWorktreesRoot(cwd, paseoHome, worktreesRoot), worktreeSlug);
   mkdirSync(dirname(worktreePath), { recursive: true });
 
   // Also handle worktree path collision
   let finalWorktreePath = worktreePath;
   let pathSuffix = 1;
-  while (existsSync(finalWorktreePath)) {
-    finalWorktreePath = `${worktreePath}-${pathSuffix}`;
-    pathSuffix++;
+  if (exactNames && existsSync(finalWorktreePath)) {
+    throw new Error(
+      `Worktree directory already exists: ${finalWorktreePath}. Choose another worktree name or select the existing worktree.`,
+    );
   }
+  // Exact requests let Git reject a concurrent collision rather than changing the name.
+  if (!exactNames) {
+    while (existsSync(finalWorktreePath)) {
+      finalWorktreePath = `${worktreePath}-${pathSuffix}`;
+      pathSuffix++;
+    }
+  }
+
+  // Reject directory conflicts before source planning can fetch or create a tracking branch.
+  const sourcePlan = await resolveWorktreeSourcePlan({
+    cwd,
+    source,
+    desiredSlug: worktreeSlug,
+    exactNames,
+  });
 
   // Primitive owner for `git worktree add`; callers route through createWorktreeCore.
   await runGitCommand(["worktree", "add", finalWorktreePath, ...sourcePlan.addArguments], {
@@ -1290,6 +1322,7 @@ interface ResolveWorktreeSourcePlanOptions {
   cwd: string;
   source: WorktreeSource;
   desiredSlug: string;
+  exactNames?: boolean;
 }
 
 interface WorktreeSourcePlan {
@@ -1361,16 +1394,24 @@ async function resolveBranchOffWorktreeSourcePlan(
   cwd: string,
   source: Extract<WorktreeSource, { kind: "branch-off" }>,
   desiredSlug: string,
+  exactNames?: boolean,
 ): Promise<WorktreeSourcePlan> {
   const branchName = source.branchName;
   await validateGitBranchName(cwd, branchName);
   const normalizedBaseBranch = normalizeRequiredBaseBranch(source.baseBranch);
   const resolvedBaseBranch = await resolveBaseBranchForWorktree(cwd, source.baseBranch);
   const branchExists = await localBranchExists(cwd, branchName);
+  if (exactNames && branchExists) {
+    throw new Error(
+      `Branch already exists: ${branchName}. Choose another new branch name or use an existing branch.`,
+    );
+  }
   const base = branchExists ? branchName : resolvedBaseBranch;
   await refreshRemoteTrackingBaseRef(cwd, base);
   const candidateBranch = branchExists ? desiredSlug : branchName;
-  const newBranchName = await resolveUniqueLocalBranchName(cwd, candidateBranch);
+  const newBranchName = exactNames
+    ? branchName
+    : await resolveUniqueLocalBranchName(cwd, candidateBranch);
 
   return {
     branchName: newBranchName,
@@ -1388,10 +1429,11 @@ async function resolveWorktreeSourcePlan({
   cwd,
   source,
   desiredSlug,
+  exactNames,
 }: ResolveWorktreeSourcePlanOptions): Promise<WorktreeSourcePlan> {
   switch (source.kind) {
     case "branch-off":
-      return resolveBranchOffWorktreeSourcePlan(cwd, source, desiredSlug);
+      return resolveBranchOffWorktreeSourcePlan(cwd, source, desiredSlug, exactNames);
     case "restore":
       return resolveRestoredWorktreeSourcePlan(cwd, source);
     case "restore-from-base":
@@ -1399,7 +1441,12 @@ async function resolveWorktreeSourcePlan({
     case "checkout-branch": {
       await validateGitBranchName(cwd, source.branchName);
       await ensureLocalBranch(cwd, source.branchName);
-      if (await isBranchCheckedOut(cwd, source.branchName)) {
+      if (await isBranchCheckedOut(cwd, source.branchName, exactNames)) {
+        if (exactNames) {
+          throw new Error(
+            `Branch already checked out: ${source.branchName}. Select its existing worktree instead.`,
+          );
+        }
         const branchName = await resolveUniqueLocalBranchName(cwd, source.branchName);
         return {
           branchName,
@@ -1773,10 +1820,21 @@ async function resolveUniqueLocalBranchName(cwd: string, candidateBranch: string
   return newBranchName;
 }
 
-async function isBranchCheckedOut(cwd: string, branchName: string): Promise<boolean> {
+/** Exact checkout reports stale registrations rather than suggesting a missing checkout. */
+async function isBranchCheckedOut(
+  cwd: string,
+  branchName: string,
+  exactNames?: boolean,
+): Promise<boolean> {
   const { stdout } = await runGitCommand(["worktree", "list", "--porcelain"], {
     cwd,
     envOverlay: READ_ONLY_GIT_ENV,
   });
-  return parseWorktreeList(stdout).some((entry) => entry.branchName === branchName);
+  const worktree = parseWorktreeList(stdout).find((entry) => entry.branchName === branchName);
+  if (exactNames && worktree && !worktreeDirectoryExists(worktree.path)) {
+    throw new Error(
+      `Branch ${branchName} is registered to a missing worktree at ${worktree.path}. Restore that checkout or remove its stale registration with git worktree prune, then retry.`,
+    );
+  }
+  return worktree !== undefined;
 }

@@ -1,4 +1,6 @@
-import { existsSync } from "node:fs";
+import type { Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { existsSync, renameSync } from "node:fs";
 import path from "node:path";
 import { buildHostWorkspaceRoute } from "@/utils/host-routes";
 import { expect, test } from "../support/fixtures";
@@ -9,6 +11,7 @@ import {
   assertNewWorkspaceSidebarAndHeader,
   closeBranchPicker,
   connectNewWorkspaceDaemonClient,
+  loadSessionMessageReaders,
   createWorktreeViaDaemon,
   delayBrowserAgentCreatedStatus,
   expectComposerGithubAttachmentPill,
@@ -52,7 +55,7 @@ import {
 } from "../support/helpers/github-fixtures";
 import { getServerId } from "../support/helpers/server-id";
 import { selectSidebarStatusGrouping } from "../support/helpers/sidebar";
-import { getE2EDaemonPort } from "../support/helpers/daemon-port";
+import { getE2EDaemonPort, daemonWsRoutePattern } from "../support/helpers/daemon-port";
 import { chooseAddProjectMethod, expectAddProjectPage } from "../support/helpers/add-project-flow";
 import { seedSavedSettingsHosts } from "../support/helpers/settings";
 import {
@@ -210,6 +213,46 @@ async function submitNewWorkspaceWithoutPrompt(page: import("@playwright/test").
   await createButton.click();
 }
 
+/** Holds real list responses so the form's pending state can be verified deterministically. */
+async function holdWorktreeListResponses(page: import("@playwright/test").Page) {
+  const frames = await loadSessionMessageReaders();
+  let held = true;
+  const forwards: Array<() => void> = [];
+  let observed: () => void = () => {};
+  const responseSeen = new Promise<void>((resolve) => {
+    observed = resolve;
+  });
+  // Delay real host responses, keeping every Git result and error authoritative.
+  await page.routeWebSocket(daemonWsRoutePattern(), (ws) => {
+    const server = ws.connectToServer();
+    server.onMessage((message) => {
+      if (held && frames.server(message)?.type === "paseo_worktree_list_response") {
+        forwards.push(() => ws.send(message));
+        observed();
+        return;
+      }
+      ws.send(message);
+    });
+  });
+  return {
+    waitForResponse: responseSeen,
+    release() {
+      held = false;
+      for (const forward of forwards.splice(0)) forward();
+    },
+  };
+}
+
+/** Selects either the new-branch intent or an existing branch from the combined picker. */
+async function selectWorkspaceBranchChoice(page: Page, label: string): Promise<void> {
+  await page.getByTestId("new-workspace-branch-picker-trigger").click();
+  const option = page
+    .getByRole("button", { name: label, exact: true })
+    .and(page.locator(':not([data-testid^="sidebar-workspace-row-"])'));
+  await expect(option).toBeVisible();
+  await option.click();
+}
+
 test.describe("New workspace flow", () => {
   let client: Awaited<ReturnType<typeof connectNewWorkspaceDaemonClient>>;
   const localWorkspaceIds = new Set<string>();
@@ -246,6 +289,291 @@ test.describe("New workspace flow", () => {
       await fixture.cleanup();
     }
     localGithubFixtures.clear();
+  });
+
+  test("Local shows its current branch on desktop and compact layouts", async ({
+    page,
+  }, testInfo) => {
+    const repo = await createTempGitRepo("worktree-options-local-");
+    const opened = await openProjectViaDaemon(client, repo.path);
+    localProjectIds.add(opened.projectId);
+    localWorkspaceIds.add(opened.workspaceId);
+    try {
+      await gotoAppShell(page);
+      const query = new URLSearchParams({
+        serverId: getServerId(),
+        projectId: opened.projectId,
+        dir: repo.path,
+        name: opened.projectDisplayName,
+      });
+      for (const viewport of [
+        { width: 1440, height: 1000 },
+        { width: 390, height: 844 },
+      ]) {
+        await page.setViewportSize(viewport);
+        await page.goto(`/new?${query.toString()}`);
+        const trigger = page.getByTestId("workspace-create-isolation-trigger");
+        await expect(trigger).toHaveText("Local · main");
+        await trigger.click();
+        const localOption = page.getByTestId("workspace-create-isolation-local");
+        await expect(localOption).toContainText("Local · main");
+        await page.screenshot({ path: testInfo.outputPath(`local-${viewport.width}.png`) });
+        await localOption.click();
+        await expect(trigger).toHaveText("Local · main");
+      }
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  test("new worktree options show loading and retry failed enumeration without losing edits", async ({
+    page,
+  }) => {
+    const repo = await createTempGitRepo("worktree-options-loading-");
+    const movedPath = `${repo.path}-moved`;
+    const opened = await openProjectViaDaemon(client, repo.path);
+    localProjectIds.add(opened.projectId);
+    localWorkspaceIds.add(opened.workspaceId);
+    const listDelay = await holdWorktreeListResponses(page);
+    try {
+      await gotoAppShell(page);
+      const query = new URLSearchParams({
+        serverId: getServerId(),
+        projectId: opened.projectId,
+        dir: repo.path,
+        name: opened.projectDisplayName,
+      });
+      await page.goto(`/new?${query.toString()}`);
+      await listDelay.waitForResponse;
+      await page.getByTestId("workspace-create-isolation-trigger").click();
+      await expect(page.getByText("Loading worktrees…", { exact: true })).toBeVisible();
+      listDelay.release();
+      await expect(page.getByText(`main · ${repo.path}`, { exact: true })).toBeVisible();
+      await page.getByTestId("workspace-create-isolation-worktree").click();
+      await page.getByTestId("new-workspace-branch-name").fill("retained-branch");
+      await page.getByTestId("new-workspace-worktree-name").fill("retained-name");
+      renameSync(repo.path, movedPath);
+      await submitNewWorkspaceEmpty(page);
+      await expect(page.getByTestId("new-workspace-worktree-list-error")).toBeVisible();
+      await expect(page.getByTestId("new-workspace-branch-name")).toHaveValue("retained-branch");
+      await expect(page.getByTestId("new-workspace-worktree-name")).toHaveValue("retained-name");
+      await page.getByTestId("workspace-create-isolation-trigger").click();
+      await expect(page.getByText("Retry loading worktrees", { exact: true })).toBeVisible();
+      renameSync(movedPath, repo.path);
+      await page.getByText("Retry loading worktrees", { exact: true }).click();
+      await expect(page.getByTestId("new-workspace-worktree-list-error")).toHaveCount(0);
+      await expect(page.getByText(`main · ${repo.path}`, { exact: true })).toBeVisible();
+    } finally {
+      if (existsSync(movedPath)) renameSync(movedPath, repo.path);
+      await repo.cleanup();
+    }
+  });
+
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`new worktree options create exact branches and reuse checkouts at ${viewport.width}px`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize(viewport);
+      const repo = await createTempGitRepo("worktree-options-", {
+        branches: ["Release/1.2", "other"],
+      });
+      const opened = await openProjectViaDaemon(client, repo.path);
+      localProjectIds.add(opened.projectId);
+      localWorkspaceIds.add(opened.workspaceId);
+      try {
+        await gotoAppShell(page);
+        const openForm = async () => {
+          const query = new URLSearchParams({
+            serverId: getServerId(),
+            projectId: opened.projectId,
+            dir: repo.path,
+            name: opened.projectDisplayName,
+          });
+          await page.goto(`/new?${query.toString()}`);
+          await selectWorkspaceIsolation(page, "worktree");
+        };
+        await openForm();
+        const branchName = page.getByTestId("new-workspace-branch-name");
+        const worktreeName = page.getByTestId("new-workspace-worktree-name");
+        const modeControl = page.getByTestId("new-workspace-branch-picker-trigger");
+        const refControl = page.getByTestId("new-workspace-ref-picker-trigger");
+        const isolationControl = page.getByTestId("workspace-create-isolation-trigger");
+        await expect(modeControl).toHaveText("New branch");
+        await expect(refControl).toContainText("from main");
+        expect(
+          await worktreeName.evaluate((element) =>
+            Boolean(
+              element.compareDocumentPosition(
+                document.querySelector('[data-testid="new-workspace-branch-name"]')!,
+              ) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+          ),
+        ).toBe(true);
+        // The mode decision precedes the branch picker on both layout surfaces.
+        expect(
+          await isolationControl.evaluate((element) =>
+            Boolean(
+              element.compareDocumentPosition(
+                document.querySelector('[data-testid="new-workspace-branch-picker-trigger"]')!,
+              ) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+          ),
+        ).toBe(true);
+        expect(
+          await modeControl.evaluate((element) =>
+            Boolean(
+              element.compareDocumentPosition(
+                document.querySelector('[data-testid="new-workspace-ref-picker-trigger"]')!,
+              ) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+          ),
+        ).toBe(true);
+        await branchName.fill("Feature/New.Branch");
+        await expect(worktreeName).toHaveValue("feature-new-branch");
+        await worktreeName.fill("chosen-name");
+        await branchName.fill("Feature/Changed.Branch");
+        await expect(worktreeName).toHaveValue("chosen-name");
+        await worktreeName.fill("../invalid");
+        await submitNewWorkspaceEmpty(page);
+        await expect(page.getByTestId("new-workspace-create-error")).toContainText(
+          "Worktree name must use lowercase letters",
+        );
+        await expect(branchName).toHaveValue("Feature/Changed.Branch");
+        await worktreeName.fill("chosen-name");
+        await page.screenshot({ path: testInfo.outputPath(`new-branch-${viewport.width}.png`) });
+        await submitNewWorkspaceEmpty(page);
+        await expect(page).toHaveURL(/\/workspace\//, { timeout: 30_000 });
+        const created = (await client.fetchWorkspaces()).entries.find(
+          (entry) => path.basename(entry.workspaceDirectory) === "chosen-name",
+        );
+        expect(created).toBeDefined();
+        // Git runtime snapshots refresh asynchronously; verify the actual checkout.
+        expect(
+          execFileSync("git", ["branch", "--show-current"], {
+            cwd: created!.workspaceDirectory,
+          })
+            .toString()
+            .trim(),
+        ).toBe("Feature/Changed.Branch");
+        createdWorktreeDirectories.add(created!.workspaceDirectory);
+
+        await openForm();
+        await branchName.fill("collision-branch");
+        await worktreeName.fill("chosen-name");
+        await submitNewWorkspaceEmpty(page);
+        await expect(page.getByTestId("new-workspace-create-error")).toContainText(
+          "Worktree directory already exists:",
+        );
+        await expect(worktreeName).toHaveValue("chosen-name");
+        await selectWorkspaceBranchChoice(page, "Release/1.2");
+        await expect(branchName).toHaveCount(0);
+        await expect(refControl).toHaveCount(0);
+        await expect(worktreeName).toHaveValue("chosen-name");
+        await selectWorkspaceBranchChoice(page, "New branch");
+        await expect(refControl).toContainText("from Release/1.2");
+        await expect(branchName).toHaveValue("collision-branch");
+        await expect(worktreeName).toHaveValue("chosen-name");
+        // A fresh form has an untouched default, unlike the failed draft above.
+        await openForm();
+        await selectWorkspaceBranchChoice(page, "Release/1.2");
+        await expect(branchName).toHaveCount(0);
+        await expect(refControl).toHaveCount(0);
+        await expect(modeControl).toHaveText("Release/1.2");
+        await expect(worktreeName).toHaveValue("release-1-2");
+        await page.screenshot({
+          path: testInfo.outputPath(`existing-branch-${viewport.width}.png`),
+        });
+        await submitNewWorkspaceEmpty(page);
+        await expect(page).toHaveURL(/\/workspace\//, { timeout: 30_000 });
+        const checkout = (await client.fetchWorkspaces()).entries.find(
+          (entry) => path.basename(entry.workspaceDirectory) === "release-1-2",
+        );
+        expect(checkout).toBeDefined();
+        expect(
+          execFileSync("git", ["branch", "--show-current"], {
+            cwd: checkout!.workspaceDirectory,
+          })
+            .toString()
+            .trim(),
+        ).toBe("Release/1.2");
+        createdWorktreeDirectories.add(checkout!.workspaceDirectory);
+
+        await openForm();
+        await selectWorkspaceBranchChoice(page, "Release/1.2");
+        await expect(branchName).toHaveCount(0);
+        await expect(refControl).toHaveCount(0);
+        await submitNewWorkspaceEmpty(page);
+        await expect(page.getByTestId("new-workspace-create-error")).toContainText(
+          "Branch already checked out at",
+        );
+        const before = execFileSync("git", ["worktree", "list", "--porcelain"], {
+          cwd: repo.path,
+        }).toString();
+        await page.getByTestId("workspace-create-isolation-trigger").click();
+        await page
+          .getByText(`Release/1.2 · ${checkout!.workspaceDirectory}`, { exact: true })
+          .click();
+        await expect(worktreeName).toHaveCount(0);
+        await page.screenshot({
+          path: testInfo.outputPath(`existing-worktree-${viewport.width}.png`),
+        });
+        await submitNewWorkspaceEmpty(page);
+        await expect(page).toHaveURL(/\/workspace\//, { timeout: 30_000 });
+        expect(
+          execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: repo.path }).toString(),
+        ).toBe(before);
+        expect(
+          (await client.fetchWorkspaces()).entries.filter(
+            (entry) => entry.workspaceDirectory === checkout!.workspaceDirectory,
+          ),
+        ).toHaveLength(2);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
+
+  test("new worktree branch choices follow the selected repository", async ({ page }) => {
+    const first = await createTempGitRepo("worktree-options-first-", { branches: ["first-only"] });
+    const second = await createTempGitRepo("worktree-options-second-", {
+      branches: ["second-only"],
+    });
+    try {
+      const firstProject = await openProjectViaDaemon(client, first.path);
+      const secondProject = await openProjectViaDaemon(client, second.path);
+      for (const opened of [firstProject, secondProject]) {
+        localProjectIds.add(opened.projectId);
+        localWorkspaceIds.add(opened.workspaceId);
+      }
+      await gotoAppShell(page);
+      const query = new URLSearchParams({
+        serverId: getServerId(),
+        projectId: firstProject.projectId,
+        dir: first.path,
+        name: firstProject.projectDisplayName,
+      });
+      await page.goto(`/new?${query.toString()}`);
+      await selectWorkspaceIsolation(page, "worktree");
+      await selectWorkspaceBranchChoice(page, "first-only");
+      await page.getByTestId("new-workspace-worktree-name").fill("retained-name");
+      await page.getByTestId("new-workspace-project-picker-trigger").click();
+      await page.getByPlaceholder("Search projects").fill(secondProject.projectDisplayName);
+      await page
+        .getByTestId("combobox-desktop-container")
+        .getByText(secondProject.projectDisplayName, { exact: true })
+        .click();
+      await expect(page.getByTestId("new-workspace-branch-picker-trigger")).toHaveText("main");
+      await expect(page.getByTestId("new-workspace-worktree-name")).toHaveValue("retained-name");
+      await page.getByTestId("new-workspace-branch-picker-trigger").click();
+      await expect(page.getByRole("button", { name: "second-only", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "first-only", exact: true })).toHaveCount(0);
+    } finally {
+      await first.cleanup();
+      await second.cleanup();
+    }
   });
 
   test("adds a project from the selected empty host", async ({ page }) => {

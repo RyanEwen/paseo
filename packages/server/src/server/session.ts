@@ -6708,6 +6708,7 @@ export class Session {
         workspaceId,
         projectId: source.projectId,
         worktreeSlug: source.worktreeSlug,
+        exactNames: source.exactNames,
         action: source.action,
         refName: source.refName,
         branchName: source.branchName,
