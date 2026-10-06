@@ -1773,6 +1773,12 @@ export const es: TranslationResources = {
       helper: "Conéctate a un daemon de Paseo en el host remoto.",
       fields: {
         target: "Host SSH",
+        password: "Contraseña del daemon",
+        optional: "Opcional",
+      },
+      passwordVisibility: {
+        show: "Mostrar contraseña",
+        hide: "Ocultar contraseña",
       },
       actions: {
         cancel: "Cancelar",
