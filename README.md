@@ -1,3 +1,35 @@
+<!-- fork-overview:start -->
+
+## Ryan's Paseo fork
+
+This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental fork of
+[Paseo](https://github.com/getpaseo/paseo). It includes upstream changes plus these additions:
+
+- **More sidebar control:** Choose filtering, grouping, and sorting independently, including
+  project names, workspace names, status, and custom ordering. Show agent activity and code-change
+  totals together.
+- **Chrome extensions in the desktop browser:** Install and manage extensions, use toolbar
+  popups and extension context menus, and open extension windows. Compatibility depends on the
+  Chrome APIs an extension uses.
+- **Browser automation in the background:** Agents can continue interacting with desktop browser
+  tabs while the pane is hidden, the app is unfocused, or its window is minimized.
+- **Explicit branch and worktree choices:** Choose how a workspace uses an existing branch or
+  creates a new one. Retry failed setup without losing the checkout created for it.
+- **Android plugin video:** Plugins can display encoded video in workspace panels on Android.
+  A plugin that supplies the video is required.
+- **Mobile refinements:** A larger tab-switcher touch target and notification delivery kept
+  separate between development and production apps.
+
+Fork downloads, when published, are available from
+[this fork's releases](https://github.com/RyanEwen/paseo/releases). Shared builds are planned for
+Windows and Linux (x64 and ARM64), plus Android. macOS is deferred until Apple signing is available;
+iOS and hosted web are excluded. Desktop previews will receive updates from this fork. The download
+links and package installation commands below are for upstream Paseo.
+
+<!-- fork-overview:end -->
+
+---
+
 <p align="center">
   <img src="packages/website/public/logo.svg" width="64" height="64" alt="Paseo logo">
 </p>

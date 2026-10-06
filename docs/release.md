@@ -62,7 +62,7 @@ release. This applies to both beta and stable releases.
   the changelog. Retarget remaining PRs based on `next` to `main` and delete the integrated
   `next`. Create it fresh when needed again.
 
-**Setup still needed:** CI, Docker, and Nix PR checks currently target only `main`,
+**Setup still needed:** CI, Docker, and Nix PR checks do not target `next`,
 and GitHub permits only squash merges. Enable checks and required-check protection
 for `next`, CI on its pushes, and merge commits for the integration PR. Handle PR
 base changes (`edited` events) so retargeting runs checks against the new base;
@@ -76,6 +76,89 @@ use the normal release flow with it as the explicit source, choosing a new patch
 or beta version. Ensure the fixes and changelog also reach `main` and any active
 `next`, preserving newer development and version changes there. This is a
 short-lived hotfix branch, not another maintained release track.
+
+## Fork overview review
+
+In RyanEwen/paseo, the opening README section owns the list of user-visible differences from
+upstream. Review it when you add or change a feature and when you merge upstream changes. Remove
+an addition from the list once upstream includes it. Describe available behavior; label planned
+distribution separately until builds are published.
+
+The `fork-overview` check runs on pull requests to `main`, `ryan/dev`, and `ryan/preview`. A code or
+build change must update the marked README section, or check the fork overview review box in the
+PR template and explain why the list remains accurate. Documentation-only changes still validate
+that the section exists at the top of the README. Pushes validate its presence too.
+
+Make `fork-overview` a required status check in the fork's branch protection to block unreviewed
+PR merges. Direct local merges still require the review above. CI can require that review; it
+cannot determine whether a feature description is accurate.
+
+## Fork preview distribution
+
+RyanEwen/paseo uses `ryan/preview` as a merge-only integration branch. Develop changes on feature
+branches, review them, then merge them into `ryan/preview`. Rename `ryan/dev` only after its existing
+work is integrated; do not rewrite its history. CI covers both fork branches.
+
+The **Fork Preview Release** workflow is manually dispatched on `ryan/preview`. It builds Windows
+and Linux for x64 and ARM64, plus a standalone Android APK. macOS is deferred until Apple signing
+is available. iOS and hosted web are excluded. These builds use the existing Paseo Debug identity
+and retain its desktop profile and local daemon. The renderer storage origin stays `paseo://app`.
+
+The workflow resolves one commit and requires that commit's push CI to have passed. All jobs use
+that SHA, even if the branch moves during the build. Its run number identifies each preview; reruns
+reuse that number. Android gets a separate increasing version code so upstream beta numbering
+cannot leave later previews with the same native version. Never recreate the workflow under another
+name and reset its sequence after publishing previews.
+
+Windows installers and Linux AppImages update exclusively from this fork's `preview` channel.
+The Stable/Beta selector is omitted in preview builds. The optional CLI installs as `paseo-debug`
+so it can coexist with the official `paseo` command. Other Linux packages and Android APKs can
+be downloaded from the release. Official tag-triggered release, deployment, and changelog workflows
+exclude preview tags. The preview workflow does not publish npm packages.
+
+### Signing configuration
+
+Windows uses electron-builder's Azure Trusted Signing integration, with PrintStream's existing
+account, certificate profile, and publisher. Azure configuration is held in GitHub variables;
+the service principal credential is a GitHub secret. The workflow fails when signing is missing,
+then verifies both the executable architecture and signatures before accepting a Windows build.
+See [electron-builder's Azure setup](https://www.electron.build/v26/docs/features/code-signing/code-signing-win/).
+
+Configure these in the fork's Actions settings:
+
+| Kind      | Names                                                                                                                                  | Purpose                                                    |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Variables | `PREVIEW_AZURE_TENANT_ID`, `PREVIEW_AZURE_CLIENT_ID`                                                                                   | Existing signing service principal                         |
+| Variables | `PREVIEW_AZURE_SIGNING_ENDPOINT`, `PREVIEW_AZURE_SIGNING_ACCOUNT`, `PREVIEW_AZURE_CERTIFICATE_PROFILE`, `PREVIEW_AZURE_PUBLISHER_NAME` | Signing account and exact certificate common name          |
+| Secret    | `PREVIEW_AZURE_CLIENT_SECRET`                                                                                                          | Signing service principal credential                       |
+| Variables | `PREVIEW_EXPO_PROJECT_ID`, `PREVIEW_EXPO_OWNER`, `PREVIEW_EXPO_SLUG`                                                                   | Fork's existing Debug Expo notification project            |
+| Secrets   | `PREVIEW_ANDROID_KEYSTORE_BASE64`, `PREVIEW_ANDROID_KEYSTORE_PASSWORD`, `PREVIEW_ANDROID_KEY_ALIAS`, `PREVIEW_ANDROID_KEY_PASSWORD`    | Dedicated Android preview signing key                      |
+| Secret    | `PREVIEW_GOOGLE_SERVICES_DEBUG_JSON`                                                                                                   | Existing Debug Firebase configuration for `sh.paseo.debug` |
+
+Keep the Android key and its passwords backed up outside the checkout before removing a worktree
+or development environment. Replacing the key prevents future APKs from updating installed previews.
+The first public APK cannot replace a development-signed Paseo Debug in place. Preserve connection
+details before uninstalling that old build; uninstalling clears its settings. Later signed previews
+install over the first public APK. The workflow does not uninstall or migrate your phone.
+
+### Prepare and publish
+
+Ensure the workflow file is available on the fork's default branch so GitHub exposes manual dispatch.
+Select `ryan/preview` when running it. Wait for CI on the source commit to pass first.
+
+```bash
+gh workflow run preview-release.yml --repo RyanEwen/paseo --ref ryan/preview \
+  -f notes="Describe what users can do in this preview." -F publish=false
+```
+
+The default creates a draft only after every build passes. It validates the complete platform set,
+checks updater hashes against the binaries, merges Windows architecture manifests, and generates
+`SHA256SUMS` plus source provenance. Review the draft's notes and downloads before publishing it.
+Use `publish=true` only with authorization to publish that preview; publication remains gated on
+every build and asset check. A failed build or upload never makes an update discoverable.
+
+A published preview is immutable. Rerunning its upload is refused rather than replacing files
+that clients may already have downloaded. Start a new workflow run for a corrected release.
 
 ## ACP catalog updates
 

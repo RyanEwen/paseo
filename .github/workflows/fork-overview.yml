@@ -1,0 +1,40 @@
+name: Fork overview
+
+on:
+  pull_request:
+    branches: [main, ryan/dev, ryan/preview]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  push:
+    branches: [ryan/dev, ryan/preview]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-overview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fork-overview:
+    name: fork-overview
+    if: github.repository == 'RyanEwen/paseo'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch PR base for comparison
+        if: github.event_name == 'pull_request'
+        env:
+          FORK_OVERVIEW_BASE: ${{ github.event.pull_request.base.sha }}
+        run: git fetch --no-tags origin "$FORK_OVERVIEW_BASE"
+
+      - name: Require fork overview review
+        run: node scripts/check-fork-overview.mjs

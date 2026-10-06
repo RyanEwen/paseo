@@ -5,7 +5,7 @@ const { smokePackagedDesktopApp } = require("../e2e/packaged-app-smoke.js");
 
 const { installLinuxLauncher } = require("./linux-sandbox");
 
-const EXECUTABLE_NAME = "Paseo";
+const { resolveDesktopDistribution } = require("../dist/distribution.js");
 
 // electron-builder arch enum → Node.js arch string
 const ARCH_MAP = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "universal" };
@@ -75,10 +75,10 @@ function pruneSharpLibvips(nodeModules, platform, arch) {
   }
 }
 
-function pruneNativeModules(appOutDir, platform, arch) {
+function pruneNativeModules(appOutDir, platform, arch, executableName) {
   const resourcesDir =
     platform === "darwin"
-      ? path.join(appOutDir, `${EXECUTABLE_NAME}.app`, "Contents", "Resources")
+      ? path.join(appOutDir, `${executableName}.app`, "Contents", "Resources")
       : path.join(appOutDir, "resources");
 
   const nodeModules = path.join(resourcesDir, "app.asar.unpacked", "node_modules");
@@ -114,11 +114,30 @@ function fmtMB(bytes) {
 exports.default = async function afterPack(context) {
   const platform = context.electronPlatformName;
   const arch = ARCH_MAP[context.arch] || process.arch;
+  const executableName = context.packager.appInfo.productFilename;
+  const distribution = resolveDesktopDistribution(context.packager.config.extraMetadata ?? {});
+  const resourcesDir =
+    platform === "darwin"
+      ? path.join(context.appOutDir, `${executableName}.app`, "Contents", "Resources")
+      : path.join(context.appOutDir, "resources");
 
-  pruneNativeModules(context.appOutDir, platform, arch);
+  // CLI shims cannot assume an official executable name or daemon home in a fork build.
+  fs.writeFileSync(path.join(resourcesDir, "paseo-executable-name"), `${executableName}\n`);
+  if (distribution.isPreview) {
+    fs.writeFileSync(
+      path.join(resourcesDir, "paseo-daemon-home-name"),
+      `${distribution.daemonHomeName}\n`,
+    );
+    fs.writeFileSync(
+      path.join(resourcesDir, "paseo-daemon-listen"),
+      `${distribution.daemonListen}\n`,
+    );
+  }
+
+  pruneNativeModules(context.appOutDir, platform, arch, executableName);
 
   if (platform === "linux") {
-    installLinuxLauncher(context.appOutDir);
+    installLinuxLauncher(context.appOutDir, executableName);
   }
 
   if (platform === "linux" || platform === "win32") {

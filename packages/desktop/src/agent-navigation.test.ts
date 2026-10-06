@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { AgentNavigationInbox, parseAgentDeepLinkFromArgv } from "./agent-navigation.js";
 
 describe("desktop agent navigation", () => {
+  it("accepts the preview OS scheme through the existing agent navigation path", () => {
+    expect(parseAgentDeepLinkFromArgv(["paseo-debug://h/server-1/agent/agent-2"])).toEqual({
+      serverId: "server-1",
+      agentId: "agent-2",
+    });
+  });
   it("finds an agent deep link among Electron launch arguments", () => {
     expect(
       parseAgentDeepLinkFromArgv([

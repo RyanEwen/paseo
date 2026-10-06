@@ -5,6 +5,7 @@ on:
     branches: [main]
     tags:
       - "v*"
+      - "!v*-preview.*"
   workflow_dispatch:
     inputs:
       paseo_version:

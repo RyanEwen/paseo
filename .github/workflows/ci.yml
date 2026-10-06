@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, ryan/dev, ryan/preview]
   pull_request:
-    branches: [main]
+    branches: [main, ryan/dev, ryan/preview]
   merge_group:
   workflow_dispatch:
 
@@ -52,7 +52,7 @@ jobs:
           filters: .github/ci-paths.yml
 
       - name: Validate CI contracts
-        run: node --test scripts/ci-workflow.test.mjs scripts/daemon-launch-contract.test.mjs scripts/sync-fdroid-changelogs.test.mjs scripts/upload-release-assets.test.mjs
+        run: node --test scripts/ci-workflow.test.mjs scripts/daemon-launch-contract.test.mjs scripts/sync-fdroid-changelogs.test.mjs scripts/upload-release-assets.test.mjs scripts/release-version-utils.test.mjs
 
   format:
     name: format
@@ -245,6 +245,9 @@ jobs:
 
       - name: Run desktop tests
         run: npm run test --workspace=@getpaseo/desktop
+
+      - name: Validate desktop release manifests
+        run: npx vitest run scripts/validate-desktop-manifests.test.mjs --bail=1
 
       - name: Install virtual display
         if: ${{ runner.os == 'Linux' }}

@@ -1,0 +1,29 @@
+extends: ./electron-builder.yml
+appId: sh.paseo.desktop.debug
+productName: Paseo Debug
+executableName: Paseo Debug
+extraMetadata:
+  name: paseo-debug
+  productName: Paseo Debug
+  desktopName: Paseo Debug.desktop
+  paseoPreview: true
+protocols:
+  - name: Paseo preview agent link
+    schemes:
+      - paseo-debug
+publish:
+  provider: github
+  owner: RyanEwen
+  repo: paseo
+  channel: preview
+  releaseType: prerelease
+  vPrefixedTagName: true
+mac:
+  artifactName: "Paseo-Debug-${version}-${arch}.${ext}"
+linux:
+  artifactName: "Paseo-Debug-${version}-${arch}.${ext}"
+appImage:
+  artifactName: "Paseo-Debug-${arch}.${ext}"
+  executableArgs: ["--class=Paseo Debug"]
+win:
+  artifactName: "Paseo-Debug-Setup-${version}-${arch}.${ext}"

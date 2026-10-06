@@ -93,3 +93,10 @@ app.json
 
 # Heap snapshots dumped by --heapsnapshot-near-heap-limit; keep them for debugging.
 *.heapsnapshot
+
+# Generated inputs for disposable fork preview build checkouts.
+packages/desktop/electron-builder.preview.local.yml
+/preview-release.json
+/preview-artifacts/
+/preview-release-assets/
+/preview-android/

@@ -47,3 +47,13 @@ This is the section I read most carefully. I need to see that *you* tested this,
 - [ ] `npm run format` passes
 - [ ] QA evidence
 - [ ] Tests added or updated where it made sense
+
+### Fork overview (RyanEwen/paseo only)
+
+<!-- Update the opening README section when this changes what the fork offers, including when
+upstream catches up with an addition. Otherwise check the box below and replace the explanation.
+The fork overview check accepts a section update or this explicit review with a reason. -->
+
+- [ ] Fork overview reviewed: no change to the listed differences.
+
+Fork overview unchanged because: <!-- Explain why, or remove this line when updating the section. -->

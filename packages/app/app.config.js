@@ -3,13 +3,27 @@ const path = require("node:path");
 const pkg = require("./package.json");
 const withAndroidAsyncStorageSize = require("./plugins/with-android-async-storage-size");
 const withAndroidProfileable = require("./plugins/with-android-profileable");
+const withAndroidReleaseSigning = require("./plugins/with-android-release-signing");
 const withFdroidAutolinking = require("./plugins/with-fdroid-autolinking");
 const withPasteInput = require("./plugins/with-paste-input");
 const withAndroidScroll = require("./modules/paseo-scroll/app.plugin");
-const { getNativeReleaseVersion } = require("./native-release-version");
+const { getNativeReleaseVersion, getPreviewReleaseVersion } = require("./native-release-version");
 const appVariant = process.env.APP_VARIANT ?? "production";
 const isFdroidBuild = process.env.PASEO_FDROID_BUILD === "1";
 const isProfileBuild = process.env.PASEO_PROFILE_BUILD === "1";
+const isPreviewBuild = process.env.PASEO_PREVIEW_BUILD === "1";
+const previewExpoProject = {
+  projectId: process.env.PASEO_PREVIEW_EXPO_PROJECT_ID,
+  owner: process.env.PASEO_PREVIEW_EXPO_OWNER,
+  slug: process.env.PASEO_PREVIEW_EXPO_SLUG,
+};
+
+if (isPreviewBuild && appVariant !== "development") {
+  throw new Error("Fork previews must use the development app identity");
+}
+if (isPreviewBuild && Object.values(previewExpoProject).some((value) => !value?.trim())) {
+  throw new Error("Fork previews require their own Expo project ID, owner, and slug");
+}
 
 const buildProfile = isFdroidBuild
   ? {
@@ -93,13 +107,15 @@ const variants = {
 };
 
 const variant = variants[appVariant] ?? variants.production;
-const nativeReleaseVersion = getNativeReleaseVersion(pkg.version);
+const nativeReleaseVersion = isPreviewBuild
+  ? getPreviewReleaseVersion(pkg.version, Number(process.env.PASEO_PREVIEW_BUILD_NUMBER))
+  : getNativeReleaseVersion(pkg.version);
 
 export default {
   expo: {
     name: variant.name,
-    slug: "voice-mobile",
-    version: nativeReleaseVersion.appVersion,
+    slug: isPreviewBuild ? previewExpoProject.slug : "voice-mobile",
+    version: isPreviewBuild ? nativeReleaseVersion.version : nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "paseo",
@@ -179,6 +195,7 @@ export default {
       ],
       ...buildProfile.fdroidPlugins,
       ...(isProfileBuild ? [withAndroidProfileable] : []),
+      ...(isPreviewBuild ? [withAndroidReleaseSigning] : []),
     ],
     experiments: {
       typedRoutes: true,
@@ -190,9 +207,11 @@ export default {
       profileBuild: isProfileBuild,
       router: {},
       eas: {
-        projectId: "0e7f65ce-0367-46c8-a238-2b65963d235a",
+        projectId: isPreviewBuild
+          ? previewExpoProject.projectId
+          : "0e7f65ce-0367-46c8-a238-2b65963d235a",
       },
     },
-    owner: "getpaseo",
+    owner: isPreviewBuild ? previewExpoProject.owner : "getpaseo",
   },
 };

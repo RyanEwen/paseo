@@ -56,8 +56,23 @@ function getFdroidVersionCodes(version) {
   }));
 }
 
+/** Give each fork preview a monotonic Android code, independent of upstream version bumps. */
+function getPreviewReleaseVersion(version, buildNumber) {
+  const nativeVersion = getNativeReleaseVersion(version.replace(/-preview\.\d+$/, ""));
+  if (!Number.isSafeInteger(buildNumber) || buildNumber < 1 || buildNumber > 1_100_000_000) {
+    throw new Error("Preview build number must be an integer between 1 and 1100000000");
+  }
+
+  return {
+    ...nativeVersion,
+    version: `${nativeVersion.appVersion}-preview.${buildNumber}`,
+    androidVersionCode: 1_000_000_000 + buildNumber,
+  };
+}
+
 module.exports = {
   FDROID_ABI_VERSION_CODE_SUFFIXES,
   getFdroidVersionCodes,
   getNativeReleaseVersion,
+  getPreviewReleaseVersion,
 };

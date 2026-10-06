@@ -7,6 +7,7 @@ log.initialize({ spyRendererConsole: true });
 import { inheritLoginShellEnv } from "./login-shell-env.js";
 
 import path from "node:path";
+import { desktopDistribution } from "./distribution.js";
 import { pathToFileURL } from "node:url";
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -104,16 +105,19 @@ import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
 import { installAppUpdateOnQuit } from "./features/auto-updater.js";
 import {
   buildAgentDeepLinkRoute,
-  parseAgentDeepLink,
   type AgentDeepLinkTarget,
 } from "@getpaseo/protocol/agent-deep-link";
-import { AgentNavigationInbox, parseAgentDeepLinkFromArgv } from "./agent-navigation.js";
+import {
+  AgentNavigationInbox,
+  parseAgentDeepLinkFromArgv,
+  parseDesktopAgentDeepLink,
+} from "./agent-navigation.js";
 
 const DEV_SERVER_URL = process.env.EXPO_DEV_URL ?? "http://localhost:8081";
 const APP_SCHEME = "paseo";
 const PASEO_DEBUG = process.env.PASEO_DEBUG === "1";
 const DISABLE_SINGLE_INSTANCE_LOCK = process.env.PASEO_DISABLE_SINGLE_INSTANCE_LOCK === "1";
-const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || "Paseo";
+const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || desktopDistribution.appName;
 const DESKTOP_WINDOW_CHROME_MODE = resolveDesktopWindowChromeMode({
   platform: process.platform,
   override: process.env.PASEO_DESKTOP_WINDOW_CONTROLS,
@@ -131,6 +135,12 @@ const bootstrapComplete = new Promise<void>((resolve) => {
   resolveBootstrapComplete = resolve;
 });
 let bootstrapIsComplete = false;
+
+if (desktopDistribution.isPreview) {
+  process.env.PASEO_HOME ??= path.join(app.getPath("home"), desktopDistribution.daemonHomeName);
+  process.env.PASEO_LISTEN ??= desktopDistribution.daemonListen;
+  app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
+}
 
 app.setName(APP_NAME);
 log.info("[desktop] app startup", {
@@ -841,7 +851,7 @@ desktopWindowOwner = createDesktopWindowOwner<AgentDeepLinkTarget>({
 // ---------------------------------------------------------------------------
 
 function receiveAgentDeepLink(input: string): void {
-  const target = parseAgentDeepLink(input);
+  const target = parseDesktopAgentDeepLink(input);
   if (!target) {
     return;
   }

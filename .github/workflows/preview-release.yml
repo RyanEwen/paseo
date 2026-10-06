@@ -1,0 +1,293 @@
+name: Fork Preview Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "User-facing changes in this preview"
+        required: true
+        type: string
+      publish:
+        description: "Publish after every build and validation passes (otherwise keep a draft)"
+        default: false
+        type: boolean
+
+concurrency:
+  group: fork-preview-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PASEO_PREVIEW_BUILD_NUMBER: ${{ github.run_number }}
+  ONNXRUNTIME_NODE_INSTALL: skip
+  PASEO_PREVIEW_EXPO_PROJECT_ID: ${{ vars.PREVIEW_EXPO_PROJECT_ID }}
+  PASEO_PREVIEW_EXPO_OWNER: ${{ vars.PREVIEW_EXPO_OWNER }}
+  PASEO_PREVIEW_EXPO_SLUG: ${{ vars.PREVIEW_EXPO_SLUG }}
+
+jobs:
+  source:
+    if: github.repository == 'RyanEwen/paseo'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Require the preview branch and successful source CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != refs/heads/ryan/preview ]]; then
+            echo "::error::Run this workflow on ryan/preview"
+            exit 1
+          fi
+          conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&per_page=1" --jq '.workflow_runs[0].conclusion // "missing"')"
+          if [[ "$conclusion" != success ]]; then
+            echo "::error::Source CI must pass before releasing this commit (current result: $conclusion)"
+            exit 1
+          fi
+      - name: Require release credentials
+        env:
+          AZURE_TENANT_ID: ${{ vars.PREVIEW_AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ vars.PREVIEW_AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.PREVIEW_AZURE_CLIENT_SECRET }}
+          PASEO_AZURE_PUBLISHER_NAME: ${{ vars.PREVIEW_AZURE_PUBLISHER_NAME }}
+          PASEO_AZURE_SIGNING_ENDPOINT: ${{ vars.PREVIEW_AZURE_SIGNING_ENDPOINT }}
+          PASEO_AZURE_CERTIFICATE_PROFILE: ${{ vars.PREVIEW_AZURE_CERTIFICATE_PROFILE }}
+          PASEO_AZURE_SIGNING_ACCOUNT: ${{ vars.PREVIEW_AZURE_SIGNING_ACCOUNT }}
+          KEYSTORE: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.PREVIEW_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEY_PASSWORD }}
+          GOOGLE_SERVICES: ${{ secrets.PREVIEW_GOOGLE_SERVICES_DEBUG_JSON }}
+        run: |
+          node --input-type=module <<'NODE'
+          const names = ['AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET',
+            'PASEO_AZURE_PUBLISHER_NAME', 'PASEO_AZURE_SIGNING_ENDPOINT',
+            'PASEO_AZURE_CERTIFICATE_PROFILE', 'PASEO_AZURE_SIGNING_ACCOUNT',
+            'KEYSTORE', 'KEYSTORE_PASSWORD', 'KEY_ALIAS', 'KEY_PASSWORD', 'GOOGLE_SERVICES',
+            'PASEO_PREVIEW_EXPO_PROJECT_ID', 'PASEO_PREVIEW_EXPO_OWNER', 'PASEO_PREVIEW_EXPO_SLUG'];
+          const missing = names.filter(name => !process.env[name]?.trim());
+          if (missing.length) throw new Error(`Missing preview credentials: ${missing.join(', ')}`);
+          NODE
+      - name: Resolve fixed release source
+        id: release
+        run: node scripts/preview-release/metadata.mjs >> "$GITHUB_OUTPUT"
+
+  desktop:
+    needs: source
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows
+            runner: windows-2025
+            arch: x64
+            target: win
+          - os: windows
+            runner: windows-11-arm
+            arch: arm64
+            target: win
+          - os: linux
+            runner: ubuntu-24.04
+            arch: x64
+            target: linux
+          - os: linux
+            runner: ubuntu-24.04-arm
+            arch: arm64
+            target: linux
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.source.outputs.commit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          architecture: ${{ matrix.arch }}
+          cache: npm
+      - name: Install Linux packaging tools
+        if: matrix.os == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth rpm
+      - name: Install dependencies
+        if: matrix.runner != 'windows-11-arm'
+        run: node scripts/npm-retry.mjs ci
+      - name: Install native Windows ARM64 dependencies
+        if: matrix.runner == 'windows-11-arm'
+        # workerd's postinstall does not support native Windows ARM64; the desktop does not use it.
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/npm-retry.mjs ci --ignore-scripts --no-audit
+          npm rebuild esbuild lefthook sharp unrs-resolver node-pty
+          node scripts/postinstall-patches.mjs
+          npx --no-install install-electron
+      - name: Prepare signed preview packaging
+        shell: bash
+        env:
+          PASEO_AZURE_PUBLISHER_NAME: ${{ vars.PREVIEW_AZURE_PUBLISHER_NAME }}
+          PASEO_AZURE_SIGNING_ENDPOINT: ${{ vars.PREVIEW_AZURE_SIGNING_ENDPOINT }}
+          PASEO_AZURE_CERTIFICATE_PROFILE: ${{ vars.PREVIEW_AZURE_CERTIFICATE_PROFILE }}
+          PASEO_AZURE_SIGNING_ACCOUNT: ${{ vars.PREVIEW_AZURE_SIGNING_ACCOUNT }}
+        run: node scripts/preview-release/prepare.mjs
+      - name: Build and smoke packaged desktop
+        shell: bash
+        env:
+          AZURE_TENANT_ID: ${{ vars.PREVIEW_AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ vars.PREVIEW_AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.PREVIEW_AZURE_CLIENT_SECRET }}
+          PASEO_DESKTOP_SMOKE: "1"
+          PASEO_DESKTOP_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/desktop-smoke
+          NODE_OPTIONS: --max-old-space-size=8192
+          APP_VARIANT: development
+          PASEO_PREVIEW_BUILD: "1"
+        run: npm run build:desktop -- --publish never --${{ matrix.target }} --${{ matrix.arch }} --config electron-builder.preview.local.yml
+      - name: Verify Windows signatures and architecture
+        if: matrix.os == 'windows'
+        shell: pwsh
+        env:
+          PASEO_AZURE_PUBLISHER_NAME: ${{ vars.PREVIEW_AZURE_PUBLISHER_NAME }}
+        run: ./scripts/preview-release/verify-windows.ps1 -Architecture '${{ matrix.arch }}'
+      - name: Upload packaged smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-smoke-${{ matrix.os }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/desktop-smoke
+          if-no-files-found: ignore
+      - name: Stage source provenance
+        shell: bash
+        run: cp preview-release.json packages/desktop/release/preview-release.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            packages/desktop/release/*.exe
+            packages/desktop/release/*.zip
+            packages/desktop/release/*.AppImage
+            packages/desktop/release/*.deb
+            packages/desktop/release/*.rpm
+            packages/desktop/release/*.tar.gz
+            packages/desktop/release/*.blockmap
+            packages/desktop/release/preview*.yml
+            packages/desktop/release/preview-release.json
+          if-no-files-found: error
+          retention-days: 7
+
+  android:
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      APP_VARIANT: development
+      PASEO_PREVIEW_BUILD: "1"
+      PASEO_ANDROID_KEYSTORE: ${{ runner.temp }}/preview.keystore
+      PASEO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_PASSWORD }}
+      PASEO_ANDROID_KEY_ALIAS: ${{ secrets.PREVIEW_ANDROID_KEY_ALIAS }}
+      PASEO_ANDROID_KEY_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEY_PASSWORD }}
+      GOOGLE_SERVICES_FILE_DEBUG: ${{ runner.temp }}/google-services.debug.json
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.source.outputs.commit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+      - name: Prepare preview and signing files
+        env:
+          KEYSTORE_BASE64: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_BASE64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.PREVIEW_GOOGLE_SERVICES_DEBUG_JSON }}
+        run: |
+          node scripts/preview-release/prepare.mjs
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          const google = JSON.parse(process.env.GOOGLE_SERVICES_JSON);
+          if (!google.client?.some(client => client.client_info?.android_client_info?.package_name === 'sh.paseo.debug')) {
+            throw new Error('Firebase configuration must include sh.paseo.debug');
+          }
+          writeFileSync(process.env.PASEO_ANDROID_KEYSTORE, Buffer.from(process.env.KEYSTORE_BASE64, 'base64'), { mode: 0o600 });
+          writeFileSync(process.env.GOOGLE_SERVICES_FILE_DEBUG, JSON.stringify(google), { mode: 0o600 });
+          NODE
+      - name: Build standalone signed APK
+        run: |
+          npm run build:app-deps
+          cd packages/app
+          npx --no-install expo prebuild --platform android --clean --non-interactive
+          cd android
+          ./gradlew :app:assembleRelease --no-daemon
+      - name: Verify APK signature and identity
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=packages/app/android/app/build/outputs/apk/release/app-release.apk
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apk-signature.txt"
+          keytool -exportcert -keystore "$PASEO_ANDROID_KEYSTORE" -storepass:env PASEO_ANDROID_KEYSTORE_PASSWORD -alias "$PASEO_ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/preview-signing.der"
+          expected_signer="$(sha256sum "$RUNNER_TEMP/preview-signing.der" | cut -d ' ' -f1)"
+          grep -Fq "Signer #1 certificate SHA-256 digest: $expected_signer" "$RUNNER_TEMP/apk-signature.txt"
+          "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "package: name='sh.paseo.debug'" "$RUNNER_TEMP/apk-badging.txt"
+          expected_code="$(node -p 'JSON.parse(require("fs").readFileSync("preview-release.json", "utf8")).androidVersionCode')"
+          grep -q "versionCode='$expected_code'" "$RUNNER_TEMP/apk-badging.txt"
+          mkdir preview-android
+          cp "$apk" "preview-android/Paseo-Debug-${{ needs.source.outputs.version }}-android.apk"
+          cp preview-release.json preview-android/
+      - name: Remove signing files
+        if: always()
+        run: rm -f "$PASEO_ANDROID_KEYSTORE" "$GOOGLE_SERVICES_FILE_DEBUG"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-android
+          path: preview-android/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: [source, desktop, android]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.source.outputs.commit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install release tooling
+        run: node scripts/npm-retry.mjs ci --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: preview-*
+          path: preview-artifacts
+      - name: Validate all assets and checksums
+        run: |
+          node scripts/preview-release/metadata.mjs
+          node scripts/preview-release/assets.mjs preview-artifacts preview-release-assets
+      - name: Create draft and optionally publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PASEO_PREVIEW_NOTES: ${{ inputs.notes }}
+          PASEO_PREVIEW_PUBLISH: ${{ inputs.publish }}
+        run: node scripts/preview-release/publish.mjs preview-release-assets

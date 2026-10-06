@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { resolveDesktopDistribution, resolveDesktopUpdateChannel } from "../distribution.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -40,6 +41,7 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
   );
 
   mkdirSync(dirname(shimPath), { recursive: true });
+  writeFileSync(join(resourcesPath, "paseo-executable-name"), "Paseo\n");
   mkdirSync(dirname(mainPath), { recursive: true });
   copyFileSync(join(packageRoot, "bin", "paseo"), shimPath);
   chmodSync(shimPath, 0o755);
@@ -63,6 +65,62 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
 }
 
 describe("desktop packaging", () => {
+  it("keeps fork settings and the local daemon isolated while pinning preview updates", () => {
+    expect(resolveDesktopDistribution({ paseoPreview: true })).toEqual({
+      isPreview: true,
+      appName: "Paseo Debug",
+      daemonHomeName: ".paseo-debug",
+      daemonListen: "127.0.0.1:6790",
+    });
+    expect(resolveDesktopUpdateChannel(true, "stable")).toEqual({
+      allowPrerelease: true,
+      channel: "preview",
+    });
+    expect(resolveDesktopUpdateChannel(true, "beta")).toEqual({
+      allowPrerelease: true,
+      channel: "preview",
+    });
+    expect(resolveDesktopUpdateChannel(false, "stable")).toEqual({
+      allowPrerelease: false,
+      channel: "latest",
+    });
+    expect(resolveDesktopUpdateChannel(false, "beta")).toEqual({
+      allowPrerelease: true,
+      channel: "beta",
+    });
+  });
+
+  it("runs the bundled preview CLI against its own daemon and honors explicit overrides", () => {
+    const root = mkdtempSync(join(tmpdir(), "paseo-preview-cli-"));
+    try {
+      const resources = join(root, "resources");
+      const shim = join(resources, "bin", "paseo");
+      mkdirSync(dirname(shim), { recursive: true });
+      copyFileSync(join(packageRoot, "bin", "paseo"), shim);
+      chmodSync(shim, 0o755);
+      writeFileSync(join(resources, "paseo-executable-name"), "Paseo Debug\n");
+      writeFileSync(join(resources, "paseo-daemon-home-name"), ".paseo-debug\n");
+      writeFileSync(join(resources, "paseo-daemon-listen"), "127.0.0.1:6790\n");
+      writeExecutable(
+        join(root, "Paseo Debug.bin"),
+        '#!/bin/sh\nprintf "%s\\n%s\\n" "$PASEO_HOME" "$PASEO_LISTEN"\n',
+      );
+      const env = { ...process.env, HOME: root };
+      delete env.PASEO_HOME;
+      delete env.PASEO_LISTEN;
+      const defaults = spawnSync("sh", [shim, "ls"], { encoding: "utf8", env });
+      expect(defaults.status).toBe(0);
+      expect(defaults.stdout).toBe(`${root}/.paseo-debug\n127.0.0.1:6790\n`);
+      const overridden = spawnSync("sh", [shim, "ls"], {
+        encoding: "utf8",
+        env: { ...env, PASEO_HOME: "/custom-preview", PASEO_LISTEN: "127.0.0.1:12345" },
+      });
+      expect(overridden.status).toBe(0);
+      expect(overridden.stdout).toBe("/custom-preview\n127.0.0.1:12345\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("uses an Electron runtime whose Squirrel handoff explicitly wakes ShipIt", () => {
     const pkg = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
       devDependencies?: Record<string, string>;

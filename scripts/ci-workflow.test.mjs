@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { relative as relativePath } from "node:path";
 import test from "node:test";
+import { checkForkOverviewReview, getForkOverview } from "./check-fork-overview.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const ciWorkflowPath = new URL(".github/workflows/ci.yml", repoRoot);
@@ -10,6 +11,88 @@ const nixWorkflowPath = new URL(".github/workflows/nix.yml", repoRoot);
 const filtersPath = new URL(".github/ci-paths.yml", repoRoot);
 const serverTsconfigPath = new URL("packages/server/tsconfig.server.json", repoRoot);
 const desktopPackagePath = new URL("packages/desktop/package.json", repoRoot);
+
+test("preview releases build one checked commit and require every approved platform before publishing", () => {
+  const source = readFileSync(new URL(".github/workflows/preview-release.yml", repoRoot), "utf8");
+  const trigger = source.split("jobs:", 1)[0];
+  assert.match(trigger, /workflow_dispatch:/);
+  assert.doesNotMatch(trigger, /push:|pull_request:/);
+  assert.match(source, /github\.repository == 'RyanEwen\/paseo'/);
+  assert.match(source, /GITHUB_REF.*refs\/heads\/ryan\/preview/);
+  assert.match(source, /head_sha=\$GITHUB_SHA/);
+  assert.match(source, /ref: \$\{\{ needs\.source\.outputs\.commit \}\}/);
+  assert.match(source, /needs: \[source, desktop, android\]/);
+  for (const runner of ["windows-2025", "windows-11-arm", "ubuntu-24.04", "ubuntu-24.04-arm"]) {
+    assert.ok(source.includes(`runner: ${runner}`), `missing ${runner}`);
+  }
+  assert.doesNotMatch(source, /macos|eas build|npm publish|contents: write[\s\S]*contents: write/);
+});
+
+test("fork code changes require a README update or an explicit review with a reason", () => {
+  const readme = readFileSync(new URL("README.md", repoRoot), "utf8");
+  const input = {
+    before: readme,
+    after: readme,
+    changedFiles: ["packages/app/src/screens/workspace/workspace-screen.tsx"],
+    reviewBody: "",
+  };
+  assert.throws(() => checkForkOverviewReview(input), /Update the opening README/);
+  assert.throws(
+    () => checkForkOverviewReview({ ...input, after: `${readme}\nAn unrelated upstream edit.\n` }),
+    /Update the opening README/,
+  );
+
+  checkForkOverviewReview({
+    ...input,
+    after: readme.replace("## Ryan's Paseo fork", "## Ryan's Paseo fork\n\nA new fork feature."),
+  });
+  checkForkOverviewReview({
+    ...input,
+    reviewBody:
+      "- [x] Fork overview reviewed: no change to the listed differences.\n\n" +
+      "Fork overview unchanged because: This fixes a regression in the already listed sidebar controls.",
+  });
+  checkForkOverviewReview({ ...input, changedFiles: ["docs/release.md"] });
+  checkForkOverviewReview({ ...input, before: "# Upstream README" });
+
+  for (const reviewBody of [
+    "- [ ] Fork overview reviewed: no change to the listed differences.",
+    "- [x] Fork overview reviewed: no change to the listed differences.\n\n" +
+      "Fork overview unchanged because: <!-- Explain why this remains accurate. -->",
+    "<!-- - [x] Fork overview reviewed: no change to the listed differences. -->\n\n" +
+      "Fork overview unchanged because: This fixes an existing sidebar regression.",
+  ]) {
+    assert.throws(
+      () => checkForkOverviewReview({ ...input, reviewBody }),
+      /Update the opening README/,
+    );
+  }
+});
+
+test("fork overview cannot disappear, move below upstream content, or gain duplicate markers", () => {
+  const readme = readFileSync(new URL("README.md", repoRoot), "utf8");
+  assert.match(getForkOverview(readme), /## Ryan's Paseo fork/);
+  assert.equal(getForkOverview(readme.replaceAll("\n", "\r\n")), getForkOverview(readme));
+  for (const invalid of [
+    readme.replace("<!-- fork-overview:start -->", ""),
+    readme.replace("<!-- fork-overview:end -->", ""),
+    `# Upstream\n${readme}`,
+    `${readme}\n<!-- fork-overview:start -->`,
+    `${readme}\n<!-- fork-overview:end -->`,
+    "<!-- fork-overview:start -->\n<!-- fork-overview:end -->",
+  ]) {
+    assert.throws(() => getForkOverview(invalid), /fork overview/);
+  }
+});
+
+test("fork overview review reruns on PR edits and has no write permissions", () => {
+  const source = readFileSync(new URL(".github/workflows/fork-overview.yml", repoRoot), "utf8");
+  assert.match(source, /branches: \[main, ryan\/dev, ryan\/preview\]/);
+  assert.match(source, /types: \[opened, synchronize, reopened, edited, ready_for_review\]/);
+  assert.match(source, /github\.repository == 'RyanEwen\/paseo'/);
+  assert.match(source, /contents: read/);
+  assert.doesNotMatch(source, /pull_request_target|: write|secrets\./);
+});
 
 const gatedCiJobs = new Map([
   ["format", { name: "format", contract: "format" }],

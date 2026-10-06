@@ -45,3 +45,9 @@ export function resolveCliShimPath(input: {
   }
   return path.join(path.dirname(input.executablePath), "resources", "bin", filename);
 }
+
+/** Keep preview CLI installation from replacing the official app's terminal command. */
+export function resolveCliTargetFilename(platform: NodeJS.Platform, isPreview: boolean): string {
+  const command = isPreview ? "paseo-debug" : "paseo";
+  return platform === "win32" ? `${command}.cmd` : command;
+}

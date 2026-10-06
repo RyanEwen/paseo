@@ -66,6 +66,10 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 
 ### Writing docs
 
+- **Keep the fork overview current.** For RyanEwen/paseo, review the opening README section with
+  every feature change and upstream merge. Add user-visible differences, revise changed behavior,
+  and remove additions that upstream now includes. Follow [the fork overview review rule](docs/release.md#fork-overview-review).
+
 - **Integrate, don't append.** Find the doc that owns the subject and rewrite the part that is now wrong. The standard failure is finishing a task and adding a paragraph to the bottom of the closest-looking doc; ten tasks later the doc is a pile of paragraphs in discovery order. `docs/custom-providers.md` is what that looks like.
 - **Don't document logic.** Prose that restates code drifts from the code and loses. Write down what the code can't tell you: why something is shaped the way it is, the gotcha that cost an afternoon, conventions nothing enforces, constraints that span packages or versions. If a reader could get it in two minutes by opening the file, cut it.
 - **One fact, one doc.** Every other mention is a link. If you are about to write the same paragraph in two docs, one of them is a link.

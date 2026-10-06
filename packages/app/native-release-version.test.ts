@@ -1,12 +1,40 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+const { configureAndroidReleaseSigning } = require("./plugins/with-android-release-signing");
 
 const {
   FDROID_ABI_VERSION_CODE_SUFFIXES,
   getFdroidVersionCodes,
   getNativeReleaseVersion,
+  getPreviewReleaseVersion,
 } = require("./native-release-version");
 
 describe("native release version", () => {
+  it("replaces development signing only in the installed Expo template's release build", () => {
+    const template = path.join(path.dirname(require.resolve("expo/package.json")), "template.tgz");
+    const gradle = execFileSync("tar", ["-xOf", template, "package/android/app/build.gradle"], {
+      encoding: "utf8",
+    });
+    const configured = configureAndroidReleaseSigning(gradle);
+    expect(configured).toMatch(/debug\s*\{\s*signingConfig signingConfigs.debug/);
+    expect(configured).toMatch(/release\s*\{[^{}]*signingConfig signingConfigs.preview/);
+    expect(configured).toContain('storePassword System.getenv("PASEO_ANDROID_KEYSTORE_PASSWORD")');
+    expect(() => configureAndroidReleaseSigning("android {}")).toThrow("signing layout changed");
+  });
+  it("gives consecutive previews distinct Android codes while preserving upstream version math", () => {
+    expect(getPreviewReleaseVersion("0.11.0-beta.5", 12)).toEqual({
+      appVersion: "0.11.0",
+      version: "0.11.0-preview.12",
+      androidVersionCode: 1_000_000_012,
+      iosBuildNumber: "11000005",
+    });
+    expect(getPreviewReleaseVersion("0.12.0-preview.13", 13).androidVersionCode).toBe(
+      1_000_000_013,
+    );
+    expect(() => getPreviewReleaseVersion("0.11.0", 0)).toThrow("Preview build number");
+    expect(() => getPreviewReleaseVersion("0.11.0", 1.5)).toThrow("Preview build number");
+  });
   it("reserves the final iOS build slot for a stable release", () => {
     expect(getNativeReleaseVersion("0.2.6")).toEqual({
       appVersion: "0.2.6",

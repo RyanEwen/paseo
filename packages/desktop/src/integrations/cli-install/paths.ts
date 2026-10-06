@@ -1,6 +1,7 @@
 import path from "node:path";
 import { createRequire } from "node:module";
-import { resolveCliShimPath } from "./path.js";
+import { desktopDistribution } from "../../distribution.js";
+import { resolveCliTargetFilename, resolveCliShimPath } from "./path.js";
 import os from "node:os";
 import { app } from "electron";
 
@@ -9,7 +10,7 @@ export function getLocalBinDir(): string {
 }
 
 export function getCliTargetPath(): string {
-  const filename = process.platform === "win32" ? "paseo.cmd" : "paseo";
+  const filename = resolveCliTargetFilename(process.platform, desktopDistribution.isPreview);
   return path.join(getLocalBinDir(), filename);
 }
 
