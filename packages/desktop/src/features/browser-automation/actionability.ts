@@ -38,15 +38,15 @@ export async function waitForActionableTarget(input: {
   // Hidden guests can suspend their timer queue. Sample layout using main's
   // clock without waking rendering or changing the guest's visibility.
   while (Date.now() < deadline) {
-    const sample = await sampleBeforeDeadline(
-      input.page,
-      buildActionabilityScript({
+    const sample = await sampleBeforeDeadline({
+      page: input.page,
+      script: buildActionabilityScript({
         elementExpression: input.elementExpression,
         editable: input.editable === true,
         previousRect,
       }),
       deadline,
-    );
+    });
     if (sample.timedOut) {
       return {
         ok: false,
@@ -65,12 +65,18 @@ export async function waitForActionableTarget(input: {
 
 type ActionabilitySample = { timedOut: true } | { timedOut: false; value: unknown };
 
+interface ActionabilitySampleRequest {
+  page: SnapshotPage;
+  script: string;
+  deadline: number;
+}
+
 /** Bound each renderer round trip with the same main-process deadline. */
-async function sampleBeforeDeadline(
-  page: SnapshotPage,
-  script: string,
-  deadline: number,
-): Promise<ActionabilitySample> {
+async function sampleBeforeDeadline({
+  page,
+  script,
+  deadline,
+}: ActionabilitySampleRequest): Promise<ActionabilitySample> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) return { timedOut: true };
   let timeoutId: ReturnType<typeof setTimeout> | undefined;

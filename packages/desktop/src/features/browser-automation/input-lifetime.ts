@@ -55,30 +55,32 @@ export function createInputLifetime(contents: TabContents): InputLifetime {
     });
   }
 
+  const page: TrustedInputPage = {
+    getURL: () => contents.getURL(),
+    executeJavaScript: (code) => wait(() => contents.executeJavaScript(code)),
+    insertText: (text) => wait(() => contents.insertText(text)),
+    sendInputEvent: (event) => {
+      assertActive();
+      contents.sendInputEvent(event);
+    },
+  };
+  if (sendDebugCommand) {
+    page.sendDebugCommand = (command, params) => {
+      const releasesPointer =
+        command === "Input.dispatchMouseEvent" && params?.type === "mouseReleased";
+      // Release a possibly held pointer after cancellation. This cleans up the
+      // original gesture without repeating a press or waiting on its acknowledgment.
+      if (signal.aborted && releasesPointer) {
+        return sendDebugCommand.call(contents, command, params, signal);
+      }
+      return wait(() => sendDebugCommand.call(contents, command, params, signal));
+    };
+  }
+
   return {
     signal,
     assertActive,
-    page: {
-      getURL: () => contents.getURL(),
-      executeJavaScript: (code) => wait(() => contents.executeJavaScript(code)),
-      ...(sendDebugCommand
-        ? {
-            sendDebugCommand: (command: string, params?: Record<string, unknown>) =>
-              // Release a possibly held pointer after cancellation. This is
-              // cleanup of the original gesture, never a repeated press/action.
-              signal.aborted &&
-              command === "Input.dispatchMouseEvent" &&
-              params?.type === "mouseReleased"
-                ? sendDebugCommand.call(contents, command, params, signal)
-                : wait(() => sendDebugCommand.call(contents, command, params, signal)),
-          }
-        : {}),
-      insertText: (text) => wait(() => contents.insertText(text)),
-      sendInputEvent: (event) => {
-        assertActive();
-        contents.sendInputEvent(event);
-      },
-    },
+    page,
     wait,
     dispose() {
       clearTimeout(timeout);
