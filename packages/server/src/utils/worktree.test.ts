@@ -5,6 +5,8 @@ import {
   deletePaseoWorktree,
   isPaseoOwnedWorktreeCwd,
   mapWorkspaceCwdToWorktree,
+  listPaseoWorktrees,
+  runWorktreeSetupCommands,
   slugify,
   type CreateWorktreeOptions,
   type WorktreeConfig,
@@ -280,7 +282,7 @@ describe("paseo worktree manager", () => {
     expect(existsSync(created.worktreePath)).toBe(false);
   });
 
-  it("exact setup failures allow retry and preserve existing, advanced or occupied branches", async () => {
+  it("exact setup failures retain checkouts for setup retry and preserve existing, advanced or occupied branches", async () => {
     const git = (...args: string[]) =>
       execFileSync("git", args, { cwd: repoDir, encoding: "utf8" }).trim();
     writeFileSync(
@@ -317,11 +319,24 @@ describe("paseo worktree manager", () => {
       worktreeSlug: "retry-directory",
     };
     await expect(createWorktreePrimitive(options)).rejects.toThrow("Worktree setup command failed");
-    expect(git("branch", "--list", "retry-branch")).toBe("");
+    const retained = (await listPaseoWorktrees({ cwd: repoDir, paseoHome })).find(
+      (worktree) => worktree.branchName === "retry-branch",
+    );
+    expect(retained).toBeDefined();
+    expect(git("rev-parse", "retry-branch")).toBe(initialTip);
+    await expect(createWorktreePrimitive(options)).rejects.toThrow(
+      "Worktree directory already exists",
+    );
+    await expect(
+      createWorktreePrimitive({ ...options, worktreeSlug: "another-directory" }),
+    ).rejects.toThrow("Branch already exists");
     writeFileSync(join(repoDir, "allow-setup"), "");
-    const retry = await createWorktreePrimitive(options);
-    expect(retry.branchName).toBe("retry-branch");
-    expect(retry.worktreePath.endsWith("retry-directory")).toBe(true);
+    await runWorktreeSetupCommands({
+      worktreePath: retained!.path,
+      branchName: "retry-branch",
+      cleanupOnFailure: false,
+    });
+    expect(git("worktree", "list", "--porcelain").match(/^worktree /gm)).toHaveLength(2);
     rmSync(join(repoDir, "allow-setup"));
     await expect(
       createWorktreePrimitive({
