@@ -84,6 +84,7 @@ export function SidebarWorkspaceGroupHeader({
   group,
   collapsed,
 }: SidebarWorkspaceGroupHeaderProps) {
+  const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
   const toggleWorkspaceGroupCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.toggleWorkspaceGroupCollapsed,
@@ -124,7 +125,7 @@ export function SidebarWorkspaceGroupHeader({
   return (
     <Pressable
       accessibilityRole={platformIsWeb ? undefined : "button"}
-      accessibilityLabel={`${group.label} group`}
+      accessibilityLabel={t("sidebar.statusGroupAccessibility", { label: group.label })}
       accessibilityState={accessibilityState}
       style={rowStyle}
       onPress={handlePress}

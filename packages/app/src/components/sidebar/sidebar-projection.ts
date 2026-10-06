@@ -1,4 +1,5 @@
 import type { WorkspaceTitleSource } from "@/hooks/use-settings";
+import type { TFunction } from "i18next";
 import { buildStatusGroups } from "@/hooks/sidebar-status-view-model";
 import {
   splitPinnedSidebarGroups,
@@ -50,6 +51,7 @@ export interface SidebarProjectionInput {
   pinnedCollapsed: boolean;
   collapsedProjectKeys: ReadonlySet<string>;
   collapsedWorkspaceGroupKeys: ReadonlySet<string>;
+  t: TFunction;
 }
 
 /** Project visible rows and keyboard shortcuts from the same sorting and pinning decisions. */
@@ -117,7 +119,7 @@ function buildWorkspaceGroups(
       return [];
     case "status": {
       const groups = statusWorkspaceGroups(
-        buildStatusGroups(unpinnedWorkspaces, input.projectNamesByViewKey),
+        buildStatusGroups(unpinnedWorkspaces, input.projectNamesByViewKey, input.t),
       );
       const mode = input.workspaceSortMode;
       if (mode === "status") return groups;
