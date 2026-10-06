@@ -2,9 +2,10 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type pino from "pino";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { createPushNotifications } from "./index.js";
+import { PushService } from "./push-service.js";
 
 function createLogger(): pino.Logger {
   const logger = {
@@ -21,9 +22,37 @@ describe("push notifications", () => {
   const homes: string[] = [];
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     for (const home of homes.splice(0)) {
       rmSync(home, { recursive: true, force: true });
     }
+  });
+
+  test("production and debug projects both receive notifications", async () => {
+    const delivered: string[] = [];
+    // Model Expo's project restriction at the HTTP boundary without sending
+    // synthetic device tokens to the real notification service.
+    vi.stubGlobal("fetch", async (_url: string, options: RequestInit) => {
+      const messages = JSON.parse(String(options.body)) as Array<{ to: string }>;
+      if (messages.length > 1) {
+        return Response.json(
+          { errors: [{ code: "PUSH_TOO_MANY_EXPERIENCE_IDS" }] },
+          { status: 400 },
+        );
+      }
+      delivered.push(messages[0].to);
+      return Response.json({ data: [{ status: "ok", id: "test-ticket" }] });
+    });
+    const revokeToken = vi.fn();
+    const service = new PushService(createLogger(), revokeToken);
+
+    await service.sendPush(["production-device", "debug-device"], {
+      title: "Agent finished",
+      body: "Done",
+    });
+
+    expect(delivered).toEqual(["production-device", "debug-device"]);
+    expect(revokeToken).not.toHaveBeenCalled();
   });
 
   test("an offline device stops receiving notifications after 48 hours", async () => {
