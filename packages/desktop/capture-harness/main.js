@@ -2100,6 +2100,200 @@ async function verifyBrowserKeyboardIsolation({ guest, win, browserId, usesMeta,
   return checks;
 }
 
+/** Check trusted pointer events, held buttons, click options and wheel direction. */
+async function verifyBackgroundPointerDelivery(command, guest, ref, snapshot, state) {
+  await command("hover", { ref });
+  const dropRef = snapshot.snapshot.match(/button "Background drop" \[ref=(@e\d+)\]/)?.[1];
+  if (!dropRef) fail("background drop ref missing");
+  await command("drag", { sourceRef: ref, targetRef: dropRef });
+  await command("click", { ref, doubleClick: true, modifiers: ["Control", "Shift"] });
+  await command("scroll", { ref, deltaX: 0, deltaY: 120 });
+  await delay(200);
+  const events = await guest.executeJavaScript("window.backgroundInput.splice(0)");
+  if (!events.some((event) => event.type === "mousemove" && event.buttons === 1 && event.trusted))
+    fail(`${state}: drag lost held button`);
+  if (
+    !events.some(
+      (event) => event.type === "dblclick" && event.ctrlKey && event.shiftKey && event.trusted,
+    )
+  )
+    fail(`${state}: double click lost count/modifiers`);
+  const wheel = events.find((event) => event.type === "wheel");
+  if (!wheel?.trusted || wheel.deltaY !== 120)
+    fail(`${state}: wheel changed direction or trust: ${JSON.stringify(wheel)}`);
+}
+
+/** Exercise production commands without presenting or focusing the resident guest. */
+async function verifyBackgroundAutomation(win, guest) {
+  const { executeAutomationCommand } = require("../dist/features/browser-automation/service.js");
+  const {
+    BrowserSnapshotEngine,
+  } = require("../dist/features/browser-automation/snapshot-engine.js");
+  const browserId = "background-automation";
+  const contents = adaptWebContents(guest);
+  const snapshotEngine = new BrowserSnapshotEngine();
+  const registry = {
+    listRegisteredBrowserIds: () => [browserId],
+    listRegisteredBrowserIdsForWorkspace: () => [browserId],
+    getTabContents: (id) => (id === browserId && !guest.isDestroyed() ? contents : null),
+    getBrowserWorkspaceId: () => "fixture-workspace",
+    getWorkspaceActiveBrowserId: () => null,
+  };
+  const command = async (name, args = {}) => {
+    const response = await withTimeout(
+      Promise.resolve(
+        executeAutomationCommand(
+          {
+            requestId: `background-${name}`,
+            command: { command: name, args: { browserId, ...args } },
+          },
+          registry,
+          { snapshotEngine },
+        ),
+      ),
+      `background ${name}`,
+      // Match the agent broker's command deadline, not the pixel capture budget.
+      // Minimized Windows can schedule each input/paint frame at one-second intervals.
+      15_000,
+    );
+    if (!response.ok) fail(`background ${name}: ${JSON.stringify(response)}`);
+    return response.result;
+  };
+  await guest.executeJavaScript(`(() => {
+    document.body.innerHTML = '<button id="background-click">Background click</button><button id="background-drop" style="margin-left: 80px">Background drop</button><div style="height: 2400px"></div>';
+    window.backgroundInput = [];
+    for (const type of ['mousemove', 'mousedown', 'mouseup', 'wheel', 'dblclick']) {
+      document.addEventListener(type, event => window.backgroundInput.push({type, trusted: event.isTrusted, buttons: event.buttons, detail: event.detail, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, deltaY: event.deltaY}), {passive: true});
+    }
+    window.backgroundClicks = 0;
+    window.backgroundFrames = 0;
+    const tick = () => { window.backgroundFrames++; requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    document.getElementById('background-click').onclick = () => window.backgroundClicks++;
+  })()`);
+  const results = [];
+  for (const state of ["visible-unfocused", "hidden", "minimized"]) {
+    if (state === "visible-unfocused") win.showInactive();
+    if (state === "hidden") win.hide();
+    if (state === "minimized") {
+      // Windows tool windows skipped from the taskbar cannot actually minimize.
+      win.setMinimizable(true);
+      if (process.platform === "win32") win.setSkipTaskbar(false);
+      win.showInactive();
+      win.minimize();
+      await delay(500);
+      if (!win.isMinimized()) {
+        console.log(
+          "SKIP production minimized automation: window manager did not minimize the window",
+        );
+        results.push({ group: "automation", check: state, supported: false });
+        continue;
+      }
+    }
+    await delay(500);
+    const focused = win.isFocused();
+    const before = await guest.executeJavaScript("window.backgroundClicks");
+    const snapshot = await command("snapshot");
+    const ref = snapshot.snapshot.match(/button "Background click" \[ref=(@e\d+)\]/)?.[1];
+    if (!ref) fail(`background ref missing: ${snapshot.snapshot}`);
+    const startedAt = Date.now();
+    const originalUrl = guest.getURL();
+    const originalId = guest.id;
+    await command("click", { ref });
+    const elapsedMs = Date.now() - startedAt;
+    await delay(100);
+    const after = await guest.executeJavaScript("window.backgroundClicks");
+    if (after !== before + 1)
+      fail(`${state}: click acknowledged without delivery (${before} -> ${after})`);
+    await verifyBackgroundPointerDelivery(command, guest, ref, snapshot, state);
+    if (win.isFocused() !== focused) fail(`${state}: automation changed window focus`);
+    if (guest.getURL() !== originalUrl || guest.id !== originalId)
+      fail(`${state}: guest identity or URL changed`);
+    if (!guest.getBackgroundThrottling()) fail(`${state}: input left throttling disabled`);
+    if (state === "hidden") {
+      await delay(500);
+      const frames = await guest.executeJavaScript("window.backgroundFrames");
+      await delay(1000);
+      const idleFrames = (await guest.executeJavaScript("window.backgroundFrames")) - frames;
+      if (idleFrames !== 0) fail(`hidden input left animation running: ${idleFrames}`);
+    }
+    pass(`production background automation ${state} (${elapsedMs}ms)`);
+    results.push({
+      group: "automation",
+      runtime: process.versions.electron,
+      arch: process.arch,
+      check: state,
+      elapsedMs,
+      minimized: win.isMinimized(),
+      focused,
+      pass: true,
+    });
+  }
+  results.push(await verifyStalledInput(win, guest, command, registry, snapshotEngine, browserId));
+  return results;
+}
+
+/** Verify bounded input and late-continuation fencing using an owned paused renderer. */
+async function verifyStalledInput(win, guest, command, registry, snapshotEngine, browserId) {
+  const { executeAutomationCommand } = require("../dist/features/browser-automation/service.js");
+  // Pause only this owned fixture guest to exercise a real stalled renderer.
+  // The timeout must release activity and fence input before the guest resumes.
+  win.hide();
+  const pausedSnapshot = await command("snapshot");
+  const pausedRef = pausedSnapshot.snapshot.match(/button "Background click" \[ref=(@e\d+)\]/)?.[1];
+  if (!pausedRef) fail("paused fixture button ref missing");
+  const beforePause = await guest.executeJavaScript("window.backgroundClicks");
+  await guest.debugger.sendCommand("Debugger.enable");
+  const paused = new Promise((resolve) => {
+    const onMessage = (_event, method) => {
+      if (method !== "Debugger.paused") return;
+      guest.debugger.removeListener("message", onMessage);
+      resolve();
+    };
+    guest.debugger.on("message", onMessage);
+  });
+  const pausedScript = guest.executeJavaScript("debugger;");
+  void pausedScript.catch(() => {});
+  await withTimeout(paused, "fixture debugger pause", 5000);
+  const startedAt = Date.now();
+  try {
+    const response = await withTimeout(
+      executeAutomationCommand(
+        {
+          requestId: "background-paused",
+          command: { command: "click", args: { browserId, ref: pausedRef } },
+        },
+        registry,
+        { snapshotEngine },
+      ),
+      "paused renderer input deadline",
+      20_000,
+    );
+    // No input was dispatched while actionability was stalled, so its shorter
+    // five-second deadline can safely report a retryable pre-input failure.
+    if (response.ok || response.error.code !== "browser_timeout")
+      fail(`paused input did not respect its deadline: ${JSON.stringify(response)}`);
+    if (!guest.getBackgroundThrottling()) fail("paused input retained rendering activity");
+  } finally {
+    await guest.debugger.sendCommand("Debugger.resume");
+    await guest.debugger.sendCommand("Debugger.disable");
+    await pausedScript;
+  }
+  await delay(300);
+  if ((await guest.executeJavaScript("window.backgroundClicks")) !== beforePause)
+    fail("timed-out input continued after the renderer resumed");
+  if (win.isFocused()) fail("stalled renderer recovery focused the window");
+  pass("production stalled renderer timeout restores activity without late input");
+  return {
+    group: "automation",
+    check: "stalled-renderer",
+    runtime: process.versions.electron,
+    arch: process.arch,
+    elapsedMs: Date.now() - startedAt,
+    pass: true,
+  };
+}
+
 async function runAutomationGroup() {
   const results = [];
   const { BrowserKeyboard } = require(PRODUCTION_BROWSER_KEYBOARD_PATH);
@@ -2437,6 +2631,8 @@ async function runAutomationGroup() {
       sentinel: browserKeyboardSentinels.state,
     });
     results.push(...browserKeyboardChecks);
+
+    results.push(...(await verifyBackgroundAutomation(win, guest)));
 
     // Resize is not harness-testable: the harness hosts webviews in the parked
     // 1px resident host, and Electron does not propagate CSS-box resizes to a
