@@ -2,12 +2,14 @@ import { useCallback, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Text,
+  View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from "react-native";
 import { BrowserExtensionsIcon } from "@/components/icons/browser-extensions-icon";
-import { withUnistyles } from "react-native-unistyles";
+import { ChevronDown } from "lucide-react-native";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -25,6 +27,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ThemedPuzzle = withUnistyles(BrowserExtensionsIcon);
+const ThemedChevronDown = withUnistyles(ChevronDown);
 const mutedIcon = (theme: { colors: { foregroundMuted: string } }) => ({
   color: theme.colors.foregroundMuted,
 });
@@ -92,11 +95,14 @@ export function ExtensionsMenu({ browserId, triggerStyle, tooltipTextStyle }: Ex
             accessibilityLabel={label}
             style={triggerStyle}
           >
-            {action.isPending ? (
-              <ActivityIndicator size="small" />
-            ) : (
-              <ThemedPuzzle size={16} uniProps={mutedIcon} />
-            )}
+            <View style={styles.triggerContent}>
+              {action.isPending ? (
+                <ActivityIndicator size="small" />
+              ) : (
+                <ThemedPuzzle size={16} uniProps={mutedIcon} />
+              )}
+              <ThemedChevronDown size={12} uniProps={mutedIcon} />
+            </View>
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent side="bottom" align="center" offset={8}>
@@ -153,3 +159,11 @@ function ExtensionMenuItem({ extension, busy, noPopupLabel, openPopup }: Extensi
     </DropdownMenuItem>
   );
 }
+
+const styles = StyleSheet.create((theme) => ({
+  triggerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+  },
+}));
