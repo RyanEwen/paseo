@@ -39,6 +39,7 @@ import {
   writePaseoWorktreeRuntimeMetadata,
 } from "./worktree-metadata.js";
 import { runGitCommand } from "./run-git-command.js";
+import { removeUnusedGitBranch } from "./git-branch-rollback.js";
 import { spawnProcess } from "./spawn.js";
 import { resolvePaseoHome } from "../server/paseo-home.js";
 import { createExternalProcessEnv } from "../server/paseo-env.js";
@@ -1310,11 +1311,9 @@ export const createWorktree = async ({
     } catch (error) {
       if (sourcePlan.cleanupBranchTip) {
         // Best-effort rollback must not hide the original setup failure.
-        await removeUnusedFailedBranch(
-          cwd,
-          sourcePlan.branchName,
-          sourcePlan.cleanupBranchTip,
-        ).catch(() => undefined);
+        await removeUnusedGitBranch(cwd, sourcePlan.branchName, sourcePlan.cleanupBranchTip).catch(
+          () => undefined,
+        );
       }
       throw error;
     }
@@ -1329,16 +1328,6 @@ export const createWorktree = async ({
         : (sourcePlan.metadataBaseRef ?? sourcePlan.metadataBaseRefName),
   };
 };
-
-/** Delete only this attempt's unchanged, unused branch; atomic tip matching preserves new commits. */
-async function removeUnusedFailedBranch(
-  cwd: string,
-  branchName: string,
-  initialTip: string,
-): Promise<void> {
-  if (await isBranchCheckedOut(cwd, branchName)) return;
-  await runGitCommand(["update-ref", "-d", `refs/heads/${branchName}`, initialTip], { cwd });
-}
 
 interface ResolveWorktreeSourcePlanOptions {
   cwd: string;

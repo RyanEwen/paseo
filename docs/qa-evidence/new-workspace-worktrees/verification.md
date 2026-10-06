@@ -57,6 +57,8 @@ The first browser attempt timed out during cold Metro warmup before running test
 
 The repository-switch model regression failed before the fix: checkout mode and its derived directory name survived the new scope. The synchronous creation regression also failed before the fix: a failed setup left `retry-branch` behind.
 
+The subsequent cleanup review identified a check/delete race. A deterministic real-Git interleaving reproduced the previous cleanup deleting a branch after another checkout adopted it. Rollback now prepares an expected-tip ref transaction before enumerating worktrees, holding Git's ref lock until commit or abort. This retains adopted branches and concurrent commits without creating another worktree or bypassing repository hooks.
+
 Additional focused verification after addressing the review:
 
 ```text
@@ -65,9 +67,9 @@ Test Files  1 passed (1)
      Tests  11 passed (11)
 
 # From packages/server:
-npx vitest run src/utils/worktree.test.ts --bail=1
-Test Files  1 passed (1)
-     Tests  25 passed (25)
+npx vitest run src/utils/worktree.test.ts src/utils/worktree.posix.test.ts --bail=1
+Test Files  2 passed (2)
+     Tests  75 passed | 1 skipped (76)
 
 PLAYWRIGHT_BROWSERS_PATH=/tmp/paseo-worktree-playwright npm run test:e2e --workspace=@getpaseo/app -- e2e/browser/new-workspace.spec.ts --grep 'new worktree options|new worktree branch choices'
 3 passed, 1 failed (desktop case during live recompilation)
@@ -90,7 +92,7 @@ All matched files use the correct format.
 
 All four selected browser scenarios passed across these runs. Real WebSocket request counts confirmed no worktree enumeration on initial Local display or Local submission. After a failed listing, choosing Local hid the listing error and still created the workspace. The repository-switch case reset to New branch, retained a typed directory name, and created the branch only in the newly selected repository. The compact creation/reuse case passed as well.
 
-Real Git tests verified retry with the same exact names after synchronous setup failure and preservation of pre-existing branches, commits created by setup, and branches adopted by another checkout. New workspace uses asynchronous setup; its existing checkout and setup-retry behavior remain intact. No additional native or Electron verification was performed.
+Real Git tests verified retry with the same exact names after synchronous setup failure and preservation of pre-existing branches, commits created by setup, and branches adopted by another checkout. Additional races preserved a late checkout and a late commit even after the source branch and configured upstream advanced. A real reference-transaction hook verified that concurrent checkout and ref updates fail against the prepared lock. Enumeration failure preserved the branch and released the lock while retaining the original setup error. New workspace uses asynchronous setup; its existing checkout and setup-retry behavior remain intact. This follow-up was verified on Linux with Git 2.43.0. No additional UI, native, Windows or Electron verification was performed.
 
 ## Visual evidence
 
