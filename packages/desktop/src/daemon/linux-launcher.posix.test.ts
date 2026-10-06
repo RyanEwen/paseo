@@ -20,6 +20,7 @@ async function launch(
     args?: string[];
     symlink?: boolean;
     rerun?: boolean;
+    isPreview?: boolean;
   } = {},
 ) {
   const root = mkdtempSync(join(tmpdir(), "paseo-launcher-"));
@@ -28,11 +29,13 @@ async function launch(
     const commands = join(root, "commands");
     mkdirSync(app);
     mkdirSync(commands);
+    mkdirSync(join(app, "resources"));
+    const executableName = options.isPreview ? "Paseo Debug" : "Paseo";
     writeFileSync(
-      join(app, "Paseo"),
+      join(app, executableName),
       `#!${process.execPath}\nconsole.log(JSON.stringify(process.argv.slice(2)));\n`,
     );
-    chmodSync(join(app, "Paseo"), 0o755);
+    chmodSync(join(app, executableName), 0o755);
     // The command interface represents the host's userns policy, independent of CI's host.
     writeFileSync(join(commands, "unshare"), `#!/bin/sh\nexit ${options.namespaces ? 0 : 1}\n`);
     chmodSync(join(commands, "unshare"), 0o755);
@@ -45,10 +48,19 @@ async function launch(
     }
     writeFileSync(join(app, "chrome-sandbox"), "helper");
     chmodSync(join(app, "chrome-sandbox"), 0o755);
-    await afterPack({ appOutDir: app, electronPlatformName: "linux", arch: 1 });
-    if (options.rerun) await afterPack({ appOutDir: app, electronPlatformName: "linux", arch: 1 });
-    const executablePath = options.symlink ? join(root, "paseo") : join(app, "Paseo");
-    if (options.symlink) symlinkSync(join(app, "Paseo"), executablePath);
+    const context = {
+      appOutDir: app,
+      electronPlatformName: "linux",
+      arch: 1,
+      packager: {
+        appInfo: { productFilename: executableName },
+        config: { extraMetadata: { paseoPreview: options.isPreview ?? false } },
+      },
+    };
+    await afterPack(context);
+    if (options.rerun) await afterPack(context);
+    const executablePath = options.symlink ? join(root, "paseo") : join(app, executableName);
+    if (options.symlink) symlinkSync(join(app, executableName), executablePath);
     const args = options.args ?? ["path with spaces", "$(touch never)", "semi;colon", "*.txt"];
     const result = spawnSync(executablePath, args, {
       encoding: "utf8",
@@ -120,4 +132,9 @@ it("applies a debugging environment sandbox override before Chromium starts", as
   });
   expect(result.args).toEqual(["--no-sandbox", ...result.input]);
   expect(result.stderr).toContain("requested by PASEO_ELECTRON_FLAGS");
+});
+
+it("launches a preview executable with its separate identity through a symlink", async () => {
+  const result = await launch({ isPreview: true, symlink: true, rerun: true });
+  expect(result.args).toEqual(["--no-sandbox", ...result.input]);
 });
