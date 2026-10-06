@@ -112,6 +112,8 @@ export async function dispatchTrustedDrag(
     y: source.y,
     button: "none",
   });
+  let releasePoint = source;
+  const midpoint = { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 };
   try {
     await send("Input.dispatchMouseEvent", {
       type: "mousePressed",
@@ -123,11 +125,12 @@ export async function dispatchTrustedDrag(
     });
     await send("Input.dispatchMouseEvent", {
       type: "mouseMoved",
-      x: (source.x + target.x) / 2,
-      y: (source.y + target.y) / 2,
+      x: midpoint.x,
+      y: midpoint.y,
       button: "left",
       buttons: 1,
     });
+    releasePoint = midpoint;
     await send("Input.dispatchMouseEvent", {
       type: "mouseMoved",
       x: target.x,
@@ -135,12 +138,14 @@ export async function dispatchTrustedDrag(
       button: "left",
       buttons: 1,
     });
+    releasePoint = target;
   } finally {
-    // Cancelled movement must not leave the original drag holding the button.
+    // Release only at the last acknowledged point. Cancelling an unfinished
+    // drag must not synthesize a mouse-up at its intended drop destination.
     await send("Input.dispatchMouseEvent", {
       type: "mouseReleased",
-      x: target.x,
-      y: target.y,
+      x: releasePoint.x,
+      y: releasePoint.y,
       button: "left",
       buttons: 0,
       clickCount: 1,

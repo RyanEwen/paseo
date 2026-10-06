@@ -4,8 +4,9 @@ import type {
   BrowserAutomationConsoleLogEntry,
   BrowserAutomationDialogEvent,
 } from "@getpaseo/protocol/browser-automation/rpc-schemas";
-import type { TabContents, BrowserRegistry, TabImage } from "./service.js";
+import type { TabContents, BrowserRegistry, TabImage, DialogCaptureOperation } from "./service.js";
 import type { IsolatedKeyboardInputEvent } from "./trusted-input.js";
+import { waitForInput } from "./input-lifetime.js";
 import { CdpSessionQueue } from "./cdp-session-queue.js";
 import {
   dialogAcceptValue,
@@ -141,7 +142,7 @@ export function adaptWebContents(contents: BrowserAutomationWebContents): TabCon
     sendInputEvent: (event) => contents.sendInputEvent(event),
     insertText: (text) => contents.insertText(text),
     getConsoleMessages: () => consoleMessagesByContentsId.get(contentsId) ?? [],
-    captureDialogs: (task) => dialogMonitor.capture(task),
+    captureDialogs: (operation) => dialogMonitor.capture(operation),
     sendDebugCommand: (command: string, params?: Record<string, unknown>, signal?: AbortSignal) => {
       const send = async () => {
         if (!contents.debugger.isAttached()) {
@@ -262,41 +263,60 @@ class DialogMonitor {
     private readonly cdpQueue: CdpSessionQueue,
   ) {}
 
-  public async capture<T>(
-    task: () => Promise<T>,
-  ): Promise<{ result: T; dialogs: BrowserAutomationDialogEvent[] }> {
+  /** Release dialog ownership on cancellation even if an input acknowledgment
+   * is still pending. Cleanup bypasses that request's protocol queue barrier.
+   */
+  public async capture<T>({
+    task,
+    signal,
+  }: DialogCaptureOperation<T>): Promise<{ result: T; dialogs: BrowserAutomationDialogEvent[] }> {
     const collector: DialogCollector = { dialogs: [] };
     const setupDetachGeneration = this.detachGeneration;
-    try {
-      await this.enable();
-      await this.installPromptShim();
-    } catch (error) {
-      if (this.contents.isDestroyed() || this.detachGeneration !== setupDetachGeneration) {
-        throw error;
-      }
-      console.warn("[browser-automation] Dialog capture unavailable; running command without it", {
-        contentsId: this.contentsId,
-        error,
-      });
-      return { result: await task(), dialogs: [] };
+
+    function waitForPhase<Value>(phase: () => Promise<Value>): Promise<Value> {
+      if (signal) return waitForInput(signal, phase);
+      return phase();
     }
-    this.activeCollectors.push(collector);
+
     try {
-      const result = await task();
-      this.recordPromptShimDialogs(await this.drainPromptShim());
+      try {
+        await waitForPhase(() => this.enable(signal));
+        signal?.throwIfAborted();
+        await waitForPhase(() => this.installPromptShim({ collector, signal }));
+      } catch (error) {
+        const cancelled = signal?.aborted === true;
+        const targetLost =
+          this.contents.isDestroyed() || this.detachGeneration !== setupDetachGeneration;
+        if (cancelled || targetLost) throw error;
+        console.warn(
+          "[browser-automation] Dialog capture unavailable; running command without it",
+          {
+            contentsId: this.contentsId,
+            error,
+          },
+        );
+        await this.releaseCollector(collector);
+        return { result: await waitForPhase(task), dialogs: [] };
+      }
+      const result = await waitForPhase(task);
+      this.recordPromptShimDialogs(await waitForPhase(() => this.drainPromptShim(signal)));
       return { result, dialogs: collector.dialogs };
     } finally {
-      const index = this.activeCollectors.indexOf(collector);
-      if (index >= 0) {
-        this.activeCollectors.splice(index, 1);
-      }
-      if (this.activeCollectors.length === 0) {
-        await this.restorePromptShim();
-      }
+      await this.releaseCollector(collector);
     }
   }
 
-  private async enable(): Promise<void> {
+  /** Remove only this command's ownership; a late completion cannot restore a
+   * shim still owned by a different capture or repeat already-finished cleanup.
+   */
+  private async releaseCollector(collector: DialogCollector): Promise<void> {
+    const index = this.activeCollectors.indexOf(collector);
+    if (index < 0) return;
+    this.activeCollectors.splice(index, 1);
+    if (this.activeCollectors.length === 0) await this.restorePromptShim();
+  }
+
+  private async enable(signal?: AbortSignal): Promise<void> {
     if (this.enabled) {
       return;
     }
@@ -319,7 +339,7 @@ class DialogMonitor {
         this.detachGeneration += 1;
       });
     }
-    await this.sendDebugCommand("Page.enable");
+    await this.sendDebugCommand({ command: "Page.enable", signal });
     this.enabled = true;
   }
 
@@ -328,23 +348,34 @@ class DialogMonitor {
     for (const collector of this.activeCollectors) {
       this.recordDialogs(collector, [event]);
     }
-    await this.sendDialogResponseCommand("Page.handleJavaScriptDialog", {
+    await this.sendDialogCleanupCommand("Page.handleJavaScriptDialog", {
       accept: dialogAcceptValue(event.type),
     });
   }
 
-  private async installPromptShim(): Promise<void> {
-    await this.sendDebugCommand("Runtime.evaluate", {
-      expression: promptShimInstallScript(),
-      returnByValue: true,
+  private async installPromptShim({ collector, signal }: PromptShimOwner): Promise<void> {
+    await this.sendDebugCommand({
+      command: "Runtime.evaluate",
+      signal,
+      // A waiter behind a stalled command has not installed anything. It must
+      // not prolong interception owned by the command that just timed out.
+      onDispatch: () => this.activeCollectors.push(collector),
+      params: {
+        expression: promptShimInstallScript(),
+        returnByValue: true,
+      },
     });
   }
 
-  private async drainPromptShim(): Promise<BrowserAutomationDialogEvent[]> {
+  private async drainPromptShim(signal?: AbortSignal): Promise<BrowserAutomationDialogEvent[]> {
     try {
-      const result = (await this.sendDebugCommand("Runtime.evaluate", {
-        expression: promptShimDrainScript(),
-        returnByValue: true,
+      const result = (await this.sendDebugCommand({
+        command: "Runtime.evaluate",
+        signal,
+        params: {
+          expression: promptShimDrainScript(),
+          returnByValue: true,
+        },
       })) as { result?: { value?: unknown } };
       return parsePromptShimDialogs(result.result?.value);
     } catch {
@@ -354,7 +385,7 @@ class DialogMonitor {
 
   private async restorePromptShim(): Promise<void> {
     try {
-      await this.sendDebugCommand("Runtime.evaluate", {
+      await this.sendDialogCleanupCommand("Runtime.evaluate", {
         expression: promptShimRestoreScript(),
         returnByValue: true,
       });
@@ -378,29 +409,44 @@ class DialogMonitor {
     }
   }
 
-  private async sendDebugCommand(
-    command: string,
-    params?: Record<string, unknown>,
-  ): Promise<unknown> {
+  private async sendDebugCommand({
+    command,
+    params,
+    signal,
+    onDispatch,
+  }: DialogDebugCommand): Promise<unknown> {
     return this.cdpQueue.run(async () => {
       if (!this.contents.debugger.isAttached()) {
         this.contents.debugger.attach("1.3");
       }
+      onDispatch?.();
       return this.contents.debugger.sendCommand(command, params ?? {});
-    });
+    }, signal);
   }
 
-  private async sendDialogResponseCommand(
+  private async sendDialogCleanupCommand(
     command: string,
     params?: Record<string, unknown>,
   ): Promise<unknown> {
-    // Dialogs can block the CDP command that opened them, so the unblocker must not wait behind
-    // the per-tab command queue.
+    // A dialog or timed-out input can retain a protocol queue barrier. Responses
+    // and prompt restoration must bypass it to release page interception.
     if (!this.contents.debugger.isAttached()) {
       this.contents.debugger.attach("1.3");
     }
     return this.contents.debugger.sendCommand(command, params ?? {});
   }
+}
+
+interface DialogDebugCommand {
+  command: string;
+  params?: Record<string, unknown>;
+  signal?: AbortSignal;
+  onDispatch?: () => void;
+}
+
+interface PromptShimOwner {
+  collector: DialogCollector;
+  signal?: AbortSignal;
 }
 
 interface DialogCollector {
