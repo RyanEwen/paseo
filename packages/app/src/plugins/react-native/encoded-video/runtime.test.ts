@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import type { EncodedVideoChunk, EncodedVideoFrame } from "@getpaseo/plugin/client/react-native";
+import type {
+  EncodedVideoChunk,
+  EncodedVideoFrame,
+  EncodedVideoConfig,
+} from "@getpaseo/plugin/client/react-native";
 import { encodedVideoHtml } from "./runtime";
 
 interface Message {
@@ -48,9 +52,20 @@ async function encodedFrames({ page, codec = "vp8", count = 1 }: EncodingOptions
       canvas.height = 16;
       const context = canvas.getContext("2d")!;
       const chunks: EncodedVideoChunk[] = [];
+      let config: EncodedVideoConfig | undefined;
       let failure: DOMException | null = null;
       const encoder = new VideoEncoder({
-        output(chunk) {
+        output(chunk, metadata) {
+          if (metadata?.decoderConfig) {
+            const decoderConfig = metadata.decoderConfig;
+            config = {
+              codec: decoderConfig.codec,
+              codedWidth: decoderConfig.codedWidth!,
+              codedHeight: decoderConfig.codedHeight!,
+              colorSpace: decoderConfig.colorSpace,
+              optimizeForLatency: true,
+            };
+          }
           const data = new Uint8Array(chunk.byteLength);
           chunk.copyTo(data);
           let binary = "";
@@ -79,17 +94,18 @@ async function encodedFrames({ page, codec = "vp8", count = 1 }: EncodingOptions
         }
         await encoder.flush();
         if (failure) throw failure;
-        return chunks;
+        if (!config) throw new Error("VideoEncoder did not supply decoder configuration");
+        return { chunks, config };
       } finally {
-        encoder.close();
+        if (encoder.state !== "closed") encoder.close();
       }
     },
     { encoderCodec: codec, frameCount: count },
   );
 }
 async function keyframe(options: Omit<EncodingOptions, "count">) {
-  const frames = await encodedFrames(options);
-  return frames[0]!.dataBase64;
+  const { chunks, config } = await encodedFrames(options);
+  return { dataBase64: chunks[0]!.dataBase64, config };
 }
 
 async function send(page: Page, message: object) {
@@ -135,11 +151,11 @@ describe("Android video canvas document", () => {
     async (codec) => {
       const page = await openCanvas();
       try {
-        const dataBase64 = await keyframe({ page, codec });
+        const { dataBase64, config } = await keyframe({ page, codec });
         await send(page, {
           type: "configure",
           generation: 1,
-          config: { codec, codedWidth: 16, codedHeight: 16, optimizeForLatency: true },
+          config,
         });
         await send(page, {
           type: "decode",
@@ -179,12 +195,12 @@ describe("Android video canvas document", () => {
   it.each(["vp8", "avc1.420033"])("presents a continuous %s key/delta chain", async (codec) => {
     const page = await openCanvas();
     try {
-      const chunks = await encodedFrames({ page, codec, count: 3 });
+      const { chunks, config } = await encodedFrames({ page, codec, count: 3 });
       expect(chunks.map((chunk) => chunk.type)).toEqual(["key", "delta", "delta"]);
       await send(page, {
         type: "configure",
         generation: 1,
-        config: { codec, codedWidth: 16, codedHeight: 16, optimizeForLatency: true },
+        config,
       });
       for (const chunk of chunks) {
         await send(page, { type: "decode", generation: 1, chunk });
@@ -212,11 +228,11 @@ describe("Android video canvas document", () => {
   it("reset releases retained frames and cannot acknowledge obsolete paint", async () => {
     const page = await openCanvas();
     try {
-      const dataBase64 = await keyframe({ page });
+      const { dataBase64, config } = await keyframe({ page });
       await send(page, {
         type: "configure",
         generation: 1,
-        config: { codec: "vp8", codedWidth: 16, codedHeight: 16 },
+        config,
       });
       await send(page, {
         type: "decode",
@@ -245,11 +261,11 @@ describe("Android video canvas document", () => {
   it("settles presentation failure when its retained frame is released before paint", async () => {
     const page = await openCanvas();
     try {
-      const dataBase64 = await keyframe({ page });
+      const { dataBase64, config } = await keyframe({ page });
       await send(page, {
         type: "configure",
         generation: 1,
-        config: { codec: "vp8", codedWidth: 16, codedHeight: 16 },
+        config,
       });
       await send(page, {
         type: "decode",
