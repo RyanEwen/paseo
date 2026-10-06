@@ -114,7 +114,10 @@ function fmtMB(bytes) {
 exports.default = async function afterPack(context) {
   const platform = context.electronPlatformName;
   const arch = ARCH_MAP[context.arch] || process.arch;
-  const executableName = context.packager.appInfo.productFilename;
+  const executableName =
+    platform === "linux"
+      ? context.packager.executableName
+      : context.packager.appInfo.productFilename;
   const distribution = resolveDesktopDistribution(context.packager.config.extraMetadata ?? {});
   const resourcesDir =
     platform === "darwin"

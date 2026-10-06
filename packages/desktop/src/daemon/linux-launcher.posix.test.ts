@@ -30,7 +30,7 @@ async function launch(
     mkdirSync(app);
     mkdirSync(commands);
     mkdirSync(join(app, "resources"));
-    const executableName = options.isPreview ? "Paseo Debug" : "Paseo";
+    const executableName = options.isPreview ? "paseo-debug" : "Paseo";
     writeFileSync(
       join(app, executableName),
       `#!${process.execPath}\nconsole.log(JSON.stringify(process.argv.slice(2)));\n`,
@@ -53,6 +53,7 @@ async function launch(
       electronPlatformName: "linux",
       arch: 1,
       packager: {
+        executableName,
         appInfo: { productFilename: executableName },
         config: { extraMetadata: { paseoPreview: options.isPreview ?? false } },
       },

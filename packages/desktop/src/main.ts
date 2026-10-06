@@ -365,8 +365,11 @@ if (electronFlags) {
 
 if (process.platform === "linux") {
   // Keep the desktop/dock identity independent of the wrapped Electron filename.
-  app.setDesktopName("Paseo.desktop");
-  if (!app.commandLine.hasSwitch("class")) app.commandLine.appendSwitch("class", "Paseo");
+  app.setDesktopName(desktopDistribution.desktopName);
+  if (!app.commandLine.hasSwitch("class")) {
+    const windowClass = desktopDistribution.desktopName.replace(/\.desktop$/, "");
+    app.commandLine.appendSwitch("class", windowClass);
+  }
   log.info("[linux-sandbox]", {
     enabled: !app.commandLine.hasSwitch("no-sandbox"),
     reason: process.env.PASEO_DESKTOP_SANDBOX_REASON ?? "Chromium default",

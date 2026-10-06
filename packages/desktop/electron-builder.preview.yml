@@ -5,7 +5,7 @@ executableName: Paseo Debug
 extraMetadata:
   name: paseo-debug
   productName: Paseo Debug
-  desktopName: Paseo Debug.desktop
+  desktopName: paseo-debug.desktop
   paseoPreview: true
 protocols:
   - name: Paseo preview agent link
@@ -21,9 +21,14 @@ publish:
 mac:
   artifactName: "Paseo-Debug-${version}-${arch}.${ext}"
 linux:
+  executableName: paseo-debug
+  executableArgs: ["--class=paseo-debug"]
+  desktop:
+    entry:
+      StartupWMClass: paseo-debug
   artifactName: "Paseo-Debug-${version}-${arch}.${ext}"
 appImage:
   artifactName: "Paseo-Debug-${arch}.${ext}"
-  executableArgs: ["--class=Paseo Debug"]
+  executableArgs: ["--class=paseo-debug"]
 win:
   artifactName: "Paseo-Debug-Setup-${version}-${arch}.${ext}"

@@ -23,6 +23,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { getConfig, validateConfiguration } = require("app-builder-lib/out/util/config/config.js");
+const { LinuxTargetHelper } = require("app-builder-lib/out/targets/LinuxTargetHelper.js");
 
 const releaseDate = "2026-09-04T00:00:00.000Z";
 const scriptPath = fileURLToPath(new URL("./validate-desktop-manifests.mjs", import.meta.url));
@@ -231,7 +232,24 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
     assert.deepEqual(config.protocols, [
       { name: "Paseo preview agent link", schemes: ["paseo-debug"] },
     ]);
-    assert.deepEqual(config.appImage.executableArgs, ["--class=Paseo Debug"]);
+    assert.deepEqual(config.appImage.executableArgs, ["--class=paseo-debug"]);
+    assert.equal(config.linux.executableName, "paseo-debug");
+    assert.equal(config.extraMetadata.desktopName, "paseo-debug.desktop");
+    assert.deepEqual(config.linux.executableArgs, ["--class=paseo-debug"]);
+    assert.equal(config.linux.desktop.entry.StartupWMClass, "paseo-debug");
+    const desktopEntry = await new LinuxTargetHelper({
+      executableName: config.linux.executableName,
+      platformSpecificBuildOptions: config.linux,
+      config,
+      fileAssociations: [],
+      appInfo: {
+        productName: config.productName,
+        sanitizedProductName: config.productName,
+        description: "Preview desktop",
+      },
+    }).computeDesktopEntry(config.linux);
+    assert.match(desktopEntry, /^Exec="\/opt\/Paseo Debug\/paseo-debug" --class=paseo-debug %U$/m);
+    assert.match(desktopEntry, /^StartupWMClass=paseo-debug$/m);
     assert.equal(config.extraMetadata.paseoPreview, true);
     assert.equal(config.buildVersion, "0.11.0.12");
     assert.equal(config.forceCodeSigning, true);
