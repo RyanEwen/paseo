@@ -128,11 +128,16 @@ describe("desktop packaging", () => {
       delete env.PASEO_LISTEN;
       const command = isWindows ? (process.env.ComSpec ?? "cmd.exe") : "sh";
       const args = isWindows ? ["/d", "/s", "/c", `""${shim}" ls"`] : [shim, "ls"];
-      const defaults = spawnSync(command, args, { encoding: "utf8", env });
+      const defaults = spawnSync(command, args, {
+        encoding: "utf8",
+        env,
+        windowsVerbatimArguments: isWindows,
+      });
       expect(defaults.status, defaults.stderr).toBe(0);
       expect(JSON.parse(defaults.stdout)).toEqual([join(root, ".paseo-debug"), "127.0.0.1:6790"]);
       const overridden = spawnSync(command, args, {
         encoding: "utf8",
+        windowsVerbatimArguments: isWindows,
         env: { ...env, PASEO_HOME: "/custom-preview", PASEO_LISTEN: "127.0.0.1:12345" },
       });
       expect(overridden.status, overridden.stderr).toBe(0);
