@@ -217,6 +217,7 @@ async function submitNewWorkspaceWithoutPrompt(page: import("@playwright/test").
 async function holdWorktreeListResponses(page: import("@playwright/test").Page) {
   const frames = await loadSessionMessageReaders();
   let held = true;
+  let requestCount = 0;
   const forwards: Array<() => void> = [];
   let observed: () => void = () => {};
   const responseSeen = new Promise<void>((resolve) => {
@@ -225,6 +226,10 @@ async function holdWorktreeListResponses(page: import("@playwright/test").Page) 
   // Delay real host responses, keeping every Git result and error authoritative.
   await page.routeWebSocket(daemonWsRoutePattern(), (ws) => {
     const server = ws.connectToServer();
+    ws.onMessage((message) => {
+      if (frames.client(message)?.type === "paseo_worktree_list_request") requestCount += 1;
+      server.send(message);
+    });
     server.onMessage((message) => {
       if (held && frames.server(message)?.type === "paseo_worktree_list_response") {
         forwards.push(() => ws.send(message));
@@ -236,6 +241,7 @@ async function holdWorktreeListResponses(page: import("@playwright/test").Page) 
   });
   return {
     waitForResponse: responseSeen,
+    requestCount: () => requestCount,
     release() {
       held = false;
       for (const forward of forwards.splice(0)) forward();
@@ -344,8 +350,13 @@ test.describe("New workspace flow", () => {
         name: opened.projectDisplayName,
       });
       await page.goto(`/new?${query.toString()}`);
-      await listDelay.waitForResponse;
+      await expect(page.getByTestId("workspace-create-isolation-trigger")).toHaveText(
+        "Local · main",
+      );
+      expect(listDelay.requestCount()).toBe(0);
       await page.getByTestId("workspace-create-isolation-trigger").click();
+      await listDelay.waitForResponse;
+      expect(listDelay.requestCount()).toBe(1);
       await expect(page.getByText("Loading worktrees…", { exact: true })).toBeVisible();
       listDelay.release();
       await expect(page.getByText(`main · ${repo.path}`, { exact: true })).toBeVisible();
@@ -363,6 +374,17 @@ test.describe("New workspace flow", () => {
       await page.getByText("Retry loading worktrees", { exact: true }).click();
       await expect(page.getByTestId("new-workspace-worktree-list-error")).toHaveCount(0);
       await expect(page.getByText(`main · ${repo.path}`, { exact: true })).toBeVisible();
+      await page.getByTestId("workspace-create-isolation-worktree").click();
+      renameSync(repo.path, movedPath);
+      await submitNewWorkspaceEmpty(page);
+      await expect(page.getByTestId("new-workspace-worktree-list-error")).toBeVisible();
+      await selectWorkspaceIsolation(page, "local");
+      await expect(page.getByTestId("new-workspace-worktree-list-error")).toHaveCount(0);
+      renameSync(movedPath, repo.path);
+      const beforeLocalCreate = listDelay.requestCount();
+      await submitNewWorkspaceEmpty(page);
+      await expect(page).toHaveURL(/\/workspace\//, { timeout: 30_000 });
+      expect(listDelay.requestCount()).toBe(beforeLocalCreate);
     } finally {
       if (existsSync(movedPath)) renameSync(movedPath, repo.path);
       await repo.cleanup();
@@ -565,11 +587,33 @@ test.describe("New workspace flow", () => {
         .getByTestId("combobox-desktop-container")
         .getByText(secondProject.projectDisplayName, { exact: true })
         .click();
-      await expect(page.getByTestId("new-workspace-branch-picker-trigger")).toHaveText("main");
+      await expect(page.getByTestId("new-workspace-branch-picker-trigger")).toHaveText(
+        "New branch",
+      );
+      await expect(page.getByTestId("new-workspace-ref-picker-trigger")).toContainText("from main");
       await expect(page.getByTestId("new-workspace-worktree-name")).toHaveValue("retained-name");
       await page.getByTestId("new-workspace-branch-picker-trigger").click();
       await expect(page.getByRole("button", { name: "second-only", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "first-only", exact: true })).toHaveCount(0);
+      await page.keyboard.press("Escape");
+      await page.getByTestId("new-workspace-branch-name").fill("new-repository-branch");
+      await submitNewWorkspaceEmpty(page);
+      await expect(page).toHaveURL(/\/workspace\//, { timeout: 30_000 });
+      const created = (await client.fetchWorkspaces()).entries.find(
+        (entry) => path.basename(entry.workspaceDirectory) === "retained-name",
+      );
+      expect(created).toBeDefined();
+      createdWorktreeDirectories.add(created!.workspaceDirectory);
+      expect(readRepoRef(second.path, "new-repository-branch")).toBe(
+        execFileSync("git", ["rev-parse", "HEAD"], { cwd: created!.workspaceDirectory })
+          .toString()
+          .trim(),
+      );
+      expect(
+        execFileSync("git", ["branch", "--list", "new-repository-branch"], { cwd: first.path })
+          .toString()
+          .trim(),
+      ).toBe("");
     } finally {
       await first.cleanup();
       await second.cleanup();

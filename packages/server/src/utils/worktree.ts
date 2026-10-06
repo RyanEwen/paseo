@@ -1301,11 +1301,23 @@ export const createWorktree = async ({
   await seedPaseoConfigFile({ sourceCwd: cwd, targetCwd: worktreePath });
 
   if (runSetup) {
-    await runWorktreeSetupCommands({
-      worktreePath,
-      branchName: sourcePlan.branchName,
-      cleanupOnFailure: true,
-    });
+    try {
+      await runWorktreeSetupCommands({
+        worktreePath,
+        branchName: sourcePlan.branchName,
+        cleanupOnFailure: true,
+      });
+    } catch (error) {
+      if (sourcePlan.cleanupBranchTip) {
+        // Best-effort rollback must not hide the original setup failure.
+        await removeUnusedFailedBranch(
+          cwd,
+          sourcePlan.branchName,
+          sourcePlan.cleanupBranchTip,
+        ).catch(() => undefined);
+      }
+      throw error;
+    }
   }
 
   return {
@@ -1318,6 +1330,16 @@ export const createWorktree = async ({
   };
 };
 
+/** Delete only this attempt's unchanged, unused branch; atomic tip matching preserves new commits. */
+async function removeUnusedFailedBranch(
+  cwd: string,
+  branchName: string,
+  initialTip: string,
+): Promise<void> {
+  if (await isBranchCheckedOut(cwd, branchName)) return;
+  await runGitCommand(["update-ref", "-d", `refs/heads/${branchName}`, initialTip], { cwd });
+}
+
 interface ResolveWorktreeSourcePlanOptions {
   cwd: string;
   source: WorktreeSource;
@@ -1326,6 +1348,7 @@ interface ResolveWorktreeSourcePlanOptions {
 }
 
 interface WorktreeSourcePlan {
+  cleanupBranchTip?: string;
   branchName: string;
   // Display name and exact ref are two different facts. The name cannot round-trip to a
   // commit — "main" resolves local-first even when the worktree was cut from a fork's
@@ -1413,7 +1436,15 @@ async function resolveBranchOffWorktreeSourcePlan(
     ? branchName
     : await resolveUniqueLocalBranchName(cwd, candidateBranch);
 
+  let cleanupBranchTip: string | undefined;
+  if (exactNames) {
+    // Snapshot the base before worktree-add hooks or setup can advance the new branch.
+    const { stdout } = await runGitCommand(["rev-parse", "--verify", `${base}^{commit}`], { cwd });
+    cleanupBranchTip = stdout.trim();
+  }
+
   return {
+    cleanupBranchTip,
     branchName: newBranchName,
     metadataBaseRefName: normalizedBaseBranch,
     metadataBaseRef: resolvedBaseBranch,

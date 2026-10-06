@@ -45,7 +45,9 @@ export function openWorktreeForm(initialBranch: string) {
     },
     close: () => listeners.clear(),
     applyScope(scope: string) {
-      if (scope !== state.scope) publish({ scope, existing: null });
+      if (scope === state.scope) return;
+      // Checkout intent belongs to its repository. Keep typed names, but recompute defaults.
+      publish({ scope, existing: null, mode: "branch-off", checkoutBranch: "" });
     },
     applyRef(item: PickerItem | null) {
       const checkoutBranch =

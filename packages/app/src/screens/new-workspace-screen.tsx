@@ -1960,6 +1960,7 @@ export function NewWorkspaceScreen({
   const worktreeOptions = useWorktreeOptions({
     supported: supportsWorktreeOptions,
     enabled: clientReady,
+    pickerOpen: isolationPickerOpen,
     canCreateWorktree,
     showRefPicker,
     isolationLabel: isolationLabel(t, effectiveIsolation, currentBranch),
