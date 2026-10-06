@@ -812,6 +812,80 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
       );
     });
 
+    it("reports setup failure promptly when Git buffers transaction acknowledgements", async () => {
+      const realGit = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+      const initialTip = execFileSync(realGit, ["rev-parse", "HEAD"], {
+        cwd: repoDir,
+        encoding: "utf8",
+      }).trim();
+      const markerPath = join(tempDir, "prepared-but-buffered");
+      const binDir = join(tempDir, "buffered-git-bin");
+      mkdirSync(binDir);
+      const shimPath = join(binDir, "git");
+      // Git 2.30 buffered these replies. Run real Git but hold its stdout
+      // until exit, reproducing that behavior while keeping real ref locks.
+      writeFileSync(
+        shimPath,
+        `#!/usr/bin/env node
+const fs = require("node:fs");
+const { spawn, spawnSync } = require("node:child_process");
+const realGit = ${JSON.stringify(realGit)};
+const args = process.argv.slice(2);
+if (args.includes("update-ref") && args.includes("--stdin")) {
+  const child = spawn(realGit, args, { stdio: ["inherit", "pipe", "inherit"] });
+  const chunks = [];
+  child.stdout.on("data", chunk => {
+    chunks.push(chunk);
+    if (Buffer.concat(chunks).toString().includes("prepare: ok")) {
+      fs.writeFileSync(${JSON.stringify(markerPath)}, "prepared");
+    }
+  });
+  child.on("close", code => {
+    process.stdout.write(Buffer.concat(chunks));
+    process.exit(code ?? 1);
+  });
+} else {
+  const result = spawnSync(realGit, args, { stdio: "inherit" });
+  process.exit(result.status ?? 1);
+}
+`,
+      );
+      chmodSync(shimPath, 0o755);
+      writeFileSync(join(repoDir, "paseo.json"), JSON.stringify({ worktree: { setup: "exit 1" } }));
+      const originalPath = process.env.PATH;
+      process.env.PATH = `${binDir}${delimiter}${originalPath ?? "/usr/bin:/bin"}`;
+      const startedAt = performance.now();
+      try {
+        await expect(
+          createWorktreePrimitive({
+            cwd: repoDir,
+            paseoHome,
+            exactNames: true,
+            runSetup: true,
+            worktreeSlug: "buffered-directory",
+            source: { kind: "branch-off", baseBranch: "main", branchName: "buffered-branch" },
+          }),
+        ).rejects.toThrow("Worktree setup command failed: exit 1");
+      } finally {
+        if (originalPath === undefined) {
+          delete process.env.PATH;
+        } else {
+          process.env.PATH = originalPath;
+        }
+      }
+      expect(performance.now() - startedAt).toBeLessThan(10_000);
+      expect(readFileSync(markerPath, "utf8")).toBe("prepared");
+      expect(
+        execFileSync(realGit, ["rev-parse", "buffered-branch"], {
+          cwd: repoDir,
+          encoding: "utf8",
+        }).trim(),
+      ).toBe(initialTip);
+      expect(existsSync(join(repoDir, ".git", "refs", "heads", "buffered-branch.lock"))).toBe(
+        false,
+      );
+    }, 45_000);
+
     it("locks failed branches before checking whether another checkout uses them", async () => {
       const markerPath = join(tempDir, "locked-operation-results.json");
       const concurrentPath = join(tempDir, "blocked-checkout");
