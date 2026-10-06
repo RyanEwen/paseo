@@ -53,6 +53,45 @@ exit 0
 
 The first browser attempt timed out during cold Metro warmup before running tests. The unchanged cached retry started successfully. All five selected browser scenarios passed across the retry and the final affected-case run.
 
+### PR review follow-up
+
+The repository-switch model regression failed before the fix: checkout mode and its derived directory name survived the new scope. The synchronous creation regression also failed before the fix: a failed setup left `retry-branch` behind.
+
+Additional focused verification after addressing the review:
+
+```text
+npx vitest run packages/app/src/screens/new-workspace/worktree-form-model.test.ts --bail=1
+Test Files  1 passed (1)
+     Tests  11 passed (11)
+
+# From packages/server:
+npx vitest run src/utils/worktree.test.ts --bail=1
+Test Files  1 passed (1)
+     Tests  25 passed (25)
+
+PLAYWRIGHT_BROWSERS_PATH=/tmp/paseo-worktree-playwright npm run test:e2e --workspace=@getpaseo/app -- e2e/browser/new-workspace.spec.ts --grep 'new worktree options|new worktree branch choices'
+3 passed, 1 failed (desktop case during live recompilation)
+
+# Extended the Local failure-isolation case and repeated desktop against stable source:
+PLAYWRIGHT_BROWSERS_PATH=/tmp/paseo-worktree-playwright npm run test:e2e --workspace=@getpaseo/app -- e2e/browser/new-workspace.spec.ts --grep 'new worktree options show|new worktree options create.*1440'
+2 passed (2.7m)
+
+npm run build:server
+exit 0
+npm run typecheck
+exit 0
+npm run lint
+Found 0 warnings and 0 errors.
+npm run format
+exit 0
+npm run format:check
+All matched files use the correct format.
+```
+
+All four selected browser scenarios passed across these runs. Real WebSocket request counts confirmed no worktree enumeration on initial Local display or Local submission. After a failed listing, choosing Local hid the listing error and still created the workspace. The repository-switch case reset to New branch, retained a typed directory name, and created the branch only in the newly selected repository. The compact creation/reuse case passed as well.
+
+Real Git tests verified retry with the same exact names after synchronous setup failure and preservation of pre-existing branches, commits created by setup, and branches adopted by another checkout. New workspace uses asynchronous setup; its existing checkout and setup-retry behavior remain intact. No additional native or Electron verification was performed.
+
 ## Visual evidence
 
 - [New branch on desktop](new-branch-desktop.png): explicit branch intent, `from` base picker and worktree name before branch name. This capture also shows the retained validation error after correcting an invalid worktree name, before resubmission.

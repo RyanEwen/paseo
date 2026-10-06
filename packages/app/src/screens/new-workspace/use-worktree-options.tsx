@@ -28,6 +28,7 @@ import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
 export function useWorktreeOptions(input: {
   supported: boolean;
   enabled: boolean;
+  pickerOpen: boolean;
   canCreateWorktree: boolean;
   showRefPicker: boolean;
   isolationLabel: string;
@@ -54,6 +55,7 @@ export function useWorktreeOptions(input: {
     model.applyRef(baseItem);
   }, [model, baseItem]);
   const existing = state.scope === scope ? state.existing : null;
+  const listAvailability = worktreeListAvailability(input, existing !== null);
   const query = useFetchQuery({
     queryKey: ["new-workspace-worktrees", input.serverId, input.cwd],
     queryFn: async () => {
@@ -64,10 +66,10 @@ export function useWorktreeOptions(input: {
       if (result.error) throw new Error(result.error.message);
       return result.worktrees;
     },
-    enabled: input.supported && input.enabled && input.canCreateWorktree && Boolean(input.cwd),
+    enabled: listAvailability.enabled,
     // Previous-repository rows must not remain selectable while a new repository loads.
     dataShape: "value",
-    staleTimeMs: 0,
+    staleTimeMs: 15_000,
   });
   const { refetch } = query;
   const retry = useCallback(() => {
@@ -139,7 +141,7 @@ export function useWorktreeOptions(input: {
       emptyText: query.isFetching ? "Loading worktrees…" : undefined,
       footer: (
         <WorktreeListStatus
-          supported={input.supported}
+          supported={listAvailability.visible}
           loading={query.isFetching}
           error={query.error}
           onRetry={retry}
@@ -155,7 +157,27 @@ export function useWorktreeOptions(input: {
         disabled={input.pending}
       />
     ),
-    error: <WorktreeLoadError supported={input.supported} error={query.error} />,
+    error: <WorktreeLoadError supported={listAvailability.visible} error={query.error} />,
+  };
+}
+
+/** Local uses no worktree data until its picker opens; cached failures stay scoped to that choice. */
+function worktreeListAvailability(
+  input: {
+    supported: boolean;
+    enabled: boolean;
+    canCreateWorktree: boolean;
+    cwd: string | null;
+    pickerOpen: boolean;
+    isolation: "local" | "worktree";
+  },
+  hasExisting: boolean,
+) {
+  const needed = input.pickerOpen || input.isolation === "worktree" || hasExisting;
+  return {
+    visible: input.supported && needed,
+    enabled:
+      input.supported && input.enabled && input.canCreateWorktree && Boolean(input.cwd) && needed,
   };
 }
 

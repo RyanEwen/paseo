@@ -66,6 +66,30 @@ describe("worktree form", () => {
     expect(form.requiresCapability()).toBe(true);
     expect(form.getState().branchName).toBe("chosen-branch");
   });
+  it("resets repository choices and derived defaults without overwriting manual names", () => {
+    const form = openWorktreeForm("fresh-branch");
+    form.applyScope("host:repo-a");
+    form.setMode("checkout");
+    form.applyRef(branch("refs/heads/repo-a-only"));
+    form.selectExisting({ worktreePath: "/repo-a-checkout" });
+    form.applyScope("host:repo-b");
+    expect(form.getState()).toMatchObject({
+      mode: "branch-off",
+      checkoutBranch: "",
+      existing: null,
+      worktreeName: "fresh-branch",
+    });
+    form.setBranchName("chosen-new-branch");
+    form.setWorktreeName("chosen-directory");
+    form.setMode("checkout");
+    form.applyScope("other-host:repo-b");
+    expect(form.getState()).toMatchObject({
+      mode: "branch-off",
+      checkoutBranch: "",
+      branchName: "chosen-new-branch",
+      worktreeName: "chosen-directory",
+    });
+  });
   it("requires a branch and identifies the existing checkout when occupied", () => {
     const form = openWorktreeForm("feature");
     form.setBranchName("");
