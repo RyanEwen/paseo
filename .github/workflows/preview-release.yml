@@ -194,11 +194,9 @@ jobs:
     env:
       APP_VARIANT: development
       PASEO_PREVIEW_BUILD: "1"
-      PASEO_ANDROID_KEYSTORE: ${{ runner.temp }}/preview.keystore
       PASEO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_PASSWORD }}
       PASEO_ANDROID_KEY_ALIAS: ${{ secrets.PREVIEW_ANDROID_KEY_ALIAS }}
       PASEO_ANDROID_KEY_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEY_PASSWORD }}
-      GOOGLE_SERVICES_FILE_DEBUG: ${{ runner.temp }}/google-services.debug.json
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -214,6 +212,10 @@ jobs:
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
       - name: Install dependencies
         run: node scripts/npm-retry.mjs ci
+      - name: Configure ephemeral signing paths
+        run: |
+          echo "PASEO_ANDROID_KEYSTORE=$RUNNER_TEMP/preview.keystore" >> "$GITHUB_ENV"
+          echo "GOOGLE_SERVICES_FILE_DEBUG=$RUNNER_TEMP/google-services.debug.json" >> "$GITHUB_ENV"
       - name: Prepare preview and signing files
         env:
           KEYSTORE_BASE64: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_BASE64 }}
@@ -254,7 +256,7 @@ jobs:
           cp preview-release.json preview-android/
       - name: Remove signing files
         if: always()
-        run: rm -f "$PASEO_ANDROID_KEYSTORE" "$GOOGLE_SERVICES_FILE_DEBUG"
+        run: rm -f "$RUNNER_TEMP/preview.keystore" "$RUNNER_TEMP/google-services.debug.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: preview-android
