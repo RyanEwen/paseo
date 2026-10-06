@@ -10,6 +10,11 @@ import type {
   BrowserAutomationNetworkLogEntry,
 } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import { waitForActionableTarget, type ActionabilityResult } from "./actionability.js";
+import {
+  BrowserInputTimeoutError,
+  createInputLifetime,
+  type TrustedInputPage,
+} from "./input-lifetime.js";
 import { BrowserSnapshotEngine } from "./snapshot-engine.js";
 import {
   dispatchTrustedClick,
@@ -36,6 +41,7 @@ export interface TabContents {
   reload(): void;
   captureFrame(signal: AbortSignal): Promise<TabImage>;
   invalidate(): void;
+  runInput<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T>;
   withFrameProduction<T>(capture: () => Promise<T>): Promise<T>;
   sendInputEvent(event: IsolatedKeyboardInputEvent): void;
   // Commits text into this tab's focused element. CDP Input.insertText would
@@ -45,7 +51,11 @@ export interface TabContents {
   captureDialogs?<T>(
     task: () => Promise<T>,
   ): Promise<{ result: T; dialogs: BrowserAutomationDialogEvent[] }>;
-  sendDebugCommand?(command: string, params?: Record<string, unknown>): Promise<unknown>;
+  sendDebugCommand?(
+    command: string,
+    params?: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
 }
 
 export interface TabImage {
@@ -195,7 +205,10 @@ function isKnownNoFrameCaptureError(error: unknown): boolean {
   );
 }
 
-async function waitForPaint(contents: TabContents, deadline: number): Promise<void> {
+async function waitForPaint(
+  contents: Pick<TabContents, "executeJavaScript">,
+  deadline: number,
+): Promise<void> {
   // A hidden page may have unpainted DOM updates. The first animation callback
   // precedes paint; the next frame ensures capture cannot reuse the old surface.
   await withPixelCaptureTimeout(
@@ -594,8 +607,8 @@ async function executeClick(
   if ("ok" in target) {
     return target;
   }
-  return withDialogCapture(target.contents, async () => {
-    if (!target.contents.sendDebugCommand) {
+  return withTrustedInput(requestId, target.contents, async (page) => {
+    if (!page.sendDebugCommand) {
       return fail(requestId, "browser_unsupported", "browser_click requires trusted browser input");
     }
     const elementExpression = snapshotEngine.runtimeElementExpression({
@@ -606,13 +619,13 @@ async function executeClick(
       return staleRefFailure(requestId, ref);
     }
     const actionable = await waitForActionableTarget({
-      page: target.contents,
+      page: page,
       elementExpression,
     });
     if (!actionable.ok) {
       return actionabilityFailure(requestId, ref, actionable);
     }
-    await dispatchTrustedClick(cdpSender(target.contents), actionable.target.point, options);
+    await dispatchTrustedClick(cdpSender(page), actionable.target.point, options);
     return {
       requestId,
       ok: true,
@@ -697,8 +710,8 @@ async function executeHover(
   if ("ok" in target) {
     return target;
   }
-  return withDialogCapture(target.contents, async () => {
-    if (!target.contents.sendDebugCommand) {
+  return withTrustedInput(requestId, target.contents, async (page) => {
+    if (!page.sendDebugCommand) {
       return fail(requestId, "browser_unsupported", "browser_hover requires trusted browser input");
     }
     const elementExpression = snapshotEngine.runtimeElementExpression({
@@ -709,13 +722,13 @@ async function executeHover(
       return staleRefFailure(requestId, ref);
     }
     const actionable = await waitForActionableTarget({
-      page: target.contents,
+      page: page,
       elementExpression,
     });
     if (!actionable.ok) {
       return actionabilityFailure(requestId, ref, actionable);
     }
-    await dispatchTrustedHover(cdpSender(target.contents), actionable.target.point);
+    await dispatchTrustedHover(cdpSender(page), actionable.target.point);
     return {
       requestId,
       ok: true,
@@ -743,8 +756,8 @@ async function executeDrag(
   if ("ok" in target) {
     return target;
   }
-  return withDialogCapture(target.contents, async () => {
-    if (!target.contents.sendDebugCommand) {
+  return withTrustedInput(requestId, target.contents, async (page) => {
+    if (!page.sendDebugCommand) {
       return fail(requestId, "browser_unsupported", "browser_drag requires trusted browser input");
     }
     const sourceExpression = snapshotEngine.runtimeElementExpression({
@@ -759,24 +772,20 @@ async function executeDrag(
       return staleRefFailure(requestId, `${sourceRef}/${targetRef}`);
     }
     const source = await waitForActionableTarget({
-      page: target.contents,
+      page: page,
       elementExpression: sourceExpression,
     });
     if (!source.ok) {
       return actionabilityFailure(requestId, sourceRef, source);
     }
     const dropTarget = await waitForActionableTarget({
-      page: target.contents,
+      page: page,
       elementExpression: targetExpression,
     });
     if (!dropTarget.ok) {
       return actionabilityFailure(requestId, targetRef, dropTarget);
     }
-    await dispatchTrustedDrag(
-      cdpSender(target.contents),
-      source.target.point,
-      dropTarget.target.point,
-    );
+    await dispatchTrustedDrag(cdpSender(page), source.target.point, dropTarget.target.point);
     return {
       requestId,
       ok: true,
@@ -894,8 +903,8 @@ async function executeScroll(
   if ("ok" in target) {
     return target;
   }
-  return withDialogCapture(target.contents, async () => {
-    if (!target.contents.sendDebugCommand) {
+  return withTrustedInput(requestId, target.contents, async (page) => {
+    if (!page.sendDebugCommand) {
       return fail(
         requestId,
         "browser_unsupported",
@@ -913,7 +922,7 @@ async function executeScroll(
         return staleRefFailure(requestId, ref);
       }
       const actionable = await waitForActionableTarget({
-        page: target.contents,
+        page: page,
         elementExpression,
       });
       if (!actionable.ok) {
@@ -921,10 +930,10 @@ async function executeScroll(
       }
       point = actionable.target.point;
     } else {
-      point = await readViewportCenter(target.contents);
+      point = await readViewportCenter(page);
     }
 
-    await dispatchTrustedScroll(cdpSender(target.contents), point, deltaX, deltaY);
+    await dispatchTrustedScroll(cdpSender(page), point, deltaX, deltaY);
     return {
       requestId,
       ok: true,
@@ -941,7 +950,9 @@ async function executeScroll(
   });
 }
 
-async function readViewportCenter(contents: TabContents): Promise<{ x: number; y: number }> {
+async function readViewportCenter(
+  contents: Pick<TabContents, "executeJavaScript">,
+): Promise<{ x: number; y: number }> {
   const value = await contents.executeJavaScript(
     "({ x: Math.max(0, (window.innerWidth || 1) / 2), y: Math.max(0, (window.innerHeight || 1) / 2) })",
   );
@@ -979,7 +990,9 @@ function actionabilityFailure(
   );
 }
 
-function cdpSender(contents: TabContents): NonNullable<TabContents["sendDebugCommand"]> {
+function cdpSender(
+  contents: Pick<TabContents, "sendDebugCommand">,
+): NonNullable<TabContents["sendDebugCommand"]> {
   return contents.sendDebugCommand?.bind(contents) as NonNullable<TabContents["sendDebugCommand"]>;
 }
 
@@ -1055,8 +1068,8 @@ async function executeType(
   if ("ok" in target) {
     return target;
   }
-  return withDialogCapture(target.contents, async () => {
-    if (!target.contents.sendDebugCommand) {
+  return withTrustedInput(requestId, target.contents, async (page) => {
+    if (!page.sendDebugCommand) {
       return fail(requestId, "browser_unsupported", "browser_type requires trusted browser input");
     }
     let actionable: ActionabilityResult | null = null;
@@ -1069,16 +1082,16 @@ async function executeType(
         return staleRefFailure(requestId, ref);
       }
       actionable = await waitForActionableTarget({
-        page: target.contents,
+        page: page,
         elementExpression,
         editable: true,
       });
       if (!actionable.ok) {
         return actionabilityFailure(requestId, ref, actionable);
       }
-      await dispatchTrustedClick(cdpSender(target.contents), actionable.target.point);
+      await dispatchTrustedClick(cdpSender(page), actionable.target.point);
     }
-    await target.contents.insertText(text);
+    await page.insertText(text);
     return {
       requestId,
       ok: true,
@@ -1105,7 +1118,7 @@ async function executeKeypress(
   if ("ok" in target) {
     return target;
   }
-  return withDialogCapture(target.contents, async () => {
+  return withTrustedInput(requestId, target.contents, async (page) => {
     let actionable: ActionabilityResult | null = null;
     if (ref) {
       const elementExpression = snapshotEngine.runtimeElementExpression({
@@ -1116,28 +1129,28 @@ async function executeKeypress(
         return staleRefFailure(requestId, ref);
       }
       actionable = await waitForActionableTarget({
-        page: target.contents,
+        page: page,
         elementExpression,
       });
       if (!actionable.ok) {
         return actionabilityFailure(requestId, ref, actionable);
       }
-      const focused = await focusKeypressTarget(target.contents, elementExpression);
+      const focused = await focusKeypressTarget(page, elementExpression);
       if (focused === "stale_ref") {
         return staleRefFailure(requestId, ref);
       }
       if (focused === "editable") {
-        if (!target.contents.sendDebugCommand) {
+        if (!page.sendDebugCommand) {
           return fail(
             requestId,
             "browser_unsupported",
             "browser_keypress requires trusted browser input",
           );
         }
-        await dispatchTrustedClick(cdpSender(target.contents), actionable.target.point);
+        await dispatchTrustedClick(cdpSender(page), actionable.target.point);
       }
     }
-    dispatchTrustedKey((event) => target.contents.sendInputEvent(event), key);
+    dispatchTrustedKey((event) => page.sendInputEvent(event), key);
     return {
       requestId,
       ok: true,
@@ -1586,7 +1599,7 @@ function buildEvaluateScript(
 }
 
 async function focusKeypressTarget(
-  contents: TabContents,
+  contents: Pick<TabContents, "executeJavaScript">,
   elementExpression: string,
 ): Promise<"editable" | "focused" | "stale_ref"> {
   const result = await contents.executeJavaScript(String.raw`(() => {
@@ -1656,4 +1669,61 @@ function resolveTabTarget(input: {
   }
 
   return { browserId, contents };
+}
+
+/** Keep this guest producing frames only while trusted input is in flight.
+ * Hidden Chromium input waits for compositor acknowledgments; the adapter
+ * shares the scope with screenshots and restores policy after the last user.
+ */
+async function withTrustedInput(
+  requestId: string,
+  contents: TabContents,
+  task: (page: TrustedInputPage) => Promise<AutomationCommandPayload>,
+): Promise<AutomationCommandPayload> {
+  const lifetime = createInputLifetime(contents);
+
+  async function performInput(): Promise<AutomationCommandPayload> {
+    const inputUrl = contents.getURL();
+    const documentChanged = () =>
+      contents.isDestroyed() || contents.isLoading() || contents.getURL() !== inputUrl;
+    const result = await task(lifetime.page);
+    if (!result.ok || documentChanged()) return result;
+
+    // Wheel acknowledgments can precede animation-aligned event dispatch.
+    try {
+      await waitForPaint(lifetime.page, Date.now() + PIXEL_CAPTURE_TIMEOUT_MS);
+    } catch (error) {
+      // A delivered click/key may close or navigate the document while its
+      // final animation callback is pending. Preserve that input result.
+      if (documentChanged()) return result;
+      if (!isScreenshotNoFrameError(error)) throw error;
+      return fail(
+        result.requestId,
+        "browser_timeout",
+        "Timed out waiting for the browser input frame. Input may already have been delivered.",
+      );
+    }
+    return result;
+  }
+
+  const capture = () => withDialogCapture(contents, performInput);
+  const produceFrames = () => {
+    lifetime.assertActive();
+    if (contents.isDestroyed()) {
+      return Promise.resolve(fail(requestId, "browser_tab_closed", "Browser tab has been closed"));
+    }
+    return contents.withFrameProduction(() => lifetime.wait(capture));
+  };
+  try {
+    return await contents.runInput(produceFrames, lifetime.signal);
+  } catch (error) {
+    if (contents.isDestroyed()) {
+      return fail(requestId, "browser_tab_closed", "Browser tab has been closed");
+    }
+    if (!(error instanceof BrowserInputTimeoutError)) throw error;
+    // The broker must not treat an uncertain delivered action as safe to replay.
+    return fail(requestId, "browser_timeout", error.message);
+  } finally {
+    lifetime.dispose();
+  }
 }

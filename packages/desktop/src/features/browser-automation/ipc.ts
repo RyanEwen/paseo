@@ -28,6 +28,7 @@ import {
 const MAX_CONSOLE_MESSAGES_PER_TAB = 200;
 const consoleMessagesByContentsId = new Map<number, BrowserAutomationConsoleLogEntry[]>();
 const cdpQueuesByContentsId = new Map<number, CdpSessionQueue>();
+const inputQueuesByContentsId = new Map<number, CdpSessionQueue>();
 const dialogMonitorsByContentsId = new Map<number, DialogMonitor>();
 const observedContentsIds = new Set<number>();
 
@@ -134,26 +135,31 @@ export function adaptWebContents(contents: BrowserAutomationWebContents): TabCon
     reload: () => contents.reload(),
     captureFrame: (signal) => captureViewportFrame(contents, signal),
     invalidate: () => contents.invalidate(),
-    withFrameProduction: async (capture) => {
-      const previous = contents.getBackgroundThrottling();
-      contents.setBackgroundThrottling(false);
-      try {
-        return await capture();
-      } finally {
-        if (!contents.isDestroyed()) contents.setBackgroundThrottling(previous);
-      }
-    },
+    runInput: (task, signal) =>
+      getCommandQueue(contentsId, inputQueuesByContentsId).run(task, signal),
+    withFrameProduction: (capture) => withGuestFrameProduction(contents, capture),
     sendInputEvent: (event) => contents.sendInputEvent(event),
     insertText: (text) => contents.insertText(text),
     getConsoleMessages: () => consoleMessagesByContentsId.get(contentsId) ?? [],
     captureDialogs: (task) => dialogMonitor.capture(task),
-    sendDebugCommand: (command: string, params?: Record<string, unknown>) =>
-      cdpQueue.run(async () => {
+    sendDebugCommand: (command: string, params?: Record<string, unknown>, signal?: AbortSignal) => {
+      const send = async () => {
         if (!contents.debugger.isAttached()) {
           contents.debugger.attach("1.3");
         }
         return contents.debugger.sendCommand(command, params ?? {});
-      }),
+      };
+      // Like dialog responses, cancellation cleanup must unblock a possibly
+      // delivered press even when its acknowledgment still owns the queue.
+      if (
+        signal?.aborted &&
+        command === "Input.dispatchMouseEvent" &&
+        params?.type === "mouseReleased"
+      ) {
+        return send();
+      }
+      return cdpQueue.run(send, signal);
+    },
   };
 }
 
@@ -193,12 +199,20 @@ function captureViewportFrame(
 }
 
 function getCdpQueue(contentsId: number): CdpSessionQueue {
-  const existing = cdpQueuesByContentsId.get(contentsId);
+  return getCommandQueue(contentsId, cdpQueuesByContentsId);
+}
+
+/** Keep input gestures atomic while still allowing screenshot activity to overlap. */
+function getCommandQueue(
+  contentsId: number,
+  queues: Map<number, CdpSessionQueue>,
+): CdpSessionQueue {
+  const existing = queues.get(contentsId);
   if (existing) {
     return existing;
   }
   const queue = new CdpSessionQueue();
-  cdpQueuesByContentsId.set(contentsId, queue);
+  queues.set(contentsId, queue);
   return queue;
 }
 
@@ -217,6 +231,7 @@ function observeConsoleMessages(contents: BrowserAutomationWebContents, contents
     observedContentsIds.delete(contentsId);
     consoleMessagesByContentsId.delete(contentsId);
     cdpQueuesByContentsId.delete(contentsId);
+    inputQueuesByContentsId.delete(contentsId);
     dialogMonitorsByContentsId.delete(contentsId);
   });
 }
@@ -489,4 +504,42 @@ function readRequestId(rawRequest: unknown): string {
   }
   const requestId = (rawRequest as Record<string, unknown>).requestId;
   return typeof requestId === "string" && requestId.length > 0 ? requestId : "unknown";
+}
+
+interface GuestFrameProductionScope {
+  users: number;
+  previousThrottling: boolean;
+}
+
+const guestFrameProductionScopes = new WeakMap<
+  BrowserAutomationWebContents,
+  GuestFrameProductionScope
+>();
+
+/** Share temporary frame production across adapters for the same live guest.
+ * Only the last operation restores policy, including failure and cancellation.
+ * Electron 44.5+ also restores the hidden widget and Blink scheduler state.
+ */
+async function withGuestFrameProduction<T>(
+  contents: BrowserAutomationWebContents,
+  task: () => Promise<T>,
+): Promise<T> {
+  let scope = guestFrameProductionScopes.get(contents);
+  if (!scope) {
+    scope = { users: 0, previousThrottling: contents.getBackgroundThrottling() };
+    if (scope.previousThrottling) contents.setBackgroundThrottling(false);
+    guestFrameProductionScopes.set(contents, scope);
+  }
+  scope.users++;
+  try {
+    return await task();
+  } finally {
+    scope.users--;
+    if (scope.users === 0) {
+      guestFrameProductionScopes.delete(contents);
+      if (!contents.isDestroyed() && scope.previousThrottling) {
+        contents.setBackgroundThrottling(true);
+      }
+    }
+  }
 }

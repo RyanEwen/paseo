@@ -795,3 +795,103 @@ describe("pixel capture frame production", () => {
     ).rejects.toThrow("capture closed");
   });
 });
+
+describe("overlapping guest activity", () => {
+  test("input and screenshot adapters retain frames until the final operation exits", async () => {
+    const contents = new FakeWebContents(8101);
+    const inputTab = adaptWebContents(contents);
+    const captureTab = adaptWebContents(contents);
+    const inputDone = deferred<void>();
+    const captureDone = deferred<void>();
+    const input = inputTab.withFrameProduction(async () => inputDone.promise);
+    const capture = captureTab.withFrameProduction(async () => captureDone.promise);
+    expect(contents.backgroundThrottling).toBe(false);
+    inputDone.resolve();
+    await input;
+    expect(contents.backgroundThrottling).toBe(false);
+    captureDone.resolve();
+    await capture;
+    expect(contents.backgroundThrottling).toBe(true);
+  });
+
+  test("a failed overlapping operation cannot end the remaining guest activity", async () => {
+    const contents = new FakeWebContents(8102);
+    const tab = adaptWebContents(contents);
+    const done = deferred<void>();
+    const remaining = tab.withFrameProduction(async () => done.promise);
+    await expect(
+      tab.withFrameProduction(async () => {
+        throw new Error("input cancelled");
+      }),
+    ).rejects.toThrow("input cancelled");
+    expect(contents.backgroundThrottling).toBe(false);
+    done.resolve();
+    await remaining;
+    expect(contents.backgroundThrottling).toBe(true);
+  });
+});
+
+describe("cancelled CDP queue waiters", () => {
+  test("pointer release cleanup bypasses a missing press acknowledgment without releasing its queue barrier", async () => {
+    const contents = new FakeWebContents(8202);
+    contents.debugger.blockCommands = true;
+    const tab = adaptWebContents(contents);
+    const controller = new AbortController();
+    const press = tab.sendDebugCommand?.(
+      "Input.dispatchMouseEvent",
+      { type: "mousePressed" },
+      controller.signal,
+    );
+    await flushMicrotasks();
+    controller.abort(new Error("input expired"));
+    const release = tab.sendDebugCommand?.(
+      "Input.dispatchMouseEvent",
+      { type: "mouseReleased" },
+      controller.signal,
+    );
+    const next = tab.sendDebugCommand?.("Page.getLayoutMetrics", {});
+    await flushMicrotasks();
+    expect(contents.debugger.commands.map(({ params }) => params?.type)).toEqual([
+      "mousePressed",
+      "mouseReleased",
+    ]);
+    contents.debugger.blockCommands = false;
+    contents.debugger.finishNextCommand();
+    contents.debugger.finishNextCommand();
+    await Promise.all([press, release, next]);
+    expect(contents.debugger.commands.map(({ command }) => command)).toEqual([
+      "Input.dispatchMouseEvent",
+      "Input.dispatchMouseEvent",
+      "Page.getLayoutMetrics",
+    ]);
+  });
+
+  test("removes a cancelled waiter without executing it or releasing the preceding command", async () => {
+    const contents = new FakeWebContents(8201);
+    contents.debugger.blockCommands = true;
+    const tab = adaptWebContents(contents);
+    const first = tab.sendDebugCommand?.("Page.captureScreenshot", {});
+    const controller = new AbortController();
+    const cancelled = tab.sendDebugCommand?.(
+      "Input.dispatchMouseEvent",
+      { type: "mousePressed" },
+      controller.signal,
+    );
+    const assertion = expect(cancelled).rejects.toThrow("input expired");
+    await flushMicrotasks();
+    controller.abort(new Error("input expired"));
+    await assertion;
+    expect(contents.debugger.commands).toHaveLength(1);
+    const next = tab.sendDebugCommand?.("Page.getLayoutMetrics", {});
+    await flushMicrotasks();
+    expect(contents.debugger.commands).toHaveLength(1);
+    contents.debugger.blockCommands = false;
+    contents.debugger.finishNextCommand();
+    await Promise.all([first, next]);
+    expect(contents.debugger.commands.map(({ command }) => command)).toEqual([
+      "Page.captureScreenshot",
+      "Page.getLayoutMetrics",
+    ]);
+    expect(contents.debugger.attachedProtocolVersions).toEqual(["1.3"]);
+  });
+});
