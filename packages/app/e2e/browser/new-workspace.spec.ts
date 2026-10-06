@@ -106,15 +106,17 @@ async function startTrackingSidebarStatusGroups(page: import("@playwright/test")
       const events = win.__workspaceStatusGroupEvents;
       if (!events) return;
       const groups = document.querySelectorAll<HTMLElement>(
-        '[data-testid^="sidebar-status-group-"]',
+        '[data-testid^="sidebar-status-group-rows-"]',
       );
       for (const group of groups) {
         const groupTestId = group.getAttribute("data-testid") ?? "";
-        const bucket = groupTestId.replace("sidebar-status-group-", "");
-        const label = group.textContent ?? "";
-        const block = group.parentElement?.parentElement;
-        if (!block) continue;
-        const rows = block.querySelectorAll<HTMLElement>('[data-testid^="sidebar-workspace-row-"]');
+        const bucket = groupTestId.replace("sidebar-status-group-rows-", "");
+        const label =
+          document.querySelector(`[data-testid="sidebar-status-group-${bucket}"]`)?.textContent ??
+          "";
+        // Each group owns a rows container. Header ancestry changes with shared row
+        // components and can include neighbouring groups, producing false transitions.
+        const rows = group.querySelectorAll<HTMLElement>('[data-testid^="sidebar-workspace-row-"]');
         for (const row of rows) {
           const rowTestId = row.getAttribute("data-testid");
           if (!rowTestId) continue;
