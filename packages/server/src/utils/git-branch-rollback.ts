@@ -44,11 +44,17 @@ export async function removeUnusedGitBranch(
     stderr = (stderr + chunk.toString("utf8")).slice(-4096);
   });
   child.stdin?.on("error", (error) => rejectPrepared(error));
+  // Some Git versions buffer acknowledgements until EOF. Do not make the
+  // original setup error wait for the full process deadline in that case.
+  const preparationTimer = setTimeout(() => {
+    rejectPrepared(new Error("Git rollback preparation timed out; branch retained"));
+  }, 2_000);
 
   try {
     // The expected old tip prevents deletion if setup or another process added commits.
     child.stdin!.write(`start\ndelete ${ref} ${initialTip}\nprepare\n`);
     await prepared;
+    clearTimeout(preparationTimer);
 
     const { stdout } = await runGitCommand(["worktree", "list", "--porcelain"], {
       cwd,
@@ -61,6 +67,7 @@ export async function removeUnusedGitBranch(
       throw processError ?? new Error(`Git rollback transaction failed: ${stderr}`);
     }
   } finally {
+    clearTimeout(preparationTimer);
     // EOF lets Git abort and remove its lock gracefully, including on Windows.
     // The process deadline bounds a hung transaction or repository hook.
     child.stdin?.end();

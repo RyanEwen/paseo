@@ -59,6 +59,8 @@ The repository-switch model regression failed before the fix: checkout mode and 
 
 The subsequent cleanup review identified a check/delete race. A deterministic real-Git interleaving reproduced the previous cleanup deleting a branch after another checkout adopted it. Rollback now prepares an expected-tip ref transaction before enumerating worktrees, holding Git's ref lock until commit or abort. This retains adopted branches and concurrent commits without creating another worktree or bypassing repository hooks.
 
+The buffered-acknowledgement review reproduced an additional 30.4-second delay before the original setup error. A new regression holds a real Git transaction's stdout until process exit, matching the buffering in [Git 2.30's implementation](https://github.com/git/git/blob/v2.30.0/builtin/update-ref.c#L301). It now passes the ten-second reporting bound: a two-second preparation deadline closes stdin to abort without an acknowledgement, retains the unchanged branch, and releases its lock. This is a buffering simulation around real Git 2.43.0, not an actual Git 2.30 binary test.
+
 Additional focused verification after addressing the review:
 
 ```text
@@ -69,7 +71,7 @@ Test Files  1 passed (1)
 # From packages/server:
 npx vitest run src/utils/worktree.test.ts src/utils/worktree.posix.test.ts --bail=1
 Test Files  2 passed (2)
-     Tests  75 passed | 1 skipped (76)
+     Tests  76 passed | 1 skipped (77)
 
 PLAYWRIGHT_BROWSERS_PATH=/tmp/paseo-worktree-playwright npm run test:e2e --workspace=@getpaseo/app -- e2e/browser/new-workspace.spec.ts --grep 'new worktree options|new worktree branch choices'
 3 passed, 1 failed (desktop case during live recompilation)
