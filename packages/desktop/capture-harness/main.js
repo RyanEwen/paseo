@@ -2229,12 +2229,14 @@ async function verifyBackgroundAutomation(win, guest) {
       pass: true,
     });
   }
-  results.push(await verifyStalledInput(win, guest, command, registry, snapshotEngine, browserId));
+  results.push(
+    await verifyStalledInput({ win, guest, command, registry, snapshotEngine, browserId }),
+  );
   return results;
 }
 
 /** Verify bounded input and late-continuation fencing using an owned paused renderer. */
-async function verifyStalledInput(win, guest, command, registry, snapshotEngine, browserId) {
+async function verifyStalledInput({ win, guest, command, registry, snapshotEngine, browserId }) {
   const { executeAutomationCommand } = require("../dist/features/browser-automation/service.js");
   // Pause only this owned fixture guest to exercise a real stalled renderer.
   // The timeout must release activity and fence input before the guest resumes.
