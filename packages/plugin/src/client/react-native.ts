@@ -88,6 +88,13 @@ export interface EncodedVideoConfig {
   codedWidth: number;
   codedHeight: number;
   descriptionBase64?: string;
+  /** Preserve the encoder's decoderConfig.colorSpace; VP8 chunks do not carry it reliably. */
+  colorSpace?: {
+    primaries?: "bt470bg" | "bt709" | "smpte170m" | null;
+    transfer?: "bt709" | "iec61966-2-1" | "smpte170m" | null;
+    matrix?: "bt470bg" | "bt709" | "rgb" | "smpte170m" | null;
+    fullRange?: boolean | null;
+  };
   optimizeForLatency: boolean;
 }
 

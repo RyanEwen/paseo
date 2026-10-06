@@ -94,29 +94,49 @@ describe("desktop packaging", () => {
     const root = mkdtempSync(join(tmpdir(), "paseo-preview-cli-"));
     try {
       const resources = join(root, "resources");
-      const shim = join(resources, "bin", "paseo");
+      const isWindows = process.platform === "win32";
+      const shimName = isWindows ? "paseo.cmd" : "paseo";
+      const shim = join(resources, "bin", shimName);
       mkdirSync(dirname(shim), { recursive: true });
-      copyFileSync(join(packageRoot, "bin", "paseo"), shim);
+      copyFileSync(join(packageRoot, "bin", shimName), shim);
       chmodSync(shim, 0o755);
       writeFileSync(join(resources, "paseo-executable-name"), "Paseo Debug\n");
       writeFileSync(join(resources, "paseo-daemon-home-name"), ".paseo-debug\n");
       writeFileSync(join(resources, "paseo-daemon-listen"), "127.0.0.1:6790\n");
-      writeExecutable(
-        join(root, "Paseo Debug.bin"),
-        '#!/bin/sh\nprintf "%s\\n%s\\n" "$PASEO_HOME" "$PASEO_LISTEN"\n',
-      );
-      const env = { ...process.env, HOME: root };
+      const printEnvironment =
+        "console.log(JSON.stringify([process.env.PASEO_HOME, process.env.PASEO_LISTEN]));";
+      if (isWindows) {
+        // Use a real PE with a tiny runner so this exercises cmd.exe's bundled shim.
+        copyFileSync(process.execPath, join(root, "Paseo Debug.exe"));
+        const runner = join(
+          resources,
+          "app.asar.unpacked",
+          "dist",
+          "daemon",
+          "node-entrypoint-runner.js",
+        );
+        mkdirSync(dirname(runner), { recursive: true });
+        writeFileSync(runner, printEnvironment);
+      } else {
+        writeExecutable(
+          join(root, "Paseo Debug.bin"),
+          `#!${process.execPath}\n${printEnvironment}\n`,
+        );
+      }
+      const env = { ...process.env, HOME: root, USERPROFILE: root };
       delete env.PASEO_HOME;
       delete env.PASEO_LISTEN;
-      const defaults = spawnSync("sh", [shim, "ls"], { encoding: "utf8", env });
-      expect(defaults.status).toBe(0);
-      expect(defaults.stdout).toBe(`${root}/.paseo-debug\n127.0.0.1:6790\n`);
-      const overridden = spawnSync("sh", [shim, "ls"], {
+      const command = isWindows ? (process.env.ComSpec ?? "cmd.exe") : "sh";
+      const args = isWindows ? ["/d", "/s", "/c", `""${shim}" ls"`] : [shim, "ls"];
+      const defaults = spawnSync(command, args, { encoding: "utf8", env });
+      expect(defaults.status, defaults.stderr).toBe(0);
+      expect(JSON.parse(defaults.stdout)).toEqual([join(root, ".paseo-debug"), "127.0.0.1:6790"]);
+      const overridden = spawnSync(command, args, {
         encoding: "utf8",
         env: { ...env, PASEO_HOME: "/custom-preview", PASEO_LISTEN: "127.0.0.1:12345" },
       });
-      expect(overridden.status).toBe(0);
-      expect(overridden.stdout).toBe("/custom-preview\n127.0.0.1:12345\n");
+      expect(overridden.status, overridden.stderr).toBe(0);
+      expect(JSON.parse(overridden.stdout)).toEqual(["/custom-preview", "127.0.0.1:12345"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
