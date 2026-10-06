@@ -19,14 +19,22 @@ interface SidebarProjectArrangement {
   projectNames: ReadonlyMap<string, string>;
 }
 
-/** Filter before splitting pins: a project with only pinned workspaces is still occupied. */
+/**
+ * Filter by occupancy before splitting pins: a project with only pinned workspaces is occupied.
+ * Pass the original projects as occupancyProjects when filtering a list with pinned rows removed.
+ */
 export function filterSidebarProjects(
   projects: SidebarProjectEntry[],
   visibility: SidebarProjectVisibility,
+  occupancyProjects: SidebarProjectEntry[] = projects,
 ): SidebarProjectEntry[] {
-  return visibility === "all"
-    ? projects
-    : projects.filter((project) => project.workspaces.length > 0);
+  if (visibility === "all") return projects;
+  const occupiedKeys = new Set(
+    occupancyProjects
+      .filter((project) => project.workspaces.length > 0)
+      .map((project) => project.viewKey),
+  );
+  return projects.filter((project) => occupiedKeys.has(project.viewKey));
 }
 
 /**
