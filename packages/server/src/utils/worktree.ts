@@ -39,7 +39,6 @@ import {
   writePaseoWorktreeRuntimeMetadata,
 } from "./worktree-metadata.js";
 import { runGitCommand } from "./run-git-command.js";
-import { removeUnusedGitBranch } from "./git-branch-rollback.js";
 import { spawnProcess } from "./spawn.js";
 import { resolvePaseoHome } from "../server/paseo-home.js";
 import { createExternalProcessEnv } from "../server/paseo-env.js";
@@ -133,13 +132,20 @@ export function isServiceScript(config: ScriptConfig): config is ServiceScriptCo
   return "type" in config && config.type === "service";
 }
 
+/** Setup failure with command results and, for retained creations, the checkout to retry. */
 export class WorktreeSetupError extends Error {
   readonly results: WorktreeSetupCommandResult[];
+  readonly retainedWorktree?: { worktreePath: string; branchName: string };
 
-  constructor(message: string, results: WorktreeSetupCommandResult[]) {
+  constructor(
+    message: string,
+    results: WorktreeSetupCommandResult[],
+    retainedWorktree?: { worktreePath: string; branchName: string },
+  ) {
     super(message);
     this.name = "WorktreeSetupError";
     this.results = results;
+    this.retainedWorktree = retainedWorktree;
   }
 }
 
@@ -1306,13 +1312,16 @@ export const createWorktree = async ({
       await runWorktreeSetupCommands({
         worktreePath,
         branchName: sourcePlan.branchName,
-        cleanupOnFailure: true,
+        // Exact-name failures recover by retrying setup in the retained checkout.
+        // A branch ref lock cannot exclude external Git operations that adopt HEAD.
+        cleanupOnFailure: !exactNames,
       });
     } catch (error) {
-      if (sourcePlan.cleanupBranchTip) {
-        // Best-effort rollback must not hide the original setup failure.
-        await removeUnusedGitBranch(cwd, sourcePlan.branchName, sourcePlan.cleanupBranchTip).catch(
-          () => undefined,
+      if (exactNames && error instanceof WorktreeSetupError) {
+        throw new WorktreeSetupError(
+          `${error.message}\nRetained worktree: ${worktreePath} (branch: ${sourcePlan.branchName}). Choose this existing worktree and retry setup there.`,
+          error.results,
+          { worktreePath, branchName: sourcePlan.branchName },
         );
       }
       throw error;
@@ -1337,7 +1346,6 @@ interface ResolveWorktreeSourcePlanOptions {
 }
 
 interface WorktreeSourcePlan {
-  cleanupBranchTip?: string;
   branchName: string;
   // Display name and exact ref are two different facts. The name cannot round-trip to a
   // commit — "main" resolves local-first even when the worktree was cut from a fork's
@@ -1425,15 +1433,7 @@ async function resolveBranchOffWorktreeSourcePlan(
     ? branchName
     : await resolveUniqueLocalBranchName(cwd, candidateBranch);
 
-  let cleanupBranchTip: string | undefined;
-  if (exactNames) {
-    // Snapshot the base before worktree-add hooks or setup can advance the new branch.
-    const { stdout } = await runGitCommand(["rev-parse", "--verify", `${base}^{commit}`], { cwd });
-    cleanupBranchTip = stdout.trim();
-  }
-
   return {
-    cleanupBranchTip,
     branchName: newBranchName,
     metadataBaseRefName: normalizedBaseBranch,
     metadataBaseRef: resolvedBaseBranch,
