@@ -241,6 +241,14 @@ describe("buildSidebarProjection", () => {
     const projection = buildSidebarProjection(input);
     const emptyProjects = input.projects.filter((project) => project.workspaces.length === 0);
     expect(emptyProjects.map((project) => project.viewKey)).toEqual(["empty"]);
+    // Removing pinned rows must not hide the occupied project's creation action.
+    expect(
+      filterSidebarProjects(
+        projection.pinnedGroups.unpinnedProjects,
+        "unarchived",
+        input.projects,
+      ).map((project) => project.viewKey),
+    ).toEqual(["project"]);
     expect(projection.projectIconTargets.map((target) => target.projectViewKey)).toEqual([
       "project",
       "empty",

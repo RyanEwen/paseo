@@ -1,4 +1,4 @@
-import { sortSidebarProjectsByName } from "./sidebar/sidebar-arrangement";
+import { filterSidebarProjects, sortSidebarProjectsByName } from "./sidebar/sidebar-arrangement";
 import { SidebarEmptyProjectGroup } from "./sidebar/sidebar-workspace-group";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -1978,12 +1978,14 @@ export function SidebarWorkspaceList({
       groupEmptyProjects
         ? {
             ...pinnedGroups,
-            unpinnedProjects: pinnedGroups.unpinnedProjects.filter(
-              (project) => project.workspaces.length > 0,
+            unpinnedProjects: filterSidebarProjects(
+              pinnedGroups.unpinnedProjects,
+              "unarchived",
+              projects,
             ),
           }
         : pinnedGroups,
-    [groupEmptyProjects, pinnedGroups],
+    [groupEmptyProjects, pinnedGroups, projects],
   );
   const emptyProjectPins = useMemo(
     () => ({ pinnedChats: [], unpinnedProjects: emptyProjects }),
