@@ -1,4 +1,4 @@
-const { spawn, spawnSync } = require("node:child_process");
+const { execFileSync, spawn, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
@@ -170,7 +170,13 @@ function getShellCommand(script) {
 
 function createDefaultDaemonEnv(extraEnv) {
   return {
-    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("PASEO_"))),
+    // Build-time Node flags and run-as-node mode must not affect the packaged GUI.
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key]) =>
+          !key.startsWith("PASEO_") && key !== "NODE_OPTIONS" && key !== "ELECTRON_RUN_AS_NODE",
+      ),
+    ),
     ...extraEnv,
   };
 }
@@ -323,13 +329,35 @@ function formatLogs({ stdout, stderr, userData, daemonHome }) {
   ].join("\n\n");
 }
 
-async function writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error }) {
+async function writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error, child }) {
   const artifactDir = process.env.PASEO_DESKTOP_SMOKE_ARTIFACT_DIR?.trim();
   if (!artifactDir) {
     return;
   }
 
   fs.mkdirSync(artifactDir, { recursive: true });
+  if (error && process.platform === "win32" && child?.pid) {
+    try {
+      const startupDialogs = execFileSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-File",
+          path.join(__dirname, "windows-startup-diagnostics.ps1"),
+          "-AppProcessId",
+          String(child.pid),
+        ],
+        { encoding: "utf8", timeout: 15000, windowsHide: true },
+      );
+      fs.writeFileSync(path.join(artifactDir, "windows-startup.txt"), startupDialogs);
+      console.error(`Packaged desktop smoke: Windows startup diagnostics\n${startupDialogs}`);
+    } catch (diagnosticError) {
+      console.warn(
+        `Packaged desktop smoke: Windows startup diagnostics failed: ${diagnosticError}`,
+      );
+    }
+  }
   fs.writeFileSync(
     path.join(artifactDir, error ? "failure.txt" : "success.txt"),
     `${error instanceof Error ? (error.stack ?? error.message) : String(error ?? "Packaged desktop smoke passed")}\n\n${formatLogs(
@@ -910,7 +938,12 @@ async function smokePackagedDesktopApp({
 
   const stdout = [];
   const stderr = [];
-  const launch = getLaunchCommand(executablePath, launchArgs);
+  // A command-line port opens CDP even when an early main-process import fails before
+  // the app can interpret PASEO_ELECTRON_FLAGS. It is already ignored by CLI passthrough.
+  const launch = getLaunchCommand(executablePath, [
+    ...launchArgs,
+    `--remote-debugging-port=${cdpPort}`,
+  ]);
   console.log(`Packaged desktop smoke: launching ${launch.command} ${launch.args.join(" ")}`);
   const child = spawn(launch.command, launch.args, {
     detached: process.platform !== "win32",
@@ -981,7 +1014,7 @@ async function smokePackagedDesktopApp({
       `Packaged desktop smoke passed: real renderer and preload loaded; renderer-started desktop daemon pid ${status.pid}, listen ${status.listen}; CLI shim daemon status and terminal smoke succeeded`,
     );
   } catch (error) {
-    await writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error }).catch(
+    await writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error, child }).catch(
       (artifactError) => {
         console.warn(`Packaged desktop smoke: failed to write failure artifacts: ${artifactError}`);
       },
