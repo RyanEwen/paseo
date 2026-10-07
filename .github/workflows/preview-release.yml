@@ -253,7 +253,8 @@ jobs:
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apk-signature.txt"
           keytool -exportcert -keystore "$PASEO_ANDROID_KEYSTORE" -storepass:env PASEO_ANDROID_KEYSTORE_PASSWORD -alias "$PASEO_ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/preview-signing.der"
           expected_signer="$(sha256sum "$RUNNER_TEMP/preview-signing.der" | cut -d ' ' -f1)"
-          grep -Fq "Signer #1 certificate SHA-256 digest: $expected_signer" "$RUNNER_TEMP/apk-signature.txt"
+          cat "$RUNNER_TEMP/apk-signature.txt"
+          node scripts/preview-release/android-signer.mjs "$RUNNER_TEMP/apk-signature.txt" "$expected_signer"
           "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt"
           grep -q "package: name='sh.paseo.debug'" "$RUNNER_TEMP/apk-badging.txt"
           actual_abis="$(unzip -Z1 "$apk" | awk -F/ '$1 == "lib" {print $2}' | sort -u)"
@@ -275,6 +276,16 @@ jobs:
             packages/app/android/app/build/preview-bundle-plan.json
             packages/app/android/app/build/preview-prepared-bundle/compiler-input.js
             packages/app/android/app/build/preview-prepared-bundle/maps/*
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Retain failed APK verification reports
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-android-verification
+          path: |
+            ${{ runner.temp }}/apk-signature.txt
+            ${{ runner.temp }}/apk-badging.txt
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
