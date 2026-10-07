@@ -118,6 +118,7 @@ const APP_SCHEME = "paseo";
 const PASEO_DEBUG = process.env.PASEO_DEBUG === "1";
 const DISABLE_SINGLE_INSTANCE_LOCK = process.env.PASEO_DISABLE_SINGLE_INSTANCE_LOCK === "1";
 const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || desktopDistribution.appName;
+const forcedUserDataDir = process.env.PASEO_ELECTRON_USER_DATA_DIR?.trim();
 const DESKTOP_WINDOW_CHROME_MODE = resolveDesktopWindowChromeMode({
   platform: process.platform,
   override: process.env.PASEO_DESKTOP_WINDOW_CONTROLS,
@@ -139,7 +140,10 @@ let bootstrapIsComplete = false;
 if (desktopDistribution.isPreview) {
   process.env.PASEO_HOME ??= path.join(app.getPath("home"), desktopDistribution.daemonHomeName);
   process.env.PASEO_LISTEN ??= desktopDistribution.daemonListen;
-  app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
+  // An explicit profile is applied below and must not require the default profile to exist.
+  if (!forcedUserDataDir) {
+    app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
+  }
 }
 
 app.setName(APP_NAME);
@@ -317,7 +321,6 @@ function installBrowserWindowOpenHandler(input: {
 // In dev mode, detect git worktrees and isolate each instance so multiple
 // Electron windows can run side-by-side (separate userData = separate lock).
 let devWorktreeName: string | null = null;
-const forcedUserDataDir = process.env.PASEO_ELECTRON_USER_DATA_DIR?.trim();
 if (forcedUserDataDir) {
   app.setPath("userData", forcedUserDataDir);
   log.info("[dev-user-data] forced userData dir:", forcedUserDataDir);
