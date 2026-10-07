@@ -3,6 +3,7 @@ import { Text, View, type Pressable } from "react-native";
 import { GitBranch } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import { TriggerTooltip } from "@/components/ui/trigger-tooltip";
 import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
 
@@ -28,8 +29,10 @@ export function WorktreeBranchPicker({
   onOpenChange,
   disabled,
   badgePressableStyle,
+  tooltipLabel,
 }: WorktreeBranchPickerProps & {
   disabled: boolean;
+  tooltipLabel: string;
   badgePressableStyle: React.ComponentProps<typeof Pressable>["style"];
 }) {
   const [open, setOpen] = useState(false);
@@ -53,20 +56,22 @@ export function WorktreeBranchPicker({
   );
   return (
     <>
-      <ComboboxTrigger
-        ref={anchorRef}
-        testID="new-workspace-branch-picker-trigger"
-        disabled={disabled}
-        onPress={openPicker}
-        style={badgePressableStyle}
-        accessibilityRole="button"
-        accessibilityLabel="Branch"
-      >
-        <ThemedGitBranch size={ICON_SIZE.sm} uniProps={mutedColorMapping} />
-        <Text style={styles.label} numberOfLines={1}>
-          {label}
-        </Text>
-      </ComboboxTrigger>
+      <TriggerTooltip label={tooltipLabel}>
+        <ComboboxTrigger
+          ref={anchorRef}
+          testID="new-workspace-branch-picker-trigger"
+          disabled={disabled}
+          onPress={openPicker}
+          style={badgePressableStyle}
+          accessibilityRole="button"
+          accessibilityLabel="Branch"
+        >
+          <ThemedGitBranch size={ICON_SIZE.sm} uniProps={mutedColorMapping} />
+          <Text style={styles.label} numberOfLines={1}>
+            {label}
+          </Text>
+        </ComboboxTrigger>
+      </TriggerTooltip>
       <Combobox
         options={options}
         value={value}

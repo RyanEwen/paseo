@@ -38,7 +38,7 @@ import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import type { ComboboxOption as ComboboxOptionType, ComboboxProps } from "@/components/ui/combobox";
 import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { Shortcut } from "@/components/ui/shortcut";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TriggerTooltip } from "@/components/ui/trigger-tooltip";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
 import { ScreenHeader } from "@/components/headers/screen-header";
@@ -280,30 +280,25 @@ function RefPickerTrigger({
   iconSize: number;
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild triggerRefProp="ref">
-        <ComboboxTrigger
-          chevron={metaChevron}
-          ref={pickerAnchorRef}
-          testID="new-workspace-ref-picker-trigger"
-          onPress={onPress}
-          disabled={disabled}
-          style={badgePressableStyle}
-          accessibilityRole="button"
-          accessibilityLabel={accessibilityLabel}
-        >
-          <RefPickerBadgeContent
-            selectedItem={selectedItem}
-            triggerLabel={triggerLabel}
-            iconColor={iconColor}
-            iconSize={iconSize}
-          />
-        </ComboboxTrigger>
-      </TooltipTrigger>
-      <TooltipContent side="top" align="center" offset={8}>
-        <Text style={styles.tooltipText}>{tooltipLabel}</Text>
-      </TooltipContent>
-    </Tooltip>
+    <TriggerTooltip label={tooltipLabel}>
+      <ComboboxTrigger
+        chevron={metaChevron}
+        ref={pickerAnchorRef}
+        testID="new-workspace-ref-picker-trigger"
+        onPress={onPress}
+        disabled={disabled}
+        style={badgePressableStyle}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+      >
+        <RefPickerBadgeContent
+          selectedItem={selectedItem}
+          triggerLabel={triggerLabel}
+          iconColor={iconColor}
+          iconSize={iconSize}
+        />
+      </ComboboxTrigger>
+    </TriggerTooltip>
   );
 }
 
@@ -333,40 +328,35 @@ function ProjectPickerTrigger({
   const placeholderLabel = projectIconPlaceholderLabelFromDisplayName(label);
   const placeholderInitial = placeholderLabel.charAt(0).toUpperCase() || "?";
   return (
-    <Tooltip>
-      <TooltipTrigger asChild triggerRefProp="ref">
-        <ComboboxTrigger
-          chevron={metaChevron}
-          ref={pickerAnchorRef}
-          testID="new-workspace-project-picker-trigger"
-          onPress={onPress}
-          disabled={disabled}
-          style={badgePressableStyle}
-          accessibilityRole="button"
-          accessibilityLabel="Workspace project"
-        >
-          <View style={styles.badgeIconBox}>
-            {projectViewKey ? (
-              <ProjectIconView
-                iconDataUri={iconDataUri}
-                initial={placeholderInitial}
-                projectViewKey={projectViewKey}
-                size={ICON_SIZE.md}
-                textStyle={styles.projectIconFallbackText}
-              />
-            ) : (
-              <Folder size={iconSize} color={iconColor} />
-            )}
-          </View>
-          <Text style={styles.badgeText} numberOfLines={1}>
-            {label}
-          </Text>
-        </ComboboxTrigger>
-      </TooltipTrigger>
-      <TooltipContent side="top" align="center" offset={8}>
-        <Text style={styles.tooltipText}>{tooltipLabel}</Text>
-      </TooltipContent>
-    </Tooltip>
+    <TriggerTooltip label={tooltipLabel}>
+      <ComboboxTrigger
+        chevron={metaChevron}
+        ref={pickerAnchorRef}
+        testID="new-workspace-project-picker-trigger"
+        onPress={onPress}
+        disabled={disabled}
+        style={badgePressableStyle}
+        accessibilityRole="button"
+        accessibilityLabel="Workspace project"
+      >
+        <View style={styles.badgeIconBox}>
+          {projectViewKey ? (
+            <ProjectIconView
+              iconDataUri={iconDataUri}
+              initial={placeholderInitial}
+              projectViewKey={projectViewKey}
+              size={ICON_SIZE.md}
+              textStyle={styles.projectIconFallbackText}
+            />
+          ) : (
+            <Folder size={iconSize} color={iconColor} />
+          )}
+        </View>
+        <Text style={styles.badgeText} numberOfLines={1}>
+          {label}
+        </Text>
+      </ComboboxTrigger>
+    </TriggerTooltip>
   );
 }
 
@@ -663,34 +653,29 @@ function IsolationPickerTrigger({
   iconSize: number;
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild triggerRefProp="ref">
-        <ComboboxTrigger
-          chevron={metaChevron}
-          ref={pickerAnchorRef}
-          testID="workspace-create-isolation-trigger"
-          onPress={onPress}
-          disabled={disabled}
-          style={badgePressableStyle}
-          accessibilityRole="button"
-          accessibilityLabel="Workspace isolation"
-        >
-          <View style={styles.badgeIconBox}>
-            {isolation === "worktree" ? (
-              <GitBranch size={iconSize} color={iconColor} />
-            ) : (
-              <Folder size={iconSize} color={iconColor} />
-            )}
-          </View>
-          <Text style={styles.badgeText} numberOfLines={1}>
-            {label}
-          </Text>
-        </ComboboxTrigger>
-      </TooltipTrigger>
-      <TooltipContent side="top" align="center" offset={8}>
-        <Text style={styles.tooltipText}>{tooltipLabel}</Text>
-      </TooltipContent>
-    </Tooltip>
+    <TriggerTooltip label={tooltipLabel}>
+      <ComboboxTrigger
+        chevron={metaChevron}
+        ref={pickerAnchorRef}
+        testID="workspace-create-isolation-trigger"
+        onPress={onPress}
+        disabled={disabled}
+        style={badgePressableStyle}
+        accessibilityRole="button"
+        accessibilityLabel="Workspace isolation"
+      >
+        <View style={styles.badgeIconBox}>
+          {isolation === "worktree" ? (
+            <GitBranch size={iconSize} color={iconColor} />
+          ) : (
+            <Folder size={iconSize} color={iconColor} />
+          )}
+        </View>
+        <Text style={styles.badgeText} numberOfLines={1}>
+          {label}
+        </Text>
+      </ComboboxTrigger>
+    </TriggerTooltip>
   );
 }
 
@@ -1476,6 +1461,7 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
         {...input.branchChoice}
         disabled={isPending}
         badgePressableStyle={badgePressableStyle}
+        tooltipLabel={t("newWorkspace.tooltips.branchChoice")}
       />
     </View>
   ) : null;
@@ -1532,30 +1518,25 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
         desktopMinWidth={200}
         hostOptionTestID={newWorkspaceHostOptionTestID}
       >
-        <Tooltip>
-          <TooltipTrigger asChild triggerRefProp="ref">
-            <Pressable
-              ref={host.anchorRef}
-              accessibilityRole="button"
-              accessibilityLabel="Host"
-              onPress={host.open}
-              disabled={isPending || host.allHosts.length === 0}
-              style={badgePressableStyle}
-              testID="host-picker-trigger"
-            >
-              <View style={styles.badgeIconBox}>
-                <HostStatusDot serverId={host.selectedServerId} />
-              </View>
-              <Text style={styles.badgeText} numberOfLines={1}>
-                {selectedHostLabel}
-              </Text>
-              {metaChevron}
-            </Pressable>
-          </TooltipTrigger>
-          <TooltipContent side="top" align="center" offset={8}>
-            <Text style={styles.tooltipText}>{t("newWorkspace.tooltips.host")}</Text>
-          </TooltipContent>
-        </Tooltip>
+        <TriggerTooltip label={t("newWorkspace.tooltips.host")}>
+          <Pressable
+            ref={host.anchorRef}
+            accessibilityRole="button"
+            accessibilityLabel="Host"
+            onPress={host.open}
+            disabled={isPending || host.allHosts.length === 0}
+            style={badgePressableStyle}
+            testID="host-picker-trigger"
+          >
+            <View style={styles.badgeIconBox}>
+              <HostStatusDot serverId={host.selectedServerId} />
+            </View>
+            <Text style={styles.badgeText} numberOfLines={1}>
+              {selectedHostLabel}
+            </Text>
+            {metaChevron}
+          </Pressable>
+        </TriggerTooltip>
       </HostPicker>
     </View>
   ) : null;
@@ -1601,7 +1582,11 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
         selectedItem={base.selectedItem}
         triggerLabel={base.refPrefix ? `${base.refPrefix} ${base.triggerLabel}` : base.triggerLabel}
         accessibilityLabel={base.refLabel ?? t("newWorkspace.refPicker.startingRef")}
-        tooltipLabel={base.refLabel ?? t("newWorkspace.tooltips.startingRef")}
+        tooltipLabel={
+          base.refPrefix
+            ? t("newWorkspace.tooltips.baseBranch")
+            : t("newWorkspace.tooltips.startingRef")
+        }
         iconColor={theme.colors.foregroundMuted}
         iconSize={theme.iconSize.sm}
       />
@@ -1649,7 +1634,7 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
   });
 }
 
-/** Keeps branch intent ahead of branch selection in both the compact stack and desktop row. */
+/** Orders host, project, checkout and branch choices by their dependencies on both layouts. */
 function renderNewWorkspaceControlLayout({
   isCompact,
   projectControl,
@@ -1669,8 +1654,8 @@ function renderNewWorkspaceControlLayout({
 }) {
   return isCompact ? (
     <View testID="new-workspace-ref-picker-row" style={styles.formStack} pointerEvents="box-none">
-      <FormRow>{projectControl}</FormRow>
       {hostControl ? <FormRow>{hostControl}</FormRow> : null}
+      <FormRow>{projectControl}</FormRow>
       {isolationControl ? <FormRow>{isolationControl}</FormRow> : null}
       {branchModeControl ? <FormRow>{branchModeControl}</FormRow> : null}
       {baseControl ? <FormRow>{baseControl}</FormRow> : null}
@@ -1685,8 +1670,8 @@ function renderNewWorkspaceControlLayout({
       style={styles.formStackDesktop}
       pointerEvents="box-none"
     >
-      {projectControl}
       {hostControl}
+      {projectControl}
       {isolationControl}
       {branchModeControl}
       {baseControl}
@@ -2727,10 +2712,6 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.base,
     color: theme.colors.foregroundMuted,
     flexShrink: 1,
-  },
-  tooltipText: {
-    fontSize: theme.fontSize.base,
-    color: theme.colors.popoverForeground,
   },
   refDivergenceLabel: {
     fontSize: theme.fontSize.sm,

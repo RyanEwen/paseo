@@ -1364,9 +1364,11 @@ export const ko: TranslationResources = {
       selectModel: "모델을 선택하세요",
     },
     tooltips: {
+      branchChoice: "새 브랜치를 만들거나 기존 브랜치를 체크아웃",
+      baseBranch: "새 브랜치의 기반이 될 브랜치 선택",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "로컬을 사용하거나 작업 트리 선택",
       startingRef: "시작 위치를 선택하세요",
       launch: "Choose what to launch",
     },

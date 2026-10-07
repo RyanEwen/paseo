@@ -1346,9 +1346,11 @@ export const zhCN: TranslationResources = {
       selectModel: "请选择模型",
     },
     tooltips: {
+      branchChoice: "创建新分支或检出现有分支",
+      baseBranch: "选择新分支的基础分支",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "使用本地目录或选择工作树",
       startingRef: "选择起始位置",
       launch: "Choose what to launch",
     },
