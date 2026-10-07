@@ -256,6 +256,8 @@ jobs:
           grep -Fq "Signer #1 certificate SHA-256 digest: $expected_signer" "$RUNNER_TEMP/apk-signature.txt"
           "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt"
           grep -q "package: name='sh.paseo.debug'" "$RUNNER_TEMP/apk-badging.txt"
+          actual_abis="$(unzip -Z1 "$apk" | awk -F/ '$1 == "lib" {print $2}' | sort -u)"
+          [[ "$actual_abis" == $'arm64-v8a\narmeabi-v7a\nx86\nx86_64' ]] || { echo "Unexpected APK ABIs: $actual_abis"; exit 1; }
           expected_code="$(node -p 'JSON.parse(require("fs").readFileSync("preview-release.json", "utf8")).androidVersionCode')"
           grep -q "versionCode='$expected_code'" "$RUNNER_TEMP/apk-badging.txt"
           mkdir preview-android
@@ -264,6 +266,17 @@ jobs:
       - name: Remove signing files
         if: always()
         run: rm -f "$RUNNER_TEMP/preview.keystore" "$RUNNER_TEMP/google-services.debug.json"
+      - name: Retain failed Android compiler inputs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-android-compiler-inputs
+          path: |
+            packages/app/android/app/build/preview-bundle-plan.json
+            packages/app/android/app/build/preview-prepared-bundle/compiler-input.js
+            packages/app/android/app/build/preview-prepared-bundle/maps/*
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: preview-android

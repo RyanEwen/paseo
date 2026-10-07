@@ -19,6 +19,7 @@ import { assemblePreviewAssets, validatePreviewAssets } from "./preview-release/
 import { preparePreviewBuild } from "./preview-release/prepare.mjs";
 import { resolvePreviewRelease } from "./preview-release/metadata.mjs";
 import { validateAndroidBundlePlan } from "./preview-release/android-bundle.mjs";
+import { getAndroidCompilerBudget } from "./preview-release/android-compiler-budget.mjs";
 import { dump, load } from "js-yaml";
 import { createRequire } from "node:module";
 
@@ -28,6 +29,48 @@ const { LinuxTargetHelper } = require("app-builder-lib/out/targets/LinuxTargetHe
 
 const releaseDate = "2026-09-04T00:00:00.000Z";
 const scriptPath = fileURLToPath(new URL("./validate-desktop-manifests.mjs", import.meta.url));
+
+test(
+  "Hermes receipt distinguishes completion from failure and signal termination",
+  { skip: process.platform !== "linux" },
+  () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "paseo-hermes-receipt-"));
+    try {
+      for (const command of ["exit 0", "exit 17", "kill -TERM $$"]) {
+        const receipt = path.join(directory, "exit.txt");
+        rmSync(receipt, { force: true });
+        const result = spawnSync(
+          "bash",
+          [
+            fileURLToPath(new URL("./preview-release/android-hermes-result.sh", import.meta.url)),
+            receipt,
+            "bash",
+            "-c",
+            command,
+          ],
+          { encoding: "utf8" },
+        );
+        assert.equal(result.status === 0, command === "exit 0");
+        assert.equal(readFileSync(receipt, "utf8").trim() === "0", command === "exit 0");
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test("Hermes capacity preserves disk and runner RAM under ancestor limits", () => {
+  const GiB = 1024 ** 3;
+  assert.deepEqual(getAndroidCompilerBudget(28 * GiB, 15 * GiB, ["max"]), {
+    ram: 12 * GiB,
+    swap: 16 * GiB,
+  });
+  assert.equal(getAndroidCompilerBudget(28 * GiB, 13 * GiB, ["max"]).ram, 10 * GiB);
+  assert.throws(() => getAndroidCompilerBudget(28 * GiB, 13 * GiB, [12 * GiB]), /Finite ancestor/);
+  assert.throws(() => getAndroidCompilerBudget(27 * GiB, 15 * GiB), /28 GiB free/);
+  assert.throws(() => getAndroidCompilerBudget(28 * GiB, 6 * GiB), /Insufficient RAM/);
+  assert.throws(() => getAndroidCompilerBudget(28 * GiB, 15 * GiB, ["unknown"]), /Finite ancestor/);
+});
 
 test("Android preview bundles retain release optimization and matching source maps", () => {
   const releasePlan = {

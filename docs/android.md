@@ -158,6 +158,8 @@ Keep the excluded npm packages installed. Normal builds use them, while the F-Dr
 
 The EAS `production-apk` profile uses the large Android resource class. Release builds compile the native ABIs and run Hermes bundling in the same Gradle invocation; the default worker can exhaust its remaining memory and kill Hermes with exit code 137 even when Gradle's own heap is correctly sized. Serial Gradle tasks still retain Java's heap during Hermes compilation. Fork previews export the generated release task configuration and run Metro, optimized Hermes, and source-map composition after Gradle exits, before native assembly and signing. Keep those phases separate; changing Hermes to development optimization changes the shipped app.
 
+The preview runner also needs headroom for optimized Hermes itself. Its compiler-only memory budget protects the runner, streams memory and OOM counters, and bounds compilation to 30 minutes. Temporary swap requires 28 GiB free on its filesystem, including a provisional 12 GiB disk reserve. Do not delete SDKs or reduce optimization to fit. Reclaim swap before native assembly only when available RAM can hold its occupied pages plus runner headroom. A runner-service shutdown message alone does not establish OOM; use the compiler cgroup counters or kernel records. Retain the JavaScript input and compiler identity when investigating a failure.
+
 ### F-Droid store metadata
 
 F-Droid reads the store listing from `fastlane/metadata/android/<locale>/` **at the repo root**. This location provides the best compatibility with the F-Droid release process.

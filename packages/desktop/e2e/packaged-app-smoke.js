@@ -140,18 +140,18 @@ function shellQuoteCliArg(value) {
   return shellQuote(String(value));
 }
 
-function getTerminalHookSmokeCommand(marker) {
-  if (process.platform === "win32") {
-    const script = [
-      "& $env:PASEO_HOOK_CLI hooks codex Stop",
-      "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
-      `Write-Output '${marker}'`,
-    ].join("; ");
-    const encodedScript = Buffer.from(script, "utf16le").toString("base64");
-    return `powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encodedScript}`;
+/** Exercise the bundled hook in the terminal's native shell, preserving failure exit codes. */
+function getTerminalHookSmokeCommand(marker, platform = process.platform) {
+  if (platform === "win32") {
+    return `call "%PASEO_HOOK_CLI%" hooks codex Stop <NUL && echo ${marker}`;
   }
 
   return `"$PASEO_HOOK_CLI" hooks codex Stop && echo ${marker}`;
+}
+
+/** Require completed output, since the terminal also echoes the submitted command itself. */
+function hasTerminalSmokeMarker(lines, marker) {
+  return lines.some((line) => line.trim() === marker);
 }
 
 function getShellCommand(script) {
@@ -813,7 +813,7 @@ async function smokeCliTerminal({ appPath, env }) {
       });
       const lines = Array.isArray(capture?.lines) ? capture.lines : [];
       lastCapture = lines;
-      if (lines.join("\n").includes(marker)) {
+      if (hasTerminalSmokeMarker(lines, marker)) {
         console.log("Packaged desktop smoke: terminal hook command completed");
         return;
       }
@@ -1059,6 +1059,8 @@ async function smokePackagedDesktopApp({
 
 module.exports = {
   createIsolatedHomeEnv,
+  getTerminalHookSmokeCommand,
+  hasTerminalSmokeMarker,
   smokePackagedDesktopApp,
 };
 
