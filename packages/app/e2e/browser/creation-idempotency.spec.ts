@@ -1,6 +1,46 @@
 import type { createCreationScenario } from "../support/helpers/creation";
 import { expect } from "../support/fixtures";
 import { test } from "../support/creation-fixtures";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { buildStartupGatePlugin } from "../support/helpers/startup-gate-plugin";
+
+test("background naming cannot consume the workspace startup failure", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "paseo-startup-gate-"));
+  const gate = path.join(directory, "startup.txt");
+  interface Request {
+    reason: string;
+    workspaceId: string | null;
+  }
+  let before!: (input: { request: Request }) => Promise<Request>;
+  try {
+    // Execute the same generated plugin as the daemon, using a real command file.
+    const source = Buffer.from(buildStartupGatePlugin(gate)).toString("base64");
+    const plugin = await import(`data:text/javascript;base64,${source}`);
+    plugin.default({
+      before: (name: string, callback: typeof before) => {
+        expect(name).toBe("agent.session_open");
+        before = callback;
+      },
+    });
+    await writeFile(gate, "fail");
+
+    // Force the competing internal startup to arrive first, regardless of scheduler timing.
+    const internal = { reason: "create", workspaceId: null };
+    expect(await before({ request: internal })).toEqual(internal);
+    expect(await readFile(gate, "utf8")).toBe("fail");
+
+    const foreground = { reason: "create", workspaceId: "workspace" };
+    await expect(before({ request: foreground })).rejects.toThrow(
+      "Creation startup failed for test",
+    );
+    await expect(readFile(gate, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await before({ request: foreground })).toEqual(foreground);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 for (const isolation of ["local", "worktree"] as const) {
   test(`repeated Create clicks before a render create only one ${isolation} workspace`, async ({
