@@ -88,9 +88,10 @@ describe("desktop packaging", () => {
         );
         const result = spawnSync(shell, windows ? ["/d", "/c", command] : ["-c", command], {
           encoding: "utf8",
+          windowsVerbatimArguments: windows,
           env: { ...process.env, PASEO_HOOK_CLI: hook },
         });
-        expect(result.status).toBe(status);
+        expect(result.status, result.stderr).toBe(status);
         expect(hasTerminalSmokeMarker(result.stdout.split(/\r?\n/), marker)).toBe(status === 0);
       }
     } finally {
