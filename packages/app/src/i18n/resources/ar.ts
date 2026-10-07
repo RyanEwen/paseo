@@ -1355,9 +1355,11 @@ export const ar: TranslationResources = {
       selectModel: "اختر نموذجا",
     },
     tooltips: {
+      branchChoice: "أنشئ فرعًا جديدًا أو استخدم فرعًا موجودًا",
+      baseBranch: "اختر الفرع الذي سيستند إليه الفرع الجديد",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "استخدم المجلد المحلي أو اختر شجرة عمل",
       startingRef: "اختر من أين تبدأ",
       launch: "Choose what to launch",
     },

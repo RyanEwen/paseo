@@ -1381,9 +1381,11 @@ export const ptBR: TranslationResources = {
       selectModel: "Selecione um modelo",
     },
     tooltips: {
+      branchChoice: "Crie uma nova branch ou use uma existente",
+      baseBranch: "Escolha a branch que servirá de base para a nova branch",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "Use Local ou escolha uma árvore de trabalho",
       startingRef: "Escolha de onde começar",
       launch: "Choose what to launch",
     },

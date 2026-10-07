@@ -425,6 +425,22 @@ test.describe("New workspace flow", () => {
         const isolationControl = page.getByTestId("workspace-create-isolation-trigger");
         await expect(modeControl).toHaveText("New branch");
         await expect(refControl).toContainText("from main");
+        if (viewport.width === 1440) {
+          await modeControl.hover();
+          await expect(
+            page.getByText("Create a new branch or check out an existing branch", { exact: true }),
+          ).toBeVisible();
+          await refControl.hover();
+          await expect(
+            page.getByText("Choose the branch to base the new branch on", { exact: true }),
+          ).toBeVisible();
+          await isolationControl.hover();
+          await expect(
+            page.getByText("Use Local or choose a worktree", { exact: true }),
+          ).toBeVisible();
+          await worktreeName.hover();
+        }
+
         expect(
           await worktreeName.evaluate((element) =>
             Boolean(
@@ -620,53 +636,85 @@ test.describe("New workspace flow", () => {
     }
   });
 
-  test("adds a project from the selected empty host", async ({ page }) => {
-    const repo = await createTempGitRepo("new-workspace-project-picker-");
-    const primaryServerId = getServerId();
-    const emptyServerId = "empty-new-workspace-host";
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`adds a project from the selected empty host at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const repo = await createTempGitRepo("new-workspace-project-picker-");
+      const primaryServerId = getServerId();
+      const emptyServerId = "empty-new-workspace-host";
 
-    try {
-      const openedProject = await openProjectViaDaemon(client, repo.path);
-      localWorkspaceIds.add(openedProject.workspaceId);
-      await seedSavedSettingsHosts(page, [
-        {
-          serverId: primaryServerId,
-          label: "Primary host",
-          endpoint: `127.0.0.1:${getE2EDaemonPort()}`,
-        },
-        {
-          serverId: emptyServerId,
-          label: "Empty host",
-          endpoint: "127.0.0.1:9",
-        },
-      ]);
+      try {
+        const openedProject = await openProjectViaDaemon(client, repo.path);
+        localWorkspaceIds.add(openedProject.workspaceId);
+        await seedSavedSettingsHosts(page, [
+          {
+            serverId: primaryServerId,
+            label: "Primary host",
+            endpoint: `127.0.0.1:${getE2EDaemonPort()}`,
+          },
+          {
+            serverId: emptyServerId,
+            label: "Empty host",
+            endpoint: "127.0.0.1:9",
+          },
+        ]);
 
-      await gotoAppShell(page);
-      await waitForSidebarHydration(page);
-      await openGlobalNewWorkspaceComposer(page);
+        await gotoAppShell(page);
+        if (viewport.width === 390) {
+          await page.getByRole("button", { name: "Open menu", exact: true }).click();
+        }
+        await waitForSidebarHydration(page);
+        await openGlobalNewWorkspaceComposer(page);
 
-      const projectTrigger = page.getByTestId("new-workspace-project-picker-trigger");
-      await projectTrigger.click();
-      await page.getByPlaceholder("Search projects").fill("no matching project");
-      await expect(page.getByTestId("new-workspace-project-picker-add-project")).toBeVisible();
-      await page.keyboard.press("Escape");
+        const projectTrigger = page.getByTestId("new-workspace-project-picker-trigger");
+        const hostTrigger = page.getByTestId("host-picker-trigger");
+        expect(
+          await hostTrigger.evaluate((element) =>
+            Boolean(
+              element.compareDocumentPosition(
+                document.querySelector('[data-testid="new-workspace-project-picker-trigger"]')!,
+              ) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+          ),
+        ).toBe(true);
 
-      await page.getByTestId("host-picker-trigger").click();
-      await page.getByTestId(`new-workspace-host-picker-option-${emptyServerId}`).click();
-      await expect(projectTrigger).toContainText("Choose project");
-      await projectTrigger.click();
+        await projectTrigger.click();
+        await page.getByPlaceholder("Search projects").fill("no matching project");
+        await expect(page.getByTestId("new-workspace-project-picker-add-project")).toBeVisible();
+        if (viewport.width === 390) {
+          const backdrop = page
+            .getByRole("button", { name: "Bottom sheet backdrop", exact: true })
+            .first();
+          await backdrop.click({ position: { x: 12, y: 12 } });
+          await expect(backdrop).not.toBeVisible();
+        } else {
+          await page.keyboard.press("Escape");
+        }
 
-      const addProject = page.getByTestId("new-workspace-project-picker-add-project");
-      await expect(addProject).toContainText("Add project");
-      await expect(addProject).toContainText(/(?:⌘|Ctrl\+)O/);
-      await addProject.click();
+        await page.getByTestId("host-picker-trigger").click();
+        await page.getByTestId(`new-workspace-host-picker-option-${emptyServerId}`).click();
+        await expect(projectTrigger).toContainText("Choose project");
+        await projectTrigger.click();
 
-      await expectAddProjectPage(page, "method");
-      await chooseAddProjectMethod(page, "directory-search");
-    } finally {
-      await repo.cleanup();
-    }
-  });
+        const addProject = page.getByTestId("new-workspace-project-picker-add-project");
+        await expect(addProject).toContainText("Add project");
+        if (viewport.width === 1440) {
+          await expect(addProject).toContainText(/(?:⌘|Ctrl\+)O/);
+        } else {
+          await expect(addProject).not.toContainText(/(?:⌘|Ctrl\+)O/);
+        }
+        await addProject.click();
+
+        await expectAddProjectPage(page, "method");
+        await chooseAddProjectMethod(page, "directory-search");
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
 
   test("sidebar workspace navigation updates URL and header", async ({ page }) => {
     const serverId = getServerId();

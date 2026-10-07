@@ -1383,9 +1383,11 @@ export const fr: TranslationResources = {
       selectModel: "Sélectionnez un modèle",
     },
     tooltips: {
+      branchChoice: "Créer une branche ou utiliser une branche existante",
+      baseBranch: "Choisir la branche de base de la nouvelle branche",
       project: "Choisir le projet",
       host: "Choisir l’hôte",
-      isolation: "Choisir le niveau d’isolation",
+      isolation: "Utiliser Local ou choisir un arbre de travail",
       startingRef: "Choisir le point de départ",
       launch: "Choisir quoi lancer",
     },

@@ -1363,9 +1363,11 @@ export const en = {
       selectModel: "Select a model",
     },
     tooltips: {
+      branchChoice: "Create a new branch or check out an existing branch",
+      baseBranch: "Choose the branch to base the new branch on",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "Use Local or choose a worktree",
       startingRef: "Choose where to start from",
       launch: "Choose what to launch",
     },

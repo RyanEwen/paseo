@@ -1369,9 +1369,11 @@ export const ja: TranslationResources = {
       selectModel: "モデルを選択してください",
     },
     tooltips: {
+      branchChoice: "新しいブランチを作成するか、既存のブランチをチェックアウト",
+      baseBranch: "新しいブランチの作成元となるブランチを選択",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "ローカルを使用するか、ワークツリーを選択",
       startingRef: "開始点を選択",
       launch: "Choose what to launch",
     },
