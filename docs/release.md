@@ -110,6 +110,10 @@ reuse that number. Android gets a separate increasing version code so upstream b
 cannot leave later previews with the same native version. Never recreate the workflow under another
 name and reset its sequence after publishing previews.
 
+Android preview builds use serial Gradle tasks on the hosted runner. See the
+[Android build resource constraints](android.md#f-droid--source-only-android-builds) before increasing
+parallelism or moving native compilation and Hermes onto a smaller runner.
+
 Windows installers and Linux AppImages update exclusively from this fork's `preview` channel.
 The Stable/Beta selector is omitted in preview builds. The optional CLI installs as `paseo-debug`
 so it can coexist with the official `paseo` command. Other Linux packages and Android APKs can

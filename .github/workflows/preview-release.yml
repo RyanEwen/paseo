@@ -237,7 +237,8 @@ jobs:
           cd packages/app
           npx --no-install expo prebuild --platform android --clean --non-interactive
           cd android
-          ./gradlew :app:assembleRelease --no-daemon
+          # Keep native compilation, lint, and Hermes from overlapping on the hosted runner.
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
       - name: Verify APK signature and identity
         run: |
           set -euo pipefail
