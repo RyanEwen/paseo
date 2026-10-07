@@ -17,6 +17,8 @@ This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental for
   creates a new one. Retry failed setup without losing the checkout created for it.
 - **Android plugin video:** Plugins can display encoded video in workspace panels on Android.
   A plugin that supplies the video is required.
+- **Steadier reading on desktop and web:** Text already visible below an image stays in place
+  when the image finishes loading at a shorter height.
 - **Mobile refinements:** A larger tab-switcher touch target and notification delivery kept
   separate between development and production apps.
 

@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { seedMockAgentWorkspace, type MockAgentWorkspace } from "./mock-agent";
 import { openAgentTimeline, expectTimelinePromptVisible } from "./timeline-pagination";
+import { withHeldImage } from "./held-http-image";
 
 export const scrollCadences = [
   { name: "slow", delta: 160, intervalMs: 50, steps: 1000 },
@@ -12,6 +13,7 @@ export const scrollCadences = [
 
 type Cadence = (typeof scrollCadences)[number];
 interface RowFrame {
+  isImage?: boolean;
   id: string;
   top: number;
   height: number;
@@ -155,12 +157,8 @@ export async function openOnlyTimelineTail(
   expect(pages.filter((entry) => entry.direction === "before")).toHaveLength(0);
 }
 
-export async function recordUpwardTraversal(
-  page: Page,
-  cadence: Cadence,
-  testInfo: TestInfo,
-): Promise<ScrollFrame[]> {
-  const stopTrace = await traceScrollIfRequested(page, testInfo, cadence);
+/** Record painted row geometry without coupling the recorder to a wheel cadence. */
+export async function startTimelineRecording(page: Page): Promise<void> {
   const timeline = page.getByTestId("agent-chat-scroll");
   await timeline.hover();
   await timeline.evaluate((viewport) => {
@@ -221,7 +219,12 @@ export async function recordUpwardTraversal(
       }
       const rows = elements.map((row) => {
         const box = row.getBoundingClientRect();
-        return { id: row.dataset.historyRowId!, top: box.top - rect.top, height: box.height };
+        return {
+          id: row.dataset.historyRowId!,
+          top: box.top - rect.top,
+          height: box.height,
+          isImage: !!row.querySelector('[data-paseo-markdown-tag="img"]'),
+        };
       });
       // Include rows mounted and removed in the same commit, before sampling.
       recordMutations(mutations.takeRecords());
@@ -272,11 +275,28 @@ export async function recordUpwardTraversal(
     if (typeof reset === "function") reset();
     sample();
   });
+}
+
+export async function recordUpwardTraversal(
+  page: Page,
+  cadence: Cadence,
+  testInfo: TestInfo,
+): Promise<ScrollFrame[]> {
+  const stopTrace = await traceScrollIfRequested(page, testInfo, cadence);
+  await startTimelineRecording(page);
   // No settling between inputs: exercise wheel input overlapping prepend and measurement.
   for (let step = 0; step < cadence.steps; step += 1) {
     await page.mouse.wheel(0, -cadence.delta);
     await page.waitForTimeout(cadence.intervalMs);
   }
+  return finishTimelineRecording(page, stopTrace);
+}
+
+/** Include an idle observation window, then stop observers before returning their evidence. */
+export async function finishTimelineRecording(
+  page: Page,
+  stopTrace = async () => {},
+): Promise<ScrollFrame[]> {
   await page.evaluate(() => {
     (Reflect.get(window, "__timelineScrollRecording") as Recording).finishInput();
   });
@@ -289,21 +309,72 @@ export async function recordUpwardTraversal(
   });
 }
 
+/** Compare the visible text boundary when a shrinking image moves to preserve it. */
+function visibleTextAfterShrinkingImage(
+  reader: RowFrame,
+  previous: ScrollFrame,
+  currentRows: ReadonlyMap<string, RowFrame>,
+): RowFrame {
+  if (!reader.isImage || currentRows.get(reader.id)!.height >= reader.height) return reader;
+  const following = previous.rows[previous.rows.indexOf(reader) + 1];
+  if (
+    !following ||
+    following.isImage ||
+    following.top <= 8 ||
+    following.top >= previous.viewportHeight ||
+    !currentRows.has(following.id)
+  )
+    return reader;
+  // Measure the already-visible text itself; grant no allowance for contraction.
+  return following;
+}
+
+/** Measure wheel movement at a preserved image boundary, excluding its layout compensation. */
+function preservedBoundaryMovement(
+  previous: ScrollFrame,
+  currentRows: ReadonlyMap<string, RowFrame>,
+): number | undefined {
+  const reader = previous.rows.find((row) => row.id === previous.anchor);
+  if (!reader || !currentRows.has(reader.id)) return undefined;
+  const text = visibleTextAfterShrinkingImage(reader, previous, currentRows);
+  if (text === reader) return undefined;
+  return currentRows.get(text.id)!.top - text.top;
+}
+
+/** Find unexplained reading displacement, retaining wheel input until geometry consumes it. */
 export function findScrollJumps(frames: ScrollFrame[]) {
+  // Keep delivered input until its geometry moves. Recent input alone includes
+  // wheel steps already applied, while raw scrollTop also includes layout repair.
+  let pendingWheel = 0;
   return frames.flatMap((current, index) => {
     const previous = frames[index - 1];
+    if (previous) pendingWheel += Math.max(0, current.wheelTotal - previous.wheelTotal);
     if (!previous?.anchor) return [];
     // Wheel input can move the reading line onto an image before it expands.
     // Follow that intended row, not text now below the image.
-    const recent = frames.findLast((frame) => frame.at <= previous.at - 100);
-    const wheelBudget = current.wheelTotal - (recent?.wheelTotal ?? 0);
-    const frameScroll = Math.max(0, previous.scrollTop - current.scrollTop);
-    const availableScroll = Math.min(frameScroll, wheelBudget, previous.scrollTop);
-    const readingLine = 8 - availableScroll;
+    const wheelBudget = pendingWheel;
     const currentRows = new Map(current.rows.map((row) => [row.id, row]));
-    const intendedRow = previous.rows.find((row) => row.top + row.height > readingLine);
+    const boundaryMovement = preservedBoundaryMovement(previous, currentRows);
+    const intendedRow = previous.rows.find((row) => {
+      const measured = currentRows.get(row.id);
+      if (!measured) return false;
+      const inputRow = visibleTextAfterShrinkingImage(row, previous, currentRows);
+      const movement = boundaryMovement ?? currentRows.get(inputRow.id)!.top - inputRow.top;
+      return (
+        movement >= -8 &&
+        movement <= wheelBudget + 32 &&
+        row.top + row.height + Math.max(0, movement) > 8
+      );
+    });
+    const inputRow =
+      intendedRow && visibleTextAfterShrinkingImage(intendedRow, previous, currentRows);
+    const availableScroll = inputRow
+      ? Math.max(0, boundaryMovement ?? currentRows.get(inputRow.id)!.top - inputRow.top)
+      : 0;
+    pendingWheel = Math.max(0, pendingWheel - availableScroll);
+    if (current.scrollTop === 0) pendingWheel = 0;
     const anchor = previous.anchor;
-    const before = currentRows.has(anchor)
+    let before = currentRows.has(anchor)
       ? previous.rows.find((row) => row.id === anchor)!
       : previous.rows
           .filter((row) => currentRows.has(row.id))
@@ -311,19 +382,15 @@ export function findScrollJumps(frames: ScrollFrame[]) {
     if (!before) {
       throw new Error(`No shared reading geometry between frames ${index - 1} and ${index}`);
     }
+    before = visibleTextAfterShrinkingImage(before, previous, currentRows);
     const after = currentRows.get(before.id)!;
     const movement = after.top - before.top;
     // A busy main thread can deliver wheel movement hundreds of milliseconds
     // after its event. Only assert idle stability after the driver stops input.
     const idle = current.inputFinishedAt !== null && previous.at - current.inputFinishedAt > 250;
-    // Wheel events can precede their scroll update, or include input already
-    // applied in earlier frames. Locate the reader with this frame's scroll,
-    // bounded by recent input. Growth below it can move the old anchor without
-    // moving the reading line.
-    const readerFollowsInput =
-      intendedRow &&
-      currentRows.has(intendedRow.id) &&
-      Math.abs(currentRows.get(intendedRow.id)!.top - intendedRow.top - availableScroll) <= 32;
+    // Validate the entered reader in viewport coordinates, independently of
+    // virtualizer changes to the content origin. Shrinkage remains blocking.
+    const readerFollowsInput = !!intendedRow;
     const enteredRowGrowth = readerFollowsInput
       ? previous.rows.reduce((growth, row) => {
           if (row.top < intendedRow.top || row.top >= before.top) return growth;
@@ -461,28 +528,13 @@ async function traceScrollIfRequested(
 
 /** Hold real image bytes until the reader has reached its placeholder. */
 export async function expectImageSpaceReserved(page: Page, testInfo: TestInfo): Promise<void> {
-  let released = false;
-  const pending = new Set<() => void>();
-  const server = createServer((_request, response) => {
-    const send = () => {
-      response.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" });
-      response.end(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" fill="#369"/></svg>',
-      );
-    };
-    if (released) send();
-    else pending.add(send);
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  try {
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("Image server did not listen");
+  await withHeldImage(240, 160, async (url, release) => {
     const agent = await seedMockAgentWorkspace({
       repoPrefix: "reserved-timeline-image-",
       title: "Reserved image geometry",
       featureValues: {
         mockAssistantResponses: [
-          `Before the image.\n\n![Reserved image](http://127.0.0.1:${address.port}/image.svg)\n\nText below the image.`,
+          `Before the image.\n\n![Reserved image](${url})\n\nText below the image.`,
         ],
       },
     });
@@ -495,8 +547,7 @@ export async function expectImageSpaceReserved(page: Page, testInfo: TestInfo): 
       await expect(image).toBeVisible();
       const before = await image.boundingBox();
       await attachTimelineScreenshot(page, testInfo, "image-placeholder");
-      released = true;
-      for (const send of pending) send();
+      release();
       await expect
         .poll(() =>
           image.evaluate((element) => {
@@ -520,13 +571,11 @@ export async function expectImageSpaceReserved(page: Page, testInfo: TestInfo): 
     } finally {
       await agent.cleanup();
     }
-  } finally {
-    server.closeAllConnections();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  }
+  });
 }
 
-async function attachTimelineScreenshot(
+/** Attach a view of the actual timeline at a geometry checkpoint. */
+export async function attachTimelineScreenshot(
   page: Page,
   testInfo: TestInfo,
   name: string,
