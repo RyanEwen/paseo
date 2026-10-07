@@ -156,7 +156,7 @@ Supported values are `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`. The F-Droi
 
 Keep the excluded npm packages installed. Normal builds use them, while the F-Droid profile removes only their Android native modules and config plugins. Paseo always applies `expo-gradle-jvmargs` with `-Xmx4096m` and `-XX:MaxMetaspaceSize=1024m` so local Expo prebuilds have enough Gradle heap whether they use precompiled AARs or source-built Expo modules.
 
-The EAS `production-apk` profile uses the large Android resource class. Release builds compile the native ABIs and run Hermes bundling in the same Gradle invocation; the default worker can exhaust its remaining memory and kill Hermes with exit code 137 even when Gradle's own heap is correctly sized.
+The EAS `production-apk` profile uses the large Android resource class. Release builds compile the native ABIs and run Hermes bundling in the same Gradle invocation; the default worker can exhaust its remaining memory and kill Hermes with exit code 137 even when Gradle's own heap is correctly sized. Serial Gradle tasks still retain Java's heap during Hermes compilation. Fork previews export the generated release task configuration and run Metro, optimized Hermes, and source-map composition after Gradle exits, before native assembly and signing. Keep those phases separate; changing Hermes to development optimization changes the shipped app.
 
 ### F-Droid store metadata
 

@@ -18,6 +18,7 @@ import { validateDesktopManifests } from "./validate-desktop-manifests.mjs";
 import { assemblePreviewAssets, validatePreviewAssets } from "./preview-release/assets.mjs";
 import { preparePreviewBuild } from "./preview-release/prepare.mjs";
 import { resolvePreviewRelease } from "./preview-release/metadata.mjs";
+import { validateAndroidBundlePlan } from "./preview-release/android-bundle.mjs";
 import { dump, load } from "js-yaml";
 import { createRequire } from "node:module";
 
@@ -27,6 +28,27 @@ const { LinuxTargetHelper } = require("app-builder-lib/out/targets/LinuxTargetHe
 
 const releaseDate = "2026-09-04T00:00:00.000Z";
 const scriptPath = fileURLToPath(new URL("./validate-desktop-manifests.mjs", import.meta.url));
+
+test("Android preview bundles retain release optimization and matching source maps", () => {
+  const releasePlan = {
+    dev: false,
+    hermesEnabled: true,
+    hermesFlags: ["-O", "-output-source-map"],
+  };
+  validateAndroidBundlePlan(releasePlan);
+  for (const change of [
+    { dev: true },
+    { hermesEnabled: false },
+    { hermesFlags: ["-Og", "-output-source-map"] },
+    { hermesFlags: ["-O"] },
+    { hermesFlags: ["-O", "-Og", "-output-source-map"] },
+  ]) {
+    assert.throws(
+      () => validateAndroidBundlePlan({ ...releasePlan, ...change }),
+      /Android previews/,
+    );
+  }
+});
 
 function withManifest(contents, run) {
   const dir = mkdtempSync(path.join(tmpdir(), "paseo-validate-desktop-manifest-"));

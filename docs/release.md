@@ -110,7 +110,8 @@ reuse that number. Android gets a separate increasing version code so upstream b
 cannot leave later previews with the same native version. Never recreate the workflow under another
 name and reset its sequence after publishing previews.
 
-Android preview builds use serial Gradle tasks on the hosted runner. See the
+Android preview builds isolate optimized Hermes compilation from Gradle's heap and use serial native
+tasks on the hosted runner. See the
 [Android build resource constraints](android.md#f-droid--source-only-android-builds) before increasing
 parallelism or moving native compilation and Hermes onto a smaller runner.
 
@@ -123,8 +124,11 @@ exclude preview tags. The preview workflow does not publish npm packages.
 ### Signing configuration
 
 Windows uses electron-builder's Azure Trusted Signing integration, with PrintStream's existing
-account, certificate profile, and publisher. Azure configuration is held in GitHub variables;
-the service principal credential is a GitHub secret. The workflow fails when signing is missing,
+account, certificate profile, and publisher. Paseo has a dedicated service principal with only
+the Artifact Signing Certificate Profile Signer role on that certificate profile. Keep the
+account name and PrintStream's credentials unchanged so its releases continue using the same resource.
+Azure configuration is held in GitHub variables; Paseo's credential is a GitHub secret.
+The workflow fails when signing is missing,
 then verifies both the executable architecture and signatures before accepting a Windows build.
 See [electron-builder's Azure setup](https://www.electron.build/v26/docs/features/code-signing/code-signing-win/).
 
@@ -132,12 +136,17 @@ Configure these in the fork's Actions settings:
 
 | Kind      | Names                                                                                                                                  | Purpose                                                    |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Variables | `PREVIEW_AZURE_TENANT_ID`, `PREVIEW_AZURE_CLIENT_ID`                                                                                   | Existing signing service principal                         |
+| Variables | `PREVIEW_AZURE_TENANT_ID`, `PREVIEW_AZURE_CLIENT_ID`                                                                                   | Dedicated Paseo signing service principal                  |
 | Variables | `PREVIEW_AZURE_SIGNING_ENDPOINT`, `PREVIEW_AZURE_SIGNING_ACCOUNT`, `PREVIEW_AZURE_CERTIFICATE_PROFILE`, `PREVIEW_AZURE_PUBLISHER_NAME` | Signing account and exact certificate common name          |
 | Secret    | `PREVIEW_AZURE_CLIENT_SECRET`                                                                                                          | Signing service principal credential                       |
+| Variable  | `PREVIEW_AZURE_CLIENT_SECRET_EXPIRY`                                                                                                   | Credential rotation date (ISO date, informational)         |
 | Variables | `PREVIEW_EXPO_PROJECT_ID`, `PREVIEW_EXPO_OWNER`, `PREVIEW_EXPO_SLUG`                                                                   | Fork's existing Debug Expo notification project            |
 | Secrets   | `PREVIEW_ANDROID_KEYSTORE_BASE64`, `PREVIEW_ANDROID_KEYSTORE_PASSWORD`, `PREVIEW_ANDROID_KEY_ALIAS`, `PREVIEW_ANDROID_KEY_PASSWORD`    | Dedicated Android preview signing key                      |
 | Secret    | `PREVIEW_GOOGLE_SERVICES_DEBUG_JSON`                                                                                                   | Existing Debug Firebase configuration for `sh.paseo.debug` |
+
+Rotate Paseo's client secret before the recorded expiry, then update the Actions secret and expiry
+variable together. The initial dedicated credential expires on April 4, 2027. Rotating it does not
+require changing PrintStream's application or credential.
 
 Keep the Android key and its passwords backed up outside the checkout before removing a worktree
 or development environment. Replacing the key prevents future APKs from updating installed previews.

@@ -772,6 +772,7 @@ async function smokeCliTerminal({ appPath, env }) {
   const marker = `paseo-packaged-terminal-smoke-${Date.now()}`;
   const name = `packaged-smoke-${process.pid}-${Date.now()}`;
   let terminalId = null;
+  let lastCapture = [];
 
   try {
     console.log("Packaged desktop smoke: creating terminal through bundled CLI shim");
@@ -811,6 +812,7 @@ async function smokeCliTerminal({ appPath, env }) {
         label: "Bundled CLI shim terminal capture",
       });
       const lines = Array.isArray(capture?.lines) ? capture.lines : [];
+      lastCapture = lines;
       if (lines.join("\n").includes(marker)) {
         console.log("Packaged desktop smoke: terminal hook command completed");
         return;
@@ -821,7 +823,9 @@ async function smokeCliTerminal({ appPath, env }) {
       }
     }
 
-    throw new Error(`Timed out waiting for terminal capture marker ${marker}`);
+    throw new Error(
+      `Timed out waiting for terminal capture marker ${marker}. Last terminal output:\n${lastCapture.join("\n")}`,
+    );
   } finally {
     if (terminalId) {
       await runCliShimJsonCommand({

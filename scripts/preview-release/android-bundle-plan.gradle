@@ -1,0 +1,58 @@
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+
+// Read the generated React Native task instead of duplicating Expo's native configuration.
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.findProject(':app')
+    if (app == null) {
+        return
+    }
+    def digestFile = new File(app.layout.buildDirectory.get().asFile, 'preview-bundle-sha256.txt')
+
+    if (app.findProperty('paseoPreparedAndroidBundle') == 'true') {
+        // Keep the producer task so Android's generated-source providers remain resolved.
+        app.tasks.named('createBundleReleaseJsAndAssets').configure { task ->
+            task.inputs.file(digestFile).withPropertyName('preparedReleaseBundleDigest')
+            task.actions.clear()
+            task.doLast {
+                def bundle = new File(task.jsBundleDir.get().asFile, task.bundleAssetName.get())
+                def bytes = bundle.bytes
+                def magic = bytes.take(8).collect { String.format('%02x', it & 0xff) }.join()
+                def digest = MessageDigest.getInstance('SHA-256').digest(bytes).encodeHex().toString()
+                if (magic != 'c61fbc03c103191f' || digest != digestFile.text.trim()) {
+                    throw new GradleException('Prepared release Hermes bytecode does not match its digest')
+                }
+                logger.lifecycle('Using validated optimized release Hermes bytecode')
+            }
+        }
+    }
+    app.tasks.register('writePreviewBundlePlan') {
+        doLast {
+            def bundle = app.tasks.named('createBundleReleaseJsAndAssets').get()
+            def plan = [
+                root: bundle.root.get().asFile.absolutePath,
+                node: bundle.nodeExecutableAndArgs.get(),
+                cli: bundle.cliFile.get().asFile.absolutePath,
+                command: bundle.bundleCommand.get(),
+                entry: bundle.entryFile.get().asFile.absolutePath,
+                assetName: bundle.bundleAssetName.get(),
+                assets: bundle.jsBundleDir.get().asFile.absolutePath,
+                resources: bundle.resourcesDir.get().asFile.absolutePath,
+                intermediateMaps: bundle.jsIntermediateSourceMapsDir.get().asFile.absolutePath,
+                maps: bundle.jsSourceMapsDir.get().asFile.absolutePath,
+                config: bundle.bundleConfig.isPresent() ? bundle.bundleConfig.get().asFile.absolutePath : null,
+                extraArgs: bundle.extraPackagerArgs.get(),
+                dev: bundle.devEnabled.get(),
+                minify: bundle.minifyEnabled.get(),
+                hermesEnabled: bundle.hermesEnabled.get(),
+                hermesCommand: bundle.hermesCommand.get(),
+                hermesFlags: bundle.hermesFlags.get(),
+                reactNative: bundle.reactNativeDir.get().asFile.absolutePath,
+                digestFile: digestFile.absolutePath,
+            ]
+            def output = new File(app.layout.buildDirectory.get().asFile, 'preview-bundle-plan.json')
+            output.parentFile.mkdirs()
+            output.text = JsonOutput.toJson(plan)
+        }
+    }
+}
