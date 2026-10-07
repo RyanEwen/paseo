@@ -360,10 +360,13 @@ export function findScrollJumps(frames: ScrollFrame[]) {
       if (!measured) return false;
       const inputRow = visibleTextAfterShrinkingImage(row, previous, currentRows);
       const movement = boundaryMovement ?? currentRows.get(inputRow.id)!.top - inputRow.top;
+      // Require entry under both geometries. An obsolete image height can
+      // otherwise spend above-reader shrink compensation as pending wheel input.
+      const entryHeight = Math.min(row.height, measured.height);
       return (
         movement >= -8 &&
         movement <= wheelBudget + 32 &&
-        row.top + row.height + Math.max(0, movement) > 8
+        row.top + entryHeight + Math.max(0, movement) > 8
       );
     });
     const inputRow =
