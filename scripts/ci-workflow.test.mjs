@@ -22,6 +22,10 @@ test("preview releases build one checked commit and require every approved platf
   assert.match(source, /head_sha=\$GITHUB_SHA/);
   assert.match(source, /ref: \$\{\{ needs\.source\.outputs\.commit \}\}/);
   assert.match(source, /needs: \[source, desktop, android\]/);
+  assert.match(
+    source,
+    /gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg\.gradle\.parallel=false/,
+  );
   for (const runner of ["windows-2025", "windows-11-arm", "ubuntu-24.04", "ubuntu-24.04-arm"]) {
     assert.ok(source.includes(`runner: ${runner}`), `missing ${runner}`);
   }
