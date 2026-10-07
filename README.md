@@ -22,11 +22,16 @@ This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental for
 - **Mobile refinements:** A larger tab-switcher touch target and notification delivery kept
   separate between development and production apps.
 
-Fork downloads, when published, are available from
-[this fork's releases](https://github.com/RyanEwen/paseo/releases). Shared builds are planned for
-Windows and Linux (x64 and ARM64), plus Android. macOS is deferred until Apple signing is available;
-iOS and hosted web are excluded. Desktop previews will receive updates from this fork. The download
-links and package installation commands below are for upstream Paseo.
+Download previews from [this fork's releases](https://github.com/RyanEwen/paseo/releases).
+Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage
+previews receive updates from this fork. macOS is deferred until Apple signing is available;
+iOS and hosted web are excluded. The download links and package installation commands below are
+for upstream Paseo.
+
+If you already installed a development-signed Paseo Debug on Android, save your host connection
+details and uninstall that build before installing the first public preview. Uninstalling clears
+its saved settings. Later signed previews update the public preview without uninstalling it. See the
+[preview installation guidance](docs/release.md#fork-preview-distribution).
 
 <!-- fork-overview:end -->
 
