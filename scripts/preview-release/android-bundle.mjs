@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { isMainModule } from "../is-main-module.mjs";
 
 /** Reject a bundle plan that would replace optimized release bytecode with a development build. */
@@ -69,6 +70,11 @@ export function buildAndroidBundle(plan) {
   const hermes = plan.hermesCommand
     ? plan.hermesCommand.replace("%OS-BIN%", "linux64-bin")
     : path.join(plan.reactNative, "sdks/hermesc/linux64-bin/hermesc");
+  // Retain the exact compiler input for replay; the final staged bundle becomes bytecode.
+  copyFileSync(bundle, path.join(plan.preparedDir, "compiler-input.js"));
+  console.log(
+    `Hermes input: ${JSON.stringify({ source: process.env.GITHUB_SHA, bytes: readFileSync(bundle).length, sha256: createHash("sha256").update(readFileSync(bundle)).digest("hex"), plan })}`,
+  );
   runPhase(
     "Hermes",
     hermes,
@@ -109,6 +115,14 @@ export function buildAndroidBundle(plan) {
 /** Record peak resident memory for every compiler phase so runner failures have useful evidence. */
 function runPhase(name, command, args, cwd) {
   console.log(`Android preview bundle: ${name}`);
+  if (name === "Hermes" && process.env.GITHUB_ACTIONS === "true") {
+    execFileSync(
+      "bash",
+      [fileURLToPath(new URL("./android-hermes.sh", import.meta.url)), command, ...args],
+      { cwd, stdio: "inherit" },
+    );
+    return;
+  }
   execFileSync("/usr/bin/time", ["-v", command, ...args], { cwd, stdio: "inherit" });
 }
 

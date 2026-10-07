@@ -18,7 +18,9 @@ import { resolveDesktopDistribution, resolveDesktopUpdateChannel } from "../dist
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const require = createRequire(import.meta.url);
-const { createIsolatedHomeEnv } = require(join(packageRoot, "e2e", "packaged-app-smoke.js"));
+const { createIsolatedHomeEnv, getTerminalHookSmokeCommand, hasTerminalSmokeMarker } = require(
+  join(packageRoot, "e2e", "packaged-app-smoke.js"),
+);
 
 function writeExecutable(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, "utf8");
@@ -69,6 +71,33 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
 }
 
 describe("desktop packaging", () => {
+  it("requires a successful bundled hook rather than its echoed terminal command", () => {
+    const marker = "paseo-packaged-terminal-smoke-test";
+    expect(hasTerminalSmokeMarker([`cwd>echo ${marker}`], marker)).toBe(false);
+    expect(hasTerminalSmokeMarker([`  ${marker}  `], marker)).toBe(true);
+    const root = mkdtempSync(join(tmpdir(), "paseo-hook-smoke-"));
+    try {
+      const windows = process.platform === "win32";
+      const hook = join(root, windows ? "hook with spaces.cmd" : "hook with spaces.sh");
+      const shell = windows ? (process.env.ComSpec ?? "cmd.exe") : "/bin/sh";
+      const command = getTerminalHookSmokeCommand(marker);
+      for (const status of [0, 17]) {
+        writeExecutable(
+          hook,
+          windows ? `@echo off\r\nexit /b ${status}\r\n` : `#!/bin/sh\nexit ${status}\n`,
+        );
+        const result = spawnSync(shell, windows ? ["/d", "/c", command] : ["-c", command], {
+          encoding: "utf8",
+          env: { ...process.env, PASEO_HOOK_CLI: hook },
+        });
+        expect(result.status).toBe(status);
+        expect(hasTerminalSmokeMarker(result.stdout.split(/\r?\n/), marker)).toBe(status === 0);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("creates an isolated Windows profile with existing Electron appData folders", () => {
     const home = mkdtempSync(join(tmpdir(), "paseo-smoke-profile-"));
     try {
