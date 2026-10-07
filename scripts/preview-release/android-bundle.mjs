@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { isMainModule } from "../is-main-module.mjs";
@@ -20,13 +20,19 @@ export function validateAndroidBundlePlan(plan) {
 /** Execute the generated release task's bundle phases after its configuring Gradle process exits. */
 export function buildAndroidBundle(plan) {
   validateAndroidBundlePlan(plan);
-  for (const directory of [plan.assets, plan.resources, plan.intermediateMaps, plan.maps]) {
+  const assets = path.join(plan.preparedDir, "assets");
+  const resources = path.join(plan.preparedDir, "res");
+  const intermediateMaps = path.join(plan.preparedDir, "maps");
+  const maps = path.join(plan.preparedDir, "final-maps");
+  // A repeated release attempt must not retain assets removed from the current bundle.
+  rmSync(plan.preparedDir, { recursive: true, force: true });
+  for (const directory of [assets, resources, intermediateMaps, maps]) {
     mkdirSync(directory, { recursive: true });
   }
-  const bundle = path.join(plan.assets, plan.assetName);
-  const packagerMap = path.join(plan.intermediateMaps, `${plan.assetName}.packager.map`);
-  const compilerMap = path.join(plan.intermediateMaps, `${plan.assetName}.compiler.map`);
-  const finalMap = path.join(plan.maps, `${plan.assetName}.map`);
+  const bundle = path.join(assets, plan.assetName);
+  const packagerMap = path.join(intermediateMaps, `${plan.assetName}.packager.map`);
+  const compilerMap = path.join(intermediateMaps, `${plan.assetName}.compiler.map`);
+  const finalMap = path.join(maps, `${plan.assetName}.map`);
   const bytecode = `${bundle}.hbc`;
   const [node, ...nodeArgs] = plan.node;
 
@@ -48,7 +54,7 @@ export function buildAndroidBundle(plan) {
       "--bundle-output",
       bundle,
       "--assets-dest",
-      plan.resources,
+      resources,
       "--sourcemap-output",
       packagerMap,
       ...(plan.config ? ["--config", plan.config] : []),
