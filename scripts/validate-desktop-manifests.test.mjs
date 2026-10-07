@@ -109,7 +109,14 @@ async function withPreviewBuilds(run) {
       mkdirSync(folder, { recursive: true });
       const files = [];
       for (const extension of extensions) {
-        const url = `Paseo-Debug-${release.version}-${arch}.${extension}`;
+        // Use the filenames emitted by real electron-builder jobs, rather than generic arch labels.
+        const linuxArchitectures = {
+          x64: { AppImage: "x86_64", deb: "amd64", rpm: "x86_64" },
+          arm64: { rpm: "aarch64" },
+        };
+        const artifactArch = os === "linux" ? (linuxArchitectures[arch][extension] ?? arch) : arch;
+        const version = extension === "AppImage" ? "" : `${release.version}-`;
+        const url = `Paseo-Debug-${version}${artifactArch}.${extension}`;
         const bytes = Buffer.from(`${os}-${arch}-${extension}`);
         writeFileSync(path.join(folder, url), bytes);
         files.push({ url, sha512: createHash("sha512").update(bytes).digest("base64") });
@@ -147,6 +154,14 @@ test("assembles both Windows architectures and distinct Linux update channels wi
     assert.equal(windows.rolloutHours, 0);
     const names = readdirSync(fixture.output);
     assert.ok(names.includes("preview-linux-arm64.yml"));
+    for (const name of [
+      "Paseo-Debug-x86_64.AppImage",
+      "Paseo-Debug-0.11.0-preview.12-amd64.deb",
+      "Paseo-Debug-0.11.0-preview.12-x86_64.rpm",
+      "Paseo-Debug-0.11.0-preview.12-aarch64.rpm",
+    ]) {
+      assert.ok(names.includes(name), `Missing native Linux package: ${name}`);
+    }
     assert.equal(
       readFileSync(path.join(fixture.output, "SHA256SUMS"), "utf8").trim().split("\n").length,
       names.length - 1,
@@ -166,7 +181,7 @@ test("assembles both Windows architectures and distinct Linux update channels wi
 test("refuses a missing architecture, a mixed source commit, and a corrupt updater binary", async () => {
   await withPreviewBuilds(async (fixture) => {
     const folder = path.join(fixture.input, "preview-linux-arm64");
-    const appImage = path.join(folder, "Paseo-Debug-0.11.0-preview.12-arm64.AppImage");
+    const appImage = path.join(folder, "Paseo-Debug-arm64.AppImage");
     rmSync(appImage);
     await assert.rejects(assemblePreviewAssets(fixture), /expected one arm64 AppImage/);
     rmSync(fixture.output, { recursive: true, force: true });
