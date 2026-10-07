@@ -31,7 +31,8 @@ cleanup() {
   if ! $swap_created; then exit "$result"; fi
   # Cancellation may arrive immediately after swapon, before the launch flag changes.
   local swap_rows
-  if swap_rows="$(sudo swapon --show --bytes --noheadings --output NAME,USED)"; then
+  # Bare --show restores the default columns even alongside --output on util-linux.
+  if swap_rows="$(sudo swapon --show=NAME,USED --bytes --noheadings)"; then
     swap_active=false
     if awk -v file="$swap_file" '$1 == file {found=1} END {exit !found}' <<< "$swap_rows"; then swap_active=true; fi
   else

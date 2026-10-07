@@ -18,9 +18,12 @@ import { resolveDesktopDistribution, resolveDesktopUpdateChannel } from "../dist
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const require = createRequire(import.meta.url);
-const { createIsolatedHomeEnv, getTerminalHookSmokeCommand, hasTerminalSmokeMarker } = require(
-  join(packageRoot, "e2e", "packaged-app-smoke.js"),
-);
+const {
+  createIsolatedHomeEnv,
+  prepareTerminalHookSmokeCommand,
+  getCliShimScript,
+  hasTerminalSmokeMarker,
+} = require(join(packageRoot, "e2e", "packaged-app-smoke.js"));
 
 function writeExecutable(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, "utf8");
@@ -80,7 +83,7 @@ describe("desktop packaging", () => {
       const windows = process.platform === "win32";
       const hook = join(root, windows ? "hook with spaces.cmd" : "hook with spaces.sh");
       const shell = windows ? (process.env.ComSpec ?? "cmd.exe") : "/bin/sh";
-      const command = getTerminalHookSmokeCommand(marker);
+      const command = prepareTerminalHookSmokeCommand(root, marker);
       for (const status of [0, 17]) {
         writeExecutable(
           hook,
@@ -89,6 +92,7 @@ describe("desktop packaging", () => {
         const result = spawnSync(shell, windows ? ["/d", "/c", command] : ["-c", command], {
           encoding: "utf8",
           windowsVerbatimArguments: windows,
+          cwd: root,
           env: { ...process.env, PASEO_HOOK_CLI: hook },
         });
         expect(result.status, result.stderr).toBe(status);
@@ -98,6 +102,41 @@ describe("desktop packaging", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it.skipIf(process.platform !== "win32")(
+    "preserves terminal input and JSON mode through Electron Windows argv parsing",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "paseo-electron-cli-"));
+      try {
+        const electron = require("electron") as string;
+        const entry = join(root, "argv.cjs");
+        const shim = join(root, "cli shim.cmd");
+        writeFileSync(
+          entry,
+          'process.stdout.write(JSON.stringify(process.argv.slice(2)) + "\\n");',
+        );
+        writeFileSync(
+          shim,
+          `@echo off\r\nsetlocal\r\nset "ELECTRON_RUN_AS_NODE=1"\r\n"${electron}" "${entry}" %*\r\nexit /b %errorlevel%\r\n`,
+        );
+        const command = prepareTerminalHookSmokeCommand(root, "paseo-terminal-fixture");
+        const args = ["terminal", "send-keys", "terminal-test", command, "Enter", "--json"];
+        const result = spawnSync(
+          process.env.ComSpec ?? "cmd.exe",
+          ["/d", "/c", getCliShimScript(shim, args)],
+          {
+            encoding: "utf8",
+            windowsVerbatimArguments: true,
+            cwd: root,
+          },
+        );
+        expect(result.status, result.stderr).toBe(0);
+        expect(JSON.parse(result.stdout)).toEqual(args);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("creates an isolated Windows profile with existing Electron appData folders", () => {
     const home = mkdtempSync(join(tmpdir(), "paseo-smoke-profile-"));
