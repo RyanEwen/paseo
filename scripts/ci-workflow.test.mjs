@@ -26,6 +26,9 @@ test("preview releases build one checked commit and require every approved platf
     source,
     /gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg\.gradle\.parallel=false/,
   );
+  assert.match(source, /writePreviewBundlePlan[\s\S]*android-bundle\.mjs[\s\S]*assembleRelease/);
+  assert.match(source, /-PpaseoPreparedAndroidBundle=true/);
+  assert.match(source, /unzip -p "\$apk" assets\/index\.android\.bundle \| sha256sum/);
   for (const runner of ["windows-2025", "windows-11-arm", "ubuntu-24.04", "ubuntu-24.04-arm"]) {
     assert.ok(source.includes(`runner: ${runner}`), `missing ${runner}`);
   }

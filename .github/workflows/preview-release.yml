@@ -237,13 +237,19 @@ jobs:
           cd packages/app
           npx --no-install expo prebuild --platform android --clean --non-interactive
           cd android
-          # Keep native compilation, lint, and Hermes from overlapping on the hosted runner.
-          ./gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
+          free -h
+          # Export the real task configuration, then release Java's heap before Metro and Hermes.
+          ./gradlew :app:writePreviewBundlePlan -I ../../../scripts/preview-release/android-bundle-plan.gradle --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
+          node ../../../scripts/preview-release/android-bundle.mjs app/build/preview-bundle-plan.json
+          # Only bundling is performed externally; native compilation and APK signing stay in Gradle.
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg.gradle.parallel=false -I ../../../scripts/preview-release/android-bundle-plan.gradle -PpaseoPreparedAndroidBundle=true
       - name: Verify APK signature and identity
         run: |
           set -euo pipefail
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           apk=packages/app/android/app/build/outputs/apk/release/app-release.apk
+          expected_bundle="$(cat packages/app/android/app/build/preview-bundle-sha256.txt)"
+          unzip -p "$apk" assets/index.android.bundle | sha256sum | grep -Fq "$expected_bundle"
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apk-signature.txt"
           keytool -exportcert -keystore "$PASEO_ANDROID_KEYSTORE" -storepass:env PASEO_ANDROID_KEYSTORE_PASSWORD -alias "$PASEO_ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/preview-signing.der"
           expected_signer="$(sha256sum "$RUNNER_TEMP/preview-signing.der" | cut -d ' ' -f1)"
