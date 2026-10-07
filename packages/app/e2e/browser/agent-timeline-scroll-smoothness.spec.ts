@@ -160,6 +160,55 @@ test("scroll detector retains wheel input during image boundary compensation", (
   }
 });
 
+test("scroll detector retains delayed wheel input when an image shrinks above the text reader", () => {
+  for (const [imageTop, textTop, textHeight] of [
+    [-621, -61, 130],
+    [-748, -58, 81],
+  ]) {
+    // Captured medium-scroll failures: the text stays fixed while the image
+    // contracts above it. Its obsolete height must not turn compensation into input.
+    const before = createScrollFrame({
+      anchor: "text",
+      rows: [
+        { id: "image", isImage: true, top: imageTop, height: 560 },
+        ...(textTop === -58 ? [{ id: "code", top: -188, height: 130 }] : []),
+        { id: "text", top: textTop, height: textHeight },
+      ],
+    });
+    const compensated = createScrollFrame({
+      ...before,
+      at: 1040,
+      wheelTotal: 480,
+      lastWheelAt: 1030,
+      rows: before.rows.map((row) =>
+        row.isImage ? { ...row, top: row.top + 335, height: 225 } : row,
+      ),
+    });
+    const moved = createScrollFrame({
+      ...compensated,
+      at: 1050,
+      rows: moveRecordedRows(compensated.rows, 480),
+    });
+    expect(findScrollJumps([before, compensated, moved])).toEqual([]);
+    for (const movement of [580, -100]) {
+      expect(
+        findScrollJumps([
+          before,
+          compensated,
+          { ...moved, rows: moveRecordedRows(compensated.rows, movement) },
+        ]),
+      ).toHaveLength(1);
+    }
+    expect(
+      findScrollJumps([
+        { ...before, inputFinishedAt: 0 },
+        { ...compensated, inputFinishedAt: 0 },
+        { ...moved, inputFinishedAt: 0, rows: moveRecordedRows(compensated.rows, 17) },
+      ]),
+    ).toHaveLength(1);
+  }
+});
+
 test("scroll detector keeps image shrink past the reading line blocking", () => {
   const before = createScrollFrame({
     scrollTop: 3418,
