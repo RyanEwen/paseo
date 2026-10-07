@@ -409,6 +409,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
           ? readingAnchor.project(container.scrollTop, {
               id: String(measurement.key),
               top: measurement.start,
+              height: measurement.size,
             })
           : container?.scrollTop;
       let visibleRange = range;
@@ -445,6 +446,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
   const rowVirtualizer = useVirtualizer({
     count: segments.historyVirtualized.length,
     enabled: shouldUseVirtualizer,
+    // Activation writes the initial offset before layout reconciliation. Start at
+    // the existing reader so the ordinary-to-virtualized handoff preserves it.
+    initialOffset: () => scrollContainerRef.current?.scrollTop ?? 0,
     initialRect: {
       width: scrollContainerRef.current?.clientWidth ?? 0,
       height: scrollContainerRef.current?.clientHeight ?? 0,
@@ -739,12 +743,22 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
         const bounds = element.getBoundingClientRect();
         const id = element.dataset.historyRowId!;
         measuredRowHeights.current.set(id, { width, height: bounds.height });
-        return { id, top: bounds.top - viewportTop + scrollTop, height: bounds.height };
+        return {
+          id,
+          top: bounds.top - viewportTop + scrollTop,
+          height: bounds.height,
+          preserveFollowingOnShrink: !!element.querySelector('[data-paseo-markdown-tag="img"]'),
+        };
       },
     );
     const shouldAnchor = !followOutputRef.current && !isJumpSettling();
     if (!shouldAnchor) readingAnchor.reset();
-    const correctedTop = readingAnchor.reconcile(container.scrollTop, rows);
+    const correctedTop = readingAnchor.reconcile(
+      container.scrollTop,
+      rows,
+      false,
+      container.clientHeight,
+    );
     if (!shouldAnchor) {
       readingAnchor.reset();
       return;
@@ -807,7 +821,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
 
     lastKnownScrollTopRef.current = currentScrollTop;
     if (!followOutputRef.current && !isJumpSettling() && (scrolledUp || scrolledDown)) {
-      readingAnchor.scroll(currentScrollTop);
+      readingAnchor.scroll(currentScrollTop, scrollContainer.clientHeight);
     }
     updateScrollMetrics();
     evaluateHistoryStart();
