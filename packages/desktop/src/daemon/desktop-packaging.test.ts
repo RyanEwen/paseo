@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -11,10 +12,13 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { resolveDesktopDistribution, resolveDesktopUpdateChannel } from "../distribution.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const require = createRequire(import.meta.url);
+const { createIsolatedHomeEnv } = require(join(packageRoot, "e2e", "packaged-app-smoke.js"));
 
 function writeExecutable(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, "utf8");
@@ -65,6 +69,21 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
 }
 
 describe("desktop packaging", () => {
+  it("creates an isolated Windows profile with existing Electron appData folders", () => {
+    const home = mkdtempSync(join(tmpdir(), "paseo-smoke-profile-"));
+    try {
+      const env = createIsolatedHomeEnv(home, "win32");
+      expect(env.HOME).toBe(home);
+      expect(env.USERPROFILE).toBe(home);
+      expect(env.APPDATA).toBe(join(home, "AppData", "Roaming"));
+      expect(env.LOCALAPPDATA).toBe(join(home, "AppData", "Local"));
+      expect(existsSync(env.APPDATA)).toBe(true);
+      expect(existsSync(env.LOCALAPPDATA)).toBe(true);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it("keeps fork settings and the local daemon isolated while pinning preview updates", () => {
     expect(resolveDesktopDistribution({ paseoPreview: true })).toEqual({
       isPreview: true,

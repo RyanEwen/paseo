@@ -181,9 +181,22 @@ function createDefaultDaemonEnv(extraEnv) {
   };
 }
 
+/** Create the profile folders Windows requires before Electron resolves its appData path. */
+function createIsolatedHomeEnv(home, platform = process.platform) {
+  const env = { HOME: home, USERPROFILE: home };
+  if (platform === "win32") {
+    env.APPDATA = path.join(home, "AppData", "Roaming");
+    env.LOCALAPPDATA = path.join(home, "AppData", "Local");
+    // Shell folder lookup verifies these paths before the app applies its explicit userData override.
+    fs.mkdirSync(env.APPDATA, { recursive: true });
+    fs.mkdirSync(env.LOCALAPPDATA, { recursive: true });
+  }
+  return env;
+}
+
 function createIsolatedDesktopEnv({ home, listen, userData, cdpPort }) {
   return {
-    ...createDefaultDaemonEnv({ HOME: home, USERPROFILE: home }),
+    ...createDefaultDaemonEnv(createIsolatedHomeEnv(home)),
     PASEO_HOME: home,
     PASEO_LISTEN: listen,
     PASEO_ELECTRON_USER_DATA_DIR: userData,
@@ -694,7 +707,7 @@ async function smokeColdCliDaemonStart({ appPath }) {
   const pidPath = path.join(home, "paseo.pid");
   const port = await reserveLocalTcpPort();
   const listen = `127.0.0.1:${port}`;
-  const env = createDefaultDaemonEnv({ HOME: home, USERPROFILE: home });
+  const env = createDefaultDaemonEnv(createIsolatedHomeEnv(home));
   configureIsolatedDaemonHome(home, listen);
 
   try {
@@ -1041,6 +1054,7 @@ async function smokePackagedDesktopApp({
 }
 
 module.exports = {
+  createIsolatedHomeEnv,
   smokePackagedDesktopApp,
 };
 
