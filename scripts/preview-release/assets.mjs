@@ -8,8 +8,17 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { dump, load } from "js-yaml";
 import { isMainModule } from "../is-main-module.mjs";
+
+const require = createRequire(import.meta.url);
+const { archFromString, getArtifactArchName } = require("builder-util");
+
+/** Match the packager's native architecture names, including amd64 and x86_64 Linux assets. */
+function assetSuffix(arch, extension) {
+  return `-${getArtifactArchName(archFromString(arch), extension)}.${extension}`;
+}
 
 const desktopTargets = [
   {
@@ -107,7 +116,7 @@ export async function assemblePreviewAssets({
     readBuildRelease(folder, release);
     const names = readdirSync(folder);
     for (const extension of target.extensions) {
-      const candidates = names.filter((name) => name.endsWith(`-${target.arch}.${extension}`));
+      const candidates = names.filter((name) => name.endsWith(assetSuffix(target.arch, extension)));
       if (candidates.length !== 1) {
         throw new Error(`${target.folder}: expected one ${target.arch} ${extension} asset`);
       }
@@ -116,7 +125,9 @@ export async function assemblePreviewAssets({
     await validateManifest(manifest, folder, release);
     // Each OS/architecture manifest must include the actual installer it will select.
     const updateExtension = target.folder.includes("windows") ? "exe" : "AppImage";
-    if (!manifest.files.some((file) => file.url.endsWith(`-${target.arch}.${updateExtension}`))) {
+    if (
+      !manifest.files.some((file) => file.url.endsWith(assetSuffix(target.arch, updateExtension)))
+    ) {
       throw new Error(`${target.folder}: missing updater installer for ${target.arch}`);
     }
     manifests.push({ ...manifest, releaseDate, rolloutHours: 0 });
@@ -160,7 +171,7 @@ export async function validatePreviewAssets({ directory, release }) {
   const names = readdirSync(directory).sort();
   for (const target of desktopTargets) {
     for (const extension of target.extensions) {
-      if (names.filter((name) => name.endsWith(`-${target.arch}.${extension}`)).length !== 1) {
+      if (names.filter((name) => name.endsWith(assetSuffix(target.arch, extension))).length !== 1) {
         throw new Error(`Incomplete release: missing or duplicated ${target.arch} ${extension}`);
       }
     }
