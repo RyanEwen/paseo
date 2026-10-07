@@ -31,6 +31,34 @@ const releaseDate = "2026-09-04T00:00:00.000Z";
 const scriptPath = fileURLToPath(new URL("./validate-desktop-manifests.mjs", import.meta.url));
 
 test(
+  "Hermes cleanup reads explicit swap name and used-byte columns",
+  { skip: process.platform !== "linux" },
+  () => {
+    const driver = readFileSync(
+      new URL("./preview-release/android-hermes.sh", import.meta.url),
+      "utf8",
+    );
+    const selection = driver.match(/sudo swapon ([^)]*)/);
+    assert.ok(selection, "Cleanup must query actual swap activation");
+    // Read the real util-linux table without changing any swap or memory settings.
+    // Keep its header so an empty swap table still proves the selected column shape.
+    const args = selection[1]
+      .trim()
+      .split(/\s+/)
+      .filter((arg) => arg !== "--noheadings");
+    const result = spawnSync("/usr/sbin/swapon", args, { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const [header, ...rows] = result.stdout.trim().split(/\n/);
+    assert.deepEqual(header.trim().split(/\s+/), ["NAME", "USED"]);
+    for (const row of rows) {
+      const columns = row.trim().split(/\s+/);
+      assert.equal(columns.length, 2);
+      assert.match(columns[1], /^\d+$/);
+    }
+  },
+);
+
+test(
   "Hermes receipt distinguishes completion from failure and signal termination",
   { skip: process.platform !== "linux" },
   () => {

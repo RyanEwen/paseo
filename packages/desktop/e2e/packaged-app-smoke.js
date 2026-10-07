@@ -149,6 +149,21 @@ function getTerminalHookSmokeCommand(marker, platform = process.platform) {
   return `"$PASEO_HOOK_CLI" hooks codex Stop && echo ${marker}`;
 }
 
+/** Keep Windows hook syntax inside the terminal, outside cmd and Electron argument parsing. */
+function prepareTerminalHookSmokeCommand(cwd, marker, platform = process.platform) {
+  const command = getTerminalHookSmokeCommand(marker, platform);
+  if (platform !== "win32") {
+    return command;
+  }
+
+  const scriptName = "paseo-terminal-smoke.cmd";
+  fs.writeFileSync(
+    path.join(cwd, scriptName),
+    `@echo off\r\n${command}\r\nexit /b %errorlevel%\r\n`,
+  );
+  return `call .\\${scriptName}`;
+}
+
 /** Require completed output, since the terminal also echoes the submitted command itself. */
 function hasTerminalSmokeMarker(lines, marker) {
   return lines.some((line) => line.trim() === marker);
@@ -800,7 +815,13 @@ async function smokeCliTerminal({ appPath, env }) {
     await runCliShimJsonCommand({
       appPath,
       env,
-      args: ["terminal", "send-keys", terminalId, getTerminalHookSmokeCommand(marker), "Enter"],
+      args: [
+        "terminal",
+        "send-keys",
+        terminalId,
+        prepareTerminalHookSmokeCommand(cwd, marker),
+        "Enter",
+      ],
       label: "Bundled CLI shim terminal hook command",
     });
 
@@ -1060,6 +1081,8 @@ async function smokePackagedDesktopApp({
 module.exports = {
   createIsolatedHomeEnv,
   getTerminalHookSmokeCommand,
+  prepareTerminalHookSmokeCommand,
+  getCliShimScript,
   hasTerminalSmokeMarker,
   smokePackagedDesktopApp,
 };
