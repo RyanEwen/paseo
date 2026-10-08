@@ -1719,7 +1719,7 @@ export const ja: TranslationResources = {
       },
       remoteSsh: {
         title: "リモート SSH",
-        description: "デスクトップの SSH クライアント経由で接続します。",
+        description: "SSH 経由で接続します。",
       },
       scanQr: {
         title: "QRコードをスキャン",

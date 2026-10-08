@@ -1733,7 +1733,7 @@ export const ptBR: TranslationResources = {
       },
       remoteSsh: {
         title: "SSH remoto",
-        description: "Conecte-se pelo cliente SSH do desktop.",
+        description: "Conecte-se via SSH.",
       },
       scanQr: {
         title: "Escanear QR code",

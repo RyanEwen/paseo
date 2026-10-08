@@ -1727,7 +1727,7 @@ export const en = {
       },
       remoteSsh: {
         title: "Remote SSH",
-        description: "Connect through the desktop SSH client.",
+        description: "Connect over SSH.",
       },
       scanQr: {
         title: "Scan QR code",

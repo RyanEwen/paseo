@@ -1731,7 +1731,7 @@ export const ru: TranslationResources = {
       },
       remoteSsh: {
         title: "Удалённый SSH",
-        description: "Подключение через SSH-клиент настольного приложения.",
+        description: "Подключение по SSH.",
       },
       scanQr: {
         title: "Сканировать QR-код",

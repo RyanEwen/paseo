@@ -1748,7 +1748,7 @@ export const es: TranslationResources = {
       },
       remoteSsh: {
         title: "SSH remoto",
-        description: "Conéctate mediante el cliente SSH de escritorio.",
+        description: "Conéctate mediante SSH.",
       },
       scanQr: {
         title: "Escanea el códigoQR",
