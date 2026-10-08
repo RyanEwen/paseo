@@ -13,10 +13,11 @@
 // node_modules populated (the Nix build invokes this post-configHook).
 
 import { nodeFileTrace } from "@vercel/nft";
-import { glob, readFile, readdir } from "node:fs/promises";
+import { glob, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { traceNativePtyFiles } from "./native-pty.mjs";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -65,12 +66,7 @@ function resolvedPackageFiles(importer, specifier) {
 // prebuild/build layout are owned by the package, not this trace. Its Darwin
 // spawn-helper lives beside the selected addon; retain the files in that dir.
 const terminalRequire = requireFrom(terminalModule);
-const ptyLoader = terminalRequire.resolve("node-pty/lib/utils");
-const { dir: ptyNativeDir } = terminalRequire(ptyLoader).loadNativeModule("pty");
-const ptyNativeRoot = path.resolve(path.dirname(ptyLoader), ptyNativeDir);
-const ptyNativeFiles = (await readdir(ptyNativeRoot, { withFileTypes: true }))
-  .filter((entry) => entry.isFile())
-  .map((entry) => path.join(ptyNativeRoot, entry.name));
+const ptyNativeFiles = await traceNativePtyFiles(terminalRequire);
 
 // Daemon entry points. Workers forked into their own Node processes have
 // independent require trees; nft does not follow fork boundaries, so trace
