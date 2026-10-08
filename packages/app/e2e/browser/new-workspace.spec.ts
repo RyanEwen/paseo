@@ -607,7 +607,11 @@ test.describe("New workspace flow", () => {
           await expect(
             page.getByText(adoptedAgents[0].agent.title!, { exact: true }).last(),
           ).toBeVisible();
-          await page.getByRole("button", { name: "Bottom sheet backdrop" }).first().click();
+          const backdrop = page
+            .getByRole("button", { name: "Bottom sheet backdrop", exact: true })
+            .first();
+          await backdrop.click({ position: { x: 5, y: 5 } });
+          await expect(backdrop).toHaveCount(0);
         } else {
           const adoptedDeck = page
             .getByTestId(`workspace-deck-entry-${getServerId()}:${adoptedWorkspaceId}`)

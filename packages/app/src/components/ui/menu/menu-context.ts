@@ -113,11 +113,15 @@ export function useMenuState({
 
   const [isOpen, setIsOpenState] = useControllableOpenState({ open, defaultOpen, onOpenChange });
   useDismissKeyboardOnOpen(isOpen);
+  const openRef = useRef(isOpen);
+  openRef.current = isOpen;
 
   // A menu always reopens on its root page, against a freshly measured anchor. Keeping either
   // would reopen the surface three levels deep, or at the coordinates of the last right click.
   const setOpen = useCallback(
     (next: boolean) => {
+      // Hover callbacks can arrive before React commits the closing render.
+      openRef.current = next;
       if (!next) {
         setPath(MENU_ROOT_PATH);
         setAnchorRect(null);
@@ -152,6 +156,7 @@ export function useMenuState({
   );
 
   const openSub = useCallback((sub: { id: string; depth: number }) => {
+    if (!openRef.current) return;
     setPath((current) => openSubPage(current, sub));
   }, []);
 
