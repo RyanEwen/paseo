@@ -16,7 +16,9 @@ export function AgentNavigationListener() {
     if (!serverId || !agentId) {
       return;
     }
-    navigateToAgent({ serverId, agentId });
+    // Notification Center can refer to a chat archived since the banner appeared.
+    // Keep that explicit target open while its workspace directory hydrates.
+    navigateToAgent({ serverId, agentId, pin: true });
   });
 
   useEffect(() => {

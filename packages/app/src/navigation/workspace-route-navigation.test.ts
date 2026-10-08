@@ -85,6 +85,7 @@ describe("navigateToHostWorkspaceRoute", () => {
           params: {
             serverId: "server-1",
             workspaceId: "workspace-a",
+            open: undefined,
           },
           pop: true,
         },

@@ -130,7 +130,9 @@ function dispatchHostWorkspacePopTo(
         params: {
           serverId: selection.serverId,
           workspaceId: encodeWorkspaceIdForPathSegment(selection.workspaceId),
-          ...(open ? { open } : {}),
+          // Nested navigation merges params on a retained screen. Explicitly
+          // clear an earlier notification intent when selecting another workspace.
+          open: open ?? undefined,
         },
         // React Navigation consumes this nested hint when resolving the host child screen.
         // The browser-route canonicalizer strips the resulting ?pop=true URL artifact.
