@@ -325,7 +325,7 @@ async function withPreviewBuilds(run) {
       writeFileSync(path.join(folder, "preview-release.json"), JSON.stringify(release));
       writeFileSync(path.join(folder, manifestName), dump({ version: release.version, files }));
     }
-    for (const target of ["linux-x64", "linux-arm64", "win32-x64", "win32-arm64"]) {
+    for (const target of ["linux-x64", "linux-arm64"]) {
       const folder = path.join(input, `preview-daemon-${target}`);
       mkdirSync(folder, { recursive: true });
       writeFileSync(path.join(folder, "preview-release.json"), JSON.stringify(release));
@@ -363,6 +363,10 @@ test("assembles both Windows architectures and distinct Linux update channels wi
     assert.equal(windows.releaseDate, releaseDate);
     assert.equal(windows.rolloutHours, 0);
     const names = readdirSync(fixture.output);
+    assert.deepEqual(names.filter((name) => name.startsWith("paseo-daemon-")).sort(), [
+      "paseo-daemon-0.11.0-preview.12-linux-arm64.tgz",
+      "paseo-daemon-0.11.0-preview.12-linux-x64.tgz",
+    ]);
     assert.ok(names.includes("preview-linux-arm64.yml"));
     for (const name of [
       "Paseo-Debug-x86_64.AppImage",
@@ -534,7 +538,7 @@ test("a missing or mixed-source daemon build prevents preview assembly", async (
   });
   await withPreviewBuilds(async (fixture) => {
     writeFileSync(
-      path.join(fixture.input, "preview-daemon-win32-x64", "preview-release.json"),
+      path.join(fixture.input, "preview-daemon-linux-x64", "preview-release.json"),
       JSON.stringify({ ...fixture.release, commit: "b".repeat(40) }),
     );
     await assert.rejects(assemblePreviewAssets(fixture), /mismatched release commit/);

@@ -100,7 +100,7 @@ branches, review them, then merge them into `ryan/preview`. Rename `ryan/dev` on
 work is integrated; do not rewrite its history. CI covers both fork branches.
 
 The **Fork Preview Release** workflow is manually dispatched on `ryan/preview`. It builds Windows
-and Linux for x64 and ARM64, plus standalone daemon/CLI packages and an Android APK. macOS is
+and Linux for x64 and ARM64, plus standalone Linux daemon/CLI packages and an Android APK. macOS is
 deferred until Apple signing is available. iOS and hosted web are excluded. These builds display
 as Paseo++ and retain the existing Paseo Debug package identities, desktop profile, and local
 daemon. Keep the desktop profile folder and daemon home separate from the display name when
@@ -126,11 +126,11 @@ exclude preview tags. The preview workflow does not publish npm packages to a re
 
 ### Standalone fork daemon
 
-The preview release includes `paseo-daemon-<version>-<platform>-<arch>.tgz` for Linux and Windows
-(x64 and ARM64). Install the matching download with Node.js 22 or newer:
+The preview release includes `paseo-daemon-<version>-linux-<arch>.tgz` for Linux x64 and ARM64.
+Windows uses the daemon bundled with the desktop app. Install the matching download with Node.js 22 or newer:
 
 ```bash
-npm install -g ./paseo-daemon-<version>-<platform>-<arch>.tgz
+npm install -g ./paseo-daemon-<version>-linux-<arch>.tgz
 paseo-fork daemon run
 ```
 
@@ -148,12 +148,12 @@ in draft. The existing supervisor restarts its worker after a successful update;
 keeps running until the service is restarted. Systemd service replacement is an operator action.
 
 After publishing two daemon previews, dispatch the same preview workflow with
-`verify_daemon_updates_only=true` and `publish=false`. It reuses the four native daemon jobs to
+`verify_daemon_updates_only=true` and `publish=false`. It reuses the two native Linux daemon jobs to
 install the older published package, start it in a temporary home on an ephemeral loopback port,
 run a terminal command, update through the real host RPC, and reconnect at the newer version.
 It checks retained workspace state and another terminal command before stopping its own daemon.
 This mode builds no app installers and publishes no release. Its log artifacts are the update
-acceptance evidence, including Windows replacement while native modules are loaded.
+acceptance evidence for both Linux architectures.
 
 ### Signing configuration
 
