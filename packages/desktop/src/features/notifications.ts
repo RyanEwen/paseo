@@ -5,9 +5,9 @@ import { app, BrowserWindow, Notification, ipcMain, nativeImage } from "electron
 import { getDesktopSettingsStore } from "../settings/desktop-settings-electron.js";
 import {
   buildWindowsAgentToast,
-  openWindowsAgentNotification,
+  buildWindowsAgentNotificationArguments,
+  createWindowsAgentNotificationOpener,
   shouldRetainWindowsNotification,
-  pruneRemovedWindowsNotifications,
 } from "./windows-agent-notification.js";
 
 interface NotificationInput {
@@ -21,11 +21,9 @@ interface NotificationClickPayload {
 }
 
 const activeNotifications = new Set<Notification>();
-const timedOutWindowsNotifications = new Set<Notification>();
 
 function releaseNotification(notification: Notification): void {
   activeNotifications.delete(notification);
-  timedOutWindowsNotifications.delete(notification);
 }
 
 function toTrimmedString(value: unknown): string | null {
@@ -92,11 +90,12 @@ export function ensureNotificationCenterRegistration(): void {
 }
 
 export function registerNotificationHandlers(openAgentLink: (url: string) => void): void {
+  const openWindowsNotification = createWindowsAgentNotificationOpener(openAgentLink);
   if (process.platform === "win32") {
     // This also receives clicks after the original Notification was collected
     // or the app restarted. The existing agent-link owner queues cold-start hops.
     Notification.handleActivation((details) => {
-      openWindowsAgentNotification(details, openAgentLink);
+      openWindowsNotification(details);
     });
   }
 
@@ -143,8 +142,13 @@ export function registerNotificationHandlers(openAgentLink: (url: string) => voi
     activeNotifications.add(notification);
 
     notification.on("click", () => {
-      // Windows chat toasts are handled once by the durable activation callback.
+      // Electron 44 can report a foreground body tap only on the instance.
+      // Route it through the same opener used by durable COM activations.
       if (toastXml) {
+        const launch = buildWindowsAgentNotificationArguments({ notificationId, data });
+        if (launch) {
+          openWindowsNotification({ type: "click", arguments: launch });
+        }
         releaseNotification(notification);
         return;
       }
@@ -158,7 +162,8 @@ export function registerNotificationHandlers(openAgentLink: (url: string) => voi
 
     notification.on("close", (closeEvent) => {
       if (process.platform === "win32" && shouldRetainWindowsNotification(closeEvent.reason)) {
-        timedOutWindowsNotifications.add(notification);
+        // getHistory() is macOS-only and returns an empty list on Windows.
+        // Keep this reference so foreground Center taps retain their listener.
         return;
       }
       releaseNotification(notification);
@@ -169,19 +174,6 @@ export function registerNotificationHandlers(openAgentLink: (url: string) => voi
     });
 
     notification.show();
-    if (process.platform === "win32") {
-      void pruneRemovedWindowsNotifications({
-        notifications: timedOutWindowsNotifications,
-        getDeliveredIds: async () => {
-          const delivered = await Notification.getHistory();
-          return new Set(delivered.map((entry) => entry.id));
-        },
-        release: releaseNotification,
-        onHistoryError: (error) => {
-          console.warn("[notifications] Failed to inspect Windows notification history", error);
-        },
-      });
-    }
     return true;
   });
 }

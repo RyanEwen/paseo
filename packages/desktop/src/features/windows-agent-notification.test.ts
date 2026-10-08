@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWindowsAgentToast,
+  buildWindowsAgentNotificationArguments,
   openWindowsAgentNotification,
   shouldRetainWindowsNotification,
-  pruneRemovedWindowsNotifications,
+  createWindowsAgentNotificationOpener,
 } from "./windows-agent-notification.js";
 
 describe("Windows chat notification activation", () => {
@@ -54,54 +55,47 @@ describe("Windows chat notification activation", () => {
     expect(shouldRetainWindowsNotification(undefined)).toBe(false);
   });
 
-  it("releases removed Center entries while retaining those Windows still delivers", async () => {
-    const clicked = { id: "clicked" };
-    const pending = { id: "pending" };
-    const notifications = new Set([clicked, pending]);
-    const errors: unknown[] = [];
-    await pruneRemovedWindowsNotifications({
-      notifications,
-      getDeliveredIds: async () => new Set(["pending"]),
-      release: (notification) => notifications.delete(notification),
-      onHistoryError: (error) => errors.push(error),
-    });
-    expect([...notifications]).toEqual([pending]);
-    expect(errors).toEqual([]);
+  it("opens a foreground instance click and a durable activation only once, in either order", () => {
+    for (const callbackOrder of [
+      ["instance", "activation"],
+      ["activation", "instance"],
+    ]) {
+      const links: string[] = [];
+      const open = createWindowsAgentNotificationOpener((url) => links.push(url));
+      const activation = {
+        type: "click",
+        arguments: "type=click&tag=notice-1&paseoAgent=paseo%3A%2F%2Fh%2Fhost%2Fagent%2Fchat",
+      };
+      const argumentsFromInstance = buildWindowsAgentNotificationArguments({
+        notificationId: "notice-1",
+        data: { serverId: "host", agentId: "chat" },
+      });
+      expect(argumentsFromInstance).toBe(activation.arguments);
+      if (argumentsFromInstance === null) {
+        throw new Error("Valid instance target did not produce activation arguments");
+      }
+      const instanceClick = { type: "click", arguments: argumentsFromInstance };
+      for (const callback of callbackOrder) {
+        open(callback === "instance" ? instanceClick : activation);
+      }
+      expect(links).toEqual(["paseo://h/host/agent/chat"]);
+    }
   });
 
-  it("retains Center entries when history cannot be read", async () => {
-    const pending = { id: "pending" };
-    const notifications = new Set([pending]);
-    const historyError = new Error("Windows history unavailable");
-    const errors: unknown[] = [];
-    await pruneRemovedWindowsNotifications({
-      notifications,
-      getDeliveredIds: async () => {
-        throw historyError;
-      },
-      release: (notification) => notifications.delete(notification),
-      onHistoryError: (error) => errors.push(error),
-    });
-    expect([...notifications]).toEqual([pending]);
-    expect(errors).toEqual([historyError]);
-  });
-
-  it("does not collect a banner that expires after the history request starts", async () => {
-    const earlier = { id: "earlier" };
-    const later = { id: "later" };
-    const notifications = new Set([earlier]);
-    const errors: unknown[] = [];
-    await pruneRemovedWindowsNotifications({
-      notifications,
-      getDeliveredIds: async () => {
-        notifications.add(later);
-        return new Set<string>();
-      },
-      release: (notification) => notifications.delete(notification),
-      onHistoryError: (error) => errors.push(error),
-    });
-    expect([...notifications]).toEqual([later]);
-    expect(errors).toEqual([]);
+  it("opens instance-only and restart activations, including distinct notices for the same chat", () => {
+    const links: string[] = [];
+    const open = createWindowsAgentNotificationOpener((url) => links.push(url));
+    for (const tag of ["foreground", "notification-center", "after-restart"]) {
+      open({
+        type: "click",
+        arguments: `type=click&tag=${tag}&paseoAgent=paseo%3A%2F%2Fh%2Fhost%2Fagent%2Fchat`,
+      });
+    }
+    expect(links).toEqual([
+      "paseo://h/host/agent/chat",
+      "paseo://h/host/agent/chat",
+      "paseo://h/host/agent/chat",
+    ]);
   });
 
   it("strips invalid XML controls while preserving Unicode and line breaks", () => {
