@@ -107,6 +107,14 @@ if (isMainModule(import.meta.url) && process.argv[2] === "--smoke") {
   execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "build:daemon-web-ui"], {
     stdio: "inherit",
     shell: process.platform === "win32",
+    // Expo derives native metadata even for a browser export. Use the same preview identity
+    // as the app jobs after syncing the workspace manifests to the preview version.
+    env: {
+      ...process.env,
+      APP_VARIANT: "development",
+      PASEO_PREVIEW_BUILD: "1",
+      PASEO_PREVIEW_BUILD_NUMBER: String(release.buildNumber),
+    },
   });
   buildDaemonPackage({ root, output: path.resolve("preview-daemon"), release });
 }
