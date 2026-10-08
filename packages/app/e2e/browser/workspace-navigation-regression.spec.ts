@@ -7,6 +7,7 @@ import { expect, test, type Page } from "../support/fixtures";
 import { gotoAppShell, openSettings } from "../support/helpers/app";
 import {
   createMockIdleAgent,
+  expectArchivedAgentFocused,
   expectWorkspaceTabHidden,
   expectWorkspaceTabVisible,
   openWorkspaceWithAgents,
@@ -95,6 +96,30 @@ async function closeFirstVisibleDraftTab(page: Page): Promise<void> {
 
 test.describe("Workspace navigation regression", () => {
   test.describe.configure({ timeout: 240_000 });
+
+  test("agent links open archived notification targets without unarchiving them", async ({
+    page,
+  }) => {
+    const serverId = getServerId();
+    const workspace = await seedWorkspace({ repoPrefix: "notification-archived-target-" });
+    try {
+      const agent = await createMockIdleAgent(workspace.client, {
+        cwd: workspace.repoPath,
+        workspaceId: workspace.workspaceId,
+        title: "Archived notification target",
+      });
+      const archived = await workspace.client.archiveAgent(agent.id);
+      await gotoAppShell(page);
+      await waitForSidebarHydration(page);
+      await page.goto(buildHostAgentDetailRoute(serverId, agent.id));
+      await expectAppRoute(page, buildHostWorkspaceRoute(serverId, workspace.workspaceId));
+      await expectArchivedAgentFocused(page, agent.id);
+      const record = await workspace.client.fetchAgent({ agentId: agent.id });
+      expect(record?.agent.archivedAt).toBe(archived.archivedAt);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
 
   test("opens a notification's workspace on a different offline host", async ({ page }) => {
     const target = {
@@ -419,35 +444,51 @@ test.describe("Workspace navigation regression", () => {
       await expect(secondDeckEntry).toBeVisible({ timeout: 30_000 });
       await expectWorkspaceDeckEntryCount(page, 2);
 
-      await page.evaluate(
-        ({ agentId, serverId: targetServerId, workspaceId }) => {
+      // A notification must leave the current workspace and reveal only its
+      // target chat, including older notifications that carry no workspace id.
+      for (const data of [
+        { serverId, agentId: firstAgent.id, workspaceId: firstWorkspace.workspaceId },
+        { serverId, agentId: firstAgent.id },
+      ]) {
+        await page.evaluate((notificationData) => {
           globalThis.dispatchEvent(
             new CustomEvent("paseo:web-notification-click", {
-              detail: {
-                data: {
-                  serverId: targetServerId,
-                  workspaceId,
-                  agentId,
-                  reason: "finished",
-                },
-              },
+              detail: { data: { ...notificationData, reason: "finished" } },
               cancelable: true,
             }),
           );
-        },
-        { agentId: secondAgent.id, serverId, workspaceId: secondWorkspace.workspaceId },
-      );
-      await waitForWorkspaceTabsVisible(page);
-      await expect(page).toHaveURL(buildHostWorkspaceRoute(serverId, secondWorkspace.workspaceId), {
-        timeout: 30_000,
-      });
-      await expect(secondDeckEntry).toBeVisible({ timeout: 30_000 });
-      await expectWorkspaceTabVisible(page, secondAgent.id);
-      await expectWorkspaceTabHidden(page, firstAgent.id);
-      await expectOnlyWorkspaceAgentTabsVisible(page, [secondAgent.id]);
-      await expect(firstDeckEntry).toBeAttached();
-      await expect(firstDeckEntry).toBeHidden();
-      await expectWorkspaceDeckEntryCount(page, 2);
+        }, data);
+        await waitForWorkspaceTabsVisible(page);
+        await expect(page).toHaveURL(
+          buildHostWorkspaceRoute(serverId, firstWorkspace.workspaceId),
+          {
+            timeout: 30_000,
+          },
+        );
+        await expectWorkspaceHeader(page, {
+          title: firstWorkspace.workspaceName,
+          subtitle: firstWorkspace.projectDisplayName,
+        });
+        await expectOnlyWorkspaceAgentTabsVisible(page, [firstAgent.id]);
+        await expect(firstDeckEntry).toBeVisible();
+        await expect(secondDeckEntry).toBeHidden();
+
+        await switchWorkspaceViaSidebar({
+          page,
+          serverId,
+          workspaceId: secondWorkspace.workspaceId,
+        });
+        await waitForWorkspaceTabsVisible(page);
+        await expectOnlyWorkspaceAgentTabsVisible(page, [secondAgent.id]);
+        await expectWorkspaceTabHidden(page, firstAgent.id);
+        await expectWorkspaceHeader(page, {
+          title: secondWorkspace.workspaceName,
+          subtitle: secondWorkspace.projectDisplayName,
+        });
+        await expect(secondDeckEntry).toBeVisible();
+        await expect(firstDeckEntry).toBeHidden();
+        await expectWorkspaceDeckEntryCount(page, 2);
+      }
 
       await switchWorkspaceViaSidebar({
         page,
@@ -455,14 +496,6 @@ test.describe("Workspace navigation regression", () => {
         workspaceId: firstWorkspace.workspaceId,
       });
       await waitForWorkspaceTabsVisible(page);
-      await expect(page).toHaveURL(buildHostWorkspaceRoute(serverId, firstWorkspace.workspaceId), {
-        timeout: 30_000,
-      });
-      await expect(firstDeckEntry).toBeVisible({ timeout: 30_000 });
-      await expect(secondDeckEntry).toBeAttached();
-      await expect(secondDeckEntry).toBeHidden();
-      await expectWorkspaceDeckEntryCount(page, 2);
-
       await page.reload();
       await waitForSidebarHydration(page);
       await waitForWorkspaceTabsVisible(page);

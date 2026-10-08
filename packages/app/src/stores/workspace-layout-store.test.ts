@@ -3580,6 +3580,52 @@ describe("workspace-layout-store actions", () => {
     expect(findPaneById(layout.root, "main")?.focusedTabId).toBe("agent_agent-1");
   });
 
+  it("reconcileTabs removes a foreign notification pin without changing its owning workspace", () => {
+    const store = workspaceLayoutStore.getState();
+    const ownerKey = "srv:owner-workspace";
+    const wrongKey = "srv:wrong-workspace";
+    for (const workspaceKey of [ownerKey, wrongKey]) {
+      store.openTab({
+        workspaceKey,
+        target: { kind: "agent", agentId: "notification-agent" },
+        intent: "reveal",
+        pin: true,
+      });
+    }
+    const ownerLayout = workspaceLayoutStore.getState().layoutByWorkspace[ownerKey];
+    const snapshot = {
+      agentsHydrated: false,
+      terminalsHydrated: true,
+      activeAgentIds: [],
+      autoOpenAgentIds: [],
+      foreignAgentIds: ["notification-agent"],
+      standaloneTerminalIds: [],
+    };
+
+    store.reconcileTabs(wrongKey, snapshot);
+    expect(
+      store
+        .getWorkspaceTabs(wrongKey)
+        .filter((tab) => tab.target.kind === "agent")
+        .map((tab) => tab.target),
+    ).toEqual([{ kind: "agent", agentId: "notification-agent" }]);
+
+    store.reconcileTabs(wrongKey, { ...snapshot, agentsHydrated: true });
+    expect(store.getWorkspaceTabs(wrongKey).filter((tab) => tab.target.kind === "agent")).toEqual(
+      [],
+    );
+    expect(workspaceLayoutStore.getState().pinnedAgentIdsByWorkspace).toEqual({
+      [ownerKey]: new Set(["notification-agent"]),
+    });
+    expect(workspaceLayoutStore.getState().layoutByWorkspace[ownerKey]).toBe(ownerLayout);
+    expect(
+      store
+        .getWorkspaceTabs(ownerKey)
+        .filter((tab) => tab.target.kind === "agent")
+        .map((tab) => tab.target),
+    ).toEqual([{ kind: "agent", agentId: "notification-agent" }]);
+  });
+
   it("reconcileTabs initializes the New launcher once when the hydrated workspace is empty", () => {
     const workspaceKey = createWorkspaceKey();
     const store = workspaceLayoutStore.getState();

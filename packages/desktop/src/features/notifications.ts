@@ -1,7 +1,14 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { app, BrowserWindow, Notification, ipcMain, nativeImage } from "electron";
 import { getDesktopSettingsStore } from "../settings/desktop-settings-electron.js";
+import {
+  buildWindowsAgentToast,
+  openWindowsAgentNotification,
+  shouldRetainWindowsNotification,
+  pruneRemovedWindowsNotifications,
+} from "./windows-agent-notification.js";
 
 interface NotificationInput {
   title?: unknown;
@@ -14,6 +21,12 @@ interface NotificationClickPayload {
 }
 
 const activeNotifications = new Set<Notification>();
+const timedOutWindowsNotifications = new Set<Notification>();
+
+function releaseNotification(notification: Notification): void {
+  activeNotifications.delete(notification);
+  timedOutWindowsNotifications.delete(notification);
+}
 
 function toTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -29,7 +42,7 @@ function toRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function getNotificationIcon(): Electron.NativeImage | null {
+function getNotificationIcon(): { image: Electron.NativeImage; path: string } | null {
   const candidates = [
     path.resolve(__dirname, "../assets/icon.png"),
     path.resolve(__dirname, "../assets/64x64.png"),
@@ -42,7 +55,7 @@ function getNotificationIcon(): Electron.NativeImage | null {
     }
     const icon = nativeImage.createFromPath(iconPath);
     if (!icon.isEmpty()) {
-      return icon;
+      return { image: icon, path: iconPath };
     }
   }
 
@@ -78,7 +91,15 @@ export function ensureNotificationCenterRegistration(): void {
   probe.show();
 }
 
-export function registerNotificationHandlers(): void {
+export function registerNotificationHandlers(openAgentLink: (url: string) => void): void {
+  if (process.platform === "win32") {
+    // This also receives clicks after the original Notification was collected
+    // or the app restarted. The existing agent-link owner queues cold-start hops.
+    Notification.handleActivation((details) => {
+      openWindowsAgentNotification(details, openAgentLink);
+    });
+  }
+
   ipcMain.handle("paseo:notification:isSupported", () => {
     return Notification.isSupported();
   });
@@ -95,31 +116,72 @@ export function registerNotificationHandlers(): void {
 
     const body = toTrimmedString(rawInput?.body) ?? undefined;
     const data = toRecord(rawInput?.data);
+    const notificationId = randomUUID();
     const icon = getNotificationIcon();
     const settings = await getDesktopSettingsStore().get();
+    const silent = !settings.notifications.playSound;
+    const toastXml =
+      process.platform === "win32"
+        ? buildWindowsAgentToast({
+            notificationId,
+            title,
+            body,
+            data,
+            iconPath: icon?.path ?? null,
+            silent,
+          })
+        : null;
     const notification = new Notification({
+      id: notificationId,
       title,
       ...(body ? { body } : {}),
-      ...(icon ? { icon } : {}),
-      silent: !settings.notifications.playSound,
+      ...(icon ? { icon: icon.image } : {}),
+      ...(toastXml ? { toastXml } : {}),
+      silent,
     });
 
     activeNotifications.add(notification);
 
     notification.on("click", () => {
+      // Windows chat toasts are handled once by the durable activation callback.
+      if (toastXml) {
+        releaseNotification(notification);
+        return;
+      }
       const win = focusSenderWindow(event.sender);
       if (win && data && Object.keys(data).length > 0) {
         const payload: NotificationClickPayload = { data };
         win.webContents.send("paseo:event:notification-click", payload);
       }
-      activeNotifications.delete(notification);
+      releaseNotification(notification);
     });
 
-    notification.on("close", () => {
-      activeNotifications.delete(notification);
+    notification.on("close", (closeEvent) => {
+      if (process.platform === "win32" && shouldRetainWindowsNotification(closeEvent.reason)) {
+        timedOutWindowsNotifications.add(notification);
+        return;
+      }
+      releaseNotification(notification);
+    });
+
+    notification.on("failed", () => {
+      releaseNotification(notification);
     });
 
     notification.show();
+    if (process.platform === "win32") {
+      void pruneRemovedWindowsNotifications({
+        notifications: timedOutWindowsNotifications,
+        getDeliveredIds: async () => {
+          const delivered = await Notification.getHistory();
+          return new Set(delivered.map((entry) => entry.id));
+        },
+        release: releaseNotification,
+        onHistoryError: (error) => {
+          console.warn("[notifications] Failed to inspect Windows notification history", error);
+        },
+      });
+    }
     return true;
   });
 }

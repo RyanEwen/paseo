@@ -1,5 +1,9 @@
 import type { Href } from "expo-router";
-import { buildHostRootRoute, buildHostWorkspaceOpenRoute } from "@/utils/host-routes";
+import {
+  buildHostAgentDetailRoute,
+  buildHostRootRoute,
+  buildHostWorkspaceOpenRoute,
+} from "@/utils/host-routes";
 
 type NotificationData = Record<string, unknown> | null | undefined;
 type NotificationRoute = Extract<Href, string>;
@@ -31,6 +35,9 @@ export function buildNotificationRoute(data: NotificationData): NotificationRout
   const { serverId, agentId, workspaceId, terminalId } = resolveNotificationTarget(data);
   if (serverId && workspaceId && agentId) {
     return buildHostWorkspaceOpenRoute(serverId, workspaceId, `agent:${agentId}`);
+  }
+  if (serverId && agentId) {
+    return buildHostAgentDetailRoute(serverId, agentId);
   }
   if (serverId && workspaceId && terminalId) {
     return buildHostWorkspaceOpenRoute(serverId, workspaceId, `terminal:${terminalId}`);
