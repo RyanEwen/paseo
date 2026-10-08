@@ -18,6 +18,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { traceNativePtyFiles } from "./native-pty.mjs";
+import { createTraceIgnore } from "./trace-paths.mjs";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -141,7 +142,7 @@ const { fileList, warnings } = await nodeFileTrace(entries, {
   // sherpa-onnx-${platform}-${arch} package resolution (the host package
   // is copied explicitly above), and a handful of test-only requires that
   // get tree-shaken out by tsc.
-  ignore: [
+  ignore: createTraceIgnore([
     // Cross-platform native packages for the sherpa speech runtime;
     // only the host platform package is needed at runtime.
     "sherpa-onnx-*/**",
@@ -159,7 +160,7 @@ const { fileList, warnings } = await nodeFileTrace(entries, {
     // The Nix desktop package runs under nixpkgs' Electron. Tracing the npm
     // package would duplicate the complete Electron distribution in $out.
     ...(traceDesktop ? ["node_modules/electron/**"] : []),
-  ],
+  ]),
 });
 
 // Surface non-trivial trace warnings so the Nix build log captures them.
