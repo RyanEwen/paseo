@@ -7,6 +7,7 @@ import { isMainModule } from "../is-main-module.mjs";
 import { smokeRunningDaemon } from "./daemon-smoke.mjs";
 import { stageDaemonRuntime } from "./runtime.mjs";
 import { syncWorkspaceVersions } from "../sync-workspace-versions.mjs";
+import { loadNativePtyModules } from "../native-pty.mjs";
 
 /** Stage the existing traced runtime as a dependency-free npm tarball for this native host. */
 export function buildDaemonPackage({ root, output, release }) {
@@ -71,8 +72,7 @@ export async function smokeDaemonPackage(packageRoot) {
   if (serverManifest.version !== manifest.version)
     throw new Error("Installed daemon version does not match its distribution");
   const require = createRequire(path.join(serverRoot, "package.json"));
-  const ptyUtils = require("node-pty/lib/utils");
-  ptyUtils.loadNativeModule("pty");
+  loadNativePtyModules(require);
   const speech = require("sherpa-onnx-node");
   if (typeof speech.OfflineRecognizer !== "function") {
     throw new Error("Installed speech runtime is unavailable");
