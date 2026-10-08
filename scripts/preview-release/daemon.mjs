@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -20,6 +20,8 @@ export function buildDaemonPackage({ root, output, release }) {
       .trim()
       .split("\n");
     stageDaemonRuntime({ root, output: path.join(staging, "runtime"), files });
+    const rootManifest = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+    cpSync(path.join(root, "LICENSE"), path.join(staging, "LICENSE"));
     writeFileSync(path.join(staging, "runtime/package.json"), JSON.stringify({ type: "module" }));
     mkdirSync(path.join(staging, "bin"));
     const launcher = path.join(staging, "bin/paseo-fork");
@@ -33,6 +35,7 @@ export function buildDaemonPackage({ root, output, release }) {
       JSON.stringify(
         {
           name: "@ryanewen/paseo-daemon",
+          license: rootManifest.license,
           version: release.version,
           type: "module",
           bin: { "paseo-fork": "bin/paseo-fork" },
