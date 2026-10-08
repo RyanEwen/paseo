@@ -7,6 +7,10 @@ on:
         description: "User-facing changes in this preview"
         required: true
         type: string
+      verify_daemon_updates_only:
+        description: "Verify a real update between the two newest published daemon previews, without building or publishing apps"
+        default: false
+        type: boolean
       publish:
         description: "Publish after every build and validation passes (otherwise keep a draft)"
         default: false
@@ -59,6 +63,7 @@ jobs:
             exit 1
           fi
       - name: Require release credentials
+        if: ${{ !inputs.verify_daemon_updates_only }}
         env:
           AZURE_TENANT_ID: ${{ vars.PREVIEW_AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ vars.PREVIEW_AZURE_CLIENT_ID }}
@@ -87,6 +92,7 @@ jobs:
         run: node scripts/preview-release/metadata.mjs >> "$GITHUB_OUTPUT"
 
   desktop:
+    if: ${{ !inputs.verify_daemon_updates_only }}
     needs: source
     strategy:
       fail-fast: false
@@ -188,6 +194,7 @@ jobs:
           retention-days: 7
 
   android:
+    if: ${{ !inputs.verify_daemon_updates_only }}
     needs: source
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -295,8 +302,85 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  daemon:
+    needs: source
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - runner: windows-2025
+            platform: win32
+            arch: x64
+          - runner: windows-11-arm
+            platform: win32
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.source.outputs.commit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          architecture: ${{ matrix.arch }}
+          cache: npm
+      - name: Install dependencies
+        if: matrix.runner != 'windows-11-arm'
+        run: node scripts/npm-retry.mjs ci
+      - name: Install native Windows ARM64 dependencies
+        if: matrix.runner == 'windows-11-arm'
+        shell: bash
+        run: |
+          node scripts/npm-retry.mjs ci --ignore-scripts --no-audit
+          npm rebuild esbuild lefthook sharp unrs-resolver node-pty
+          npm run postinstall
+      - name: Build standalone daemon package
+        if: ${{ !inputs.verify_daemon_updates_only }}
+        run: |
+          node scripts/preview-release/metadata.mjs
+          node scripts/preview-release/daemon.mjs
+      - name: Smoke installed daemon CLI
+        if: ${{ !inputs.verify_daemon_updates_only }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install -g --prefix "$RUNNER_TEMP/daemon-smoke" --ignore-scripts ./preview-daemon/*.tgz
+          package_root="$(npm root -g --prefix "$RUNNER_TEMP/daemon-smoke")/@ryanewen/paseo-daemon"
+          node scripts/preview-release/daemon.mjs --smoke "$package_root"
+      - name: Verify a published daemon upgrade and restart
+        if: inputs.verify_daemon_updates_only
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build:server
+          node scripts/preview-release/daemon-update.mjs 2>&1 | tee daemon-update-verification.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ inputs.verify_daemon_updates_only && always() }}
+        with:
+          name: daemon-update-${{ matrix.platform }}-${{ matrix.arch }}
+          path: daemon-update-verification.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !inputs.verify_daemon_updates_only }}
+        with:
+          name: preview-daemon-${{ matrix.platform }}-${{ matrix.arch }}
+          path: preview-daemon/*
+          if-no-files-found: error
+          retention-days: 7
+
   release:
-    needs: [source, desktop, android]
+    if: ${{ !inputs.verify_daemon_updates_only }}
+    needs: [source, desktop, android, daemon]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

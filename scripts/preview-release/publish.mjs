@@ -23,9 +23,11 @@ export async function publishPreviewRelease({ directory, repo, notes, publish })
   const notesFile = path.join(process.env.RUNNER_TEMP, "preview-notes.md");
   const body = `${notes.trim()}
 
-Windows (x64 and ARM64), Linux (x64 and ARM64), and Android builds are attached.
+Windows (x64 and ARM64), Linux (x64 and ARM64), standalone daemon/CLI packages, and Android builds are attached.
 Install Paseo Debug alongside the official app. Windows and Linux AppImage builds
-receive future previews from this fork. Android updates use the APK downloads.
+receive future previews from this fork. Standalone hosts can install their matching daemon
+package with npm and run paseo-fork; host updates stay on fork previews.
+Android updates use the APK downloads.
 
 The first public Android preview uses a dedicated signing key. If you already
 installed a development-signed Paseo Debug, preserve your host connection details,
