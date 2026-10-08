@@ -32,8 +32,10 @@ function escapeXml(value: string): string {
     .replaceAll("'", "&apos;");
 }
 
-/** Embed the stable chat URL in the toast so activation survives renderer reloads and app restarts. */
-export function buildWindowsAgentToast(input: WindowsAgentNotificationInput): string | null {
+/** Return durable activation arguments only when the notification names a valid chat target. */
+export function buildWindowsAgentNotificationArguments(
+  input: Pick<WindowsAgentNotificationInput, "data" | "notificationId">,
+): string | null {
   const serverId = input.data?.serverId;
   const agentId = input.data?.agentId;
   if (typeof serverId !== "string" || typeof agentId !== "string") {
@@ -43,14 +45,21 @@ export function buildWindowsAgentToast(input: WindowsAgentNotificationInput): st
     return null;
   }
 
-  // The tag lets Electron also dispatch the instance click event so its
-  // retained notification can be released. The URL survives process restarts.
-  const launchArguments = new URLSearchParams({
+  // The tag correlates instance clicks with durable activations.
+  return new URLSearchParams({
     type: "click",
     tag: input.notificationId,
     paseoAgent: buildAgentDeepLink({ serverId, agentId }),
-  });
-  const launch = escapeXml(launchArguments.toString());
+  }).toString();
+}
+
+/** Embed the stable chat URL in the toast so activation survives renderer reloads and app restarts. */
+export function buildWindowsAgentToast(input: WindowsAgentNotificationInput): string | null {
+  const launchArguments = buildWindowsAgentNotificationArguments(input);
+  if (!launchArguments) {
+    return null;
+  }
+  const launch = escapeXml(launchArguments);
   const body = input.body ? `<text>${escapeXml(input.body)}</text>` : "";
   const icon = input.iconPath
     ? `<image placement="appLogoOverride" hint-crop="none" src="${escapeXml(input.iconPath)}"/>`
@@ -79,32 +88,33 @@ export function shouldRetainWindowsNotification(reason: string | undefined): boo
   return reason === "timedOut";
 }
 
-interface WindowsNotificationRetentionInput<T> {
-  notifications: ReadonlySet<T>;
-  getDeliveredIds(): Promise<ReadonlySet<string>>;
-  release(notification: T): void;
-  onHistoryError(error: unknown): void;
+interface WindowsNotificationActivation {
+  type: string;
+  arguments: string;
 }
 
-/** Release expired banners only after Windows confirms their Center entries were removed. */
-export async function pruneRemovedWindowsNotifications<T extends { id: string }>(
-  input: WindowsNotificationRetentionInput<T>,
-): Promise<void> {
-  if (input.notifications.size === 0) {
-    return;
-  }
-  // A banner can expire while history is being read. Only inspect candidates
-  // that were already expired when the request began.
-  const candidates = [...input.notifications];
-  try {
-    const deliveredIds = await input.getDeliveredIds();
-    for (const notification of candidates) {
-      if (!deliveredIds.has(notification.id)) {
-        input.release(notification);
+/** Share one opener between instance clicks and durable activations, which can both report a tap. */
+export function createWindowsAgentNotificationOpener(openAgentLink: (url: string) => void) {
+  const handledTags = new Set<string>();
+
+  return function open(input: WindowsNotificationActivation): void {
+    openWindowsAgentNotification(input, (url) => {
+      const tag = new URLSearchParams(input.arguments).get("tag");
+      if (tag) {
+        if (handledTags.has(tag)) {
+          return;
+        }
+        handledTags.add(tag);
+        // Only recent clicks can have a second callback pending. Bound this
+        // metadata independently of the retained Notification Center objects.
+        if (handledTags.size > 256) {
+          const oldest = handledTags.values().next().value;
+          if (oldest) {
+            handledTags.delete(oldest);
+          }
+        }
       }
-    }
-  } catch (error) {
-    // A history failure must not remove a still-clickable Center entry.
-    input.onHistoryError(error);
-  }
+      openAgentLink(url);
+    });
+  };
 }
