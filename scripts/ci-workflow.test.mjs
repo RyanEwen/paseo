@@ -25,6 +25,11 @@ test("preview releases build one checked commit and require every approved platf
     assert.match(jobs.get(job).join("\n"), /if: \$\{\{ !inputs\.verify_daemon_updates_only \}\}/);
   }
   const daemonJob = jobs.get("daemon").join("\n");
+  assert.deepEqual(
+    [...daemonJob.matchAll(/runner: (\S+)/g)].map((match) => match[1]),
+    ["ubuntu-24.04", "ubuntu-24.04-arm"],
+  );
+  assert.doesNotMatch(daemonJob, /windows|win32/);
   assert.match(daemonJob, /daemon\.mjs --smoke/);
   assert.match(daemonJob, /if: inputs\.verify_daemon_updates_only[\s\S]*daemon-update\.mjs/);
   assert.match(source, /ref: \$\{\{ needs\.source\.outputs\.commit \}\}/);
