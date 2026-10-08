@@ -24,7 +24,7 @@ export async function publishPreviewRelease({ directory, repo, notes, publish })
   const body = `${notes.trim()}
 
 Windows (x64 and ARM64), Linux (x64 and ARM64), and Android builds are attached.
-Install Paseo Debug alongside the official app. Windows and Linux AppImage builds
+Install Paseo++ alongside the official app. Windows and Linux AppImage builds
 receive future previews from this fork. Android updates use the APK downloads.
 
 The first public Android preview uses a dedicated signing key. If you already

@@ -1,10 +1,10 @@
 extends: ./electron-builder.yml
 appId: sh.paseo.desktop.debug
-productName: Paseo Debug
-executableName: Paseo Debug
+productName: Paseo++
+executableName: Paseo++
 extraMetadata:
   name: paseo-debug
-  productName: Paseo Debug
+  productName: Paseo++
   desktopName: paseo-debug.desktop
   paseoPreview: true
 protocols:

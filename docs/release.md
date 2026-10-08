@@ -101,8 +101,11 @@ work is integrated; do not rewrite its history. CI covers both fork branches.
 
 The **Fork Preview Release** workflow is manually dispatched on `ryan/preview`. It builds Windows
 and Linux for x64 and ARM64, plus a standalone Android APK. macOS is deferred until Apple signing
-is available. iOS and hosted web are excluded. These builds use the existing Paseo Debug identity
-and retain its desktop profile and local daemon. The renderer storage origin stays `paseo://app`.
+is available. iOS and hosted web are excluded. These builds display as Paseo++ and retain the
+existing Paseo Debug package identities, desktop profile, and local daemon. Keep the desktop
+profile folder and daemon home separate from the display name when changing branding. Download
+filenames retain `Paseo-Debug` so AppImage updates keep replacing the installed file in place.
+The renderer storage origin stays `paseo://app`.
 
 The workflow resolves one commit and requires that commit's push CI to have passed. All jobs use
 that SHA, even if the branch moves during the build. Its run number identifies each preview; reruns

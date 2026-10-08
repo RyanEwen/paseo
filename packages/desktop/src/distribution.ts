@@ -10,7 +10,9 @@ export function resolveDesktopDistribution(metadata: unknown) {
   if (paseoPreview) {
     return {
       isPreview: true,
-      appName: "Paseo Debug",
+      appName: "Paseo++",
+      // Branding must not move the installed Electron profile or lose saved connections.
+      userDataName: "Paseo Debug",
       desktopName: "paseo-debug.desktop",
       daemonHomeName: ".paseo-debug",
       daemonListen: "127.0.0.1:6790",
@@ -20,6 +22,7 @@ export function resolveDesktopDistribution(metadata: unknown) {
   return {
     isPreview: false,
     appName: "Paseo",
+    userDataName: "Paseo",
     desktopName: "Paseo.desktop",
     daemonHomeName: null,
     daemonListen: null,
