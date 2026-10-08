@@ -3047,6 +3047,34 @@ describe("HostRuntimeStore", () => {
     useSessionStore.getState().clearSession(host.serverId);
   });
 
+  it("drains a queued message as a steer so a turn the agent just started is not interrupted", async () => {
+    const host = makeHost({ serverId: "srv_steer_queue_drain" });
+    const fakeClient = new FakeDaemonClient();
+    const store = new HostRuntimeStore({
+      deps: {
+        createClient: () => fakeClient as unknown as DaemonClient,
+        connectToDaemon: async () => ({
+          client: fakeClient as unknown as DaemonClient,
+          serverId: host.serverId,
+          hostname: null,
+        }),
+        getClientId: async () => "cid_steer_queue_drain",
+      },
+    });
+    const sessionStore = useSessionStore.getState();
+    sessionStore.initializeSession(host.serverId, fakeClient as unknown as DaemonClient, 1);
+    sessionStore.setQueuedMessages(
+      host.serverId,
+      new Map([["agent", [{ id: "queued", text: "next task", attachments: [] }]]]),
+    );
+
+    store.drainQueuedAgentMessage(host.serverId, "agent");
+    await fakeClient.waitForSentMessages(1);
+
+    expect(fakeClient.sentAgentMessages[0]?.[2]?.activeTurnBehavior).toBe("steer");
+    sessionStore.clearSession(host.serverId);
+  });
+
   it("uses legacy GitHub attachments when draining a queue for an old daemon", async () => {
     const host = makeHost({ serverId: "srv_legacy_queue_attachment" });
     const fakeClient = new FakeDaemonClient();
@@ -3943,6 +3971,43 @@ describe("HostRuntimeStore", () => {
     // cycle must authenticate from the stored profile alone.
     await store.runProbeCycleNow("srv_ssh");
     await waitForHostOnline(store, "srv_ssh");
+    store.syncHosts([]);
+  });
+
+  it("commits imported SSH credentials before publishing a saved host", async () => {
+    const store = createPairingStore({
+      serverIdForHost: (host) => (host.connections[0]?.type === "remoteSsh" ? "srv_ssh" : ""),
+    });
+    await store.boot();
+    const hasImportedHost = () => store.getHosts().find((host) => host.serverId === "srv_ssh");
+    const commit = vi.fn(async () => {
+      expect(hasImportedHost()).toBeUndefined();
+    });
+    await store.probeAndUpsertRemoteSshConnection({
+      host: "deploy@example.com",
+      beforeSave: commit,
+    });
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(
+      store.getHosts().find((host) => host.serverId === "srv_ssh")?.connections[0],
+    ).toMatchObject({ type: "remoteSsh", host: "deploy@example.com" });
+    store.syncHosts([]);
+  });
+
+  it("keeps the host unsaved when importing SSH credentials fails", async () => {
+    const store = createPairingStore({
+      serverIdForHost: (host) => (host.connections[0]?.type === "remoteSsh" ? "srv_ssh" : ""),
+    });
+    await store.boot();
+    await expect(
+      store.probeAndUpsertRemoteSshConnection({
+        host: "deploy@example.com",
+        beforeSave: async () => {
+          throw new Error("Secure storage unavailable");
+        },
+      }),
+    ).rejects.toThrow("Secure storage unavailable");
+    expect(store.getHosts().find((host) => host.serverId === "srv_ssh")).toBeUndefined();
     store.syncHosts([]);
   });
 

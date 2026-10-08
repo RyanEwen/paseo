@@ -1814,6 +1814,15 @@ export const ru: TranslationResources = {
     remoteSsh: {
       title: "Удалённый SSH",
       helper: "Подключитесь к демону Paseo на удалённом хосте.",
+      keyImport: {
+        key: "Закрытый ключ",
+        import: "Импортировать закрытый ключ",
+        passphrase: "Пароль ключа (необязательно)",
+        fingerprint: "Отпечаток сервера",
+        verify: "Сравните этот отпечаток с отпечатком сервера, прежде чем доверять ему.",
+        trustAndConnect: "Доверять и подключиться",
+        required: "Импортируйте закрытый ключ для подключения.",
+      },
       fields: {
         target: "Хост SSH",
         password: "Пароль демона",

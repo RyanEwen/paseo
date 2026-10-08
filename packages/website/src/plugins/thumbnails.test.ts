@@ -6,6 +6,7 @@ import { NewPluginCard, PluginCard } from "./plugin-card";
 import type { Plugin } from "./registry";
 
 const source = "https://cdn.jsdelivr.net/npm/paseo-example@1.2.3/preview.png";
+const video = "https://cdn.jsdelivr.net/npm/paseo-example@1.2.3/demo.mp4";
 const plugin: Plugin = {
   id: "acme/example",
   name: "Example",
@@ -20,7 +21,7 @@ const plugin: Plugin = {
     resolved: "https://registry.npmjs.org/example.tgz",
     integrity: "sha512-YWJj",
   },
-  screenshots: [source],
+  media: [source],
   submittedAt: "2026-10-03",
   reviewedAt: "2026-10-03",
   updatedAt: "2026-10-03",
@@ -29,29 +30,46 @@ const plugin: Plugin = {
 };
 
 describe("plugin card thumbnails", () => {
+  it("uses the first image in the plugin's media, skipping a leading video", () => {
+    const html = renderToStaticMarkup(
+      createElement(PluginCard, { plugin: { ...plugin, media: [video, source] } }),
+    );
+    expect(html).toContain(`/plugins/thumb/592/${encodeURIComponent(source)}?`);
+    expect(html).not.toContain(encodeURIComponent(video));
+  });
+
+  it("shows the plugin tile when the media has no image", () => {
+    const html = renderToStaticMarkup(
+      createElement(PluginCard, { plugin: { ...plugin, media: [video] } }),
+    );
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<video");
+    expect(html).toContain(">E</div>");
+  });
+
   it("keeps a screenshot on an unsupported host visible at its original URL", () => {
     const screenshot = "https://example.com/preview.png";
     const html = renderToStaticMarkup(
-      createElement(PluginCard, { plugin: { ...plugin, screenshots: [screenshot] } }),
+      createElement(PluginCard, { plugin: { ...plugin, media: [screenshot] } }),
     );
     expect(html).toContain(`src="${screenshot}"`);
     expect(html).not.toContain("/plugins/thumb/");
   });
 
-  it.each([PluginCard, NewPluginCard])(
-    "renders a thumbnail instead of downloading the original screenshot (%s)",
-    (Card) => {
-      const html = renderToStaticMarkup(createElement(Card, { plugin, added: "today" }));
-      expect(html).toContain(
-        `src="/plugins/thumb/592/${encodeURIComponent(source)}?plugin=acme%2Fexample"`,
-      );
-      expect(html).toContain(
-        `srcSet="/plugins/thumb/592/${encodeURIComponent(source)}?plugin=acme%2Fexample 1x, /plugins/thumb/1184/${encodeURIComponent(source)}?plugin=acme%2Fexample 2x"`,
-      );
-      expect(html).toContain('loading="lazy"');
-      expect(html).toContain('decoding="async"');
-    },
-  );
+  it.each([
+    ["PluginCard", () => createElement(PluginCard, { plugin }, "today")],
+    ["NewPluginCard", () => createElement(NewPluginCard, { plugin }, "today")],
+  ])("renders a thumbnail instead of downloading the original screenshot (%s)", (_name, card) => {
+    const html = renderToStaticMarkup(card());
+    expect(html).toContain(
+      `src="/plugins/thumb/592/${encodeURIComponent(source)}?plugin=acme%2Fexample"`,
+    );
+    expect(html).toContain(
+      `srcSet="/plugins/thumb/592/${encodeURIComponent(source)}?plugin=acme%2Fexample 1x, /plugins/thumb/1184/${encodeURIComponent(source)}?plugin=acme%2Fexample 2x"`,
+    );
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain('decoding="async"');
+  });
 });
 
 function thumbnailRequest(
@@ -118,7 +136,7 @@ describe("thumbnail route", () => {
       const upstream = imageFetch(imageResponse("thumbnail"));
       const response = await handlePluginThumbnailRequest(
         thumbnailRequest(screenshot, width, plugin.id, accept),
-        [{ ...plugin, screenshots: [screenshot] }],
+        [{ ...plugin, media: [screenshot] }],
         upstream.fetchImage,
       );
       expect(upstream.calls).toEqual([
@@ -170,6 +188,7 @@ describe("thumbnail route", () => {
       404,
     ],
     ["removed plugin", thumbnailRequest(), [], 404],
+    ["listed video", thumbnailRequest(video), [{ ...plugin, media: [video, source] }], 404],
     ["malformed encoding", new Request("https://paseo.sh/plugins/thumb/592/%ZZ"), [plugin], 400],
     ["malformed URL", thumbnailRequest("not a URL"), [plugin], 400],
     ...[
@@ -183,7 +202,7 @@ describe("thumbnail route", () => {
         [
           "disallowed registered source",
           thumbnailRequest(url),
-          [{ ...plugin, screenshots: [url] }],
+          [{ ...plugin, media: [url] }],
           400,
         ] satisfies [string, Request, Plugin[], number],
     ),
@@ -225,7 +244,7 @@ describe("thumbnail route", () => {
     );
     const response = await handlePluginThumbnailRequest(
       request,
-      [{ ...plugin, screenshots: [screenshot] }],
+      [{ ...plugin, media: [screenshot] }],
       upstream.fetchImage,
     );
     expect(response.status).toBe(200);
