@@ -36,6 +36,7 @@ const download = await downloadForkPreview({
   },
 });
 const directory = await mkdtemp(path.join(tmpdir(), "paseo-fork-update-proof-"));
+let smokePassed = false;
 try {
   execFileSync(
     npm,
