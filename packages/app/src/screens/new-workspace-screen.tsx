@@ -799,6 +799,7 @@ interface WorkspaceCreationResult {
   agent?: AgentSnapshotPayload;
 }
 
+/** Creates the workspace and maps its first agent into an explicitly adopted checkout. */
 async function createMultiplicityWorkspace(input: {
   idempotencyKey: string;
   worktreeSlug: string;
@@ -827,25 +828,42 @@ async function createMultiplicityWorkspace(input: {
     prompt: input.prompt,
     attachments: input.attachments,
   });
+  const source =
+    input.source ??
+    (isWorktree
+      ? {
+          kind: "worktree" as const,
+          cwd: input.sourceDirectory,
+          projectId,
+          worktreeSlug: input.worktreeSlug,
+          ...input.checkoutRequest,
+        }
+      : {
+          kind: "directory" as const,
+          path: input.sourceDirectory,
+          projectId,
+        });
+  // The composer still uses the project directory when another checkout is selected.
+  // Directory adoption must send the first agent inside that checkout, including its subdirectory.
+  const agent =
+    input.agent?.config && source.kind === "directory" && source.path !== input.sourceDirectory
+      ? {
+          ...input.agent,
+          config: {
+            ...input.agent.config,
+            cwd: remapDraftCwdToWorkspace({
+              cwd: input.agent.config.cwd,
+              sourceDirectory: input.sourceDirectory,
+              workspaceDirectory: source.path,
+            }),
+          },
+        }
+      : input.agent;
   const payload = await input.client.createWorkspace({
     idempotencyKey: input.idempotencyKey,
-    agent: input.agent,
+    agent,
     onEvent: input.onEvent,
-    source:
-      input.source ??
-      (isWorktree
-        ? {
-            kind: "worktree",
-            cwd: input.sourceDirectory,
-            projectId,
-            worktreeSlug: input.worktreeSlug,
-            ...input.checkoutRequest,
-          }
-        : {
-            kind: "directory",
-            path: input.sourceDirectory,
-            projectId,
-          }),
+    source,
     ...(firstAgentContext ? { firstAgentContext } : {}),
   });
   if (payload.error || !payload.workspace) {
