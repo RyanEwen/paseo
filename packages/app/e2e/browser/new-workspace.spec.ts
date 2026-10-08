@@ -542,8 +542,65 @@ test.describe("New workspace flow", () => {
         await page.screenshot({
           path: testInfo.outputPath(`existing-worktree-${viewport.width}.png`),
         });
-        await submitNewWorkspaceEmpty(page);
+        // Adoption must start the first agent in the selected checkout, not just create a record.
+        await submitNewWorkspacePrompt(page, "First agent in the existing worktree");
         await expect(page).toHaveURL(/\/workspace\//, { timeout: 30_000 });
+        const adoptedWorkspaceId = new URL(page.url()).pathname.split("/workspace/")[1];
+        await expect
+          .poll(async () => {
+            const entries = (await client.fetchWorkspaces()).entries;
+            for (const entry of entries) {
+              if (entry.id === adoptedWorkspaceId) return entry.workspaceDirectory;
+            }
+            return null;
+          })
+          .toBe(checkout!.workspaceDirectory);
+        await expect
+          .poll(async () => {
+            const entries = (await client.fetchAgents({ scope: "active" })).entries;
+            const directories: string[] = [];
+            for (const entry of entries) {
+              if (entry.agent.workspaceId === adoptedWorkspaceId) {
+                directories.push(entry.agent.cwd);
+              }
+            }
+            return directories;
+          })
+          .toEqual([checkout!.workspaceDirectory]);
+        const adoptedAgents = (await client.fetchAgents({ scope: "active" })).entries.filter(
+          (entry) => entry.agent.workspaceId === adoptedWorkspaceId,
+        );
+        expect(adoptedAgents).toHaveLength(1);
+        expect(adoptedAgents[0].agent.cwd).toBe(checkout!.workspaceDirectory);
+        await expect(page.getByRole("textbox", { name: "Message agent..." })).toBeVisible({
+          timeout: 30_000,
+        });
+        if (viewport.width === 390) {
+          // Compact layouts expose sessions through the switcher instead of desktop tabs.
+          const switcher = page.getByRole("button", { name: "Switch tabs (1 open)", exact: true });
+          await expect(switcher).toBeVisible();
+          await switcher.click();
+          // First-agent conversion preserves its draft tab ID, so identify the session by title.
+          const sessionMenu = page.locator(
+            '[data-testid^="workspace-tab-menu-"][data-testid$="-trigger"]',
+          );
+          await expect(sessionMenu).toHaveCount(1);
+          await expect(sessionMenu).toBeVisible();
+          await expect(
+            page.getByText(adoptedAgents[0].agent.title!, { exact: true }).last(),
+          ).toBeVisible();
+          await page.getByRole("button", { name: "Bottom sheet backdrop" }).first().click();
+        } else {
+          const adoptedDeck = page
+            .getByTestId(`workspace-deck-entry-${getServerId()}:${adoptedWorkspaceId}`)
+            .filter({ visible: true });
+          await expect(adoptedDeck.locator('[data-testid^="workspace-tab-agent_"]')).toHaveCount(
+            1,
+            {
+              timeout: 30_000,
+            },
+          );
+        }
         expect(
           execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: repo.path }).toString(),
         ).toBe(before);
