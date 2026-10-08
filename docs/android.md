@@ -11,6 +11,9 @@ Controlled by `APP_VARIANT` in `packages/app/app.config.js` (vanilla Expo, no cu
 
 EAS profiles: `development`, `production`, and `production-apk` in `packages/app/eas.json`.
 
+Fork preview builds display as Paseo++ while keeping the development package ID. See
+[fork preview distribution](release.md#fork-preview-distribution).
+
 `development` uses Android `debug`.
 
 ## SSH connections

@@ -403,7 +403,7 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
     const config = await getConfig(desktop, "electron-builder.preview.local.yml", null);
     validateConfiguration(config);
     assert.equal(config.appId, "sh.paseo.desktop.debug");
-    assert.equal(config.productName, "Paseo Debug");
+    assert.equal(config.productName, "Paseo++");
     assert.equal(config.publish.owner, "RyanEwen");
     assert.equal(config.publish.channel, "preview");
     assert.deepEqual(config.protocols, [
@@ -425,7 +425,8 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
         description: "Preview desktop",
       },
     }).computeDesktopEntry(config.linux);
-    assert.match(desktopEntry, /^Exec="\/opt\/Paseo Debug\/paseo-debug" --class=paseo-debug %U$/m);
+    assert.match(desktopEntry, /^Name=Paseo\+\+$/m);
+    assert.match(desktopEntry, /^Exec="\/opt\/Paseo\+\+\/paseo-debug" --class=paseo-debug %U$/m);
     assert.match(desktopEntry, /^StartupWMClass=paseo-debug$/m);
     assert.equal(config.extraMetadata.paseoPreview, true);
     assert.equal(config.buildVersion, "0.11.0.12");

@@ -118,6 +118,7 @@ const APP_SCHEME = "paseo";
 const PASEO_DEBUG = process.env.PASEO_DEBUG === "1";
 const DISABLE_SINGLE_INSTANCE_LOCK = process.env.PASEO_DISABLE_SINGLE_INSTANCE_LOCK === "1";
 const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || desktopDistribution.appName;
+const USER_DATA_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || desktopDistribution.userDataName;
 const forcedUserDataDir = process.env.PASEO_ELECTRON_USER_DATA_DIR?.trim();
 const DESKTOP_WINDOW_CHROME_MODE = resolveDesktopWindowChromeMode({
   platform: process.platform,
@@ -142,7 +143,8 @@ if (desktopDistribution.isPreview) {
   process.env.PASEO_LISTEN ??= desktopDistribution.daemonListen;
   // An explicit profile is applied below and must not require the default profile to exist.
   if (!forcedUserDataDir) {
-    app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
+    // Keep installed profiles at their original path when the fork's display name changes.
+    app.setPath("userData", path.join(app.getPath("appData"), USER_DATA_NAME));
   }
 }
 
