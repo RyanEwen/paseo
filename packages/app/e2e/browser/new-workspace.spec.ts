@@ -81,6 +81,43 @@ interface WorkspaceStatusGroupEvent {
   at: number;
 }
 
+interface AdoptedAgentSession {
+  page: Page;
+  workspaceId: string;
+  agentTitle: string;
+}
+
+/** Verifies the adopted workspace exposes its first agent in the desktop tab strip. */
+async function expectDesktopAdoptedAgent({
+  page,
+  workspaceId,
+}: AdoptedAgentSession): Promise<void> {
+  const adoptedDeck = page
+    .getByTestId(`workspace-deck-entry-${getServerId()}:${workspaceId}`)
+    .filter({ visible: true });
+  await expect(adoptedDeck.locator('[data-testid^="workspace-tab-agent_"]')).toHaveCount(1, {
+    timeout: 30_000,
+  });
+}
+
+/** Verifies the adopted workspace's single agent in the compact switcher, then dismisses it. */
+async function expectCompactAdoptedAgent({ page, agentTitle }: AdoptedAgentSession): Promise<void> {
+  const switcher = page.getByRole("button", { name: "Switch tabs (1 open)", exact: true });
+  await expect(switcher).toBeVisible();
+  await switcher.click();
+
+  // First-agent conversion preserves its draft tab ID, so identify the session by title.
+  const sessionMenu = page.locator('[data-testid^="workspace-tab-menu-"][data-testid$="-trigger"]');
+  await expect(sessionMenu).toHaveCount(1);
+  await expect(sessionMenu).toBeVisible();
+  await expect(page.getByText(agentTitle, { exact: true }).last()).toBeVisible();
+  await page
+    .getByRole("button", { name: "Bottom sheet backdrop" })
+    .first()
+    .click({ position: { x: 12, y: 12 } });
+  await expect(sessionMenu).toHaveCount(0);
+}
+
 async function switchSidebarToStatusGrouping(page: import("@playwright/test").Page) {
   await selectSidebarStatusGrouping(page);
   await expect(page.getByTestId("sidebar-status-group-done")).toBeVisible({ timeout: 30_000 });
@@ -391,9 +428,15 @@ test.describe("New workspace flow", () => {
     }
   });
 
-  for (const viewport of [
-    { width: 1440, height: 1000 },
-    { width: 390, height: 844 },
+  for (const { viewport, expectAgentSession } of [
+    {
+      viewport: { width: 1440, height: 1000 },
+      expectAgentSession: expectDesktopAdoptedAgent,
+    },
+    {
+      viewport: { width: 390, height: 844 },
+      expectAgentSession: expectCompactAdoptedAgent,
+    },
   ]) {
     test(`new worktree options create exact branches and reuse checkouts at ${viewport.width}px`, async ({
       page,
@@ -575,32 +618,11 @@ test.describe("New workspace flow", () => {
         await expect(page.getByRole("textbox", { name: "Message agent..." })).toBeVisible({
           timeout: 30_000,
         });
-        if (viewport.width === 390) {
-          // Compact layouts expose sessions through the switcher instead of desktop tabs.
-          const switcher = page.getByRole("button", { name: "Switch tabs (1 open)", exact: true });
-          await expect(switcher).toBeVisible();
-          await switcher.click();
-          // First-agent conversion preserves its draft tab ID, so identify the session by title.
-          const sessionMenu = page.locator(
-            '[data-testid^="workspace-tab-menu-"][data-testid$="-trigger"]',
-          );
-          await expect(sessionMenu).toHaveCount(1);
-          await expect(sessionMenu).toBeVisible();
-          await expect(
-            page.getByText(adoptedAgents[0].agent.title!, { exact: true }).last(),
-          ).toBeVisible();
-          await page.getByRole("button", { name: "Bottom sheet backdrop" }).first().click();
-        } else {
-          const adoptedDeck = page
-            .getByTestId(`workspace-deck-entry-${getServerId()}:${adoptedWorkspaceId}`)
-            .filter({ visible: true });
-          await expect(adoptedDeck.locator('[data-testid^="workspace-tab-agent_"]')).toHaveCount(
-            1,
-            {
-              timeout: 30_000,
-            },
-          );
-        }
+        await expectAgentSession({
+          page,
+          workspaceId: adoptedWorkspaceId,
+          agentTitle: adoptedAgents[0].agent.title!,
+        });
         expect(
           execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: repo.path }).toString(),
         ).toBe(before);
