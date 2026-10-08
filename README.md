@@ -24,7 +24,10 @@ This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental for
 
 Download previews from [this fork's releases](https://github.com/RyanEwen/paseo/releases).
 Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage
-previews receive updates from this fork. macOS is deferred until Apple signing is available;
+previews receive updates from this fork. Standalone daemon packages for Windows and Linux
+(x64 and ARM64) are prepared by the preview workflow and update from published fork previews.
+Use `paseo-fork` for standalone fork hosts; package installation commands below remain upstream.
+macOS is deferred until Apple signing is available;
 iOS and hosted web are excluded. The download links and package installation commands below are
 for upstream Paseo.
 
