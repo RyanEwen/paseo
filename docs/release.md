@@ -100,12 +100,12 @@ branches, review them, then merge them into `ryan/preview`. Rename `ryan/dev` on
 work is integrated; do not rewrite its history. CI covers both fork branches.
 
 The **Fork Preview Release** workflow is manually dispatched on `ryan/preview`. It builds Windows
-and Linux for x64 and ARM64, plus a standalone Android APK. macOS is deferred until Apple signing
-is available. iOS and hosted web are excluded. These builds display as Paseo++ and retain the
-existing Paseo Debug package identities, desktop profile, and local daemon. Keep the desktop
-profile folder and daemon home separate from the display name when changing branding. Download
-filenames retain `Paseo-Debug` so AppImage updates keep replacing the installed file in place.
-The renderer storage origin stays `paseo://app`.
+and Linux for x64 and ARM64, plus standalone daemon/CLI packages and an Android APK. macOS is
+deferred until Apple signing is available. iOS and hosted web are excluded. These builds display
+as Paseo++ and retain the existing Paseo Debug package identities, desktop profile, and local
+daemon. Keep the desktop profile folder and daemon home separate from the display name when
+changing branding. Download filenames retain `Paseo-Debug` so AppImage updates keep replacing
+the installed file in place. The renderer storage origin stays `paseo://app`.
 
 The workflow resolves one commit and requires that commit's push CI to have passed. All jobs use
 that SHA, even if the branch moves during the build. Its run number identifies each preview; reruns
@@ -122,7 +122,38 @@ Windows installers and Linux AppImages update exclusively from this fork's `prev
 The Stable/Beta selector is omitted in preview builds. The optional CLI installs as `paseo-debug`
 so it can coexist with the official `paseo` command. Other Linux packages and Android APKs can
 be downloaded from the release. Official tag-triggered release, deployment, and changelog workflows
-exclude preview tags. The preview workflow does not publish npm packages.
+exclude preview tags. The preview workflow does not publish npm packages to a registry.
+
+### Standalone fork daemon
+
+The preview release includes `paseo-daemon-<version>-<platform>-<arch>.tgz` for Linux and Windows
+(x64 and ARM64). Install the matching download with Node.js 22 or newer:
+
+```bash
+npm install -g ./paseo-daemon-<version>-<platform>-<arch>.tgz
+paseo-fork daemon run
+```
+
+These packages include the daemon, CLI, web UI, and native runtime dependencies. Linux packages
+require glibc; Alpine/musl hosts are excluded. The `paseo-fork` command coexists with upstream
+`paseo`, but both use `~/.paseo` by default. Set a separate `PASEO_HOME` and listen address when
+running both. Stop the existing service before switching its command to `paseo-fork`.
+
+The app's host update action installs the newest published fork preview for the host's platform
+and architecture, after checking its SHA256SUMS entry. It keeps the original npm prefix and
+refuses linked or mismatched installs. Draft previews remain invisible. Desktop-owned daemons
+update with Desktop; source checkouts and Nix installations need their existing deployment flow.
+Daemon packages are part of the complete release gate, so missing daemon builds keep the release
+in draft. The existing supervisor restarts its worker after a successful update; the supervisor itself
+keeps running until the service is restarted. Systemd service replacement is an operator action.
+
+After publishing two daemon previews, dispatch the same preview workflow with
+`verify_daemon_updates_only=true` and `publish=false`. It reuses the four native daemon jobs to
+install the older published package, start it in a temporary home on an ephemeral loopback port,
+run a terminal command, update through the real host RPC, and reconnect at the newer version.
+It checks retained workspace state and another terminal command before stopping its own daemon.
+This mode builds no app installers and publishes no release. Its log artifacts are the update
+acceptance evidence, including Windows replacement while native modules are loaded.
 
 ### Signing configuration
 

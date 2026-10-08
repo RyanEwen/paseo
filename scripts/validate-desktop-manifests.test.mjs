@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
+  symlinkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -15,6 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 import { validateDesktopManifests } from "./validate-desktop-manifests.mjs";
+import { stageDaemonRuntime } from "./preview-release/runtime.mjs";
 import { assemblePreviewAssets, validatePreviewAssets } from "./preview-release/assets.mjs";
 import { preparePreviewBuild } from "./preview-release/prepare.mjs";
 import { resolvePreviewRelease } from "./preview-release/metadata.mjs";
@@ -269,6 +272,15 @@ async function withPreviewBuilds(run) {
       writeFileSync(path.join(folder, "preview-release.json"), JSON.stringify(release));
       writeFileSync(path.join(folder, manifestName), dump({ version: release.version, files }));
     }
+    for (const target of ["linux-x64", "linux-arm64", "win32-x64", "win32-arm64"]) {
+      const folder = path.join(input, `preview-daemon-${target}`);
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(path.join(folder, "preview-release.json"), JSON.stringify(release));
+      writeFileSync(
+        path.join(folder, `paseo-daemon-${release.version}-${target}.tgz`),
+        "daemon-fixture",
+      );
+    }
     const android = path.join(input, "preview-android");
     mkdirSync(android);
     writeFileSync(path.join(android, "preview-release.json"), JSON.stringify(release));
@@ -451,6 +463,80 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
       JSON.parse(readFileSync(path.join(root, "packages/app/package.json"))).version,
       "0.11.0-preview.12",
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a missing or mixed-source daemon build prevents preview assembly", async () => {
+  await withPreviewBuilds(async (fixture) => {
+    rmSync(
+      path.join(
+        fixture.input,
+        "preview-daemon-linux-arm64",
+        `paseo-daemon-${fixture.release.version}-linux-arm64.tgz`,
+      ),
+    );
+    await assert.rejects(assemblePreviewAssets(fixture), /ENOENT/);
+  });
+  await withPreviewBuilds(async (fixture) => {
+    writeFileSync(
+      path.join(fixture.input, "preview-daemon-win32-x64", "preview-release.json"),
+      JSON.stringify({ ...fixture.release, commit: "b".repeat(40) }),
+    );
+    await assert.rejects(assemblePreviewAssets(fixture), /mismatched release commit/);
+  });
+});
+
+test("daemon workspace aliases contain traced files and web assets without source or ignored files", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "paseo-daemon-runtime-"));
+  const output = path.join(root, "staged");
+  try {
+    const server = path.join(root, "packages/server");
+    const webUi = path.join(server, "dist/server/web-ui");
+    mkdirSync(webUi, { recursive: true });
+    writeFileSync(
+      path.join(server, "package.json"),
+      JSON.stringify({ name: "@getpaseo/server", files: ["src/vendor/LICENSE"] }),
+    );
+    writeFileSync(path.join(server, "LICENSE"), "package-license");
+    writeFileSync(path.join(server, "NOTICE"), "package-notice");
+    writeFileSync(path.join(server, "dist/server/entry.js"), "export const daemon = true;");
+    writeFileSync(path.join(webUi, "index.html"), "web-client");
+    writeFileSync(path.join(server, ".env"), "DO_NOT_SHIP=fixture");
+    mkdirSync(path.join(server, "src/vendor"), { recursive: true });
+    writeFileSync(path.join(server, "src/vendor/LICENSE"), "vendor-license");
+    writeFileSync(path.join(server, "src/ignored.test.ts"), "development-only");
+    mkdirSync(path.join(root, "node_modules/@getpaseo"), { recursive: true });
+    symlinkSync(server, path.join(root, "node_modules/@getpaseo/server"), "junction");
+    stageDaemonRuntime({
+      root,
+      output,
+      files: [
+        "node_modules/@getpaseo/server",
+        "packages/server/package.json",
+        "packages/server/dist/server/entry.js",
+      ],
+    });
+    for (const location of ["packages/server", "node_modules/@getpaseo/server"]) {
+      const shipped = path.join(output, location);
+      assert.equal(
+        readFileSync(path.join(shipped, "dist/server/entry.js"), "utf8"),
+        "export const daemon = true;",
+      );
+      assert.equal(
+        readFileSync(path.join(shipped, "dist/server/web-ui/index.html"), "utf8"),
+        "web-client",
+      );
+      assert.equal(existsSync(path.join(shipped, ".env")), false);
+      assert.equal(existsSync(path.join(shipped, "src/ignored.test.ts")), false);
+      assert.equal(readFileSync(path.join(shipped, "LICENSE"), "utf8"), "package-license");
+      assert.equal(readFileSync(path.join(shipped, "NOTICE"), "utf8"), "package-notice");
+      assert.equal(
+        readFileSync(path.join(shipped, "src/vendor/LICENSE"), "utf8"),
+        "vendor-license",
+      );
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

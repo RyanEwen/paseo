@@ -20,8 +20,15 @@ test("preview releases build one checked commit and require every approved platf
   assert.match(source, /github\.repository == 'RyanEwen\/paseo'/);
   assert.match(source, /GITHUB_REF.*refs\/heads\/ryan\/preview/);
   assert.match(source, /head_sha=\$GITHUB_SHA/);
+  const jobs = jobBlocks(source);
+  for (const job of ["desktop", "android", "release"]) {
+    assert.match(jobs.get(job).join("\n"), /if: \$\{\{ !inputs\.verify_daemon_updates_only \}\}/);
+  }
+  const daemonJob = jobs.get("daemon").join("\n");
+  assert.match(daemonJob, /daemon\.mjs --smoke/);
+  assert.match(daemonJob, /if: inputs\.verify_daemon_updates_only[\s\S]*daemon-update\.mjs/);
   assert.match(source, /ref: \$\{\{ needs\.source\.outputs\.commit \}\}/);
-  assert.match(source, /needs: \[source, desktop, android\]/);
+  assert.match(source, /needs: \[source, desktop, android, daemon\]/);
   assert.match(
     source,
     /gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg\.gradle\.parallel=false/,

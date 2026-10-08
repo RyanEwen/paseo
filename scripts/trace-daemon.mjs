@@ -134,7 +134,9 @@ const { fileList, warnings } = await nodeFileTrace(entries, {
       if (error.code === "ENOENT" || error.code === "EISDIR") return null;
       throw error;
     }
-    const dependencies = runtimeDependencies.get(path.relative(REPO_ROOT, file));
+    const dependencies = runtimeDependencies.get(
+      path.relative(REPO_ROOT, file).split(path.sep).join("/"),
+    );
     if (!dependencies) return source;
     // These statements exist only in nft's input, never in the shipped code.
     return `${source}\n${dependencies.map((specifier) => `require(${JSON.stringify(specifier)});`).join("\n")}`;

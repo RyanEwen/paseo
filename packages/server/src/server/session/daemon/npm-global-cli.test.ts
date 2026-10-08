@@ -98,6 +98,32 @@ describe("DefaultNpmGlobalPaseoCli", () => {
     ]);
   });
 
+  test("inspects the fork package without probing the upstream install", async () => {
+    const install = createGlobalInstall({ linked: false });
+    const listing = JSON.parse(install.npmLsJson);
+    listing.dependencies["@ryanewen/paseo-daemon"] = listing.dependencies["@getpaseo/cli"];
+    delete listing.dependencies["@getpaseo/cli"];
+    const calls: CommandCall[] = [];
+    const cli = new DefaultNpmGlobalPaseoCli(async (command, args) => {
+      calls.push({ command, args });
+      return { exitCode: 0, stdout: JSON.stringify(listing), stderr: "" };
+    }, "@ryanewen/paseo-daemon");
+    await expect(cli.inspect({ prefix: "/fork-prefix" })).resolves.toMatchObject({
+      version: "0.1.15",
+      isLinked: false,
+    });
+    expect(calls[0].args).toEqual([
+      "-g",
+      "ls",
+      "@ryanewen/paseo-daemon",
+      "--json",
+      "--depth=0",
+      "--long",
+      "--prefix",
+      "/fork-prefix",
+    ]);
+  });
+
   test("runs the global install command for the latest cli", async () => {
     const calls: CommandCall[] = [];
     const cli = new DefaultNpmGlobalPaseoCli(async (command, args, options) => {

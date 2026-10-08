@@ -20,6 +20,8 @@ function assetSuffix(arch, extension) {
   return `-${getArtifactArchName(archFromString(arch), extension)}.${extension}`;
 }
 
+const daemonTargets = ["linux-x64", "linux-arm64", "win32-x64", "win32-arm64"];
+
 const desktopTargets = [
   {
     folder: "preview-windows-x64",
@@ -139,6 +141,13 @@ export async function assemblePreviewAssets({
     }
   }
 
+  for (const target of daemonTargets) {
+    const folder = path.join(input, `preview-daemon-${target}`);
+    readBuildRelease(folder, release);
+    const name = `paseo-daemon-${release.version}-${target}.tgz`;
+    copyAsset(path.join(folder, name), output);
+  }
+
   const androidFolder = path.join(input, "preview-android");
   readBuildRelease(androidFolder, release);
   const apks = readdirSync(androidFolder).filter((name) => name.endsWith(".apk"));
@@ -175,6 +184,10 @@ export async function validatePreviewAssets({ directory, release }) {
         throw new Error(`Incomplete release: missing or duplicated ${target.arch} ${extension}`);
       }
     }
+  }
+  for (const target of daemonTargets) {
+    const name = `paseo-daemon-${release.version}-${target}.tgz`;
+    if (!names.includes(name)) throw new Error(`Incomplete release: missing daemon ${target}`);
   }
   if (names.filter((name) => name.endsWith(".apk")).length !== 1) {
     throw new Error("Incomplete release: expected one Android APK");

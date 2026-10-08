@@ -1,9 +1,30 @@
-import { lstatSync } from "node:fs";
+import { readFileSync, existsSync, lstatSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { downloadForkPreview } from "./fork-preview.js";
 import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import { z } from "zod";
 import { execCommand } from "../../../utils/spawn.js";
 
-export const PASEO_CLI_PACKAGE = "@getpaseo/cli";
+export const FORK_DAEMON_PACKAGE = "@ryanewen/paseo-daemon";
+
+/** Resolve the enclosing distribution, so source and Desktop builds retain their own update policy. */
+function resolveCliPackage(): string {
+  let directory = path.dirname(fileURLToPath(import.meta.url));
+  while (path.dirname(directory) !== directory) {
+    const manifest = path.join(directory, "package.json");
+    if (existsSync(manifest)) {
+      const parsed = z
+        .object({ name: z.string().optional() })
+        .parse(JSON.parse(readFileSync(manifest, "utf8")));
+      if (parsed.name === FORK_DAEMON_PACKAGE) return FORK_DAEMON_PACKAGE;
+    }
+    directory = path.dirname(directory);
+  }
+  return "@getpaseo/cli";
+}
+
+export const PASEO_CLI_PACKAGE = resolveCliPackage();
 
 const NPM_PROBE_TIMEOUT_MS = 10_000;
 const NPM_INSTALL_TIMEOUT_MS = 300_000;
@@ -89,7 +110,10 @@ async function runExternalCommand(
   }
 }
 
-function parseNpmGlobalPaseoInstall(stdout: string): NpmGlobalPaseoInstall | null {
+function parseNpmGlobalPaseoInstall(
+  stdout: string,
+  packageName: string,
+): NpmGlobalPaseoInstall | null {
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(stdout);
@@ -102,7 +126,7 @@ function parseNpmGlobalPaseoInstall(stdout: string): NpmGlobalPaseoInstall | nul
     return null;
   }
 
-  const rawCliPackage = list.data.dependencies?.[PASEO_CLI_PACKAGE];
+  const rawCliPackage = list.data.dependencies?.[packageName];
   const cliPackage = NpmGlobalCliPackageSchema.safeParse(rawCliPackage);
   if (!cliPackage.success) {
     return null;
@@ -119,13 +143,16 @@ function parseNpmGlobalPaseoInstall(stdout: string): NpmGlobalPaseoInstall | nul
 }
 
 export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
-  constructor(private readonly runCommand: CommandRunner = runExternalCommand) {}
+  constructor(
+    private readonly runCommand: CommandRunner = runExternalCommand,
+    private readonly packageName: string = PASEO_CLI_PACKAGE,
+  ) {}
 
   async inspect(options: NpmGlobalOptions = {}): Promise<NpmGlobalPaseoInstall> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
     const result = await this.runCommand(
       "npm",
-      ["-g", "ls", PASEO_CLI_PACKAGE, "--json", "--depth=0", "--long", ...prefixArgs],
+      ["-g", "ls", this.packageName, "--json", "--depth=0", "--long", ...prefixArgs],
       {
         timeout: NPM_PROBE_TIMEOUT_MS,
         maxBuffer: NPM_MAX_BUFFER_BYTES,
@@ -136,16 +163,27 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
       throw new Error(result.stderr.trim() || "npm is not available on this host");
     }
 
-    const install = parseNpmGlobalPaseoInstall(result.stdout);
+    const install = parseNpmGlobalPaseoInstall(result.stdout, this.packageName);
     if (!install) {
-      throw new Error(`${PASEO_CLI_PACKAGE} is not installed with npm -g on this host`);
+      throw new Error(`${this.packageName} is not installed with npm -g on this host`);
     }
     return install;
   }
 
-  installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
+  async installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
-    return this.runCommand("npm", ["install", "-g", `${PASEO_CLI_PACKAGE}@latest`, ...prefixArgs], {
+    if (this.packageName === FORK_DAEMON_PACKAGE) {
+      const download = await downloadForkPreview();
+      try {
+        return await this.runCommand("npm", ["install", "-g", download.file, ...prefixArgs], {
+          timeout: NPM_INSTALL_TIMEOUT_MS,
+          maxBuffer: NPM_MAX_BUFFER_BYTES,
+        });
+      } finally {
+        await download.cleanup();
+      }
+    }
+    return this.runCommand("npm", ["install", "-g", `${this.packageName}@latest`, ...prefixArgs], {
       timeout: NPM_INSTALL_TIMEOUT_MS,
       maxBuffer: NPM_MAX_BUFFER_BYTES,
     });
