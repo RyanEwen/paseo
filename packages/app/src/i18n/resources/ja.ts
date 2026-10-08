@@ -1775,6 +1775,15 @@ export const ja: TranslationResources = {
     remoteSsh: {
       title: "リモート SSH",
       helper: "リモートホストで動作する Paseo デーモンに接続します。",
+      keyImport: {
+        key: "秘密鍵",
+        import: "秘密鍵をインポート",
+        passphrase: "鍵のパスフレーズ（任意）",
+        fingerprint: "サーバーのフィンガープリント",
+        verify: "信頼する前に、このフィンガープリントをサーバーのものと比較してください。",
+        trustAndConnect: "信頼して接続",
+        required: "接続するには秘密鍵をインポートしてください。",
+      },
       fields: {
         target: "SSH ホスト",
         password: "デーモンのパスワード",

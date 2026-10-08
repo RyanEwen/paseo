@@ -1790,6 +1790,15 @@ export const ptBR: TranslationResources = {
     remoteSsh: {
       title: "SSH remoto",
       helper: "Conecte-se a um daemon Paseo no host remoto.",
+      keyImport: {
+        key: "Chave privada",
+        import: "Importar chave privada",
+        passphrase: "Senha da chave (opcional)",
+        fingerprint: "Impressão digital do servidor",
+        verify: "Compare esta impressão digital com a do servidor antes de confiar nele.",
+        trustAndConnect: "Confiar e conectar",
+        required: "Importe uma chave privada para conectar.",
+      },
       fields: {
         target: "Host SSH",
         password: "Senha do daemon",
