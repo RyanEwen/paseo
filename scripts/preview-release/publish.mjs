@@ -29,10 +29,9 @@ receive future previews from this fork. Standalone hosts can install their match
 package with npm and run paseo-plus-plus; host updates stay on fork previews.
 Android previews check for updates in the app and install them with Android's approval.
 
-The first public Android preview uses a dedicated signing key. If you already
-installed a development-signed Paseo Debug, preserve your host connection details,
-then uninstall that build before installing this APK. Android clears that app's
-saved settings when you uninstall it. Later previews install over this signed build.
+Paseo++ has its own desktop and Android identities and starts with fresh settings.
+Install it separately from the former Debug app, then set up your connections again.
+Subsequent Paseo++ previews update the new installation in place.
 
 macOS, iOS, and hosted web previews are not included.
 

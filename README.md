@@ -56,7 +56,9 @@ links and installation commands.
 
 Paseo++ desktop and Android apps keep their own settings and identities, separate from upstream
 Paseo. Set up your hosts and preferences independently in each app. The desktop app also keeps its
-bundled daemon separate from the standalone daemon.
+bundled daemon in `~/.paseo-plus-plus-desktop` on port 6790, separate from the standalone daemon.
+Desktop and Android previews use fresh Paseo++ installations and settings; set up connections again
+when moving from the former Debug builds.
 
 ### Standalone daemon (Linux and WSL)
 

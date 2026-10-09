@@ -143,7 +143,7 @@ if (desktopDistribution.isPreview) {
   process.env.PASEO_LISTEN ??= desktopDistribution.daemonListen;
   // An explicit profile is applied below and must not require the default profile to exist.
   if (!forcedUserDataDir) {
-    // Keep installed profiles at their original path when the fork's display name changes.
+    // Keep the fork profile explicit and independent of upstream or legacy preview profiles.
     app.setPath("userData", path.join(app.getPath("appData"), USER_DATA_NAME));
   }
 }

@@ -19,7 +19,7 @@ const previewExpoProject = {
 };
 
 if (isPreviewBuild && appVariant !== "development") {
-  throw new Error("Fork previews must use the development app identity");
+  throw new Error("Fork preview builds require APP_VARIANT=development");
 }
 if (isPreviewBuild && Object.values(previewExpoProject).some((value) => !value?.trim())) {
   throw new Error("Fork previews require their own Expo project ID, owner, and slug");
@@ -80,6 +80,14 @@ function resolveSecretFile(params) {
 }
 
 const variants = {
+  preview: {
+    name: "Paseo++",
+    packageId: "sh.paseo.plusplus",
+    googleServicesFile: resolveSecretFile({
+      envKey: "GOOGLE_SERVICES_FILE_PREVIEW",
+      fallbackRelativePath: "./.secrets/google-services.preview.json",
+    }),
+  },
   production: {
     name: "Paseo",
     packageId: "sh.paseo",
@@ -106,7 +114,7 @@ const variants = {
   },
 };
 
-const variant = variants[appVariant] ?? variants.production;
+const variant = isPreviewBuild ? variants.preview : (variants[appVariant] ?? variants.production);
 const nativeReleaseVersion = isPreviewBuild
   ? getPreviewReleaseVersion(pkg.version, Number(process.env.PASEO_PREVIEW_BUILD_NUMBER))
   : getNativeReleaseVersion(pkg.version);
@@ -118,7 +126,7 @@ export default {
     version: isPreviewBuild ? nativeReleaseVersion.version : nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "paseo",
+    scheme: isPreviewBuild ? "paseo-plus-plus" : "paseo",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
