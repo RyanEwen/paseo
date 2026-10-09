@@ -280,7 +280,7 @@ function RefPickerTrigger({
   iconSize: number;
 }) {
   return (
-    <TriggerTooltip label={tooltipLabel}>
+    <TriggerTooltip label={`${tooltipLabel}: ${triggerLabel}`}>
       <ComboboxTrigger
         chevron={metaChevron}
         ref={pickerAnchorRef}
@@ -328,7 +328,7 @@ function ProjectPickerTrigger({
   const placeholderLabel = projectIconPlaceholderLabelFromDisplayName(label);
   const placeholderInitial = placeholderLabel.charAt(0).toUpperCase() || "?";
   return (
-    <TriggerTooltip label={tooltipLabel}>
+    <TriggerTooltip label={`${tooltipLabel}: ${label}`}>
       <ComboboxTrigger
         chevron={metaChevron}
         ref={pickerAnchorRef}
@@ -653,7 +653,7 @@ function IsolationPickerTrigger({
   iconSize: number;
 }) {
   return (
-    <TriggerTooltip label={tooltipLabel}>
+    <TriggerTooltip label={`${tooltipLabel}: ${label}`}>
       <ComboboxTrigger
         chevron={metaChevron}
         ref={pickerAnchorRef}
@@ -1536,7 +1536,7 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
         desktopMinWidth={200}
         hostOptionTestID={newWorkspaceHostOptionTestID}
       >
-        <TriggerTooltip label={t("newWorkspace.tooltips.host")}>
+        <TriggerTooltip label={`${t("newWorkspace.tooltips.host")}: ${selectedHostLabel}`}>
           <Pressable
             ref={host.anchorRef}
             accessibilityRole="button"

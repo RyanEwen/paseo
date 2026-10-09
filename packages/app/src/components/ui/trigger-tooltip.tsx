@@ -4,9 +4,17 @@ import { StyleSheet } from "react-native-unistyles";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 /** Adds the shared picker tooltip while preserving the trigger's forwarded ref and events. */
-export function TriggerTooltip({ children, label }: { children: ReactElement; label: string }) {
+export function TriggerTooltip({
+  children,
+  label,
+  enabled = true,
+}: {
+  children: ReactElement;
+  label: string;
+  enabled?: boolean;
+}) {
   return (
-    <Tooltip>
+    <Tooltip enabledOnDesktop={enabled}>
       <TooltipTrigger asChild triggerRefProp="ref">
         {children}
       </TooltipTrigger>

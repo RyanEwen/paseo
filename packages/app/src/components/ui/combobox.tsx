@@ -22,6 +22,8 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { TriggerTooltip } from "@/components/ui/trigger-tooltip";
+import { useTextOverflow } from "@/hooks/use-text-overflow";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -253,6 +255,8 @@ export function ComboboxItem({
   testID,
 }: ComboboxItemProps): ReactElement {
   const { theme } = useUnistyles();
+  const labelOverflow = useTextOverflow(label);
+  const descriptionOverflow = useTextOverflow(description ?? "");
 
   let leadingContent: ReactElement | null = null;
   if (leadingSlot) {
@@ -288,34 +292,51 @@ export function ComboboxItem({
   );
 
   return (
-    <Pressable
-      testID={testID}
-      disabled={disabled}
-      onPress={onPress}
-      style={itemPressableStyle}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
+    <TriggerTooltip
+      label={description ? `${label} · ${description}` : label}
+      enabled={labelOverflow.overflowing || descriptionOverflow.overflowing}
     >
-      {leadingContent}
-      <View style={itemContentStyle}>
-        <Text numberOfLines={1} style={styles.comboboxItemLabel}>
-          {label}
-        </Text>
-        {description ? (
-          <Text numberOfLines={1} style={styles.comboboxItemDescription}>
-            {description}
+      <Pressable
+        testID={testID}
+        disabled={disabled}
+        onPress={onPress}
+        style={itemPressableStyle}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? label}
+      >
+        {leadingContent}
+        <View style={itemContentStyle}>
+          <Text
+            ref={labelOverflow.ref}
+            onLayout={labelOverflow.onLayout}
+            onTextLayout={labelOverflow.onTextLayout}
+            numberOfLines={1}
+            style={styles.comboboxItemLabel}
+          >
+            {label}
           </Text>
-        ) : null}
-      </View>
-      {selected || trailingSlot ? (
-        <View style={styles.comboboxItemTrailingContainer}>
-          <View style={styles.comboboxItemTrailingSlot}>
-            {selected ? <Check size={16} color={theme.colors.foregroundMuted} /> : null}
-          </View>
-          {trailingSlot}
+          {description ? (
+            <Text
+              ref={descriptionOverflow.ref}
+              onLayout={descriptionOverflow.onLayout}
+              onTextLayout={descriptionOverflow.onTextLayout}
+              numberOfLines={1}
+              style={styles.comboboxItemDescription}
+            >
+              {description}
+            </Text>
+          ) : null}
         </View>
-      ) : null}
-    </Pressable>
+        {selected || trailingSlot ? (
+          <View style={styles.comboboxItemTrailingContainer}>
+            <View style={styles.comboboxItemTrailingSlot}>
+              {selected ? <Check size={16} color={theme.colors.foregroundMuted} /> : null}
+            </View>
+            {trailingSlot}
+          </View>
+        ) : null}
+      </Pressable>
+    </TriggerTooltip>
   );
 }
 

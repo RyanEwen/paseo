@@ -13,10 +13,11 @@ export function openWorktreeForm(initialBranch: string) {
   const listeners = new Set<() => void>();
   let state = {
     mode: "branch-off" as "branch-off" | "checkout",
-    branchName: initialBranch,
+    branchName: slugify(initialBranch),
     checkoutBranch: "",
     worktreeName: slugify(initialBranch),
     nameEdited: false,
+    separateNames: false,
     existing: null as ExistingWorktree | null,
     scope: "",
   };
@@ -27,6 +28,9 @@ export function openWorktreeForm(initialBranch: string) {
         state.mode === "branch-off" ? state.branchName : state.checkoutBranch,
       );
     }
+    if (!state.separateNames && state.mode === "branch-off") {
+      state.branchName = state.worktreeName;
+    }
     listeners.forEach((listener) => listener());
   }
   return {
@@ -36,7 +40,7 @@ export function openWorktreeForm(initialBranch: string) {
       state.existing !== null ||
       state.mode === "checkout" ||
       state.nameEdited ||
-      state.branchName !== initialBranch,
+      state.branchName !== slugify(initialBranch),
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => {
@@ -57,8 +61,27 @@ export function openWorktreeForm(initialBranch: string) {
       if (checkoutBranch !== state.checkoutBranch) publish({ checkoutBranch });
     },
     setMode: (mode: typeof state.mode) => publish({ mode }),
-    setBranchName: (branchName: string) => publish({ branchName }),
-    setWorktreeName: (worktreeName: string) => publish({ worktreeName, nameEdited: true }),
+    setBranchName(branchName: string) {
+      publish({
+        branchName,
+        ...(!state.separateNames && state.mode === "branch-off"
+          ? { worktreeName: branchName, nameEdited: true }
+          : {}),
+      });
+    },
+    setWorktreeName(worktreeName: string) {
+      publish({
+        worktreeName,
+        nameEdited: true,
+      });
+    },
+    /** Joining names keeps the visible worktree name; submission validates it for both. */
+    setSeparateNames(separateNames: boolean) {
+      publish({
+        separateNames,
+        ...(!separateNames ? { branchName: state.worktreeName } : {}),
+      });
+    },
     selectExisting: (existing: ExistingWorktree | null) => publish({ existing }),
   };
 }
