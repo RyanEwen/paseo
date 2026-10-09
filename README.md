@@ -17,11 +17,17 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
   passphrase. Verify the server fingerprint before connecting; saved credentials are encrypted
   on your phone. Android does not require the Paseo relay for SSH connections.
 - **Explicit branch and worktree choices:** Choose how a workspace uses an existing branch or
-  creates a new one. Retry failed setup without losing the checkout created for it.
+  creates a new one. Give the worktree and branch a shared name, or choose different names.
+  Retry failed setup without losing the checkout created for it.
 - **Use existing worktrees:** Adopt a checkout without creating another worktree. The first agent
   starts in the selected checkout, preserving any working subdirectory.
 - **Clearer workspace pickers:** Host, project, checkout, and branch choices follow the setup
-  order and include explanations. Projects remain available when their workspaces are pinned.
+  order and include explanations. Hover over truncated choices to see their full values.
+  Projects remain available when their workspaces are pinned.
+- **Explorer and Changes preferences:** Choose whether Explorer starts open in new desktop
+  workspaces and whether selecting a changed file opens its own diff or all changed files.
+  Changes remembers your comparison per workspace across reloads. Set a default comparison,
+  or automatically switch between Uncommitted when dirty and Committed when clean.
 - **Notifications open the right chat:** Chat notifications open their owning workspace,
   including older notifications without a workspace link. Windows banners and Notification
   Center entries retain their chat targets across app restarts.
