@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { getGitHubRelease, getReleaseLookupTag } from "./github-release.mjs";
+import { getGitHubRelease, getReleaseLookupTag, waitForGitHubRelease } from "./github-release.mjs";
 import { syncReleaseNotes } from "./sync-release-notes-from-changelog.mjs";
 
 function withTempChangelog(fn, changelogText = "## 0.1.60-beta.1 - 2026-04-20\n\n- Beta notes.\n") {
@@ -23,6 +23,51 @@ function withTempChangelog(fn, changelogText = "## 0.1.60-beta.1 - 2026-04-20\n\
 function notFoundError() {
   return Object.assign(new Error("release not found"), { stderr: "gh: Not Found (HTTP 404)" });
 }
+
+test("finds a renamed fork draft by its tag rather than its display title", () => {
+  const release = {
+    id: 42,
+    draft: true,
+    name: "Paseo++ v0.11.2-preview.27",
+    tag_name: "v0.11.2-preview.27",
+  };
+  const found = getGitHubRelease("RyanEwen/paseo", release.tag_name, (_command, args) => {
+    if (args[1].includes("/tags/")) throw notFoundError();
+    assert.ok(args.at(-1).includes('.tag_name == "v0.11.2-preview.27"'));
+    return JSON.stringify([release]);
+  });
+  assert.deepEqual(found, release);
+});
+
+test("waits for delayed draft visibility without creating another release", async () => {
+  const release = { id: 42, draft: true };
+  let attempts = 0;
+  const waits = [];
+  const found = await waitForGitHubRelease("RyanEwen/paseo", "v0.11.2-preview.27", {
+    lookup: () => (++attempts === 3 ? release : null),
+    sleep: async (milliseconds) => {
+      waits.push(milliseconds);
+    },
+  });
+  assert.deepEqual(found, release);
+  assert.equal(attempts, 3);
+  assert.deepEqual(waits, [1_000, 1_000]);
+});
+
+test("does not retry an authentication failure while waiting for a draft", async () => {
+  const failure = new Error("authentication failed");
+  let attempts = 0;
+  await assert.rejects(
+    waitForGitHubRelease("RyanEwen/paseo", "v0.11.2-preview.27", {
+      lookup: () => {
+        attempts += 1;
+        throw failure;
+      },
+    }),
+    failure,
+  );
+  assert.equal(attempts, 1);
+});
 
 test("uses the untagged URL slug for draft release CLI operations", () => {
   assert.equal(
