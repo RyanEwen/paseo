@@ -32,6 +32,7 @@ function createMemoryStorage(entries: Record<string, string | null>): MemoryStor
 describe("sidebar view store", () => {
   beforeEach(() => {
     useSidebarViewStore.setState({
+      showBackground: false,
       groupMode: "project",
       workspaceSortMode: "custom",
       sortMode: "custom",
@@ -126,6 +127,25 @@ describe("sidebar view store", () => {
     ).toMatchObject({ groupMode: "status", projectVisibility: "all", sortMode: "custom" });
   });
 
+  it("preserves independent sorting and filters when background visibility is added", () => {
+    const preferences = {
+      groupMode: "status",
+      workspaceSortMode: "name",
+      sortMode: "project",
+      projectVisibility: "unarchived",
+      groupEmptyProjects: false,
+      emptyProjectSortMode: "project",
+      hostFilters: ["host-a"],
+      projectFilters: ["project-a"],
+      labelFilter: { labels: ["review"] },
+    };
+    expect(migrateSidebarViewState(preferences)).toEqual({ ...preferences, showBackground: false });
+    expect(migrateSidebarViewState({ ...preferences, showBackground: true })).toEqual({
+      ...preferences,
+      showBackground: true,
+    });
+  });
+
   it("preserves the previous status view when adding independent preferences", () => {
     expect(migrateSidebarViewState({ groupMode: "status" })).toMatchObject({
       groupMode: "status",
@@ -181,6 +201,7 @@ describe("sidebar view store", () => {
         },
       }),
     ).toEqual({
+      showBackground: false,
       groupMode: "status",
       workspaceSortMode: "status",
       sortMode: "status",
@@ -204,6 +225,7 @@ describe("sidebar view store", () => {
         hostFilter: "host-a",
       }),
     ).toEqual({
+      showBackground: false,
       groupMode: "status",
       workspaceSortMode: "status",
       sortMode: "status",
@@ -227,6 +249,7 @@ describe("sidebar view store", () => {
         hostFilters: ["host-a", "host-b"],
       }),
     ).toEqual({
+      showBackground: false,
       groupMode: "status",
       workspaceSortMode: "status",
       sortMode: "status",
@@ -362,6 +385,7 @@ describe("sidebar view store", () => {
         projectFilters: ["project-a", "project-b"],
       }),
     ).toEqual({
+      showBackground: false,
       groupMode: "project",
       workspaceSortMode: "custom",
       sortMode: "custom",
@@ -376,6 +400,7 @@ describe("sidebar view store", () => {
 
   it("never keeps project filters from state the schema rejects", () => {
     expect(migrateSidebarViewState({ projectFilters: "project-a" })).toEqual({
+      showBackground: false,
       groupMode: "project",
       workspaceSortMode: "custom",
       sortMode: "custom",

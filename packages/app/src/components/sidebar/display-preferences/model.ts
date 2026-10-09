@@ -32,6 +32,8 @@ export interface SidebarDisplayPreferences {
   setEmptyProjectSorting: (mode: SidebarEmptyProjectSortMode) => void;
   groupEmptyProjects: boolean;
   setGroupEmptyProjects: (enabled: boolean) => void;
+  showBackground: boolean;
+  toggleBackground: () => void;
   grouping: SidebarGroupMode;
   setGrouping: (mode: SidebarGroupMode) => void;
   titleSource: WorkspaceTitleSource;
@@ -74,6 +76,8 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
   const setEmptyProjectSorting = useSidebarViewStore((state) => state.setEmptyProjectSortMode);
   const groupEmptyProjects = useSidebarViewStore((state) => state.groupEmptyProjects);
   const setGroupEmptyProjects = useSidebarViewStore((state) => state.setGroupEmptyProjects);
+  const showBackground = useSidebarViewStore((state) => state.showBackground);
+  const toggleBackground = useSidebarViewStore((state) => state.toggleBackground);
   const grouping = useSidebarViewStore((state) => state.groupMode);
   const setGrouping = useSidebarViewStore((state) => state.setGroupMode);
   const hostFilters = useSidebarViewStore((state) => state.hostFilters);
@@ -143,6 +147,8 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setEmptyProjectSorting,
       groupEmptyProjects,
       setGroupEmptyProjects,
+      showBackground,
+      toggleBackground,
       grouping,
       setGrouping,
       titleSource: workspaceTitleSource,
@@ -174,6 +180,8 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setEmptyProjectSorting,
       groupEmptyProjects,
       setGroupEmptyProjects,
+      showBackground,
+      toggleBackground,
       grouping,
       setGrouping,
       workspaceTitleSource,

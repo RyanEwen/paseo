@@ -3,7 +3,9 @@
 # Paseo++
 
 Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental fork of
-[Paseo](https://github.com/getpaseo/paseo). It includes upstream changes plus these additions:
+[Paseo](https://github.com/getpaseo/paseo). Recent upstream changes add background workspaces,
+sender names on agent messages and notifications, recovery after a first prompt fails, and fixes
+for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including
   project names, workspace names, status, and custom ordering. Show agent activity and code-change
