@@ -15,7 +15,8 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
   tabs while the pane is hidden, the app is unfocused, or its window is minimized.
 - **SSH hosts on Android:** Connect to a remote daemon with an imported private key and optional
   passphrase. Verify the server fingerprint before connecting; saved credentials are encrypted
-  on your phone. Android does not require the Paseo relay for SSH connections.
+  on your phone. Dismiss setup safely during key imports and connection checks. Android does not
+  require the Paseo relay for SSH connections.
 - **Explicit branch and worktree choices:** Choose how a workspace uses an existing branch or
   creates a new one. Give the worktree and branch a shared name, or choose different names.
   Retry failed setup without losing the checkout created for it.
@@ -37,8 +38,8 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
 - **Android preview updates:** Get notified when a new preview is available, or check from
   Settings. Download and install it from the app with Android's approval. Downloads are verified
   before installation.
-- **Android plugin video:** Plugins can display encoded video in workspace panels on Android.
-  A plugin that supplies the video is required.
+- **Android plugin video:** Plugins can display encoded video in workspace panels on Android
+  and recover playback after decoder errors. A plugin that supplies the video is required.
 - **Steadier reading on desktop and web:** Text already visible below an image stays in place
   when the image finishes loading at a shorter height.
 - **Mobile refinements:** A larger tab-switcher touch target and notification delivery kept

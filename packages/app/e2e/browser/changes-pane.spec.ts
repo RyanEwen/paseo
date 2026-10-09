@@ -1,3 +1,4 @@
+import { selectChangesComparison } from "../support/helpers/branch-switcher";
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -1848,16 +1849,6 @@ async function openChangesInVisibleExplorer(page: Page): Promise<void> {
   await expect(page.getByTestId("working-diff-panel").filter({ visible: true })).toBeVisible({
     timeout: 30_000,
   });
-}
-
-async function selectChangesComparison(
-  page: Page,
-  comparison: "Committed" | "Uncommitted",
-): Promise<void> {
-  const tree = page.getByTestId("changes-tree-panel").filter({ visible: true });
-  await tree.getByTestId("changes-diff-status-trigger").click();
-  await page.getByTestId(`changes-diff-mode-${comparison.toLowerCase()}`).click();
-  await expect(tree.getByTestId("changes-diff-status-trigger")).toContainText(comparison);
 }
 
 async function expectWorkingComparisonFiles(
