@@ -8,6 +8,34 @@ const branch = (refName: string) => ({
 });
 const sourceInput = { cwd: "/repo", projectId: "project", refName: "refs/heads/main" };
 describe("worktree form", () => {
+  it("shares exact names by default and allows independent names when requested", () => {
+    const form = openWorktreeForm("fresh-branch");
+    form.setWorktreeName("shared-name");
+    expect(worktreeFormSource(form.getState(), sourceInput)).toMatchObject({
+      branchName: "shared-name",
+      worktreeSlug: "shared-name",
+    });
+    form.setSeparateNames(true);
+    form.setBranchName("feature/separate");
+    expect(worktreeFormSource(form.getState(), sourceInput)).toMatchObject({
+      branchName: "feature/separate",
+      worktreeSlug: "shared-name",
+    });
+    form.setWorktreeName("different-directory");
+    expect(form.getState().branchName).toBe("feature/separate");
+    form.setSeparateNames(false);
+    expect(worktreeFormSource(form.getState(), sourceInput)).toMatchObject({
+      branchName: "different-directory",
+      worktreeSlug: "different-directory",
+    });
+  });
+  it("keeps invalid shared names visible for validation instead of silently rewriting them", () => {
+    const form = openWorktreeForm("fresh-branch");
+    form.setWorktreeName("feature/slash");
+    expect(form.getState().branchName).toBe("feature/slash");
+    expect(worktreeFormError(form.getState(), [])).toContain("Worktree name must");
+  });
+
   it("defaults names from the checked out branch and retains manual edits across ref and mode changes", () => {
     const form = openWorktreeForm("Feature/My.Change");
     expect(form.getState().worktreeName).toBe("feature-my-change");
@@ -17,11 +45,14 @@ describe("worktree form", () => {
     form.setWorktreeName("my-checkout");
     form.applyRef(branch("refs/heads/other"));
     form.setMode("branch-off");
+    form.setSeparateNames(true);
     form.setBranchName("New/Branch");
     expect(form.getState().worktreeName).toBe("my-checkout");
   });
   it("sends both explicit creation modes and adopts an existing checkout without worktree creation", () => {
-    const form = openWorktreeForm("feature/new");
+    const form = openWorktreeForm("feature-new");
+    form.setSeparateNames(true);
+    form.setBranchName("feature/new");
     expect(worktreeFormSource(form.getState(), sourceInput)).toEqual({
       kind: "worktree",
       ...sourceInput,
@@ -54,6 +85,7 @@ describe("worktree form", () => {
     "rejects invalid worktree name %s",
     (name) => {
       const form = openWorktreeForm("feature");
+      form.setSeparateNames(true);
       form.setWorktreeName(name);
       expect(worktreeFormError(form.getState(), [])).toContain("Worktree name must");
     },
@@ -79,6 +111,7 @@ describe("worktree form", () => {
       existing: null,
       worktreeName: "fresh-branch",
     });
+    form.setSeparateNames(true);
     form.setBranchName("chosen-new-branch");
     form.setWorktreeName("chosen-directory");
     form.setMode("checkout");

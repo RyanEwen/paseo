@@ -1,7 +1,8 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Field, FormTextInput } from "@/components/ui/form-field";
+import { Switch } from "@/components/ui/switch";
 import type { EditingTextInputHandle } from "@/components/ui/text-input";
 import type { WorktreeFormModel } from "./worktree-form-model";
 
@@ -25,39 +26,76 @@ export function WorktreeFields({
       nameInput.current?.replaceText(state.worktreeName);
     }
   }, [state.worktreeName]);
+  const separateNamesSwitch = useMemo(
+    () => (
+      <Switch
+        value={state.separateNames}
+        onValueChange={model.setSeparateNames}
+        disabled={disabled}
+        accessibilityLabel="Use a different branch name"
+        testID="new-workspace-separate-names"
+      />
+    ),
+    [state.separateNames, model, disabled],
+  );
   if (!visible) return null;
   const size = compact ? "md" : "sm";
+  const newBranch = state.mode === "branch-off";
+  const nameLabel =
+    newBranch && !state.separateNames ? "Worktree and branch name" : "Worktree name";
   return (
     <View style={styles.fields}>
-      <Field label="Worktree name">
-        <FormTextInput
-          ref={nameInput}
-          initialValue={state.worktreeName}
-          onChangeText={model.setWorktreeName}
-          size={size}
-          editable={!disabled}
-          autoCapitalize="none"
-          accessibilityLabel="Worktree name"
-          testID="new-workspace-worktree-name"
-        />
-      </Field>
-      {state.mode === "branch-off" ? (
-        <Field label="New branch name">
-          <FormTextInput
-            initialValue={state.branchName}
-            onChangeText={model.setBranchName}
-            size={size}
-            editable={!disabled}
-            autoCapitalize="none"
-            accessibilityLabel="New branch name"
-            testID="new-workspace-branch-name"
-          />
+      <View style={styles.nameRow}>
+        <View style={styles.nameField}>
+          <Field label={nameLabel}>
+            <FormTextInput
+              ref={nameInput}
+              initialValue={state.worktreeName}
+              onChangeText={model.setWorktreeName}
+              size={size}
+              editable={!disabled}
+              autoCapitalize="none"
+              accessibilityLabel={nameLabel}
+              testID="new-workspace-worktree-name"
+            />
+          </Field>
+        </View>
+        {newBranch && state.separateNames ? (
+          <View style={styles.nameField}>
+            <Field label="New branch name">
+              <FormTextInput
+                key="separate-branch"
+                initialValue={state.branchName}
+                onChangeText={model.setBranchName}
+                size={size}
+                editable={!disabled}
+                autoCapitalize="none"
+                accessibilityLabel="New branch name"
+                testID="new-workspace-branch-name"
+              />
+            </Field>
+          </View>
+        ) : null}
+      </View>
+      {newBranch ? (
+        <Field label="Use a different branch name" trailing={separateNamesSwitch}>
+          {null}
         </Field>
       ) : null}
     </View>
   );
 }
 const styles = StyleSheet.create((theme) => ({
+  nameRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing[2],
+  },
+  nameField: {
+    flexGrow: 1,
+    flexBasis: 220,
+    minWidth: 0,
+  },
   fields: {
     gap: theme.spacing[2],
     marginBottom: theme.spacing[4],
