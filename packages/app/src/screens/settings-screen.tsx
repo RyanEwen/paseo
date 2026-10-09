@@ -1,3 +1,4 @@
+import { AndroidAppUpdateRow } from "@/app-updates/settings-row";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import {
@@ -464,6 +465,7 @@ function AboutSection({ appVersion, appVersionText, isDesktopApp }: AboutSection
             <Text style={styles.aboutValue}>{appVersionText}</Text>
           </View>
           <WhatsNewRow />
+          <AndroidAppUpdateRow />
           {isDesktopApp ? (
             <DesktopAppUpdateRow isPreview={appVersion?.includes("-preview.") === true} />
           ) : null}

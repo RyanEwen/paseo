@@ -2,6 +2,18 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  androidUpdates: {
+    title: "应用更新",
+    idle: "检查此分支的新预览版本。",
+    checking: "正在检查更新…",
+    current: "你使用的是最新发布的预览版本。",
+    available: "预览版本 {{version}} 已可用。",
+    downloading: "正在下载并验证更新…",
+    permission: "在 Android 设置中允许此应用安装更新，然后返回并再次点击安装更新。",
+    installer: "请在 Android 中完成安装。如果已取消，请点击安装更新重试。",
+    install: "安装更新",
+    failed: "无法更新。请重试。",
+  },
   paneFind: {
     connectionFailure: "无法搜索此聊天。请检查主机连接后重试。",
     historyChangedFailure: "搜索期间聊天已更改。请重新搜索。",

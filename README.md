@@ -15,6 +15,8 @@ This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental for
   tabs while the pane is hidden, the app is unfocused, or its window is minimized.
 - **Explicit branch and worktree choices:** Choose how a workspace uses an existing branch or
   creates a new one. Retry failed setup without losing the checkout created for it.
+- **Android preview updates:** Check for new previews in the app and install them with Android's
+  approval. Downloads are verified before installation.
 - **Android plugin video:** Plugins can display encoded video in workspace panels on Android.
   A plugin that supplies the video is required.
 - **Steadier reading on desktop and web:** Text already visible below an image stays in place

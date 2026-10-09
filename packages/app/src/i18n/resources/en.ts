@@ -1,4 +1,17 @@
 export const en = {
+  androidUpdates: {
+    title: "App update",
+    idle: "Check for new fork previews.",
+    checking: "Checking for updates…",
+    current: "You have the latest published preview.",
+    available: "Preview {{version}} is available.",
+    downloading: "Downloading and verifying the update…",
+    permission:
+      "Allow updates from this app in Android Settings, then return and tap Install update again.",
+    installer: "Finish installation in Android. If you cancelled, tap Install update to try again.",
+    install: "Install update",
+    failed: "Unable to update. Try again.",
+  },
   paneFind: {
     connectionFailure: "Could not search this chat. Check the host connection and retry.",
     historyChangedFailure: "The chat changed while searching. Search again.",

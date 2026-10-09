@@ -2,6 +2,20 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
+  androidUpdates: {
+    title: "Mise à jour de l’application",
+    idle: "Rechercher de nouvelles préversions du fork.",
+    checking: "Recherche de mises à jour…",
+    current: "Vous avez la dernière préversion publiée.",
+    available: "La préversion {{version}} est disponible.",
+    downloading: "Téléchargement et vérification de la mise à jour…",
+    permission:
+      "Autorisez les mises à jour depuis cette application dans les paramètres Android, puis revenez et appuyez à nouveau sur Installer la mise à jour.",
+    installer:
+      "Terminez l’installation dans Android. Si vous avez annulé, appuyez sur Installer la mise à jour pour réessayer.",
+    install: "Installer la mise à jour",
+    failed: "Mise à jour impossible. Réessayez.",
+  },
   paneFind: {
     connectionFailure:
       "Impossible de rechercher dans cette conversation. Vérifiez la connexion à l’hôte et réessayez.",

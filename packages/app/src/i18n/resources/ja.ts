@@ -2,6 +2,20 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  androidUpdates: {
+    title: "アプリの更新",
+    idle: "フォークの新しいプレビューを確認します。",
+    checking: "更新を確認中…",
+    current: "最新の公開プレビューを使用しています。",
+    available: "プレビュー {{version}} が利用可能です。",
+    downloading: "更新をダウンロードして検証中…",
+    permission:
+      "Android の設定でこのアプリからの更新を許可し、戻って「更新をインストール」をもう一度タップしてください。",
+    installer:
+      "Android でインストールを完了してください。キャンセルした場合は「更新をインストール」をタップして再試行できます。",
+    install: "更新をインストール",
+    failed: "更新できませんでした。再試行してください。",
+  },
   paneFind: {
     connectionFailure:
       "このチャットを検索できませんでした。ホストへの接続を確認して再試行してください。",

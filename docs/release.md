@@ -120,7 +120,8 @@ parallelism or moving native compilation and Hermes onto a smaller runner.
 
 Windows installers and Linux AppImages update exclusively from this fork's `preview` channel.
 The Stable/Beta selector is omitted in preview builds. The optional CLI installs as `paseo-debug`
-so it can coexist with the official `paseo` command. Other Linux packages and Android APKs can
+so it can coexist with the official `paseo` command. Android previews also update from published
+fork releases; see [Android update controls](android.md#app-variants). Other Linux packages can
 be downloaded from the release. Official tag-triggered release, deployment, and changelog workflows
 exclude preview tags. The preview workflow does not publish npm packages to a registry.
 

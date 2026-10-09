@@ -2,6 +2,20 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ptBR: TranslationResources = {
+  androidUpdates: {
+    title: "Atualização do aplicativo",
+    idle: "Verifique novas prévias do fork.",
+    checking: "Verificando atualizações…",
+    current: "Você tem a prévia publicada mais recente.",
+    available: "A prévia {{version}} está disponível.",
+    downloading: "Baixando e verificando a atualização…",
+    permission:
+      "Permita atualizações deste aplicativo nas configurações do Android, volte e toque em Instalar atualização novamente.",
+    installer:
+      "Conclua a instalação no Android. Se você cancelou, toque em Instalar atualização para tentar novamente.",
+    install: "Instalar atualização",
+    failed: "Não foi possível atualizar. Tente novamente.",
+  },
   paneFind: {
     connectionFailure:
       "Não foi possível pesquisar nesta conversa. Verifique a conexão com o host e tente novamente.",
