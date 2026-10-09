@@ -1742,7 +1742,7 @@ export const ar: TranslationResources = {
       },
       remoteSsh: {
         title: "SSH عن بُعد",
-        description: "الاتصال عبر عميل SSH لسطح المكتب.",
+        description: "الاتصال عبر SSH.",
       },
       scanQr: {
         title: "مسح رمز QR",

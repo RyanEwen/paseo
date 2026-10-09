@@ -323,11 +323,15 @@ describe("imported SSH credentials", () => {
   }
   it("stores credentials after the probe and before saving the host", async () => {
     const events: string[] = [];
-    const result = await saveImportedSshHost(createBridge(events), approved, async (beforeSave) => {
-      events.push("probe");
-      await beforeSave();
-      events.push("save-host");
-      return "saved";
+    const result = await saveImportedSshHost({
+      bridge: createBridge(events),
+      approved,
+      saveHost: async (beforeSave) => {
+        events.push("probe");
+        await beforeSave();
+        events.push("save-host");
+        return "saved";
+      },
     });
     expect(result).toBe("saved");
     expect(events).toEqual(["stage", "probe", "commit", "save-host", "discard"]);
@@ -335,9 +339,13 @@ describe("imported SSH credentials", () => {
   it("discards a failed probe without replacing saved credentials", async () => {
     const events: string[] = [];
     await expect(
-      saveImportedSshHost(createBridge(events), approved, async () => {
-        events.push("probe");
-        throw new Error("Fingerprint changed");
+      saveImportedSshHost({
+        bridge: createBridge(events),
+        approved,
+        saveHost: async () => {
+          events.push("probe");
+          throw new Error("Fingerprint changed");
+        },
       }),
     ).rejects.toThrow("Fingerprint changed");
     expect(events).toEqual(["stage", "probe", "discard"]);
@@ -345,10 +353,14 @@ describe("imported SSH credentials", () => {
   it("does not save the host when secure storage fails", async () => {
     const events: string[] = [];
     await expect(
-      saveImportedSshHost(createBridge(events, true), approved, async (beforeSave) => {
-        events.push("probe");
-        await beforeSave();
-        events.push("save-host");
+      saveImportedSshHost({
+        bridge: createBridge(events, true),
+        approved,
+        saveHost: async (beforeSave) => {
+          events.push("probe");
+          await beforeSave();
+          events.push("save-host");
+        },
       }),
     ).rejects.toThrow("Secure storage unavailable");
     expect(events).toEqual(["stage", "probe", "commit", "discard"]);

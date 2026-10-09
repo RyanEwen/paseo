@@ -1784,7 +1784,7 @@ export const fr: TranslationResources = {
       },
       remoteSsh: {
         title: "SSH distant",
-        description: "Connexion via le client SSH de bureau.",
+        description: "Connexion via SSH.",
       },
       scanQr: {
         title: "Scanner le code QR",

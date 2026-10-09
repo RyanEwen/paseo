@@ -1751,7 +1751,7 @@ export const ko: TranslationResources = {
       },
       remoteSsh: {
         title: "원격 SSH",
-        description: "데스크톱 SSH 클라이언트를 통해 연결합니다.",
+        description: "SSH를 통해 연결합니다.",
       },
       scanQr: {
         title: "QR 코드 스캔",

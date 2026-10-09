@@ -1722,7 +1722,7 @@ export const zhCN: TranslationResources = {
       },
       remoteSsh: {
         title: "远程 SSH",
-        description: "通过桌面 SSH 客户端连接。",
+        description: "通过 SSH 连接。",
       },
       scanQr: {
         title: "扫描二维码",

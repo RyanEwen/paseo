@@ -36,10 +36,11 @@ internal class SshSession(
         true
       })
       if (closed) return
+      // SSHJ starts its keepalive thread during connect, only when the interval is already set.
+      ssh.connection.keepAlive.keepAliveInterval = 15
       ssh.connect(target.hostname, target.sshPort)
       if (closed) return
       ssh.authPublickey(target.username, loadPrivateKey(ssh, credentials))
-      ssh.connection.keepAlive.keepAliveInterval = 15
 
       synchronized(this) {
         if (closed) return
@@ -87,10 +88,15 @@ internal class SshSession(
   @Synchronized fun close() {
     if (closed) return
     closed = true
-    socket?.cancel()
-    runCatching { ssh.close() }
-    http.dispatcher.executorService.shutdown()
-    http.connectionPool.evictAll()
-    onClosed()
+    try {
+      // Channel.close waits for the peer. Break transport I/O before cancelling OkHttp's channel.
+      runCatching { ssh.socket?.close() }
+      runCatching { ssh.close() }
+      runCatching { socket?.cancel() }
+    } finally {
+      http.dispatcher.executorService.shutdown()
+      http.connectionPool.evictAll()
+      onClosed()
+    }
   }
 }
