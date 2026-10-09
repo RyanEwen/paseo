@@ -2,6 +2,20 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
+  androidUpdates: {
+    title: "Actualización de la aplicación",
+    idle: "Busca nuevas versiones preliminares del fork.",
+    checking: "Buscando actualizaciones…",
+    current: "Tienes la última versión preliminar publicada.",
+    available: "La versión preliminar {{version}} está disponible.",
+    downloading: "Descargando y verificando la actualización…",
+    permission:
+      "Permite las actualizaciones desde esta aplicación en los ajustes de Android, vuelve y pulsa Instalar actualización de nuevo.",
+    installer:
+      "Completa la instalación en Android. Si la cancelaste, pulsa Instalar actualización para reintentarlo.",
+    install: "Instalar actualización",
+    failed: "No se puede actualizar. Inténtalo de nuevo.",
+  },
   paneFind: {
     connectionFailure:
       "No se pudo buscar en este chat. Comprueba la conexión con el host y vuelve a intentarlo.",

@@ -27,7 +27,7 @@ Windows (x64 and ARM64), Linux (x64 and ARM64), standalone Linux daemon/CLI pack
 Install Paseo++ alongside the official app. Windows and Linux AppImage builds
 receive future previews from this fork. Standalone hosts can install their matching daemon
 package with npm and run paseo-plus-plus; host updates stay on fork previews.
-Android updates use the APK downloads.
+Android previews check for updates in the app and install them with Android's approval.
 
 The first public Android preview uses a dedicated signing key. If you already
 installed a development-signed Paseo Debug, preserve your host connection details,

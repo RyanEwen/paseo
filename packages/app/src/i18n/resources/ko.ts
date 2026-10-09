@@ -2,6 +2,19 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  androidUpdates: {
+    title: "앱 업데이트",
+    idle: "포크의 새 프리뷰를 확인합니다.",
+    checking: "업데이트 확인 중…",
+    current: "최신 공개 프리뷰를 사용 중입니다.",
+    available: "프리뷰 {{version}}을 사용할 수 있습니다.",
+    downloading: "업데이트 다운로드 및 검증 중…",
+    permission:
+      "Android 설정에서 이 앱의 업데이트를 허용한 후 돌아와서 업데이트 설치를 다시 누르세요.",
+    installer: "Android에서 설치를 완료하세요. 취소했다면 업데이트 설치를 눌러 다시 시도하세요.",
+    install: "업데이트 설치",
+    failed: "업데이트할 수 없습니다. 다시 시도하세요.",
+  },
   paneFind: {
     connectionFailure: "이 채팅을 검색할 수 없습니다. 호스트 연결을 확인하고 다시 시도하세요.",
     historyChangedFailure: "검색 중에 채팅이 변경되었습니다. 다시 검색하세요.",

@@ -2,6 +2,20 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ar: TranslationResources = {
+  androidUpdates: {
+    title: "تحديث التطبيق",
+    idle: "تحقق من إصدارات المعاينة الجديدة لهذا الفرع.",
+    checking: "جارٍ البحث عن تحديثات…",
+    current: "لديك أحدث إصدار معاينة منشور.",
+    available: "إصدار المعاينة {{version}} متاح.",
+    downloading: "جارٍ تنزيل التحديث والتحقق منه…",
+    permission:
+      "اسمح بالتحديثات من هذا التطبيق في إعدادات Android، ثم ارجع واضغط على تثبيت التحديث مرة أخرى.",
+    installer:
+      "أكمل التثبيت في Android. إذا ألغيت العملية، فاضغط على تثبيت التحديث للمحاولة مرة أخرى.",
+    install: "تثبيت التحديث",
+    failed: "تعذر التحديث. حاول مرة أخرى.",
+  },
   paneFind: {
     connectionFailure: "تعذر البحث في هذه المحادثة. تحقق من الاتصال بالمضيف وأعد المحاولة.",
     historyChangedFailure: "تغيّرت المحادثة أثناء البحث. أعد البحث.",

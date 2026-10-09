@@ -27,6 +27,8 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
   Center entries retain their chat targets across app restarts.
 - **Standalone daemon updates from Paseo++:** Install a Linux or WSL daemon from a release
   package, then use the app's host **Update** action to receive newer published Paseo++ previews.
+- **Android preview updates:** Check for new previews in the app and install them with Android's
+  approval. Downloads are verified before installation.
 - **Android plugin video:** Plugins can display encoded video in workspace panels on Android.
   A plugin that supplies the video is required.
 - **Steadier reading on desktop and web:** Text already visible below an image stays in place
