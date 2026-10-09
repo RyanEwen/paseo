@@ -39,6 +39,12 @@ describe("panel manifest", () => {
     expect(
       panelResourceKey({ kind: "working_diff", focusPath: "src/a.ts", focusRequestId: 1 }),
     ).toBe(panelResourceKey({ kind: "working_diff", focusPath: "src/b.ts", focusRequestId: 2 }));
+    expect(panelResourceKey({ kind: "working_diff", filePath: "src/a.ts" })).not.toBe(
+      panelResourceKey({ kind: "working_diff" }),
+    );
+    expect(panelResourceKey({ kind: "working_diff", filePath: "src/a.ts" })).not.toBe(
+      panelResourceKey({ kind: "working_diff", filePath: "src/b.ts" }),
+    );
     expect(panelResourceKey({ kind: "file", path: "src/a.ts" })).not.toBe(
       panelResourceKey({ kind: "file", path: "src/b.ts" }),
     );

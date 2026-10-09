@@ -1,11 +1,24 @@
+import { z } from "zod";
+
 export type WorkingDiffComparison = "uncommitted" | "base";
 
-export interface WorkingDiffComparisonOverride {
-  serverId: string;
-  cwd: string;
-  comparison: WorkingDiffComparison;
-  isDirtyAtSelection: boolean;
+export const WorkingDiffComparisonOverrideSchema = z.strictObject({
+  serverId: z.string(),
+  cwd: z.string(),
+  comparison: z.enum(["uncommitted", "base"]),
+  isDirtyAtSelection: z.boolean(),
+});
+export type WorkingDiffComparisonOverride = z.infer<typeof WorkingDiffComparisonOverrideSchema>;
+
+export interface WorkingDiffComparisonPolicy {
+  defaultComparison: WorkingDiffComparison;
+  autoSwitch: boolean;
 }
+
+export const DEFAULT_WORKING_DIFF_COMPARISON_POLICY: WorkingDiffComparisonPolicy = {
+  defaultComparison: "uncommitted",
+  autoSwitch: false,
+};
 
 export interface WorkingDiffComparisonState {
   overrides: Record<string, WorkingDiffComparisonOverride>;
@@ -52,11 +65,14 @@ export function selectWorkingDiffComparisonInState(
 
 export function resolveWorkingDiffComparisonFromState(
   state: WorkingDiffComparisonState,
-  input: WorkingDiffCheckoutIdentity & { isDirty: boolean },
+  input: WorkingDiffCheckoutIdentity & { isDirty: boolean; policy?: WorkingDiffComparisonPolicy },
 ): WorkingDiffComparison {
+  const policy = input.policy ?? DEFAULT_WORKING_DIFF_COMPARISON_POLICY;
   const override = state.overrides[workingDiffComparisonKey(input)];
-  // Status can render before boundary expiry runs, so resolution must also mask a stale
-  // selection under any ordering of the two updates.
+  if (!policy.autoSwitch) {
+    return override?.comparison ?? policy.defaultComparison;
+  }
+  // Automatic mode masks an expired choice even before the status boundary removes it.
   if (override?.isDirtyAtSelection === input.isDirty) {
     return override.comparison;
   }

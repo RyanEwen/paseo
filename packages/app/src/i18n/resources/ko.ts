@@ -1995,7 +1995,31 @@ export const ko: TranslationResources = {
       diagnostics: "진단",
       about: "정보",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "탐색기",
+        comparison: {
+          label: "기본 비교",
+          description: "이 작업 공간에 저장된 비교가 없을 때 사용합니다.",
+          options: { uncommitted: "커밋되지 않음", base: "커밋됨" },
+        },
+        autoSwitch: {
+          label: "비교 자동 전환",
+          description:
+            "로컬 변경 사항이 있으면 커밋되지 않은 변경을, 없으면 커밋된 변경을 표시합니다. 끄면 선택을 기억합니다.",
+        },
+        autoOpen: {
+          label: "새 작업 공간에서 사이드바 열기",
+          description: "새 데스크톱 작업 공간에서 탐색기 사이드바를 자동으로 표시합니다.",
+        },
+        diffScope: {
+          label: "변경 사항에서 파일을 클릭할 때",
+          description: "차이 보기에 표시할 변경된 파일의 범위를 선택합니다.",
+          options: { all: "변경된 모든 파일", single: "선택한 파일만" },
+        },
+      },
+    },
     editor: {
       title: "편집기",
       vimKeybindings: "Vim 키 바인딩",

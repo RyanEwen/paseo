@@ -15,6 +15,8 @@ vi.mock("@react-native-async-storage/async-storage", () => {
   };
 });
 
+import { queryClient } from "@/data/query-client";
+import { APP_SETTINGS_QUERY_KEY, DEFAULT_CLIENT_SETTINGS } from "@/hooks/use-settings/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createViewedTimelineSync } from "@/timeline/viewed-timeline-sync";
 import { buildWorkspaceTabPersistenceKey, type WorkspaceTab } from "@/workspace-tabs/model";
@@ -25,6 +27,7 @@ import {
   collectAllPanes,
   collectAllTabs,
   createWorkspaceLayoutStore,
+  selectIsExplorerSidebarVisible,
   observeOpenWorkspaceAgentIds,
   createDefaultLayout,
   createWorkspaceLayoutWithExplorerSidebar,
@@ -233,6 +236,80 @@ function expectGroup(node: SplitNode): Extract<SplitNode, { kind: "group" }> {
 }
 
 describe("workspace-layout-store helpers", () => {
+  it("applies automatic Explorer visibility only to new workspace layouts", () => {
+    const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+    store.setState({ layoutByWorkspace: {} });
+    queryClient.setQueryData(APP_SETTINGS_QUERY_KEY, {
+      ...DEFAULT_CLIENT_SETTINGS,
+      autoOpenExplorerSidebar: true,
+    });
+    try {
+      store.getState().reconcileTabs("auto-open", {
+        agentsHydrated: true,
+        terminalsHydrated: true,
+        activeAgentIds: [],
+        autoOpenAgentIds: [],
+        knownTerminalIds: [],
+        standaloneTerminalIds: [],
+      });
+      expect(selectIsExplorerSidebarVisible(store.getState(), "auto-open")).toBe(true);
+      store.getState().openTab({
+        workspaceKey: "auto-open",
+        target: { kind: "file", path: "first.ts" },
+        intent: "reveal",
+      });
+      expect(selectIsExplorerSidebarVisible(store.getState(), "auto-open")).toBe(true);
+      store.getState().hideExplorerSidebar("auto-open");
+      store.getState().openTab({
+        workspaceKey: "auto-open",
+        target: { kind: "file", path: "second.ts" },
+        intent: "reveal",
+      });
+      expect(selectIsExplorerSidebarVisible(store.getState(), "auto-open")).toBe(false);
+
+      queryClient.setQueryData(APP_SETTINGS_QUERY_KEY, DEFAULT_CLIENT_SETTINGS);
+      store.getState().openTab({
+        workspaceKey: "closed",
+        target: { kind: "file", path: "first.ts" },
+        intent: "reveal",
+      });
+      expect(selectIsExplorerSidebarVisible(store.getState(), "closed")).toBe(false);
+      store.getState().showExplorerSidebar("closed");
+      store.getState().openTab({
+        workspaceKey: "closed",
+        target: { kind: "file", path: "second.ts" },
+        intent: "reveal",
+      });
+      expect(selectIsExplorerSidebarVisible(store.getState(), "closed")).toBe(true);
+    } finally {
+      queryClient.removeQueries({ queryKey: APP_SETTINGS_QUERY_KEY });
+    }
+  });
+
+  it("keeps single-file diffs separate from the all-files diff and restores their scopes", async () => {
+    const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+    store.setState({ layoutByWorkspace: {} });
+    for (const filePath of [undefined, "a.ts", "b.ts"]) {
+      store.getState().openTab({
+        workspaceKey: "scoped",
+        target: { kind: "working_diff", ...(filePath ? { filePath } : {}) },
+        intent: "reveal",
+      });
+    }
+    const diffTargets = () =>
+      collectAllTabs(store.getState().layoutByWorkspace.scoped.root)
+        .filter((tab) => tab.target.kind === "working_diff")
+        .map((tab) => tab.target);
+    const expected = [
+      { kind: "working_diff" },
+      { kind: "working_diff", filePath: "a.ts" },
+      { kind: "working_diff", filePath: "b.ts" },
+    ];
+    expect(diffTargets()).toEqual(expected);
+    await store.persist.rehydrate();
+    expect(diffTargets()).toEqual(expected);
+  });
+
   it("seeds Files and Changes in the default Explorer sidebar", () => {
     const layout = createWorkspaceLayoutWithExplorerSidebar();
     const tabs = collectAllTabs(layout.root);

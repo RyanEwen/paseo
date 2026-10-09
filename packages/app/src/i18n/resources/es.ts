@@ -2033,7 +2033,35 @@ export const es: TranslationResources = {
       diagnostics: "Diagnóstico",
       about: "Acerca de",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "Explorador",
+        comparison: {
+          label: "Comparación predeterminada",
+          description: "Se usa cuando este espacio de trabajo no tiene una comparación guardada.",
+          options: { uncommitted: "Sin confirmar", base: "Confirmado" },
+        },
+        autoSwitch: {
+          label: "Cambiar la comparación automáticamente",
+          description:
+            "Mostrar los cambios sin confirmar si existen; de lo contrario, los confirmados. Desactiva esta opción para recordar tu selección.",
+        },
+        autoOpen: {
+          label: "Abrir la barra lateral en espacios de trabajo nuevos",
+          description:
+            "Mostrar automáticamente la barra lateral del Explorador en espacios de trabajo nuevos de escritorio.",
+        },
+        diffScope: {
+          label: "Al hacer clic en un archivo en Cambios",
+          description: "Elige cuántos archivos modificados aparecen en el diff.",
+          options: {
+            all: "Todos los archivos modificados",
+            single: "Solo el archivo seleccionado",
+          },
+        },
+      },
+    },
     editor: {
       title: "Editor",
       vimKeybindings: "Atajos de Vim",

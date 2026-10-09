@@ -1985,7 +1985,32 @@ export const ar: TranslationResources = {
       diagnostics: "التشخيص",
       about: "عن",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "المستكشف",
+        comparison: {
+          label: "المقارنة الافتراضية",
+          description: "تُستخدم عندما لا تحتوي مساحة العمل على مقارنة محفوظة.",
+          options: { uncommitted: "غير مثبّتة", base: "مثبّتة" },
+        },
+        autoSwitch: {
+          label: "تبديل المقارنة تلقائيًا",
+          description:
+            "عرض التغييرات غير المثبّتة عند وجود تغييرات محلية والمثبّتة خلاف ذلك. أوقف هذا الخيار لتذكر اختيارك.",
+        },
+        autoOpen: {
+          label: "فتح الشريط الجانبي لمساحات العمل الجديدة",
+          description:
+            "عرض الشريط الجانبي للمستكشف تلقائيًا في مساحات العمل الجديدة على سطح المكتب.",
+        },
+        diffScope: {
+          label: "عند النقر على ملف في التغييرات",
+          description: "اختر الملفات المعدلة التي تظهر في عرض الفروقات.",
+          options: { all: "جميع الملفات المعدلة", single: "الملف المحدد فقط" },
+        },
+      },
+    },
     editor: {
       title: "المحرر",
       vimKeybindings: "اختصارات Vim",

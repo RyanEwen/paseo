@@ -107,6 +107,14 @@ export interface AppSettings {
   /** Desktop-only preferences for implicit opens into the ordinary side pane. */
   openInSidePane: OpenInSidePanePreferences;
   pullRequestOpenLocation: PullRequestOpenLocation;
+  /** Initial Explorer visibility; saved workspace layouts keep their own choice. */
+  autoOpenExplorerSidebar: boolean;
+  /** Scope of the diff opened by selecting a file in Changes. */
+  explorerDiffScope: "all" | "single";
+  /** Initial comparison when a workspace has no remembered selection. */
+  workingDiffDefaultComparison: "uncommitted" | "base";
+  /** Automatically follow checkout dirtiness instead of retaining the selected comparison. */
+  workingDiffAutoSwitch: boolean;
 }
 
 export type AppSettingsUpdate =
@@ -162,6 +170,10 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   vimKeybindings: false,
   openInSidePane: DEFAULT_OPEN_IN_SIDE_PANE_PREFERENCES,
   pullRequestOpenLocation: "explorer",
+  autoOpenExplorerSidebar: false,
+  explorerDiffScope: "all",
+  workingDiffDefaultComparison: "uncommitted",
+  workingDiffAutoSwitch: false,
 };
 
 export const DEFAULT_APP_SETTINGS: Settings = {
@@ -284,6 +296,10 @@ const StoredAppSettingsSchema = z
         legacyPullRequestsInSidePane: undefined,
       }),
     pullRequestOpenLocation: z.enum(["main", "side", "explorer"]).optional(),
+    autoOpenExplorerSidebar: z.boolean().catch(false),
+    explorerDiffScope: z.enum(["all", "single"]).catch("all"),
+    workingDiffDefaultComparison: z.enum(["uncommitted", "base"]).catch("uncommitted"),
+    workingDiffAutoSwitch: z.boolean().catch(false),
     // COMPAT(explorerSidebarRouting): replaced by source-specific side-pane preferences in v0.6.
     openSupportingTabsInSidePanel: z.boolean().optional().catch(undefined),
     // COMPAT(rendererDesktopSettings): these fields used to share this renderer-owned key.

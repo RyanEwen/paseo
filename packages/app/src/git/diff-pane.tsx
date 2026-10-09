@@ -31,6 +31,7 @@ import {
 import { type ParsedDiffFile } from "@/git/use-diff-query";
 import type { ChangesState } from "@/panels/changes/state";
 import { defaultChangesState } from "@/panels/changes/state";
+import { useDiffFileScope } from "@/git/diff-scope";
 import { DiffDocument, type WorkingDiffMode } from "@/git/diff-document";
 import { ChangedFilesTree } from "@/git/changed-files-tree";
 import { JUMP_TO_FILE_CLEARANCE, JumpToFile } from "@/git/jump-to-file";
@@ -180,6 +181,7 @@ interface ChangesSurfaceProps {
   cwd: string;
   enabled?: boolean;
   presentation?: ChangesPresentation;
+  filePath?: string;
   focusPath?: string;
   focusRequestId?: number;
   onOpenFile?: (path: string) => void;
@@ -1441,6 +1443,7 @@ export function ChangesSurface({
   cwd,
   enabled,
   presentation = "combined",
+  filePath,
   focusPath,
   focusRequestId,
   onOpenFile,
@@ -1542,7 +1545,7 @@ export function ChangesSurface({
     diffMode,
     selectUncommitted: handleSelectUncommitted,
     selectBase: handleSelectBase,
-    files,
+    files: allFiles,
     diffPayloadError,
     diffTooLarge,
     isDiffLoading,
@@ -1691,6 +1694,13 @@ export function ChangesSurface({
     },
     [onSelectDiffFile, presentation],
   );
+  const { files, treeFiles } = useDiffFileScope({
+    allFiles,
+    filePath,
+    focusRequest: documentFocusRequest,
+    presentation,
+    scope: appSettings.explorerDiffScope,
+  });
   const workingMode = useMemo(
     () => ({
       kind: "working" as const,
@@ -1733,7 +1743,7 @@ export function ChangesSurface({
   const jumpToFileInset = jumpToFileClearance({
     isCompact: isMobile,
     presentation,
-    hasChanges,
+    hasChanges: treeFiles.length > 0,
     isDiffLoading,
   });
   const showJumpToFile = jumpToFileInset > 0;
@@ -1805,7 +1815,7 @@ export function ChangesSurface({
       presentation={presentation}
       desktopTreeVisible={desktopTreeVisible}
       isMobile={isMobile}
-      files={files}
+      files={treeFiles}
       mode={workingMode}
       onSelectFile={handleSelectTreeFile}
       treeWidth={instanceState.treeWidth}
@@ -1930,7 +1940,7 @@ export function ChangesSurface({
       <View style={styles.diffContainer}>
         {bodyContent}
         {showJumpToFile ? (
-          <JumpToFile files={files} mode={workingMode} onSelectFile={handleSelectTreeFile} />
+          <JumpToFile files={treeFiles} mode={workingMode} onSelectFile={handleSelectTreeFile} />
         ) : null}
       </View>
 

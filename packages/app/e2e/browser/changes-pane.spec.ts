@@ -8,7 +8,11 @@ import { daemonWsRoutePattern } from "../support/helpers/daemon-port";
 import { getServerId } from "../support/helpers/server-id";
 import { connectSeedClient } from "../support/helpers/seed-client";
 import { createTempGitRepo } from "../support/helpers/workspace";
-import { openChangesPanel, waitForWorkspaceTabsVisible } from "../support/helpers/workspace-tabs";
+import {
+  ensureExplorerSidebar,
+  openChangesPanel,
+  waitForWorkspaceTabsVisible,
+} from "../support/helpers/workspace-tabs";
 
 interface DirtyWorkspace {
   id: string;
@@ -262,7 +266,40 @@ test.afterEach(async () => {
   }
 });
 
+test("Changes defaults to uncommitted and remembers manual comparisons across reloads and dirty transitions", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const workspace = await createWorkspaceWithCommittedDiff();
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto(buildHostWorkspaceRoute(getServerId(), workspace.id));
+  await waitForWorkspaceTabsVisible(page);
+  const explorer = await ensureExplorerSidebar(page);
+  await explorer.getByTestId("workspace-tab-changes_tree").click();
+  const tree = page.getByTestId("changes-tree-panel").filter({ visible: true });
+  const mode = tree.getByTestId("changes-diff-status-trigger");
+  await expect(mode).toContainText("Uncommitted");
+  await selectChangesComparison(page, "Committed");
+  await page.reload();
+  await expect(mode).toContainText("Committed", { timeout: 30_000 });
+  await writeFile(path.join(workspace.repoPath, "new-working-change.txt"), "uncommitted\n");
+  await expect(mode).toContainText("Committed");
+  await selectChangesComparison(page, "Uncommitted");
+  await expect(tree.getByText("new-working-change.txt", { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  execFileSync("git", ["add", "--all"], { cwd: workspace.repoPath });
+  execFileSync("git", ["commit", "-m", "Commit working changes"], { cwd: workspace.repoPath });
+  await expect(tree.getByText("No changes to display", { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(mode).toContainText("Uncommitted");
+  await page.reload();
+  await expect(mode).toContainText("Uncommitted", { timeout: 30_000 });
+});
+
 test("Changes opens the populated committed comparison for a clean checkout", async ({ page }) => {
+  await useAutomaticChangesComparison(page);
   const workspace = await createWorkspaceWithCommittedDiff();
 
   await openWorkspaceChangesSurface(page, workspace, 90_000);
@@ -274,6 +311,7 @@ test("Changes opens the populated committed comparison for a clean checkout", as
 });
 
 test("Changes expires a manual comparison when checkout dirtiness changes", async ({ page }) => {
+  await useAutomaticChangesComparison(page);
   const workspace = await createWorkspaceWithMountedTabDiff();
   await openWorkspaceChanges(page, workspace);
 
@@ -298,6 +336,7 @@ test("Changes expires a manual comparison when checkout dirtiness changes", asyn
 });
 
 test("an empty Changes comparison links to the populated comparison", async ({ page }) => {
+  await useAutomaticChangesComparison(page);
   const workspace = await createWorkspaceWithCommittedDiff();
   await openWorkspaceChangesSurface(page, workspace);
 
@@ -890,7 +929,49 @@ test("compact Changes jumps to a file from the changed-files sheet", async ({ pa
   });
 });
 
+test("single-file Changes keeps compact navigation when the selected diff disappears", async ({
+  page,
+}) => {
+  const workspace = await createWorkspaceWithMountedTabDiff({ includeDeletedFile: true });
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({ explorerDiffScope: "single" }));
+  }, APP_SETTINGS_KEY);
+  const explorer = await openCompactChanges(page, workspace);
+  await openChangedFilesOverview(page);
+  await jumpToOverviewFile(page, explorer, "src/use-mounted-tab-set.ts");
+  await expect(explorer.locator('[data-diff-header-path="src/zz-deleted.ts"]')).toHaveCount(0);
+
+  await writeFile(path.join(workspace.repoPath, "src/use-mounted-tab-set.ts"), BEFORE);
+  await expect(explorer.getByText("No changes to display", { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  await openChangedFilesOverview(page);
+  await jumpToOverviewFile(page, explorer, "src/zz-deleted.ts");
+  await expect(
+    explorer.locator('[data-diff-header-path="src/use-mounted-tab-set.ts"]'),
+  ).toHaveCount(0);
+});
+
+test("single-file Changes opens a scoped desktop diff and restores it on reload", async ({
+  page,
+}) => {
+  const workspace = await createWorkspaceWithMountedTabDiff({ includeDeletedFile: true });
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({ explorerDiffScope: "single" }));
+  }, APP_SETTINGS_KEY);
+  await openWorkspaceChanges(page, workspace);
+  const panel = page.getByTestId("working-diff-panel").filter({ visible: true });
+  await expect(diffHeaderForPath(panel, "src/use-mounted-tab-set.ts")).toBeVisible();
+  await expect(panel.locator('[data-diff-header-path="src/zz-deleted.ts"]')).toHaveCount(0);
+  await page.reload();
+  await expect(diffHeaderForPath(panel, "src/use-mounted-tab-set.ts")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(panel.locator('[data-diff-header-path="src/zz-deleted.ts"]')).toHaveCount(0);
+});
+
 test("Jump to file stays out of the desktop diff and of an empty comparison", async ({ page }) => {
+  await useAutomaticChangesComparison(page);
   const committed = await createWorkspaceWithCommittedDiff();
   await openWorkspaceChangesSurface(page, committed, 90_000);
   await expect(page.getByRole("button", { name: "Jump to file" })).toHaveCount(0);
@@ -1337,6 +1418,14 @@ async function useCodeFont(page: Page, codeFontSize: number): Promise<void> {
     },
     { settingsKey: APP_SETTINGS_KEY, fontSize: codeFontSize },
   );
+}
+
+/** Exercises the opt-in dirtiness-following behavior independently of the new default. */
+async function useAutomaticChangesComparison(page: Page): Promise<void> {
+  await page.addInitScript((key) => {
+    const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+    localStorage.setItem(key, JSON.stringify({ ...settings, workingDiffAutoSwitch: true }));
+  }, APP_SETTINGS_KEY);
 }
 
 async function useUnwrappedDiffLines(page: Page): Promise<void> {
