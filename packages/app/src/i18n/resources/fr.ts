@@ -2145,7 +2145,36 @@ export const fr: TranslationResources = {
       diagnostics: "Diagnostic",
       about: "À propos",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "Explorateur",
+        comparison: {
+          label: "Comparaison par défaut",
+          description:
+            "Utilisée si cet espace de travail ne possède pas de comparaison enregistrée.",
+          options: { uncommitted: "Non validé", base: "Validé" },
+        },
+        autoSwitch: {
+          label: "Changer automatiquement de comparaison",
+          description:
+            "Afficher les modifications non validées si elles existent, sinon les modifications validées. Désactivez pour conserver votre sélection.",
+        },
+        autoOpen: {
+          label: "Ouvrir le panneau pour les nouveaux espaces de travail",
+          description:
+            "Afficher automatiquement le panneau Explorateur dans les nouveaux espaces de travail sur ordinateur.",
+        },
+        diffScope: {
+          label: "Clic sur un fichier dans Modifications",
+          description: "Choisissez les fichiers modifiés à afficher dans le diff.",
+          options: {
+            all: "Tous les fichiers modifiés",
+            single: "Fichier sélectionné uniquement",
+          },
+        },
+      },
+    },
     editor: {
       title: "Éditeur",
       vimKeybindings: "Raccourcis Vim",

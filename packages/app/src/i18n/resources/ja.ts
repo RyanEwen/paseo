@@ -2120,7 +2120,31 @@ export const ja: TranslationResources = {
       diagnostics: "診断",
       about: "アプリ情報",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "エクスプローラー",
+        comparison: {
+          label: "既定の比較",
+          description: "ワークスペースに保存された比較がない場合に使用します。",
+          options: { uncommitted: "未コミット", base: "コミット済み" },
+        },
+        autoSwitch: {
+          label: "比較を自動的に切り替える",
+          description:
+            "ローカルの変更がある場合は未コミット、それ以外はコミット済みを表示します。オフにすると選択を記憶します。",
+        },
+        autoOpen: {
+          label: "新しいワークスペースでサイドバーを開く",
+          description: "デスクトップの新しいワークスペースでエクスプローラーを自動的に表示します。",
+        },
+        diffScope: {
+          label: "変更内のファイルをクリックしたとき",
+          description: "差分に表示する変更ファイルの範囲を選択します。",
+          options: { all: "変更されたすべてのファイル", single: "選択したファイルのみ" },
+        },
+      },
+    },
     editor: {
       title: "エディター",
       vimKeybindings: "Vim キーバインド",

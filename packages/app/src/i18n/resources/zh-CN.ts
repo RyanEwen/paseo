@@ -2076,7 +2076,30 @@ export const zhCN: TranslationResources = {
       diagnostics: "诊断",
       about: "关于",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "资源管理器",
+        comparison: {
+          label: "默认比较",
+          description: "工作区没有保存的比较选择时使用。",
+          options: { uncommitted: "未提交", base: "已提交" },
+        },
+        autoSwitch: {
+          label: "自动切换比较",
+          description: "有本地更改时显示未提交的更改，否则显示已提交的更改。关闭后记住您的选择。",
+        },
+        autoOpen: {
+          label: "为新工作区打开侧边栏",
+          description: "在新的桌面工作区中自动显示资源管理器侧边栏。",
+        },
+        diffScope: {
+          label: "点击更改中的文件时",
+          description: "选择在差异视图中显示哪些已更改的文件。",
+          options: { all: "所有已更改的文件", single: "仅选中的文件" },
+        },
+      },
+    },
     editor: {
       title: "编辑器",
       vimKeybindings: "Vim 键位",

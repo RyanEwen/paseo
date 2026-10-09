@@ -76,6 +76,46 @@ describe("loadAppSettingsFromStorage", () => {
     expect(toggleSidebarTrailingItem({ trailing: neither, choice: "timestamp" })).toBe("timestamp");
   });
 
+  it("defaults Explorer preferences and preserves persisted choices", async () => {
+    const defaults = await loadAppSettingsFromStorage(makeDeps());
+    expect(defaults.autoOpenExplorerSidebar).toBe(false);
+    expect(defaults.explorerDiffScope).toBe("all");
+    expect(defaults.workingDiffDefaultComparison).toBe("uncommitted");
+    expect(defaults.workingDiffAutoSwitch).toBe(false);
+
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    await saveAppSettings({
+      queryClient,
+      updates: {
+        autoOpenExplorerSidebar: true,
+        explorerDiffScope: "single",
+        workingDiffDefaultComparison: "base",
+        workingDiffAutoSwitch: true,
+      },
+      deps,
+    });
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.autoOpenExplorerSidebar).toBe(true);
+    expect(restored.explorerDiffScope).toBe("single");
+    expect(restored.workingDiffDefaultComparison).toBe("base");
+    expect(restored.workingDiffAutoSwitch).toBe(true);
+  });
+
+  it("uses Explorer defaults when stored values are invalid", async () => {
+    const deps = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify({
+          autoOpenExplorerSidebar: "yes",
+          explorerDiffScope: "future",
+        }),
+      }),
+    });
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.autoOpenExplorerSidebar).toBe(false);
+    expect(restored.explorerDiffScope).toBe("all");
+  });
+
   it("preserves a persisted steer send behavior", async () => {
     const deps = makeDeps({
       storage: createInMemoryKeyValueStorage({

@@ -14,7 +14,7 @@ import {
 import type { UsePrPaneDataResult } from "@/git/pull-request-panel/use-data";
 import { useCheckoutPrStatusQuery } from "@/git/use-pr-status-query";
 
-import { useSettings } from "@/hooks/use-settings";
+import { useAppSettings } from "@/hooks/use-settings";
 import { useWorkspaceLayoutStoreHydrated } from "@/stores/workspace-layout-store";
 import { autoOpenWorkspacePullRequest } from "@/workspace-tabs/open-supporting-view";
 
@@ -43,12 +43,13 @@ export function usePullRequestAutoAdd(input: {
   enabled: boolean;
 }): void {
   const hydrated = useWorkspaceLayoutStoreHydrated();
-  const destination = useSettings((settings) => settings.pullRequestOpenLocation);
+  const { settings, isLoading } = useAppSettings();
+  const destination = settings.pullRequestOpenLocation;
   useEffect(() => {
-    if (hydrated && input.enabled && input.hasPullRequest) {
+    if (hydrated && !isLoading && input.enabled && input.hasPullRequest) {
       autoOpenWorkspacePullRequest({ workspaceKey: input.workspaceKey, destination });
     }
-  }, [hydrated, input.enabled, input.hasPullRequest, input.workspaceKey, destination]);
+  }, [hydrated, isLoading, input.enabled, input.hasPullRequest, input.workspaceKey, destination]);
 }
 
 export function PullRequestContent(input: {

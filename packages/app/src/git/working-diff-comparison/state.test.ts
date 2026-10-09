@@ -1,3 +1,5 @@
+import { createWorkingDiffComparisonStore } from "./index";
+import { createInMemoryKeyValueStorage } from "@/hooks/use-settings/fakes";
 import { describe, expect, it } from "vitest";
 import {
   expireWorkingDiffComparisonsInState,
@@ -7,13 +9,78 @@ import {
   workingDiffComparisonKey,
 } from "./state";
 
-const checkout = { serverId: "server-1", workspaceId: "workspace-1", cwd: "/repo" };
+const checkout = {
+  serverId: "server-1",
+  workspaceId: "workspace-1",
+  cwd: "/repo",
+  policy: { defaultComparison: "uncommitted" as const, autoSwitch: true },
+};
 
 function emptyState(): WorkingDiffComparisonState {
   return { overrides: {} };
 }
 
 describe("working diff comparison", () => {
+  it("restores the selected comparison after the app reloads", async () => {
+    const storage = createInMemoryKeyValueStorage();
+    const source = createWorkingDiffComparisonStore(storage);
+    await source.persist.rehydrate();
+    source.getState().select({ ...checkout, comparison: "base", isDirty: false });
+    const restored = createWorkingDiffComparisonStore(storage);
+    await restored.persist.rehydrate();
+    expect(
+      resolveWorkingDiffComparisonFromState(restored.getState(), {
+        ...checkout,
+        policy: undefined,
+        isDirty: true,
+      }),
+    ).toBe("base");
+  });
+
+  it("defaults to uncommitted regardless of dirtiness unless a different default is configured", () => {
+    expect(
+      resolveWorkingDiffComparisonFromState(emptyState(), {
+        ...checkout,
+        policy: undefined,
+        isDirty: false,
+      }),
+    ).toBe("uncommitted");
+    expect(
+      resolveWorkingDiffComparisonFromState(emptyState(), {
+        ...checkout,
+        policy: { defaultComparison: "base", autoSwitch: false },
+        isDirty: true,
+      }),
+    ).toBe("base");
+  });
+
+  it("keeps manual comparisons across dirty transitions when automatic switching is off", () => {
+    const state = selectWorkingDiffComparisonInState(emptyState(), {
+      ...checkout,
+      comparison: "uncommitted",
+      isDirty: true,
+    });
+    expect(
+      resolveWorkingDiffComparisonFromState(state, {
+        ...checkout,
+        policy: undefined,
+        isDirty: false,
+      }),
+    ).toBe("uncommitted");
+    const committed = selectWorkingDiffComparisonInState(state, {
+      ...checkout,
+      comparison: "base",
+      isDirty: false,
+    });
+    expect(
+      resolveWorkingDiffComparisonFromState(committed, {
+        ...checkout,
+        policy: undefined,
+        isDirty: true,
+      }),
+    ).toBe("base");
+  });
+
   it("scopes selection to the workspace checkout rather than a panel", () => {
     expect(workingDiffComparisonKey(checkout)).toBe(
       "working-diff:server=server-1:workspace=workspace-1",

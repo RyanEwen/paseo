@@ -84,6 +84,20 @@ new target and never yanks an existing tab out of a user-selected pane.
 
 ## Routing preferences
 
+**Settings → Sidebar → Explorer** controls whether Explorer starts open in new desktop workspaces.
+It defaults to closed. Saved workspace visibility stays as you left it when this setting changes.
+
+The same section controls whether clicking a file in Changes shows all changed files or only the
+selected file. All changed files is the default. Single-file diffs keep their scope when restored;
+opening workspace Changes directly still shows the full diff. Inline Changes keeps the full file
+tree available when its document shows only the selected file.
+
+Changes defaults to Uncommitted and remembers the comparison you select per workspace, including
+across reloads and dirty-state changes. **Default comparison** applies where no selection is saved.
+Enable **Automatically switch comparison** to follow checkout dirtiness: Uncommitted when dirty,
+Committed when clean. In that mode a dirty-state change clears the manual selection; the default
+comparison control is inactive.
+
 Desktop **Settings → Layout → Open location** has independent Main panel or On the side choices for
 Explorer Files, diffs, chat files, files opened from diffs, and subagents. They default to Main
 panel. Mobile ignores them.

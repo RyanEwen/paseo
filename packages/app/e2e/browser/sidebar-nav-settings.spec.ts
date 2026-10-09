@@ -31,6 +31,58 @@ import {
   setSidebarNavItemVisible,
 } from "../support/helpers/sidebar-nav-settings";
 
+test("Explorer settings persist automatic sidebar opening and single-file Changes", async ({
+  page,
+}) => {
+  await gotoAppShell(page);
+  await openSidebarNavSettings(page);
+  const autoOpen = page.getByRole("switch", {
+    name: "Open sidebar for new workspaces",
+    exact: true,
+  });
+  await expect(autoOpen).toHaveAttribute("aria-checked", "false");
+  await autoOpen.click();
+  await expect(autoOpen).toHaveAttribute("aria-checked", "true");
+  await page
+    .getByRole("button", { name: "Clicking a file in Changes: All changed files", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Selected file only", exact: true }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "Clicking a file in Changes: Selected file only",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const autoSwitch = page.getByRole("switch", {
+    name: "Automatically switch comparison",
+    exact: true,
+  });
+  const defaultComparison = page.getByRole("button", {
+    name: "Default comparison: Uncommitted",
+    exact: true,
+  });
+  await expect(autoSwitch).toHaveAttribute("aria-checked", "false");
+  await autoSwitch.click();
+  await expect(defaultComparison).toBeDisabled();
+  await autoSwitch.click();
+  await expect(defaultComparison).toBeEnabled();
+  await defaultComparison.click();
+  await page.getByRole("menuitem", { name: "Committed", exact: true }).click();
+  await page.reload();
+  await expect(autoOpen).toHaveAttribute("aria-checked", "true");
+  await expect(
+    page.getByRole("button", {
+      name: "Clicking a file in Changes: Selected file only",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(autoSwitch).toHaveAttribute("aria-checked", "false");
+  await expect(
+    page.getByRole("button", { name: "Default comparison: Committed", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("explorer-settings.png") });
+});
+
 test("fixed footer line keeps its five icons, Help and Settings at the end", async ({ page }) => {
   test.setTimeout(120_000);
   await installUsageReportsFixture(page, { lists: [() => claudeAndCodexReports()] });

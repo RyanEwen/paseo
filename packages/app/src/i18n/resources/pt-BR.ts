@@ -2133,7 +2133,35 @@ export const ptBR: TranslationResources = {
       diagnostics: "Diagnósticos",
       about: "Sobre",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "Explorador",
+        comparison: {
+          label: "Comparação padrão",
+          description: "Usada quando este espaço de trabalho não tem uma comparação salva.",
+          options: { uncommitted: "Não commitado", base: "Commitado" },
+        },
+        autoSwitch: {
+          label: "Alternar comparação automaticamente",
+          description:
+            "Mostrar alterações não commitadas quando houver alterações locais e commitadas caso contrário. Desative para lembrar sua seleção.",
+        },
+        autoOpen: {
+          label: "Abrir a barra lateral em novos espaços de trabalho",
+          description:
+            "Mostrar automaticamente a barra lateral do Explorador em novos espaços de trabalho no desktop.",
+        },
+        diffScope: {
+          label: "Ao clicar em um arquivo em Alterações",
+          description: "Escolha quantos arquivos alterados aparecem no diff.",
+          options: {
+            all: "Todos os arquivos alterados",
+            single: "Somente o arquivo selecionado",
+          },
+        },
+      },
+    },
     editor: {
       title: "Editor",
       vimKeybindings: "Atalhos do Vim",

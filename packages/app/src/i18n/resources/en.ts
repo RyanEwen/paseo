@@ -2125,6 +2125,28 @@ export const en = {
       about: "About",
     },
     layout: {
+      explorer: {
+        title: "Explorer",
+        comparison: {
+          label: "Default comparison",
+          description: "Used when this workspace has no saved comparison.",
+          options: { uncommitted: "Uncommitted", base: "Committed" },
+        },
+        autoSwitch: {
+          label: "Automatically switch comparison",
+          description:
+            "Show Uncommitted when there are local changes and Committed otherwise. Turn off to remember your selection.",
+        },
+        autoOpen: {
+          label: "Open sidebar for new workspaces",
+          description: "Automatically show the Explorer sidebar in new desktop workspaces.",
+        },
+        diffScope: {
+          label: "Clicking a file in Changes",
+          description: "Choose how many changed files appear in the diff.",
+          options: { all: "All changed files", single: "Selected file only" },
+        },
+      },
       openInSidePane: {
         title: "Open location",
         destinations: {
