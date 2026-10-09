@@ -124,17 +124,14 @@ exclude preview tags. The preview workflow does not publish npm packages to a re
 ### Standalone fork daemon
 
 The preview release includes `paseo-daemon-<version>-linux-<arch>.tgz` for Linux x64 and ARM64.
-Windows uses the daemon bundled with the desktop app. Install the matching download with Node.js 22 or newer:
-
-```bash
-npm install -g ./paseo-daemon-<version>-linux-<arch>.tgz
-paseo-fork daemon run
-```
+Windows uses the daemon bundled with the desktop app. See the
+[README installation commands](../README.md#standalone-daemon-linux-and-wsl) for setup.
 
 These packages include the daemon, CLI, web UI, and native runtime dependencies. Linux packages
-require glibc; Alpine/musl hosts are excluded. The `paseo-fork` command coexists with upstream
-`paseo`, but both use `~/.paseo` by default. Set a separate `PASEO_HOME` and listen address when
-running both. Stop the existing service before switching its command to `paseo-fork`.
+require glibc; Alpine/musl hosts are excluded. The `paseo-plus-plus` command uses its own settings
+and host identity in `~/.paseo-plus-plus`, with the default listen address `127.0.0.1:6791`.
+The desktop app keeps its bundled daemon in `~/.paseo-debug` on port 6790. Upstream Paseo,
+the desktop daemon, and the standalone daemon can run side by side with their defaults.
 
 The app's host update action installs the newest published fork preview for the host's platform
 and architecture, after checking its SHA256SUMS entry. It keeps the original npm prefix and

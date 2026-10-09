@@ -1,3 +1,4 @@
+import { daemonDistribution } from "@getpaseo/server/daemon-control";
 import { pairCommand } from "./commands/daemon/pair.js";
 import { Command, Option } from "commander";
 import { createAgentCommand } from "./commands/agent/index.js";
@@ -46,7 +47,7 @@ export function createCli(): Command {
   const program = new Command();
 
   program
-    .name("paseo")
+    .name(daemonDistribution.commandName)
     .description("Paseo CLI - control your AI coding agents from the command line")
     .version(VERSION, "-v, --version", "output the version number")
     // Global output options

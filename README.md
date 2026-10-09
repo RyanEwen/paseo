@@ -1,8 +1,8 @@
 <!-- fork-overview:start -->
 
-## Ryan's Paseo fork
+# Paseo++
 
-This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental fork of
+Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental fork of
 [Paseo](https://github.com/getpaseo/paseo). It includes upstream changes plus these additions:
 
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including
@@ -13,8 +13,20 @@ This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental for
   Chrome APIs an extension uses.
 - **Browser automation in the background:** Agents can continue interacting with desktop browser
   tabs while the pane is hidden, the app is unfocused, or its window is minimized.
+- **SSH hosts on Android:** Connect to a remote daemon with an imported private key and optional
+  passphrase. Verify the server fingerprint before connecting; saved credentials are encrypted
+  on your phone. Android does not require the Paseo relay for SSH connections.
 - **Explicit branch and worktree choices:** Choose how a workspace uses an existing branch or
   creates a new one. Retry failed setup without losing the checkout created for it.
+- **Use existing worktrees:** Adopt a checkout without creating another worktree. The first agent
+  starts in the selected checkout, preserving any working subdirectory.
+- **Clearer workspace pickers:** Host, project, checkout, and branch choices follow the setup
+  order and include explanations. Projects remain available when their workspaces are pinned.
+- **Notifications open the right chat:** Chat notifications open their owning workspace,
+  including older notifications without a workspace link. Windows banners and Notification
+  Center entries retain their chat targets across app restarts.
+- **Standalone daemon updates from Paseo++:** Install a Linux or WSL daemon from a release
+  package, then use the app's host **Update** action to receive newer published Paseo++ previews.
 - **Android plugin video:** Plugins can display encoded video in workspace panels on Android.
   A plugin that supplies the video is required.
 - **Steadier reading on desktop and web:** Text already visible below an image stays in place
@@ -22,20 +34,40 @@ This is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental for
 - **Mobile refinements:** A larger tab-switcher touch target and notification delivery kept
   separate between development and production apps.
 
-Download previews from [this fork's releases](https://github.com/RyanEwen/paseo/releases).
-Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage
-previews receive updates from this fork. Standalone daemon packages for Linux
-(x64 and ARM64) are prepared by the preview workflow and update from published fork previews.
-Windows uses the daemon bundled with the desktop app.
-Use `paseo-fork` for standalone fork hosts; package installation commands below remain upstream.
-macOS is deferred until Apple signing is available;
-iOS and hosted web are excluded. The download links and package installation commands below are
-for upstream Paseo.
+## Install Paseo++
 
-If you already installed a development-signed Paseo Debug on Android, save your host connection
-details and uninstall that build before installing the first public preview. Uninstalling clears
-its saved settings. Later signed previews update the public preview without uninstalling it. See the
-[preview installation guidance](docs/release.md#fork-preview-distribution).
+Download desktop and Android previews from [Paseo++ releases](https://github.com/RyanEwen/paseo/releases).
+Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage
+previews receive updates from Paseo++ releases. The desktop app includes its own daemon.
+macOS is deferred until Apple signing is available;
+iOS and hosted web are excluded. The upstream overview farther down retains upstream download
+links and installation commands.
+
+Paseo++ desktop and Android apps keep their own settings and identities, separate from upstream
+Paseo. Set up your hosts and preferences independently in each app. The desktop app also keeps its
+bundled daemon separate from the standalone daemon.
+
+### Standalone daemon (Linux and WSL)
+
+Install Node.js 22 or newer and at least one agent CLI. Download the matching
+`paseo-daemon-<version>-linux-<arch>.tgz` from [Paseo++ releases](https://github.com/RyanEwen/paseo/releases).
+Use `x64` for Intel/AMD or `arm64` for ARM. Linux packages require glibc; Alpine/musl is unsupported.
+
+Install the downloaded package, then start the daemon:
+
+```bash
+npm install -g ./paseo-daemon-<version>-linux-<arch>.tgz
+paseo-plus-plus daemon run
+```
+
+Keep that terminal open, or use `paseo-plus-plus daemon run` as your service's command.
+The standalone daemon keeps its settings, host identity, agents, and workspaces in
+`~/.paseo-plus-plus` and listens on `127.0.0.1:6791`. Upstream Paseo and Paseo++ can run side by
+side with their defaults. Set up the new daemon independently and connect your app to it.
+These defaults apply to previews built with the `paseo-plus-plus` command.
+
+Use the app's host **Update** action to install newer published Paseo++ daemon previews.
+Source-built daemons need to switch to a release package to use this update path.
 
 <!-- fork-overview:end -->
 
@@ -45,7 +77,7 @@ its saved settings. Later signed previews update the public preview without unin
   <img src="packages/website/public/logo.svg" width="64" height="64" alt="Paseo logo">
 </p>
 
-<h1 align="center">Paseo</h1>
+<h1 align="center">Upstream Paseo</h1>
 
 <p align="center">
   <a href="README.md">English</a> ·

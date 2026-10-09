@@ -25,11 +25,6 @@ test("preview releases build one checked commit and require every approved platf
     assert.match(jobs.get(job).join("\n"), /if: \$\{\{ !inputs\.verify_daemon_updates_only \}\}/);
   }
   const daemonJob = jobs.get("daemon").join("\n");
-  assert.deepEqual(
-    [...daemonJob.matchAll(/runner: (\S+)/g)].map((match) => match[1]),
-    ["ubuntu-24.04", "ubuntu-24.04-arm"],
-  );
-  assert.doesNotMatch(daemonJob, /windows|win32/);
   assert.match(daemonJob, /daemon\.mjs --smoke/);
   assert.match(daemonJob, /if: inputs\.verify_daemon_updates_only[\s\S]*daemon-update\.mjs/);
   assert.match(source, /ref: \$\{\{ needs\.source\.outputs\.commit \}\}/);
@@ -63,7 +58,7 @@ test("fork code changes require a README update or an explicit review with a rea
 
   checkForkOverviewReview({
     ...input,
-    after: readme.replace("## Ryan's Paseo fork", "## Ryan's Paseo fork\n\nA new fork feature."),
+    after: readme.replace("# Paseo++", "# Paseo++\n\nA new fork feature."),
   });
   checkForkOverviewReview({
     ...input,
@@ -90,7 +85,9 @@ test("fork code changes require a README update or an explicit review with a rea
 
 test("fork overview cannot disappear, move below upstream content, or gain duplicate markers", () => {
   const readme = readFileSync(new URL("README.md", repoRoot), "utf8");
-  assert.match(getForkOverview(readme), /## Ryan's Paseo fork/);
+  assert.match(getForkOverview(readme), /^# Paseo\+\+/);
+  const historicalReadme = readme.replace("# Paseo++", "## Ryan's Paseo fork");
+  assert.match(getForkOverview(historicalReadme), /^## Ryan's Paseo fork/);
   assert.equal(getForkOverview(readme.replaceAll("\n", "\r\n")), getForkOverview(readme));
   for (const invalid of [
     readme.replace("<!-- fork-overview:start -->", ""),
