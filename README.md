@@ -25,10 +25,12 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
 - **Notifications open the right chat:** Chat notifications open their owning workspace,
   including older notifications without a workspace link. Windows banners and Notification
   Center entries retain their chat targets across app restarts.
-- **Standalone daemon updates from Paseo++:** Install a Linux or WSL daemon from a release
-  package, then use the app's host **Update** action to receive newer published Paseo++ previews.
-- **Android preview updates:** Check for new previews in the app and install them with Android's
-  approval. Downloads are verified before installation.
+- **Independent standalone daemons:** Run a Linux or WSL daemon alongside upstream Paseo with
+  its own settings, host identity, agents, and workspaces. Install it with `paseo-plus-plus` and
+  use the app's host **Update** action to receive newer published Paseo++ previews.
+- **Android preview updates:** Get notified when a new preview is available, or check from
+  Settings. Download and install it from the app with Android's approval. Downloads are verified
+  before installation.
 - **Android plugin video:** Plugins can display encoded video in workspace panels on Android.
   A plugin that supplies the video is required.
 - **Steadier reading on desktop and web:** Text already visible below an image stays in place
