@@ -1,12 +1,23 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  chmodSync,
+} from "node:fs";
 import path from "node:path";
+import { homedir, tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { isMainModule } from "../is-main-module.mjs";
 import { smokeRunningDaemon } from "./daemon-smoke.mjs";
 import { stageDaemonRuntime } from "./runtime.mjs";
+import assert from "node:assert/strict";
 import { syncWorkspaceVersions } from "../sync-workspace-versions.mjs";
+import { loadNativePtyModules } from "../native-pty.mjs";
 
 /** Stage the existing traced runtime as a dependency-free npm tarball for this native host. */
 export function buildDaemonPackage({ root, output, release }) {
@@ -24,7 +35,7 @@ export function buildDaemonPackage({ root, output, release }) {
     cpSync(path.join(root, "LICENSE"), path.join(staging, "LICENSE"));
     writeFileSync(path.join(staging, "runtime/package.json"), JSON.stringify({ type: "module" }));
     mkdirSync(path.join(staging, "bin"));
-    const launcher = path.join(staging, "bin/paseo-fork");
+    const launcher = path.join(staging, "bin/paseo-plus-plus");
     writeFileSync(
       launcher,
       '#!/usr/bin/env node\nimport "../runtime/packages/cli/dist/index.js";\n',
@@ -38,7 +49,7 @@ export function buildDaemonPackage({ root, output, release }) {
           license: rootManifest.license,
           version: release.version,
           type: "module",
-          bin: { "paseo-fork": "bin/paseo-fork" },
+          bin: { "paseo-plus-plus": "bin/paseo-plus-plus" },
           engines: { node: ">=22" },
           os: [process.platform],
           cpu: [process.arch],
@@ -67,21 +78,70 @@ export async function smokeDaemonPackage(packageRoot) {
   const npmModule = await import(pathToFileURL(path.join(runtime, "npm-global-cli.js")).href);
   if (npmModule.PASEO_CLI_PACKAGE !== manifest.name)
     throw new Error("Installed daemon lost its fork update identity");
+  assert.deepEqual(manifest.bin, { "paseo-plus-plus": "bin/paseo-plus-plus" });
+  const control = await import(
+    pathToFileURL(path.join(serverRoot, "dist/server/server/daemon-instance.js")).href
+  );
+  assert.equal(control.daemonDistribution.defaultHome, "~/.paseo-plus-plus");
+  assert.equal(control.daemonDistribution.defaultPort, 6791);
+  const persisted = await import(
+    pathToFileURL(path.join(serverRoot, "dist/server/server/persisted-config.js")).href
+  );
+  const freshHome = mkdtempSync(path.join(tmpdir(), "paseo-plus-plus-defaults-"));
+  try {
+    const defaults = persisted.readPersistedConfig(freshHome, { defaultsIfMissing: true });
+    assert.equal(defaults.daemon.listen, "127.0.0.1:6791");
+  } finally {
+    rmSync(freshHome, { recursive: true, force: true });
+  }
+  const defaultHome = path.join(homedir(), ".paseo-plus-plus");
+  assert.equal(control.resolvePaseoHome({}), defaultHome);
+  assert.equal(control.resolvePaseoHome({ PASEO_HOME: packageRoot }), packageRoot);
+  const configModule = await import(
+    pathToFileURL(path.join(serverRoot, "dist/server/server/config.js")).href
+  );
+  assert.equal(
+    configModule.resolveConfigFromPersisted(defaultHome, {}, { env: {} }).listen,
+    "127.0.0.1:6791",
+  );
+  assert.equal(
+    configModule.resolveConfigFromPersisted(
+      defaultHome,
+      { daemon: { listen: "127.0.0.1:7009" } },
+      { env: {} },
+    ).listen,
+    "127.0.0.1:7009",
+  );
+  assert.equal(
+    configModule.resolveConfigFromPersisted(
+      defaultHome,
+      {},
+      { env: { PASEO_LISTEN: "127.0.0.1:7010" } },
+    ).listen,
+    "127.0.0.1:7010",
+  );
+
   const serverManifest = JSON.parse(readFileSync(path.join(serverRoot, "package.json"), "utf8"));
   if (serverManifest.version !== manifest.version)
     throw new Error("Installed daemon version does not match its distribution");
   const require = createRequire(path.join(serverRoot, "package.json"));
-  const ptyUtils = require("node-pty/lib/utils");
-  ptyUtils.loadNativeModule("pty");
+  loadNativePtyModules(require);
   const speech = require("sherpa-onnx-node");
   if (typeof speech.OfflineRecognizer !== "function") {
     throw new Error("Installed speech runtime is unavailable");
   }
   const version = execFileSync(
     process.execPath,
-    [path.join(packageRoot, "bin/paseo-fork"), "--version"],
+    [path.join(packageRoot, "bin/paseo-plus-plus"), "--version"],
     { encoding: "utf8" },
   ).trim();
+  const help = execFileSync(
+    process.execPath,
+    [path.join(packageRoot, "bin/paseo-plus-plus"), "--help"],
+    { encoding: "utf8" },
+  );
+  assert.match(help, /Usage: paseo-plus-plus/);
+  assert.match(help, /~\/.paseo-plus-plus/);
   if (version !== manifest.version)
     throw new Error(`Installed CLI reports unexpected version: ${version}`);
   process.stdout.write(
@@ -107,6 +167,14 @@ if (isMainModule(import.meta.url) && process.argv[2] === "--smoke") {
   execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "build:daemon-web-ui"], {
     stdio: "inherit",
     shell: process.platform === "win32",
+    // Expo derives native metadata even for a browser export. Use the same preview identity
+    // as the app jobs after syncing the workspace manifests to the preview version.
+    env: {
+      ...process.env,
+      APP_VARIANT: "development",
+      PASEO_PREVIEW_BUILD: "1",
+      PASEO_PREVIEW_BUILD_NUMBER: String(release.buildNumber),
+    },
   });
   buildDaemonPackage({ root, output: path.resolve("preview-daemon"), release });
 }

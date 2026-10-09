@@ -1,30 +1,13 @@
-import { readFileSync, existsSync, lstatSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { lstatSync } from "node:fs";
 import { downloadForkPreview } from "./fork-preview.js";
 import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import { z } from "zod";
 import { execCommand } from "../../../utils/spawn.js";
 
-export const FORK_DAEMON_PACKAGE = "@ryanewen/paseo-daemon";
+import { daemonDistribution, FORK_DAEMON_PACKAGE } from "../../daemon-distribution.js";
 
-/** Resolve the enclosing distribution, so source and Desktop builds retain their own update policy. */
-function resolveCliPackage(): string {
-  let directory = path.dirname(fileURLToPath(import.meta.url));
-  while (path.dirname(directory) !== directory) {
-    const manifest = path.join(directory, "package.json");
-    if (existsSync(manifest)) {
-      const parsed = z
-        .object({ name: z.string().optional() })
-        .parse(JSON.parse(readFileSync(manifest, "utf8")));
-      if (parsed.name === FORK_DAEMON_PACKAGE) return FORK_DAEMON_PACKAGE;
-    }
-    directory = path.dirname(directory);
-  }
-  return "@getpaseo/cli";
-}
-
-export const PASEO_CLI_PACKAGE = resolveCliPackage();
+export { FORK_DAEMON_PACKAGE };
+export const PASEO_CLI_PACKAGE = daemonDistribution.cliPackage;
 
 const NPM_PROBE_TIMEOUT_MS = 10_000;
 const NPM_INSTALL_TIMEOUT_MS = 300_000;

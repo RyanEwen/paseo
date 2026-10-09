@@ -20,7 +20,7 @@ function assetSuffix(arch, extension) {
   return `-${getArtifactArchName(archFromString(arch), extension)}.${extension}`;
 }
 
-const daemonTargets = ["linux-x64", "linux-arm64", "win32-x64", "win32-arm64"];
+const daemonTargets = ["linux-x64", "linux-arm64"];
 
 const desktopTargets = [
   {

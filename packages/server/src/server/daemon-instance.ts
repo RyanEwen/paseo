@@ -27,6 +27,7 @@ const killTree = (pid: number, signal: string): Promise<void> =>
 // Keep daemon bootstrap and WebSocket schemas out of its dependency tree.
 export { resolvePaseoHome } from "./paseo-home.js";
 export { ensurePrivateDirectory } from "./private-files.js";
+export { daemonDistribution } from "./daemon-distribution.js";
 export { daemonLaunchEnvironment } from "./config-environment.js";
 export { readLocalCredentialForTarget } from "./local-credential.js";
 export {
