@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { queryClient as appQueryClient } from "@/data/query-client";
 import { APP_SETTINGS_QUERY_KEY, DEFAULT_CLIENT_SETTINGS } from "@/hooks/use-settings/storage";
 import { QueryClient } from "@tanstack/react-query";
@@ -120,6 +121,25 @@ afterEach(() => {
 });
 
 describe("fetchCheckoutStatus", () => {
+  it("persists automatic comparison expiry only when a selection actually expires", async () => {
+    selectBaseComparison(false);
+    const saveChoices = vi.mocked(AsyncStorage.setItem);
+    saveChoices.mockClear();
+
+    const client = { getCheckoutStatus: async () => checkoutStatus() };
+    await fetchCheckoutStatus({ client, serverId, cwd });
+    expect(resolveWorkingDiffComparison({ serverId, cwd, isDirty: false })).toBe("base");
+    expect(saveChoices).not.toHaveBeenCalled();
+
+    await fetchCheckoutStatus({
+      client: { getCheckoutStatus: async () => checkoutStatus({ isDirty: true }) },
+      serverId,
+      cwd,
+    });
+    expect(saveChoices).toHaveBeenCalledOnce();
+    expect(JSON.parse(saveChoices.mock.calls[0]![1]).state.overrides).toEqual({});
+  });
+
   it("keeps a manual selection across a status transition when automatic switching is disabled", async () => {
     appQueryClient.setQueryData(APP_SETTINGS_QUERY_KEY, DEFAULT_CLIENT_SETTINGS);
     selectWorkingDiffComparison({ serverId, cwd, comparison: "uncommitted", isDirty: true });

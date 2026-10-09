@@ -129,9 +129,13 @@ export function expireWorkingDiffComparisons(input: {
   if (!currentComparisonPolicy().autoSwitch) {
     return;
   }
-  useWorkingDiffComparisonStore.setState((state) =>
-    expireWorkingDiffComparisonsInState(state, input),
-  );
+  const current = useWorkingDiffComparisonStore.getState();
+  const next = expireWorkingDiffComparisonsInState(current, input);
+  // Persist middleware writes even when a setter returns the existing state. Checkout
+  // updates are frequent, so leave storage alone unless a manual selection expired.
+  if (next !== current) {
+    useWorkingDiffComparisonStore.setState(next);
+  }
 }
 
 export function resetWorkingDiffComparisons(): void {
