@@ -303,11 +303,11 @@ describe("Android video canvas document", () => {
       await waitForMessage(page, "error");
       expect((await messages(page)).at(-1)).toMatchObject({ type: "error", generation: 1 });
 
-      const dataBase64 = await keyframe({ page });
+      const { dataBase64, config } = await keyframe({ page });
       await send(page, {
         type: "configure",
         generation: 3,
-        config: { codec: "vp8", codedWidth: 16, codedHeight: 16 },
+        config,
       });
       await send(page, {
         type: "decode",

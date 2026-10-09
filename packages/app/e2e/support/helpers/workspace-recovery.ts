@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { openChangesPanel } from "./branch-switcher";
+import { openChangesPanel, selectChangesComparison } from "./branch-switcher";
 
 export async function restoreArchivedWorkspace(page: Page): Promise<void> {
   await expect(page.getByText("Workspace archived", { exact: true })).toBeVisible({
@@ -23,6 +23,13 @@ export async function restoreWorkspaceFromHistory(
 
 export async function expectCommittedFile(page: Page, filename: string): Promise<void> {
   await openChangesPanel(page);
+  // Uncommitted is the default; restoration checks deliberately inspect committed changes.
+  await selectChangesComparison(page, "Committed");
+  await expectRestoredFile(page, filename);
+}
+
+/** Assert the restored file remains visible without changing the selected comparison. */
+async function expectRestoredFile(page: Page, filename: string): Promise<void> {
   await expect(page.getByText(filename, { exact: true }).filter({ visible: true })).toBeVisible({
     timeout: 30_000,
   });
@@ -34,5 +41,12 @@ export async function expectCommittedFile(page: Page, filename: string): Promise
 export async function expectCommittedFileAfterReload(page: Page, filename: string): Promise<void> {
   await expectCommittedFile(page, filename);
   await page.reload();
-  await expectCommittedFile(page, filename);
+  await openChangesPanel(page);
+  await expect(
+    page
+      .getByTestId("changes-tree-panel")
+      .filter({ visible: true })
+      .getByTestId("changes-diff-status-trigger"),
+  ).toContainText("Committed");
+  await expectRestoredFile(page, filename);
 }

@@ -400,6 +400,7 @@ test.describe("New workspace flow", () => {
       listDelay.release();
       await expect(page.getByText(`main · ${repo.path}`, { exact: true })).toBeVisible();
       await page.getByTestId("workspace-create-isolation-worktree").click();
+      await chooseSeparateBranchName(page);
       await page.getByTestId("new-workspace-branch-name").fill("retained-branch");
       await page.getByTestId("new-workspace-worktree-name").fill("retained-name");
       renameSync(repo.path, movedPath);
@@ -461,6 +462,8 @@ test.describe("New workspace flow", () => {
           });
           await page.goto(`/new?${query.toString()}`);
           await selectWorkspaceIsolation(page, "worktree");
+          await expect(page.getByTestId("new-workspace-branch-name")).toHaveCount(0);
+          await chooseSeparateBranchName(page);
         };
         await openForm();
         const branchName = page.getByTestId("new-workspace-branch-name");
@@ -473,16 +476,22 @@ test.describe("New workspace flow", () => {
         if (viewport.width === 1440) {
           await modeControl.hover();
           await expect(
-            page.getByText("Create a new branch or check out an existing branch", { exact: true }),
+            page.getByText("Create a new branch or check out an existing branch: New branch", {
+              exact: true,
+            }),
           ).toBeVisible();
           await refControl.hover();
           await expect(
-            page.getByText("Choose the branch to base the new branch on", { exact: true }),
+            page.getByText("Choose the branch to base the new branch on: from main", {
+              exact: true,
+            }),
           ).toBeVisible();
           await isolationControl.hover();
-          await expect(
-            page.getByText("Use Local or choose a worktree", { exact: true }),
-          ).toBeVisible();
+          const isolationTooltip = page.getByRole("tooltip", {
+            name: /Use Local or choose a worktree:/,
+          });
+          await expect(isolationTooltip).toBeVisible();
+          await expect(isolationTooltip).toContainText(await isolationControl.innerText());
           await worktreeName.hover();
         }
 
@@ -693,6 +702,7 @@ test.describe("New workspace flow", () => {
       await expect(page.getByRole("button", { name: "second-only", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "first-only", exact: true })).toHaveCount(0);
       await page.keyboard.press("Escape");
+      await chooseSeparateBranchName(page);
       await page.getByTestId("new-workspace-branch-name").fill("new-repository-branch");
       await submitNewWorkspaceEmpty(page);
       await expect(page).toHaveURL(/\/workspace\//, { timeout: 30_000 });
@@ -1627,3 +1637,9 @@ test.describe("New workspace flow", () => {
     }
   });
 });
+
+/** Reveal the independent branch field before tests edit distinct checkout and branch names. */
+async function chooseSeparateBranchName(page: Page): Promise<void> {
+  await page.getByTestId("new-workspace-separate-names").click();
+  await expect(page.getByTestId("new-workspace-branch-name")).toBeVisible();
+}
