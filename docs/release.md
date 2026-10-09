@@ -102,10 +102,12 @@ work is integrated; do not rewrite its history. CI covers both fork branches.
 The **Fork Preview Release** workflow is manually dispatched on `ryan/preview`. It builds Windows
 and Linux for x64 and ARM64, plus standalone Linux daemon/CLI packages and an Android APK. macOS is
 deferred until Apple signing is available. iOS and hosted web are excluded. These builds display
-as Paseo++ and retain the existing Paseo Debug package identities, desktop profile, and local
-daemon. Keep the desktop profile folder and daemon home separate from the display name when
-changing branding. Download filenames retain `Paseo-Debug` so AppImage updates keep replacing
-the installed file in place. The renderer storage origin stays `paseo://app`.
+as Paseo++. The desktop identity is `sh.paseo.plusplus.desktop`, its profile folder is `Paseo++`,
+and its OS link scheme is `paseo-plus-plus`. Desktop downloads use `Paseo-Plus-Plus`; AppImage
+filenames stay stable across versions so subsequent updates replace the installed file in place.
+The desktop uses a fresh installation and profile, without importing legacy preview settings or
+connections. The renderer storage origin stays `paseo://app`. Android uses `sh.paseo.plusplus` and the same OS link scheme. See
+[Android app variants](android.md#app-variants).
 
 The workflow resolves one commit and requires that commit's push CI to have passed. All jobs use
 that SHA, even if the branch moves during the build. Its run number identifies each preview; reruns
@@ -119,7 +121,7 @@ tasks on the hosted runner. See the
 parallelism or moving native compilation and Hermes onto a smaller runner.
 
 Windows installers and Linux AppImages update exclusively from this fork's `preview` channel.
-The Stable/Beta selector is omitted in preview builds. The optional CLI installs as `paseo-debug`
+The Stable/Beta selector is omitted in preview builds. The optional desktop CLI installs as `paseo-plus-plus-desktop`
 so it can coexist with the official `paseo` command. Android previews also update from published
 fork releases; see [Android update controls](android.md#app-variants). Other Linux packages can
 be downloaded from the release. Official tag-triggered release, deployment, and changelog workflows
@@ -134,7 +136,7 @@ Windows uses the daemon bundled with the desktop app. See the
 These packages include the daemon, CLI, web UI, and native runtime dependencies. Linux packages
 require glibc; Alpine/musl hosts are excluded. The `paseo-plus-plus` command uses its own settings
 and host identity in `~/.paseo-plus-plus`, with the default listen address `127.0.0.1:6791`.
-The desktop app keeps its bundled daemon in `~/.paseo-debug` on port 6790. Upstream Paseo,
+The desktop app keeps its bundled daemon in `~/.paseo-plus-plus-desktop` on port 6790. Upstream Paseo,
 the desktop daemon, and the standalone daemon can run side by side with their defaults.
 
 The app's host update action installs the newest published fork preview for the host's platform
@@ -166,25 +168,29 @@ See [electron-builder's Azure setup](https://www.electron.build/v26/docs/feature
 
 Configure these in the fork's Actions settings:
 
-| Kind      | Names                                                                                                                                  | Purpose                                                    |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Variables | `PREVIEW_AZURE_TENANT_ID`, `PREVIEW_AZURE_CLIENT_ID`                                                                                   | Dedicated Paseo signing service principal                  |
-| Variables | `PREVIEW_AZURE_SIGNING_ENDPOINT`, `PREVIEW_AZURE_SIGNING_ACCOUNT`, `PREVIEW_AZURE_CERTIFICATE_PROFILE`, `PREVIEW_AZURE_PUBLISHER_NAME` | Signing account and exact certificate common name          |
-| Secret    | `PREVIEW_AZURE_CLIENT_SECRET`                                                                                                          | Signing service principal credential                       |
-| Variable  | `PREVIEW_AZURE_CLIENT_SECRET_EXPIRY`                                                                                                   | Credential rotation date (ISO date, informational)         |
-| Variables | `PREVIEW_EXPO_PROJECT_ID`, `PREVIEW_EXPO_OWNER`, `PREVIEW_EXPO_SLUG`                                                                   | Fork's existing Debug Expo notification project            |
-| Secrets   | `PREVIEW_ANDROID_KEYSTORE_BASE64`, `PREVIEW_ANDROID_KEYSTORE_PASSWORD`, `PREVIEW_ANDROID_KEY_ALIAS`, `PREVIEW_ANDROID_KEY_PASSWORD`    | Dedicated Android preview signing key                      |
-| Secret    | `PREVIEW_GOOGLE_SERVICES_DEBUG_JSON`                                                                                                   | Existing Debug Firebase configuration for `sh.paseo.debug` |
+| Kind      | Names                                                                                                                                  | Purpose                                            |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Variables | `PREVIEW_AZURE_TENANT_ID`, `PREVIEW_AZURE_CLIENT_ID`                                                                                   | Dedicated Paseo signing service principal          |
+| Variables | `PREVIEW_AZURE_SIGNING_ENDPOINT`, `PREVIEW_AZURE_SIGNING_ACCOUNT`, `PREVIEW_AZURE_CERTIFICATE_PROFILE`, `PREVIEW_AZURE_PUBLISHER_NAME` | Signing account and exact certificate common name  |
+| Secret    | `PREVIEW_AZURE_CLIENT_SECRET`                                                                                                          | Signing service principal credential               |
+| Variable  | `PREVIEW_AZURE_CLIENT_SECRET_EXPIRY`                                                                                                   | Credential rotation date (ISO date, informational) |
+| Variables | `PREVIEW_EXPO_PROJECT_ID`, `PREVIEW_EXPO_OWNER`, `PREVIEW_EXPO_SLUG`                                                                   | Fork's Expo notification project                   |
+| Secrets   | `PREVIEW_ANDROID_KEYSTORE_BASE64`, `PREVIEW_ANDROID_KEYSTORE_PASSWORD`, `PREVIEW_ANDROID_KEY_ALIAS`, `PREVIEW_ANDROID_KEY_PASSWORD`    | Dedicated Android preview signing key              |
+| Secret    | `PREVIEW_GOOGLE_SERVICES_PLUS_PLUS_JSON`                                                                                               | Firebase configuration for `sh.paseo.plusplus`     |
 
 Rotate Paseo's client secret before the recorded expiry, then update the Actions secret and expiry
 variable together. The initial dedicated credential expires on April 4, 2027. Rotating it does not
 require changing PrintStream's application or credential.
 
+The Firebase Android app and Expo Android application identifier must both use `sh.paseo.plusplus`.
+Associate the fork's FCM v1 service-account credential with that identifier in Expo; registering
+only the Firebase app does not configure Expo's notification delivery.
+
 Keep the Android key and its passwords backed up outside the checkout before removing a worktree
 or development environment. Replacing the key prevents future APKs from updating installed previews.
-The first public APK cannot replace a development-signed Paseo Debug in place. Preserve connection
-details before uninstalling that old build; uninstalling clears its settings. Later signed previews
-install over the first public APK. The workflow does not uninstall or migrate your phone.
+Paseo++ installs separately from the former Debug app because its package identity changed. Set up
+connections and preferences in the new app. Subsequent signed Paseo++ previews update in place.
+The workflow does not uninstall existing apps or import their settings.
 
 ### Prepare and publish
 

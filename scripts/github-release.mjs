@@ -28,7 +28,7 @@ export function getGitHubRelease(repo, tag, execFileSync = nodeExecFileSync) {
         "api",
         `repos/${repo}/releases?per_page=100`,
         "--jq",
-        `[.[] | select(.draft == true and .name == ${JSON.stringify(expectedName)})] | sort_by(.id)`,
+        `[.[] | select(.draft == true and (.tag_name == ${JSON.stringify(tag)} or .name == ${JSON.stringify(expectedName)}))] | sort_by(.id)`,
       ],
       {
         encoding: "utf8",
@@ -36,6 +36,25 @@ export function getGitHubRelease(repo, tag, execFileSync = nodeExecFileSync) {
     );
     return parseJson(output)[0] ?? null;
   }
+}
+
+/** Wait for GitHub to expose a newly created draft without treating authentication errors as absence. */
+export async function waitForGitHubRelease(
+  repo,
+  tag,
+  {
+    attempts = 5,
+    delayMs = 1_000,
+    lookup = getGitHubRelease,
+    sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  } = {},
+) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const release = lookup(repo, tag);
+    if (release) return release;
+    if (attempt < attempts - 1) await sleep(delayMs);
+  }
+  return null;
 }
 
 export function getReleaseLookupTag(release) {

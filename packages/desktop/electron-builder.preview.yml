@@ -1,16 +1,16 @@
 extends: ./electron-builder.yml
-appId: sh.paseo.desktop.debug
+appId: sh.paseo.plusplus.desktop
 productName: Paseo++
 executableName: Paseo++
 extraMetadata:
-  name: paseo-debug
+  name: paseo-plus-plus
   productName: Paseo++
-  desktopName: paseo-debug.desktop
+  desktopName: paseo-plus-plus.desktop
   paseoPreview: true
 protocols:
-  - name: Paseo preview agent link
+  - name: Paseo++ agent link
     schemes:
-      - paseo-debug
+      - paseo-plus-plus
 publish:
   provider: github
   owner: RyanEwen
@@ -19,16 +19,16 @@ publish:
   releaseType: prerelease
   vPrefixedTagName: true
 mac:
-  artifactName: "Paseo-Debug-${version}-${arch}.${ext}"
+  artifactName: "Paseo-Plus-Plus-${version}-${arch}.${ext}"
 linux:
-  executableName: paseo-debug
-  executableArgs: ["--class=paseo-debug"]
+  executableName: paseo-plus-plus
+  executableArgs: ["--class=paseo-plus-plus"]
   desktop:
     entry:
-      StartupWMClass: paseo-debug
-  artifactName: "Paseo-Debug-${version}-${arch}.${ext}"
+      StartupWMClass: paseo-plus-plus
+  artifactName: "Paseo-Plus-Plus-${version}-${arch}.${ext}"
 appImage:
-  artifactName: "Paseo-Debug-${arch}.${ext}"
-  executableArgs: ["--class=paseo-debug"]
+  artifactName: "Paseo-Plus-Plus-${arch}.${ext}"
+  executableArgs: ["--class=paseo-plus-plus"]
 win:
-  artifactName: "Paseo-Debug-Setup-${version}-${arch}.${ext}"
+  artifactName: "Paseo-Plus-Plus-Setup-${version}-${arch}.${ext}"

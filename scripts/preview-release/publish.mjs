@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { getGitHubRelease, getReleaseLookupTag } from "../github-release.mjs";
+import { getGitHubRelease, getReleaseLookupTag, waitForGitHubRelease } from "../github-release.mjs";
 import { uploadWithRetry } from "../upload-release-assets.mjs";
 import { isMainModule } from "../is-main-module.mjs";
 import { validatePreviewAssets } from "./assets.mjs";
@@ -29,10 +29,9 @@ receive future previews from this fork. Standalone hosts can install their match
 package with npm and run paseo-plus-plus; host updates stay on fork previews.
 Android previews check for updates in the app and install them with Android's approval.
 
-The first public Android preview uses a dedicated signing key. If you already
-installed a development-signed Paseo Debug, preserve your host connection details,
-then uninstall that build before installing this APK. Android clears that app's
-saved settings when you uninstall it. Later previews install over this signed build.
+Paseo++ has its own desktop and Android identities and starts with fresh settings.
+Install it separately from the former Debug app, then set up your connections again.
+Subsequent Paseo++ previews update the new installation in place.
 
 macOS, iOS, and hosted web previews are not included.
 
@@ -52,7 +51,7 @@ macOS, iOS, and hosted web previews are not included.
         "--target",
         release.commit,
         "--title",
-        `Paseo ${release.tag}`,
+        `Paseo++ ${release.tag}`,
         "--draft",
         "--prerelease",
         "--notes-file",
@@ -63,12 +62,19 @@ macOS, iOS, and hosted web previews are not included.
   } else {
     execFileSync(
       "gh",
-      ["release", "edit", getReleaseLookupTag(existing), "--repo", repo, "--notes-file", notesFile],
+      [
+        "api",
+        "--method",
+        "PATCH",
+        `repos/${repo}/releases/${existing.id}`,
+        "-F",
+        `body=@${notesFile}`,
+      ],
       { stdio: "inherit" },
     );
   }
-  const draft = getGitHubRelease(repo, release.tag);
-  if (!draft?.draft) {
+  const draft = await waitForGitHubRelease(repo, release.tag);
+  if (!draft?.draft || draft.target_commitish !== release.commit) {
     throw new Error("Expected a draft preview before uploading assets");
   }
   const lookup = getReleaseLookupTag(draft);
@@ -92,14 +98,16 @@ macOS, iOS, and hosted web previews are not included.
     execFileSync(
       "gh",
       [
-        "release",
-        "edit",
-        lookup,
-        "--repo",
-        repo,
-        "--draft=false",
-        "--prerelease",
-        "--latest=false",
+        "api",
+        "--method",
+        "PATCH",
+        `repos/${repo}/releases/${draft.id}`,
+        "-F",
+        "draft=false",
+        "-F",
+        "prerelease=true",
+        "-f",
+        "make_latest=false",
       ],
       { stdio: "inherit" },
     );

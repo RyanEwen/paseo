@@ -76,7 +76,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.PREVIEW_ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEY_PASSWORD }}
-          GOOGLE_SERVICES: ${{ secrets.PREVIEW_GOOGLE_SERVICES_DEBUG_JSON }}
+          GOOGLE_SERVICES: ${{ secrets.PREVIEW_GOOGLE_SERVICES_PLUS_PLUS_JSON }}
         run: |
           node --input-type=module <<'NODE'
           const names = ['AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET',
@@ -222,21 +222,21 @@ jobs:
       - name: Configure ephemeral signing paths
         run: |
           echo "PASEO_ANDROID_KEYSTORE=$RUNNER_TEMP/preview.keystore" >> "$GITHUB_ENV"
-          echo "GOOGLE_SERVICES_FILE_DEBUG=$RUNNER_TEMP/google-services.debug.json" >> "$GITHUB_ENV"
+          echo "GOOGLE_SERVICES_FILE_PREVIEW=$RUNNER_TEMP/google-services.preview.json" >> "$GITHUB_ENV"
       - name: Prepare preview and signing files
         env:
           KEYSTORE_BASE64: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_BASE64 }}
-          GOOGLE_SERVICES_JSON: ${{ secrets.PREVIEW_GOOGLE_SERVICES_DEBUG_JSON }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.PREVIEW_GOOGLE_SERVICES_PLUS_PLUS_JSON }}
         run: |
           node scripts/preview-release/prepare.mjs
           node --input-type=module <<'NODE'
           import { writeFileSync } from 'node:fs';
           const google = JSON.parse(process.env.GOOGLE_SERVICES_JSON);
-          if (!google.client?.some(client => client.client_info?.android_client_info?.package_name === 'sh.paseo.debug')) {
-            throw new Error('Firebase configuration must include sh.paseo.debug');
+          if (!google.client?.some(client => client.client_info?.android_client_info?.package_name === 'sh.paseo.plusplus')) {
+            throw new Error('Firebase configuration must include sh.paseo.plusplus');
           }
           writeFileSync(process.env.PASEO_ANDROID_KEYSTORE, Buffer.from(process.env.KEYSTORE_BASE64, 'base64'), { mode: 0o600 });
-          writeFileSync(process.env.GOOGLE_SERVICES_FILE_DEBUG, JSON.stringify(google), { mode: 0o600 });
+          writeFileSync(process.env.GOOGLE_SERVICES_FILE_PREVIEW, JSON.stringify(google), { mode: 0o600 });
           NODE
       - name: Build standalone signed APK
         run: |
@@ -263,17 +263,17 @@ jobs:
           cat "$RUNNER_TEMP/apk-signature.txt"
           node scripts/preview-release/android-signer.mjs "$RUNNER_TEMP/apk-signature.txt" "$expected_signer"
           "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt"
-          grep -q "package: name='sh.paseo.debug'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "package: name='sh.paseo.plusplus'" "$RUNNER_TEMP/apk-badging.txt"
           actual_abis="$(unzip -Z1 "$apk" | awk -F/ '$1 == "lib" {print $2}' | sort -u)"
           [[ "$actual_abis" == $'arm64-v8a\narmeabi-v7a\nx86\nx86_64' ]] || { echo "Unexpected APK ABIs: $actual_abis"; exit 1; }
           expected_code="$(node -p 'JSON.parse(require("fs").readFileSync("preview-release.json", "utf8")).androidVersionCode')"
           grep -q "versionCode='$expected_code'" "$RUNNER_TEMP/apk-badging.txt"
           mkdir preview-android
-          cp "$apk" "preview-android/Paseo-Debug-${{ needs.source.outputs.version }}-android.apk"
+          cp "$apk" "preview-android/Paseo-Plus-Plus-${{ needs.source.outputs.version }}-android.apk"
           cp preview-release.json preview-android/
       - name: Remove signing files
         if: always()
-        run: rm -f "$RUNNER_TEMP/preview.keystore" "$RUNNER_TEMP/google-services.debug.json"
+        run: rm -f "$RUNNER_TEMP/preview.keystore" "$RUNNER_TEMP/google-services.preview.json"
       - name: Retain failed Android compiler inputs
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -317,7 +317,7 @@ async function withPreviewBuilds(run) {
         };
         const artifactArch = os === "linux" ? (linuxArchitectures[arch][extension] ?? arch) : arch;
         const version = extension === "AppImage" ? "" : `${release.version}-`;
-        const url = `Paseo-Debug-${version}${artifactArch}.${extension}`;
+        const url = `Paseo-Plus-Plus-${version}${artifactArch}.${extension}`;
         const bytes = Buffer.from(`${os}-${arch}-${extension}`);
         writeFileSync(path.join(folder, url), bytes);
         files.push({ url, sha512: createHash("sha512").update(bytes).digest("base64") });
@@ -338,7 +338,7 @@ async function withPreviewBuilds(run) {
     mkdirSync(android);
     writeFileSync(path.join(android, "preview-release.json"), JSON.stringify(release));
     writeFileSync(
-      path.join(android, `Paseo-Debug-${release.version}-android.apk`),
+      path.join(android, `Paseo-Plus-Plus-${release.version}-android.apk`),
       "signed-apk-fixture",
     );
     await run({ root, input, output, release });
@@ -354,10 +354,10 @@ test("assembles both Windows architectures and distinct Linux update channels wi
     assert.deepEqual(
       windows.files.map((file) => file.url),
       [
-        "Paseo-Debug-0.11.0-preview.12-x64.exe",
-        "Paseo-Debug-0.11.0-preview.12-x64.zip",
-        "Paseo-Debug-0.11.0-preview.12-arm64.exe",
-        "Paseo-Debug-0.11.0-preview.12-arm64.zip",
+        "Paseo-Plus-Plus-0.11.0-preview.12-x64.exe",
+        "Paseo-Plus-Plus-0.11.0-preview.12-x64.zip",
+        "Paseo-Plus-Plus-0.11.0-preview.12-arm64.exe",
+        "Paseo-Plus-Plus-0.11.0-preview.12-arm64.zip",
       ],
     );
     assert.equal(windows.releaseDate, releaseDate);
@@ -369,10 +369,10 @@ test("assembles both Windows architectures and distinct Linux update channels wi
     ]);
     assert.ok(names.includes("preview-linux-arm64.yml"));
     for (const name of [
-      "Paseo-Debug-x86_64.AppImage",
-      "Paseo-Debug-0.11.0-preview.12-amd64.deb",
-      "Paseo-Debug-0.11.0-preview.12-x86_64.rpm",
-      "Paseo-Debug-0.11.0-preview.12-aarch64.rpm",
+      "Paseo-Plus-Plus-x86_64.AppImage",
+      "Paseo-Plus-Plus-0.11.0-preview.12-amd64.deb",
+      "Paseo-Plus-Plus-0.11.0-preview.12-x86_64.rpm",
+      "Paseo-Plus-Plus-0.11.0-preview.12-aarch64.rpm",
     ]) {
       assert.ok(names.includes(name), `Missing native Linux package: ${name}`);
     }
@@ -382,7 +382,7 @@ test("assembles both Windows architectures and distinct Linux update channels wi
     );
     await validatePreviewAssets({ directory: fixture.output, release: fixture.release });
     writeFileSync(
-      path.join(fixture.output, "Paseo-Debug-0.11.0-preview.12-android.apk"),
+      path.join(fixture.output, "Paseo-Plus-Plus-0.11.0-preview.12-android.apk"),
       "changed-bytes",
     );
     await assert.rejects(
@@ -395,7 +395,7 @@ test("assembles both Windows architectures and distinct Linux update channels wi
 test("refuses a missing architecture, a mixed source commit, and a corrupt updater binary", async () => {
   await withPreviewBuilds(async (fixture) => {
     const folder = path.join(fixture.input, "preview-linux-arm64");
-    const appImage = path.join(folder, "Paseo-Debug-arm64.AppImage");
+    const appImage = path.join(folder, "Paseo-Plus-Plus-arm64.AppImage");
     rmSync(appImage);
     await assert.rejects(assemblePreviewAssets(fixture), /expected one arm64 AppImage/);
     rmSync(fixture.output, { recursive: true, force: true });
@@ -471,18 +471,18 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
     });
     const config = await getConfig(desktop, "electron-builder.preview.local.yml", null);
     validateConfiguration(config);
-    assert.equal(config.appId, "sh.paseo.desktop.debug");
+    assert.equal(config.appId, "sh.paseo.plusplus.desktop");
     assert.equal(config.productName, "Paseo++");
     assert.equal(config.publish.owner, "RyanEwen");
     assert.equal(config.publish.channel, "preview");
     assert.deepEqual(config.protocols, [
-      { name: "Paseo preview agent link", schemes: ["paseo-debug"] },
+      { name: "Paseo++ agent link", schemes: ["paseo-plus-plus"] },
     ]);
-    assert.deepEqual(config.appImage.executableArgs, ["--class=paseo-debug"]);
-    assert.equal(config.linux.executableName, "paseo-debug");
-    assert.equal(config.extraMetadata.desktopName, "paseo-debug.desktop");
-    assert.deepEqual(config.linux.executableArgs, ["--class=paseo-debug"]);
-    assert.equal(config.linux.desktop.entry.StartupWMClass, "paseo-debug");
+    assert.deepEqual(config.appImage.executableArgs, ["--class=paseo-plus-plus"]);
+    assert.equal(config.linux.executableName, "paseo-plus-plus");
+    assert.equal(config.extraMetadata.desktopName, "paseo-plus-plus.desktop");
+    assert.deepEqual(config.linux.executableArgs, ["--class=paseo-plus-plus"]);
+    assert.equal(config.linux.desktop.entry.StartupWMClass, "paseo-plus-plus");
     const desktopEntry = await new LinuxTargetHelper({
       executableName: config.linux.executableName,
       platformSpecificBuildOptions: config.linux,
@@ -495,8 +495,11 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
       },
     }).computeDesktopEntry(config.linux);
     assert.match(desktopEntry, /^Name=Paseo\+\+$/m);
-    assert.match(desktopEntry, /^Exec="\/opt\/Paseo\+\+\/paseo-debug" --class=paseo-debug %U$/m);
-    assert.match(desktopEntry, /^StartupWMClass=paseo-debug$/m);
+    assert.match(
+      desktopEntry,
+      /^Exec="\/opt\/Paseo\+\+\/paseo-plus-plus" --class=paseo-plus-plus %U$/m,
+    );
+    assert.match(desktopEntry, /^StartupWMClass=paseo-plus-plus$/m);
     assert.equal(config.extraMetadata.paseoPreview, true);
     assert.equal(config.buildVersion, "0.11.0.12");
     for (const name of ["desktop", "app", "server", "cli", "client"]) {

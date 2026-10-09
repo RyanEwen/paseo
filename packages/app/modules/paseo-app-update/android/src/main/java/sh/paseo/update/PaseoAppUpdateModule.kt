@@ -75,7 +75,7 @@ class PaseoAppUpdateModule : Module() {
   /** The install permission is injected only into fork previews, not store or F-Droid builds. */
   private fun requirePreviewPermission() {
     // This is an app-op permission. A runtime grant check would reject third-party installers.
-    check(context.packageName == "sh.paseo.debug" &&
+    check(context.packageName == "sh.paseo.plusplus" &&
       installedPackage().requestedPermissions?.contains("android.permission.REQUEST_INSTALL_PACKAGES") == true) {
       "App updates are available only in fork preview builds."
     }

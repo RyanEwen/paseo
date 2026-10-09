@@ -11,7 +11,9 @@ Controlled by `APP_VARIANT` in `packages/app/app.config.js` (vanilla Expo, no cu
 
 EAS profiles: `development`, `production`, and `production-apk` in `packages/app/eas.json`.
 
-Fork preview builds display as Paseo++ while keeping the development package ID. They check for
+Fork preview builds use the Paseo++ app name, `sh.paseo.plusplus` package, and `paseo-plus-plus`
+link scheme. They install separately from upstream and former Debug previews, with fresh settings
+and connections. They check for
 published fork previews at startup, on resume, and every 30 minutes while active. Use Settings >
 About to check manually. Tap Install update to download and verify the APK, then approve Android's
 installer. If Android asks you to allow this app to install packages, enable that permission,

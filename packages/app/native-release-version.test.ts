@@ -11,6 +11,11 @@ const {
 } = require("./native-release-version");
 
 describe("native release version", () => {
+  const identities = {
+    production: { appName: "Paseo", packageId: "sh.paseo", scheme: "paseo" },
+    development: { appName: "Paseo Debug", packageId: "sh.paseo.debug", scheme: "paseo" },
+    preview: { appName: "Paseo++", packageId: "sh.paseo.plusplus", scheme: "paseo-plus-plus" },
+  };
   it.each([
     { variant: "production", preview: false, fdroid: false },
     { variant: "development", preview: false, fdroid: false },
@@ -29,6 +34,9 @@ describe("native release version", () => {
         process.stdout.write(JSON.stringify({
           enabled: exp.extra.previewBuild,
           canInstall: exp.android.permissions.includes("android.permission.REQUEST_INSTALL_PACKAGES"),
+          appName: exp.name,
+          packageId: exp.android.package,
+          scheme: exp.scheme,
         }));
       `,
         ],
@@ -47,7 +55,11 @@ describe("native release version", () => {
           },
         },
       );
-      expect(JSON.parse(output)).toEqual({ enabled: preview, canInstall: preview });
+      expect(JSON.parse(output)).toEqual({
+        enabled: preview,
+        canInstall: preview,
+        ...identities[preview ? "preview" : (variant as "production" | "development")],
+      });
     },
   );
 
