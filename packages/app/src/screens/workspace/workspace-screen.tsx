@@ -1773,6 +1773,7 @@ function WorkspaceScreenContent({
   });
 
   const showMobileAgent = usePanelStore((state) => state.showMobileAgent);
+  const showMobileAgentList = usePanelStore((state) => state.showMobileAgentList);
 
   const activeExplorerCheckout = useMemo<ExplorerCheckoutContext | null>(() => {
     if (!normalizedServerId || !workspaceDirectory) {
@@ -1795,20 +1796,24 @@ function WorkspaceScreenContent({
   );
 
   useEffect(() => {
-    // Back dismisses the compact overlay only. On a wide native layout the
-    // explorer is a tab, `showMobileAgent` has no rendered consumer, and
-    // returning true would swallow Back with nothing to show for it.
-    if (!isRouteFocused || isWeb || !isMobile || !isExplorerSidebarShowing) {
+    // The compact project list and explorer share one overlay position. Back
+    // closes an open panel before opening the project list from the workspace.
+    if (!isRouteFocused || isWeb || !isMobile) {
       return;
     }
 
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
-      showMobileAgent();
+      const panelTarget = usePanelStore.getState().mobilePanel.target;
+      if (panelTarget === "agent") {
+        showMobileAgentList();
+      } else {
+        showMobileAgent();
+      }
       return true;
     });
 
     return () => handler.remove();
-  }, [isExplorerSidebarShowing, isMobile, isRouteFocused, showMobileAgent]);
+  }, [isMobile, isRouteFocused, showMobileAgent, showMobileAgentList]);
 
   const workspaceLayout = useWorkspaceLayoutStore((state) =>
     persistenceKey ? (state.layoutByWorkspace[persistenceKey] ?? null) : null,
