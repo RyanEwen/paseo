@@ -8,6 +8,7 @@ import {
   openSidebarDisplayPage,
   openSidebarProjectFilter,
   pinWorkspaceFromSidebar,
+  openMobileAgentSidebar,
   selectAllProjectsFilter,
   selectSidebarStatusGrouping,
   toggleProjectFilter,
@@ -200,4 +201,150 @@ test.describe("Sidebar project filter", () => {
       await only.cleanup();
     }
   });
+});
+
+test("project chips stay visible through bulk collapse and reload", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const workspace = await seedWorkspace({
+    repoPrefix: "sidebar-activity-",
+    title: "Sidebar activity work",
+  });
+  const serverId = getServerId();
+  const row = page.getByTestId(`sidebar-workspace-row-${serverId}:${workspace.workspaceId}`);
+  const chip = page.getByTestId(`sidebar-project-status-${workspace.projectKey}`);
+  try {
+    await workspace.client.renameProject(
+      workspace.projectId,
+      "A long project name that should keep its activity and actions readable",
+    );
+    const agent = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "Activity agent",
+      model: "e2e-fast-stream",
+      initialPrompt: "Finish this turn.",
+    });
+    await workspace.client.waitForFinish(agent.id, 20_000);
+    await workspace.client.clearWorkspaceAttention(workspace.workspaceId);
+    await gotoAppShell(page);
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    await expect(chip).toHaveText("Done");
+    const projectRow = page.getByTestId(`sidebar-project-row-${workspace.projectKey}`);
+    await row.hover();
+    const workspaceHoverColor = await row.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+    await page.mouse.move(0, 0);
+    await expect(projectRow).toHaveCSS("background-color", workspaceHoverColor);
+    await projectRow.hover();
+    await expect(projectRow).not.toHaveCSS("background-color", workspaceHoverColor);
+    await page.screenshot({ path: testInfo.outputPath("sidebar-project-hover.png") });
+    await page.mouse.move(0, 0);
+
+    await page.getByTestId("sidebar-collapse-all").click();
+    await expect(row).toHaveCount(0);
+    await expect(chip).toHaveText("Done");
+    await page.reload();
+    await expect(chip).toBeVisible({ timeout: 30_000 });
+    await expect(row).toHaveCount(0);
+    await page.getByTestId("sidebar-expand-all").click();
+    await expect(row).toBeVisible();
+    await expect(chip).toHaveText("Done");
+    await row.hover();
+    await page.getByTestId(`sidebar-workspace-kebab-${serverId}:${workspace.workspaceId}`).click();
+    await page.getByRole("menuitem", { name: "Mark as unread", exact: true }).click();
+    await expect(chip).toHaveText("Ready to review");
+    await workspace.client.setWorkspacePinned(workspace.workspaceId, true);
+    await expect(page.getByTestId("sidebar-pinned-section")).toBeVisible();
+    await expect(chip).toHaveText("Ready to review");
+    await page.getByTestId("sidebar-collapse-all").click();
+    await expect(row).toHaveCount(0);
+    await expect(chip).toHaveText("Ready to review");
+    await page.getByTestId("sidebar-expand-all").click();
+    await expect(row).toBeVisible();
+    await workspace.client.setWorkspacePinned(workspace.workspaceId, false);
+    await expect(page.getByTestId("sidebar-pinned-section")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("sidebar-project-activity.png") });
+    await selectSidebarStatusGrouping(page);
+    await expect(row).toBeVisible();
+    await page.getByTestId("sidebar-collapse-all").click();
+    await expect(row).toHaveCount(0);
+    await page.getByTestId("sidebar-expand-all").click();
+    await expect(row).toBeVisible();
+    await selectDisplayOption(page, "grouping", "sidebar-grouping-project");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await openMobileAgentSidebar(page);
+    await expect(chip).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("sidebar-project-activity-compact-dark.png"),
+    });
+    await page.getByTestId("sidebar-display-preferences-menu").click();
+    await expect(page.getByTestId("sidebar-collapse-all")).toBeInViewport();
+    await page.screenshot({ path: testInfo.outputPath("sidebar-bulk-actions-compact-dark.png") });
+    await page.getByTestId("sidebar-collapse-all").click();
+    await expect(row).toHaveCount(0);
+    await expect(chip).toHaveText("Ready to review");
+    await page.getByTestId("sidebar-display-preferences-menu").click();
+    await page.getByTestId("sidebar-expand-all").click();
+    await expect(row).toBeVisible();
+  } finally {
+    await workspace.cleanup();
+  }
+});
+
+test("project working count includes pinned workspaces", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const workspace = await seedWorkspace({
+    repoPrefix: "sidebar-working-count-",
+    title: "First worker",
+  });
+  try {
+    const created = await workspace.client.createWorkspace({
+      source: { kind: "worktree", cwd: workspace.repoPath, worktreeSlug: "second-worker" },
+      title: "Second worker",
+    });
+    expect(created.error).toBeNull();
+    if (!created.workspace) throw new Error("Second workspace was not created");
+    const second = created.workspace;
+    await gotoAppShell(page);
+    const chip = page.getByTestId(`sidebar-project-status-${workspace.projectKey}`);
+    await expect(chip).toHaveText("Done", { timeout: 30_000 });
+    const firstAgent = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "First agent",
+      model: "one-minute-stream",
+      initialPrompt: "Stay busy",
+    });
+    await workspace.client.waitForAgentUpsert(
+      firstAgent.id,
+      (agent) => agent.status === "running",
+      15_000,
+    );
+    await expect(chip).toHaveText("Working");
+    const secondAgent = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: second.workspaceDirectory,
+      workspaceId: second.id,
+      title: "Second agent",
+      model: "one-minute-stream",
+      initialPrompt: "Stay busy",
+    });
+    await workspace.client.waitForAgentUpsert(
+      secondAgent.id,
+      (agent) => agent.status === "running",
+      15_000,
+    );
+    await expect(chip).toHaveText("2 working");
+    await workspace.client.setWorkspacePinned(second.id, true);
+    await expect(chip).toHaveText("2 working");
+    await page.getByTestId("sidebar-collapse-all").click();
+    await expect(chip).toHaveText("2 working");
+    await page.screenshot({ path: testInfo.outputPath("sidebar-two-working.png") });
+  } finally {
+    await workspace.cleanup();
+  }
 });

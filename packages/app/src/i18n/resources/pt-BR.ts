@@ -1188,6 +1188,7 @@ export const ptBR: TranslationResources = {
   sidebar: {
     statusGroupAccessibility: "Grupo {{label}}",
     statusBucket: {
+      workingCount: "{{count}} trabalhando",
       needsInput: "Precisa de resposta",
       failed: "Com falha",
       readyToReview: "Para revisar",
@@ -1195,6 +1196,8 @@ export const ptBR: TranslationResources = {
       done: "Concluído",
     },
     display: {
+      expandAll: "Expandir tudo",
+      collapseAll: "Recolher tudo",
       showBackground: "Mostrar espaços em segundo plano",
       trigger: "Preferências de exibição",
       heading: "Exibição",

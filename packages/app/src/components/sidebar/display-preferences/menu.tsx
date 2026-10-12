@@ -1,3 +1,5 @@
+import { useSidebarBulkCollapse } from "../use-sidebar-bulk-collapse";
+import { useIsCompactFormFactor } from "@/constants/layout";
 import {
   isSidebarTrailingItemEnabled,
   type SidebarTrailingChoice,
@@ -211,6 +213,8 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
   // `allProjects`, never `projects`: the model's `projects` is already filtered, so a picker fed
   // from it would lose the row that undoes the filter as soon as the filter narrowed to one.
   const { allProjects, projects, resolvedProjectFilters } = useSidebarModel();
+  const { expandAll, collapseAll } = useSidebarBulkCollapse();
+  const isCompact = useIsCompactFormFactor();
   const { labels } = useWorkspaceLabelProjection();
   const [managerOpen, setManagerOpen] = useState(false);
   const openManager = useCallback(() => setManagerOpen(true), []);
@@ -422,6 +426,17 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
           sheetTitle={t("sidebar.display.heading")}
           testID="sidebar-display-preferences-content"
         >
+          {isCompact ? (
+            <>
+              <MenuItem onSelect={expandAll} testID="sidebar-expand-all">
+                {t("sidebar.display.expandAll")}
+              </MenuItem>
+              <MenuItem onSelect={collapseAll} testID="sidebar-collapse-all">
+                {t("sidebar.display.collapseAll")}
+              </MenuItem>
+              <MenuSeparator />
+            </>
+          ) : null}
           <MenuItem
             selected={preferences.showBackground}
             closeOnSelect={false}

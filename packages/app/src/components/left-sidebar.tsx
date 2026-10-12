@@ -1,3 +1,4 @@
+import { SidebarBulkCollapseControls } from "@/components/sidebar/bulk-collapse-controls";
 import { router } from "expo-router";
 import { CircleGauge, FolderPlus, GitBranch, Server, Settings, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -809,10 +810,12 @@ function DesktopSidebar({
 }
 
 function WorkspacesSectionHeader() {
+  const isCompact = useIsCompactFormFactor();
   return (
     <View style={styles.workspacesSectionHeader}>
       <Text style={styles.workspacesSectionTitle}>Workspaces</Text>
       <View style={styles.workspacesSectionActions}>
+        {!isCompact ? <SidebarBulkCollapseControls /> : null}
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <View>

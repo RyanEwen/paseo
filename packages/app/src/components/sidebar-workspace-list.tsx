@@ -1,3 +1,5 @@
+import { StatusBadge } from "@/components/ui/status-badge";
+import { getStatusBucketLabel } from "@/hooks/sidebar-status-view-model";
 import { filterSidebarProjects, sortSidebarProjectsByName } from "./sidebar/sidebar-arrangement";
 import { SidebarEmptyProjectGroup } from "./sidebar/sidebar-workspace-group";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -42,7 +44,11 @@ import { ExternalLink, Settings, MoreVertical, Plus, Trash2 } from "lucide-react
 import { NestableScrollContainer } from "react-native-draggable-flatlist";
 import { DraggableList, type DraggableRenderItemInfo } from "./draggable-list";
 import type { DraggableListDragHandleProps } from "./draggable-list.types";
-import { getHostRuntimeStore, useHosts } from "@/runtime/host-runtime";
+import {
+  getHostRuntimeStore,
+  useHosts,
+  useHostRuntimeConnectionStatuses,
+} from "@/runtime/host-runtime";
 import type { PinnedSidebarGroups } from "@/hooks/use-sidebar-pins";
 import {
   useSidebarWorkspacePinController,
@@ -59,7 +65,6 @@ import {
 } from "@/utils/host-routes";
 import {
   shouldShowSidebarHostLabels,
-  useSidebarProjectStatusBucket,
   type SidebarProjectEntry,
   type SidebarWorkspaceEntry,
   type SidebarWorkspacePlacement,
@@ -86,7 +91,10 @@ import { getForgePresentation, normalizeForge } from "@/git/forge";
 import { toWorktreeArchiveRisk } from "@/git/worktree-archive-warning";
 import { hasVisibleOrderChanged, mergeWithRemainder } from "@/utils/sidebar-reorder";
 import { confirmDialog } from "@/utils/confirm-dialog";
-import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
+import {
+  aggregateKnownSidebarStateBuckets,
+  type SidebarStateBucket,
+} from "@/utils/sidebar-agent-state";
 import { SidebarStatusWorkspaceList } from "@/components/sidebar/sidebar-status-list";
 import type { SidebarWorkspaceGroup } from "@/components/sidebar/sidebar-labels";
 import {
@@ -241,6 +249,7 @@ interface ProjectHeaderRowProps {
   displayName: string;
   iconDataUri: string | null;
   statusBucket: SidebarStateBucket | null;
+  workingWorkspaceCount: number;
   selected?: boolean;
   chevron: "expand" | "collapse" | null;
   onPress: () => void;
@@ -845,11 +854,38 @@ function NewWorkspaceGhostRow({
   );
 }
 
+/** Render the canonical aggregate label without competing with the project title. */
+function ProjectActivityChip({
+  bucket,
+  workingWorkspaceCount,
+  projectViewKey,
+}: {
+  bucket: SidebarStateBucket | null;
+  workingWorkspaceCount: number;
+  projectViewKey: string;
+}) {
+  const { t } = useTranslation();
+  if (!bucket) return null;
+  let variant: "error" | "warning" | "muted" = "muted";
+  if (bucket === "failed") variant = "error";
+  if (bucket === "needs_input" || bucket === "attention") variant = "warning";
+  let label = getStatusBucketLabel(bucket, t);
+  if (bucket === "running" && workingWorkspaceCount > 1) {
+    label = t("sidebar.statusBucket.workingCount", { count: workingWorkspaceCount });
+  }
+  return (
+    <View style={styles.projectStatusChip} testID={`sidebar-project-status-${projectViewKey}`}>
+      <StatusBadge label={label} size="xs" variant={variant} />
+    </View>
+  );
+}
+
 function ProjectHeaderRow({
   project,
   displayName,
   iconDataUri,
   statusBucket,
+  workingWorkspaceCount,
   selected = false,
   chevron,
   onPress,
@@ -946,7 +982,13 @@ function ProjectHeaderRow({
           iconDataUri={iconDataUri}
           statusBucket={statusBucket}
           projectViewKey={project.viewKey}
-          backdrop={getSidebarRowBackdrop({ isDragging, isPressed, selected, isHovered })}
+          backdrop={getSidebarRowBackdrop({
+            isDragging,
+            isPressed,
+            selected,
+            isHovered,
+            rowKind: "project",
+          })}
           chevron={chevron}
           showChevron={isHovered && chevron !== null}
           isArchiving={isArchiving}
@@ -956,6 +998,11 @@ function ProjectHeaderRow({
           <Text style={styles.projectTitle} numberOfLines={1}>
             {displayName}
           </Text>
+          <ProjectActivityChip
+            bucket={statusBucket}
+            workingWorkspaceCount={workingWorkspaceCount}
+            projectViewKey={project.viewKey}
+          />
         </View>
       </View>
       <ProjectRowTrailingActions
@@ -1540,6 +1587,8 @@ function WorkspaceRow({
 
 function ProjectBlock({
   project,
+  aggregateStatusBucket,
+  workingWorkspaceCount,
   workspaceEntriesByKey,
   collapsed,
   displayName,
@@ -1565,6 +1614,8 @@ function ProjectBlock({
   onToggleWorkspacePin,
 }: {
   project: SidebarProjectEntry;
+  aggregateStatusBucket: SidebarStateBucket | null;
+  workingWorkspaceCount: number;
   workspaceEntriesByKey: ReadonlyMap<string, SidebarWorkspaceEntry>;
   collapsed: boolean;
   displayName: string;
@@ -1604,13 +1655,6 @@ function ProjectBlock({
       }),
     [collapsed, project, supportsMultiplicityByServerId],
   );
-
-  // Collapsed rows hide their workspace rows, so the project row carries the most urgent
-  // status among them; expanded rows leave the signal to the child rows themselves.
-  const aggregateStatusBucket = useSidebarProjectStatusBucket({
-    workspaces: project.workspaces,
-    enabled: collapsed,
-  });
 
   const active = isProjectSelectedByRoute({
     selection: activeWorkspaceSelection,
@@ -1796,6 +1840,7 @@ function ProjectBlock({
         displayName={displayName}
         iconDataUri={iconDataUri}
         statusBucket={aggregateStatusBucket}
+        workingWorkspaceCount={workingWorkspaceCount}
         selected={false}
         chevron={rowModel.chevron}
         onPress={handleToggleCollapsed}
@@ -1825,6 +1870,8 @@ type ProjectBlockProps = Parameters<typeof ProjectBlock>[0];
 function areProjectBlockPropsEqual(previous: ProjectBlockProps, next: ProjectBlockProps): boolean {
   return (
     previous.project === next.project &&
+    previous.aggregateStatusBucket === next.aggregateStatusBucket &&
+    previous.workingWorkspaceCount === next.workingWorkspaceCount &&
     previous.workspaceEntriesByKey === next.workspaceEntriesByKey &&
     previous.collapsed === next.collapsed &&
     previous.displayName === next.displayName &&
@@ -2193,6 +2240,31 @@ function ProjectModeList({
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspacePlacement[]) => void;
 }) {
+  const projectServerIds = useMemo(
+    () => [...new Set(projects.flatMap((project) => project.hosts.map((host) => host.serverId)))],
+    [projects],
+  );
+  const hostStatuses = useHostRuntimeConnectionStatuses(projectServerIds);
+  // Derive once for the collection, including filtered children hoisted into Pinned.
+  const projectStatusBuckets = useMemo(
+    () =>
+      new Map(
+        projects.map((project) => {
+          const childBuckets = project.workspaces.map((workspace) => {
+            if (hostStatuses.get(workspace.serverId) !== "online") return null;
+            return workspaceEntriesByKey.get(workspace.workspaceKey)?.statusBucket ?? null;
+          });
+          return [
+            project.viewKey,
+            {
+              bucket: aggregateKnownSidebarStateBuckets(childBuckets),
+              workingCount: childBuckets.filter((bucket) => bucket === "running").length,
+            },
+          ];
+        }),
+      ),
+    [projects, workspaceEntriesByKey, hostStatuses],
+  );
   const hasActiveHostFilter = useSidebarViewStore((state) => state.hostFilters.length > 0);
   const [creatingWorkspaceIds, setCreatingWorkspaceIds] = useState<Set<string>>(() => new Set());
   const creatingWorkspaceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -2378,6 +2450,8 @@ function ProjectModeList({
         <MemoProjectBlock
           key={item.viewKey}
           project={item}
+          aggregateStatusBucket={projectStatusBuckets.get(item.viewKey)?.bucket ?? null}
+          workingWorkspaceCount={projectStatusBuckets.get(item.viewKey)?.workingCount ?? 0}
           workspaceEntriesByKey={workspaceEntriesByKey}
           collapsed={collapsedProjectKeys.has(item.viewKey)}
           displayName={item.projectName}
@@ -2405,6 +2479,7 @@ function ProjectModeList({
       );
     },
     [
+      projectStatusBuckets,
       collapsedProjectKeys,
       activeWorkspaceSelection,
       handleWorktreeCreated,
@@ -2657,6 +2732,7 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foreground,
   },
   projectRow: {
+    backgroundColor: theme.colors.surfaceSidebarHover,
     position: "relative",
     minHeight: 36,
     paddingVertical: theme.spacing[2],
@@ -2670,7 +2746,7 @@ const styles = StyleSheet.create((theme) => ({
     userSelect: "none",
   },
   projectRowHovered: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
+    backgroundColor: theme.colors.surfaceSidebarSelected,
   },
   projectRowPressed: {
     backgroundColor: theme.colors.surface2,
@@ -2697,10 +2773,13 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     minWidth: 0,
   },
+  projectStatusChip: {
+    flexShrink: 0,
+  },
   projectTitle: {
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.base,
-    fontWeight: "400",
+    fontWeight: theme.fontWeight.bold,
     minWidth: 0,
     flexShrink: 1,
   },

@@ -1162,6 +1162,7 @@ export const ar: TranslationResources = {
   sidebar: {
     statusGroupAccessibility: "مجموعة {{label}}",
     statusBucket: {
+      workingCount: "{{count}} قيد العمل",
       needsInput: "تحتاج إدخالاً",
       failed: "فشل",
       readyToReview: "جاهزة للمراجعة",
@@ -1169,6 +1170,8 @@ export const ar: TranslationResources = {
       done: "تم",
     },
     display: {
+      expandAll: "توسيع الكل",
+      collapseAll: "طي الكل",
       showBackground: "إظهار مساحات العمل في الخلفية",
       trigger: "تفضيلات العرض",
       heading: "العرض",

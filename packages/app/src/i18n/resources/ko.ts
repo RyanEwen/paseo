@@ -1168,6 +1168,7 @@ export const ko: TranslationResources = {
   sidebar: {
     statusGroupAccessibility: "{{label}} 그룹",
     statusBucket: {
+      workingCount: "{{count}}개 작업 중",
       needsInput: "입력 필요",
       failed: "실패",
       readyToReview: "검토 대기",
@@ -1175,6 +1176,8 @@ export const ko: TranslationResources = {
       done: "완료",
     },
     display: {
+      expandAll: "모두 펼치기",
+      collapseAll: "모두 접기",
       showBackground: "백그라운드 표시",
       trigger: "표시 설정",
       heading: "표시",

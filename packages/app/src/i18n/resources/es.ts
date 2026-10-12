@@ -1198,6 +1198,7 @@ export const es: TranslationResources = {
   sidebar: {
     statusGroupAccessibility: "Grupo {{label}}",
     statusBucket: {
+      workingCount: "{{count}} trabajando",
       needsInput: "Necesita datos",
       failed: "Con error",
       readyToReview: "Para revisar",
@@ -1205,6 +1206,8 @@ export const es: TranslationResources = {
       done: "Terminado",
     },
     display: {
+      expandAll: "Expandir todo",
+      collapseAll: "Contraer todo",
       showBackground: "Mostrar espacios en segundo plano",
       trigger: "Preferencias de visualización",
       heading: "Visualización",
