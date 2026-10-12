@@ -242,6 +242,8 @@ export const ar: TranslationResources = {
     },
   },
   stickyPrompt: {
+    more: "المزيد…",
+    less: "أقل…",
     none: "لا توجد رسائل للمستخدم في هذه المحادثة.",
     cancelled: "تم إلغاء التحميل.",
     moreHistory: "يتوفر المزيد من السجل. أعد المحاولة لمتابعة البحث.",

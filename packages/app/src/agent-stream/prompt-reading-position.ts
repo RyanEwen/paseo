@@ -68,7 +68,10 @@ function sameHandoffs(left: readonly PromptHandoff[], right: readonly PromptHand
   return (
     left.length === right.length &&
     left.every(
-      (value, index) => value.id === right[index]?.id && value.progress === right[index]?.progress,
+      (value, index) =>
+        value.id === right[index]?.id &&
+        value.progress === right[index]?.progress &&
+        value.top === right[index]?.top,
     )
   );
 }

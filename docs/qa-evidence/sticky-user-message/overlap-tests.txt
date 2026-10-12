@@ -1,0 +1,8 @@
+
+ RUN  v4.1.7 /tmp/sticky-followup-only-cd4fbf6/packages/app
+
+
+ Test Files  3 passed (3)
+      Tests  91 passed (91)
+   Start at  02:55:51
+   Duration  3.32s (transform 1.82s, setup 241ms, import 2.22s, tests 1.97s, environment 1.32s)

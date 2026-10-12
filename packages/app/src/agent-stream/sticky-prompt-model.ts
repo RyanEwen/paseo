@@ -187,3 +187,20 @@ export function resolveStickyPromptProgress(
   if (handoff) return handoff.progress;
   return reading.visibleUserIds.includes(message.id) ? 0 : 1;
 }
+
+/** Clip the older overlay where the next original prompt enters. This gives the newer
+ * bubble precedence on every platform without changing virtualized row stacking contexts.
+ */
+export function resolvePromptOcclusionTop(
+  targets: readonly PromptTarget[],
+  position: number,
+  reading: PromptReadingPosition,
+): number | undefined {
+  const laterIds = new Set(
+    targets.slice(position + 1).flatMap((target) => (target.item ? [target.item.id] : [])),
+  );
+  const tops = (reading.userHandoffs ?? [])
+    .filter((value) => laterIds.has(value.id) && value.top !== undefined && value.top >= 0)
+    .map((value) => value.top!);
+  return tops.length ? Math.min(...tops) : undefined;
+}

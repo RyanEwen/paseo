@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Text, View, ScrollView, type ViewStyle } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronUp, Plus, Minus } from "lucide-react-native";
+import { ChevronDown, ChevronUp } from "lucide-react-native";
 import { Button } from "@/components/ui/button";
 import { UserMessage } from "@/components/message";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -33,25 +33,34 @@ export function PromptMessageSurface({
   size: "md" | "sm";
 }) {
   const { t } = useTranslation();
+  const compact = useIsCompactFormFactor();
   const surfaceStyle = useMemo(
     () => [styles.container, { opacity: navigation.stickyProgress }],
     [navigation.stickyProgress],
   );
+  const clipStyle = useMemo(
+    () => ({ overflow: "hidden" as const, maxHeight: navigation.occlusionTop }),
+    [navigation.occlusionTop],
+  );
+  const disclosure = useMemo(
+    () => (
+      <Button
+        variant="ghost"
+        size={size}
+        accessibilityLabel={expanded ? t("stickyPrompt.collapse") : t("stickyPrompt.expand")}
+        accessibilityState={disclosureState}
+        onPress={toggleExpanded}
+        testID="sticky-user-message-disclosure"
+      >
+        {expanded ? t("stickyPrompt.less") : t("stickyPrompt.more")}
+      </Button>
+    ),
+    [size, expanded, t, disclosureState, toggleExpanded],
+  );
   return (
-    <View style={surfaceStyle} testID="sticky-user-message">
-      {!expanded ? (
-        <UserMessage
-          serverId={serverId}
-          client={client}
-          message={message.text}
-          images={message.images}
-          attachments={message.attachments}
-          timestamp={message.timestamp.getTime()}
-          disableOuterSpacing
-          previewLines={2}
-        />
-      ) : (
-        <ScrollView style={expandedScrollStyle} nestedScrollEnabled>
+    <View style={clipStyle}>
+      <View style={surfaceStyle} testID="sticky-user-message">
+        {!expanded ? (
           <UserMessage
             serverId={serverId}
             client={client}
@@ -60,56 +69,59 @@ export function PromptMessageSurface({
             attachments={message.attachments}
             timestamp={message.timestamp.getTime()}
             disableOuterSpacing
+            contentAction={disclosure}
+            previewLines={compact ? 1 : 2}
           />
-        </ScrollView>
-      )}
-      <View style={styles.controls} testID="sticky-user-message-controls">
-        <Text style={styles.label}>
-          {navigation.nextDisabled ? t("stickyPrompt.latest") : t("stickyPrompt.selected")}
-        </Text>
-        <Button
-          variant="ghost"
-          size={size}
-          accessibilityLabel={expanded ? t("stickyPrompt.collapse") : t("stickyPrompt.expand")}
-          accessibilityState={disclosureState}
-          onPress={toggleExpanded}
-          testID="sticky-user-message-disclosure"
-          leftIcon={expanded ? Minus : Plus}
-        />
-        <Button
-          variant="ghost"
-          size={size}
-          accessibilityLabel={t("stickyPrompt.previous")}
-          disabled={navigation.busy || navigation.previousDisabled}
-          loading={navigation.busy}
-          onPress={navigation.previous}
-          leftIcon={ChevronUp}
-          testID="sticky-user-message-previous"
-        />
-        <Button
-          variant="ghost"
-          size={size}
-          accessibilityLabel={t("stickyPrompt.next")}
-          disabled={navigation.busy || navigation.nextDisabled}
-          onPress={navigation.next}
-          leftIcon={ChevronDown}
-          testID="sticky-user-message-next"
-        />
-      </View>
-      {(navigation.error || navigation.discoveryStatus === "limited") && (
-        <View style={styles.row}>
-          <Text accessibilityRole="alert" style={styles.text}>
-            {t(
-              navigation.discoveryStatus === "limited"
-                ? "stickyPrompt.moreHistory"
-                : "stickyPrompt.failed",
-            )}
-          </Text>
-          <Button variant="ghost" size={size} onPress={navigation.retry}>
-            {t("common.actions.retry")}
-          </Button>
+        ) : (
+          <ScrollView style={expandedScrollStyle} nestedScrollEnabled>
+            <UserMessage
+              serverId={serverId}
+              client={client}
+              message={message.text}
+              images={message.images}
+              attachments={message.attachments}
+              timestamp={message.timestamp.getTime()}
+              disableOuterSpacing
+              contentAction={disclosure}
+            />
+          </ScrollView>
+        )}
+        <View style={styles.controls} testID="sticky-user-message-controls">
+          <Button
+            variant="ghost"
+            size={size}
+            accessibilityLabel={t("stickyPrompt.previous")}
+            disabled={navigation.busy || navigation.previousDisabled}
+            loading={navigation.busy}
+            onPress={navigation.previous}
+            leftIcon={ChevronUp}
+            testID="sticky-user-message-previous"
+          />
+          <Button
+            variant="ghost"
+            size={size}
+            accessibilityLabel={t("stickyPrompt.next")}
+            disabled={navigation.busy || navigation.nextDisabled}
+            onPress={navigation.next}
+            leftIcon={ChevronDown}
+            testID="sticky-user-message-next"
+          />
         </View>
-      )}
+        {(navigation.error || navigation.discoveryStatus === "limited") && (
+          <View style={styles.row}>
+            <Text accessibilityRole="alert" style={styles.text}>
+              {t(
+                navigation.discoveryStatus === "limited"
+                  ? "stickyPrompt.moreHistory"
+                  : "stickyPrompt.failed",
+              )}
+            </Text>
+            <Button variant="ghost" size={size} onPress={navigation.retry}>
+              {t("common.actions.retry")}
+            </Button>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -141,7 +153,6 @@ export function PromptDiscoverySurface({
     <View style={styles.container} testID="sticky-user-message">
       <View style={styles.row}>
         <View style={styles.preview}>
-          <Text style={styles.label}>{t("stickyPrompt.latest")}</Text>
           <Text
             style={styles.text}
             accessibilityRole={navigation.error ? "alert" : undefined}
@@ -177,6 +188,5 @@ const styles = StyleSheet.create((theme) => ({
   row: { flexDirection: "row", alignItems: "center", gap: theme.spacing[1] },
   preview: { flex: 1, minWidth: 0 },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
-  label: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm },
   text: { color: theme.colors.foreground, fontSize: theme.fontSize.base },
 }));

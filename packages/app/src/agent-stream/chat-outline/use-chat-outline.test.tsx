@@ -992,3 +992,31 @@ it("keeps original prompt controls stable during assistant streaming and updates
   expect(result.current).not.toBe(initial);
   expect(result.current.targetIds).toEqual(["first", "next"]);
 });
+
+it("lets a newer original cover an older sticky copy before replacing it", () => {
+  const first = stickyUser("first", 1);
+  const second = stickyUser("second", 3);
+  const reading = createPromptReadingPublisher();
+  const input = { ...stickyInput([first, second], stickyOutline([1, 3])), reading };
+  const { result } = renderHook(useStickyPrompt, { initialProps: input });
+  act(() =>
+    reading.publish(first.id, [second.id], false, false, true, 1, [
+      { id: second.id, progress: 0, top: 60 },
+    ]),
+  );
+  expect(result.current.message?.id).toBe(first.id);
+  expect(result.current.occlusionTop).toBe(60);
+  act(() =>
+    reading.publish(first.id, [second.id], false, false, true, 1, [
+      { id: second.id, progress: 0, top: 12 },
+    ]),
+  );
+  expect(result.current.occlusionTop).toBe(12);
+  act(() =>
+    reading.publish(second.id, [second.id], false, false, true, 3, [
+      { id: second.id, progress: 0.5, top: -24 },
+    ]),
+  );
+  expect(result.current.message?.id).toBe(second.id);
+  expect(result.current.occlusionTop).toBeUndefined();
+});

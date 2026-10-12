@@ -6,6 +6,8 @@ export const PROMPT_HANDOFF_DISTANCE = 48;
 export interface PromptHandoff {
   id: string;
   progress: number;
+  /** Original visual top in viewport pixels, including upcoming prompts. */
+  top?: number;
 }
 
 /** Convert the original bubble's visual top relative to the viewport into its handoff. */

@@ -244,6 +244,8 @@ export const ru: TranslationResources = {
     },
   },
   stickyPrompt: {
+    more: "больше…",
+    less: "меньше…",
     none: "В этом чате нет сообщений пользователя.",
     cancelled: "Загрузка отменена.",
     moreHistory: "Доступна более ранняя история. Повторите попытку, чтобы продолжить поиск.",

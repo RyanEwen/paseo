@@ -9,7 +9,8 @@ for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
 - **Keep user prompts in view:** A compact copy fades into place as its original bubble crosses
   the top of the chat. Scrolling updates the prompt you are reading, and arrows move smoothly between
-  user messages. Expand the compact copy to read the full message and attachments.
+  user messages. Newer messages pass over older sticky copies. Use more… inside the copy to
+  read the full message and attachments.
 - **Reopen closed agents:** Find archived conversations and agents with closed tabs in a dialog from
   the workspace + menu. Open the same conversation, then choose Unarchive when you want to resume it.
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including

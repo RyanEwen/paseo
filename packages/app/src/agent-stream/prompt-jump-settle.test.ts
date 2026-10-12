@@ -1,5 +1,8 @@
 import { resolvePromptHandoffProgress } from "./prompt-handoff";
-import { createNativePromptHandoffSampler } from "./native-prompt-handoff";
+import {
+  createNativePromptHandoffPair,
+  createNativePromptHandoffSampler,
+} from "./native-prompt-handoff";
 import type { StreamItem } from "@/types/stream";
 import { createNativePromptJumpController } from "./native-prompt-jump";
 import { describe, expect, it, vi } from "vitest";
@@ -469,9 +472,9 @@ describe("scroll driven prompt handoff", () => {
     viewport[0]!(100);
     viewport[1]!(100);
     prompts[0]!(76);
-    expect(measured).toHaveBeenLastCalledWith("first", 0.5);
+    expect(measured).toHaveBeenLastCalledWith("first", 0.5, -24);
     prompts[1]!(52);
-    expect(measured).toHaveBeenLastCalledWith("first", 1);
+    expect(measured).toHaveBeenLastCalledWith("first", 1, -48);
     sampler.sample("first");
     viewport[2]!(100);
     sampler.sample("second");
@@ -482,4 +485,24 @@ describe("scroll driven prompt handoff", () => {
     prompts[3]!(60);
     expect(measured).toHaveBeenCalledTimes(2);
   });
+});
+
+it("measures both overlapping native prompts with a bounded pair", () => {
+  const requests: { id: string; complete: (y: number | null) => void }[] = [];
+  const measured = vi.fn();
+  const pair = createNativePromptHandoffPair({
+    measureViewport: (callback) => callback(100),
+    measurePrompt: (id, complete) => requests.push({ id, complete }),
+    onMeasured: measured,
+  });
+  pair.sample(["older", "newer", "outside-budget"]);
+  expect(requests.map((request) => request.id)).toEqual(["older", "newer"]);
+  requests[0]!.complete(80);
+  requests[1]!.complete(124);
+  expect(measured).toHaveBeenCalledWith("older", 20 / 48, -20);
+  expect(measured).toHaveBeenCalledWith("newer", 0, 24);
+  pair.sample(["newer"]);
+  pair.cancel();
+  requests[2]!.complete(90);
+  expect(measured).toHaveBeenCalledTimes(2);
 });
