@@ -447,7 +447,12 @@ export function SidebarWorkspaceTrailingStatusActions({
         bucket={workspace.statusBucket}
         workspaceKind={workspace.workspaceKind}
       />
-      <HoverRevealActions visible={visible} width={18} height={20}>
+      <HoverRevealActions
+        visible={visible}
+        width={18}
+        height={20}
+        testID={`sidebar-workspace-hover-actions-${workspace.workspaceKey}`}
+      >
         {children}
       </HoverRevealActions>
     </View>
