@@ -1,3 +1,4 @@
+import { originalUserMessages, originalTimelineRows } from "../support/helpers/timeline-pagination";
 import type { Locator } from "@playwright/test";
 import { expect, test, type Page } from "../support/fixtures";
 import { expectAgentIdle, expectAgentReadyToInterrupt } from "../support/helpers/agent-stream";
@@ -18,12 +19,14 @@ async function completeSubmittedTurn(
   prompt: string,
 ): Promise<Locator> {
   await submitMessage(page, prompt);
-  const userMessage = page.getByTestId("user-message").filter({ hasText: prompt });
+  const userMessage = originalUserMessages(page).filter({ hasText: prompt });
   await expect(userMessage).toBeVisible();
 
   const finish = await agent.client.waitForFinish(agent.agentId, 30_000);
   expect(finish.status).toBe("idle");
-  await expect(page.getByText("(end of synthetic stream)", { exact: true }).last()).toBeVisible();
+  await expect(
+    originalTimelineRows(page).getByText("(end of synthetic stream)", { exact: true }).last(),
+  ).toBeVisible();
   await expect(userMessage).toHaveAttribute("aria-busy", "false");
   return userMessage;
 }
@@ -40,7 +43,9 @@ async function expectTurnCompletesNormally(
 ): Promise<void> {
   const finish = await agent.client.waitForFinish(agent.agentId, 30_000);
   expect(finish.status).toBe("idle");
-  await expect(page.getByText("(end of synthetic stream)", { exact: true }).last()).toBeVisible();
+  await expect(
+    originalTimelineRows(page).getByText("(end of synthetic stream)", { exact: true }).last(),
+  ).toBeVisible();
   await expectAgentIdle(page);
 }
 
@@ -78,9 +83,7 @@ test.describe("Agent message rewind", () => {
       rewindCompletion.release();
       await rewind;
 
-      await expect(page.getByTestId("user-message").filter({ hasText: rewoundPrompt })).toHaveCount(
-        0,
-      );
+      await expect(originalUserMessages(page).filter({ hasText: rewoundPrompt })).toHaveCount(0);
       await expectComposerDraft(page, preservedDraft);
       await expectNearBottom(page);
     } finally {
@@ -102,7 +105,7 @@ test.describe("Agent message rewind", () => {
       await openAgentRoute(page, agent);
       await expectComposerVisible(page);
       await submitMessage(page, prompt);
-      const userMessage = page.getByTestId("user-message").filter({ hasText: prompt });
+      const userMessage = originalUserMessages(page).filter({ hasText: prompt });
       await expect(userMessage).toBeVisible();
       await expectAgentReadyToInterrupt(page);
 
@@ -131,7 +134,7 @@ test.describe("Agent message rewind", () => {
       await expectAgentIdle(page);
 
       await submitMessage(page, commandPrompt);
-      const commandMessage = page.getByTestId("user-message").filter({ hasText: commandPrompt });
+      const commandMessage = originalUserMessages(page).filter({ hasText: commandPrompt });
       await expect(commandMessage).toBeVisible();
       await expect(page.getByText("Mock command handled", { exact: true })).toBeVisible();
       await commandMessage.getByText(commandPrompt, { exact: true }).hover();
@@ -140,7 +143,7 @@ test.describe("Agent message rewind", () => {
       ).toHaveCount(0);
 
       await submitMessage(page, providerPrompt);
-      const providerMessage = page.getByTestId("user-message").filter({ hasText: providerPrompt });
+      const providerMessage = originalUserMessages(page).filter({ hasText: providerPrompt });
       await expect(providerMessage).toBeVisible();
       await expectAgentReadyToInterrupt(page);
       await providerMessage.getByText(providerPrompt, { exact: true }).hover();

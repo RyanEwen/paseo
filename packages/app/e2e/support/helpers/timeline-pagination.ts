@@ -1,4 +1,4 @@
-import { expect, type TestInfo, type Page } from "@playwright/test";
+import { expect, type TestInfo, type Page, type Locator } from "@playwright/test";
 import { buildAgentRoute, seedMockAgentWorkspace, type MockAgentWorkspace } from "./mock-agent";
 import { readReplicaCache } from "./replica-cache-storage";
 import {
@@ -12,6 +12,30 @@ import {
 } from "./agent-timeline-gate";
 
 export { holdDaemonHydration };
+
+/** Select original authoritative rows inside the intended chat/pane, excluding sticky copies.
+ * Hidden timelines are included only for assertions that deliberately inspect retained DOM.
+ * Multiple visible timelines stay strict: callers must supply their owning pane.
+ */
+export function originalTimelineRows(scope: Page | Locator, includeHidden = false): Locator {
+  const timelines = scope.getByTestId("agent-chat-scroll");
+  const owner = includeHidden ? timelines : timelines.filter({ visible: true });
+  return owner.locator("[data-history-row-id]");
+}
+
+/** Select original prompt bodies while preserving exact-count and busy-state assertions. */
+export function originalUserMessages(scope: Page | Locator): Locator {
+  return originalTimelineRows(scope).getByTestId("user-message");
+}
+
+/** Match exact original timeline text, never the sticky renderer or its measurement probe. */
+export function originalTimelineText(
+  scope: Page | Locator,
+  text: string,
+  includeHidden = false,
+): Locator {
+  return originalTimelineRows(scope, includeHidden).getByText(text, { exact: true });
+}
 
 interface LongTimelineAgentOptions {
   turns: number;
