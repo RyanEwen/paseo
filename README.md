@@ -7,6 +7,8 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
 sender names on agent messages and notifications, recovery after a first prompt fails, and fixes
 for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
+- **Fork links:** Open the Paseo++ repository and changelog from the app. Upstream issue,
+  sponsorship, and Discord actions are removed.
 - **Reopen closed agents:** Find archived conversations and agents with closed tabs in a dialog from
   the workspace + menu. Open the same conversation, then choose Unarchive when you want to resume it.
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including
