@@ -25,7 +25,8 @@ class PaseoAppUpdateModule : Module() {
 
     AsyncFunction("download") { url: String, sha256: String, versionCode: Double ->
       requirePreviewPermission()
-      require(Regex("https://github\\.com/RyanEwen/paseo/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+-preview\\.[0-9]+/[A-Za-z0-9._-]+\\.apk").matches(url)) {
+      val canonicalForkApkUrl = Regex("https://github\\.com/RyanEwen/paseo(?:-plus-plus)?/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+-preview\\.[0-9]+/[A-Za-z0-9][A-Za-z0-9._-]*\\.apk").matches(url) && !url.contains("..")
+      require(canonicalForkApkUrl) {
         "Unexpected update download URL."
       }
       require(Regex("[a-f0-9]{64}").matches(sha256)) { "Invalid update checksum." }

@@ -1,6 +1,8 @@
 import { z } from "zod";
 
+// Discovery stays on the existing repository until the rename is performed.
 const repository = "RyanEwen/paseo";
+const releaseRepositories = [repository, "RyanEwen/paseo-plus-plus"];
 const assetSchema = z.object({ name: z.string(), browser_download_url: z.url() });
 export const releasesSchema = z.array(
   z.object({
@@ -40,9 +42,12 @@ export function selectAndroidUpdate(value: unknown, installedCode: number): Andr
   if (apks.length !== 1 || !checksum) throw new Error("Preview is missing its APK or checksum");
   const apk = apks[0];
   for (const asset of [apk, checksum]) {
-    const safeName = /^[A-Za-z0-9._-]+$/.test(asset.name);
-    const expected = `https://github.com/${repository}/releases/download/${latest.release.tag_name}/${asset.name}`;
-    if (!safeName || asset.browser_download_url !== expected) {
+    const safeName = /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(asset.name) && !asset.name.includes("..");
+    const canonicalAssetUrl = releaseRepositories.some((candidate) => {
+      const expected = `https://github.com/${candidate}/releases/download/${latest.release.tag_name}/${asset.name}`;
+      return asset.browser_download_url === expected;
+    });
+    if (!safeName || !canonicalAssetUrl) {
       throw new Error("Unexpected fork release asset URL");
     }
   }
