@@ -1152,6 +1152,7 @@ export const zhCN: TranslationResources = {
   sidebar: {
     statusGroupAccessibility: "{{label}} 分组",
     statusBucket: {
+      workingCount: "{{count}} 个正在工作",
       needsInput: "需要输入",
       failed: "失败",
       readyToReview: "待查看",
@@ -1159,6 +1160,8 @@ export const zhCN: TranslationResources = {
       done: "已完成",
     },
     display: {
+      expandAll: "全部展开",
+      collapseAll: "全部折叠",
       showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",

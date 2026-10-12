@@ -1169,6 +1169,7 @@ export const en = {
   sidebar: {
     statusGroupAccessibility: "{{label}} group",
     statusBucket: {
+      workingCount: "{{count}} working",
       needsInput: "Needs input",
       failed: "Failed",
       readyToReview: "Ready to review",
@@ -1176,6 +1177,8 @@ export const en = {
       done: "Done",
     },
     display: {
+      expandAll: "Expand all",
+      collapseAll: "Collapse all",
       showBackground: "Show background",
       trigger: "Display preferences",
       heading: "Display",

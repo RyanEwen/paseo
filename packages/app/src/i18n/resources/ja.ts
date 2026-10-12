@@ -1175,6 +1175,7 @@ export const ja: TranslationResources = {
   sidebar: {
     statusGroupAccessibility: "{{label}} グループ",
     statusBucket: {
+      workingCount: "{{count}} 件作業中",
       needsInput: "入力待ち",
       failed: "失敗",
       readyToReview: "レビュー待ち",
@@ -1182,6 +1183,8 @@ export const ja: TranslationResources = {
       done: "完了",
     },
     display: {
+      expandAll: "すべて展開",
+      collapseAll: "すべて折りたたむ",
       showBackground: "バックグラウンドを表示",
       trigger: "表示設定",
       heading: "表示",

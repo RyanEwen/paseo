@@ -4,6 +4,8 @@ import { persist } from "zustand/middleware";
 import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
 import {
   type CollapsedProjectsState,
+  type SidebarCollapseTargets,
+  setSectionsCollapsed,
   type PersistedCollapsedProjects,
   mergePersistedCollapsedProjects,
   PersistedCollapsedProjectsSchema,
@@ -15,6 +17,7 @@ import {
 } from "./state";
 
 interface SidebarCollapsedSectionsState extends CollapsedProjectsState {
+  setSectionsCollapsed: (targets: SidebarCollapseTargets, collapsed: boolean) => void;
   toggleProjectCollapsed: (projectKey: string) => void;
   setProjectCollapsed: (projectKey: string, collapsed: boolean) => void;
   toggleWorkspaceGroupCollapsed: (workspaceGroupKey: string) => void;
@@ -27,6 +30,8 @@ export const useSidebarCollapsedSectionsStore = create<SidebarCollapsedSectionsS
       collapsedProjectKeys: new Set(),
       collapsedWorkspaceGroupKeys: new Set(),
       collapsedPinned: false,
+      setSectionsCollapsed: (targets, collapsed) =>
+        set((state) => setSectionsCollapsed(state, targets, collapsed)),
       toggleProjectCollapsed: (projectKey) =>
         set((state) => toggleProjectCollapsed(state, projectKey)),
       setProjectCollapsed: (projectKey, collapsed) =>

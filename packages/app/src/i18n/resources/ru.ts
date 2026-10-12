@@ -1179,6 +1179,7 @@ export const ru: TranslationResources = {
   sidebar: {
     statusGroupAccessibility: "Группа «{{label}}»",
     statusBucket: {
+      workingCount: "{{count}} в работе",
       needsInput: "Ожидает ввода",
       failed: "Ошибка",
       readyToReview: "На проверку",
@@ -1186,6 +1187,8 @@ export const ru: TranslationResources = {
       done: "Готово",
     },
     display: {
+      expandAll: "Развернуть всё",
+      collapseAll: "Свернуть всё",
       showBackground: "Показать фоновые пространства",
       trigger: "Настройки отображения",
       heading: "Отображение",
