@@ -286,3 +286,33 @@ test("workspace sorting restores custom drag order in status grouping", async ({
     await seeded.cleanup();
   }
 });
+
+test("status sorting puts the newest matching workspace first in project grouping", async ({
+  page,
+}, testInfo) => {
+  const seeded = await seedSortableWorkspaceRows(page);
+  try {
+    await openSidebarDisplayPage(page, "sidebar-display-grouping");
+    await page.getByTestId("sidebar-grouping-project").click();
+    // Alpha was created second. Save the older Zeta first to distinguish recency from drag order.
+    await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+    await page.getByTestId("sidebar-workspace-sorting-name").click();
+    await expect.poll(() => rowTestIds(seeded.rows)).toEqual([seeded.alphaId, seeded.zetaId]);
+    await quickDragFirstRowAfterSecond(seeded.rows, pressWorkspaceRow);
+    await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+    await page.getByTestId("sidebar-workspace-sorting-status").click();
+    await expect.poll(() => rowTestIds(seeded.rows)).toEqual([seeded.alphaId, seeded.zetaId]);
+    await page.screenshot({ path: testInfo.outputPath("project-status-newest-first.png") });
+    await page.reload();
+    await expect.poll(() => rowTestIds(seeded.rows)).toEqual([seeded.alphaId, seeded.zetaId]);
+    await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+    await page.getByTestId("sidebar-workspace-sorting-custom").click();
+    await expect.poll(() => rowTestIds(seeded.rows)).toEqual([seeded.zetaId, seeded.alphaId]);
+    await selectSidebarStatusGrouping(page);
+    await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+    await page.getByTestId("sidebar-workspace-sorting-status").click();
+    await expect.poll(() => rowTestIds(seeded.rows)).toEqual([seeded.alphaId, seeded.zetaId]);
+  } finally {
+    await seeded.cleanup();
+  }
+});
