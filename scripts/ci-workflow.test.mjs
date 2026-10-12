@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { relative as relativePath } from "node:path";
 import test from "node:test";
 import { checkForkOverviewReview, getForkOverview } from "./check-fork-overview.mjs";
+import { hookDecision, runHook, stateKey } from "./codex-docs-hook.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const ciWorkflowPath = new URL(".github/workflows/ci.yml", repoRoot);
@@ -11,6 +15,99 @@ const nixWorkflowPath = new URL(".github/workflows/nix.yml", repoRoot);
 const filtersPath = new URL(".github/ci-paths.yml", repoRoot);
 const serverTsconfigPath = new URL("packages/server/tsconfig.server.json", repoRoot);
 const desktopPackagePath = new URL("packages/desktop/package.json", repoRoot);
+
+test("Codex documentation hook supplies context and allows only one Stop continuation", () => {
+  assert.match(
+    hookDecision({ hook_event_name: "SessionStart" }, []).hookSpecificOutput.additionalContext,
+    /README overview/,
+  );
+  assert.deepEqual(hookDecision({ hook_event_name: "Stop" }, []), {});
+  const paths = ["packages/app/src/agent-stream/feature.ts"];
+  assert.match(
+    hookDecision({ hook_event_name: "PostToolUse" }, paths).hookSpecificOutput.additionalContext,
+    /docs\/timeline-sync.md/,
+  );
+  assert.deepEqual(hookDecision({ hook_event_name: "PostToolUse" }, paths, true), {});
+  assert.equal(hookDecision({ hook_event_name: "Stop" }, paths).decision, "block");
+  assert.deepEqual(hookDecision({ hook_event_name: "Stop", stop_hook_active: true }, paths), {});
+  assert.deepEqual(hookDecision({ hook_event_name: "Stop" }, paths, false, true), {});
+  assert.notEqual(
+    stateKey({ session_id: "parent", transcript_path: "child-a" }, "/repo"),
+    stateKey({ session_id: "parent", transcript_path: "child-b" }, "/repo"),
+  );
+  assert.notEqual(
+    stateKey({ session_id: "parent" }, "/worktree-a"),
+    stateKey({ session_id: "parent" }, "/worktree-b"),
+  );
+});
+
+test("Codex documentation hook preserves pre-existing dirty work and notices actual later edits", () => {
+  const root = mkdtempSync(join(tmpdir(), "paseo-codex-docs-"));
+  const code = "packages/app/src/feature.ts";
+  const runGit = (args) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
+  try {
+    mkdirSync(join(root, "packages/app/src"), { recursive: true });
+    mkdirSync(join(root, "empty-hooks"));
+    writeFileSync(join(root, ".gitignore"), ".dev/\n");
+    writeFileSync(join(root, code), "original\n");
+    runGit(["init", "--quiet"]);
+    runGit(["add", "."]);
+    runGit([
+      "-c",
+      "user.name=Hook fixture",
+      "-c",
+      "user.email=hook@example.invalid",
+      "-c",
+      "commit.gpgsign=false",
+      "-c",
+      `core.hooksPath=${join(root, "empty-hooks")}`,
+      "commit",
+      "--quiet",
+      "-m",
+      "fixture",
+    ]);
+    writeFileSync(join(root, code), "existing user work\n");
+    const event = { session_id: "fixture", cwd: root, turn_id: "first" };
+    runHook({ ...event, hook_event_name: "SessionStart" });
+    assert.deepEqual(runHook({ ...event, hook_event_name: "Stop" }), {});
+    writeFileSync(join(root, code), "agent edit\n");
+    assert.match(
+      runHook({ ...event, hook_event_name: "PostToolUse" }).hookSpecificOutput.additionalContext,
+      /feature.ts/,
+    );
+    assert.deepEqual(runHook({ ...event, hook_event_name: "PostToolUse" }), {});
+    assert.equal(runHook({ ...event, hook_event_name: "Stop" }).decision, "block");
+    assert.deepEqual(runHook({ ...event, hook_event_name: "Stop", stop_hook_active: true }), {});
+    assert.deepEqual(runHook({ ...event, turn_id: "second", hook_event_name: "Stop" }), {});
+    writeFileSync(join(root, "README.md"), "New user-visible feature description.\n");
+    assert.equal(
+      runHook({ ...event, turn_id: "second", hook_event_name: "Stop" }).decision,
+      "block",
+    );
+    assert.match(runGit(["status", "--porcelain"]).toString(), /feature.ts/);
+    assert.doesNotMatch(runGit(["status", "--porcelain"]).toString(), /codex-doc-review/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Codex documentation hooks are project-local and preserve the original repository check", () => {
+  const hooks = JSON.parse(readFileSync(new URL(".codex/hooks.json", repoRoot), "utf8"));
+  for (const event of ["SessionStart", "PostToolUse", "Stop"]) {
+    const command = hooks.hooks[event][0].hooks[0];
+    assert.match(command.command, /git rev-parse --show-toplevel/);
+    assert.match(command.command, /scripts\/codex-docs-hook.mjs/);
+    assert.match(command.commandWindows, /codex-docs-hook.mjs/);
+  }
+  assert.doesNotMatch(
+    readFileSync(new URL("lefthook.yml", repoRoot), "utf8"),
+    /fork-documentation/,
+  );
+  assert.match(
+    readFileSync(new URL(".github/workflows/fork-overview.yml", repoRoot), "utf8"),
+    /check-fork-overview.mjs/,
+  );
+});
 
 test("preview releases build one checked commit and require every approved platform before publishing", () => {
   const source = readFileSync(new URL(".github/workflows/preview-release.yml", repoRoot), "utf8");
