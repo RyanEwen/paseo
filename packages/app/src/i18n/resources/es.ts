@@ -2,6 +2,40 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
+  settingsSync: {
+    title: "Sincronización de ajustes",
+    hint: "Sincroniza las preferencias y la visibilidad de la barra lateral con un host elegido. Los filtros de host/proyecto, el orden de espacios y los grupos contraídos siguen siendo locales. Al cambiar se cargan los ajustes antes de editarlos.",
+    host: "Host de ajustes",
+    deviceOnly: "Solo este dispositivo",
+    unavailableHost: "Host seleccionado no disponible",
+    status: "Estado",
+    publish: "Usar los ajustes de este dispositivo",
+    publishHint:
+      "Este host no tiene ajustes guardados. Publicarlos copia tus preferencias actuales al host.",
+    useHost: "Usar los ajustes del host",
+    keepDevice: "Publicar mis cambios",
+    keepDeviceHint:
+      "Sobrescribe explícitamente las preferencias en conflicto de {{host}} con tus cambios pendientes. Las demás preferencias se conservan.",
+    restore: "Restaurar ajustes del dispositivo",
+    restoreHint:
+      "Detén la sincronización y restaura las preferencias guardadas antes de elegir este host.",
+    conflictHint:
+      "Estas preferencias cambiaron en otro cliente. Usa los ajustes de {{host}} para descartar solo sus cambios pendientes.",
+    retryHint:
+      "Vuelve a conectar y a leer los ajustes. Los cambios pendientes permanecen en su host original.",
+    states: {
+      loading: "Cargando configuración",
+      local: "Preferencias guardadas en este dispositivo",
+      reading: "Esperando los ajustes del host elegido",
+      ready: "Conectado. Cambios pendientes: {{count}}",
+      offline: "Sin conexión. Cambios pendientes: {{count}}",
+      empty: "Este host no tiene ajustes publicados",
+      unsupported: "Actualiza este host para sincronizar ajustes",
+      error: "No se pudieron sincronizar los ajustes. Tus cambios pendientes se conservan.",
+      conflict: "Los cambios en conflicto requieren tu elección",
+      readonly: "Esta conexión puede leer los ajustes, pero no cambiarlos",
+    },
+  },
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Guardar",

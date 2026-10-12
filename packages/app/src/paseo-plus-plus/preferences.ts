@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Device-local opt-outs for optional fork UI. Disabling never deletes feature data. */
+/** App preference opt-outs for optional fork UI. Disabling never deletes feature data. */
 const preferencesObject = z.looseObject({
   descriptiveToolCalls: z.boolean().catch(true),
   stickyUserPrompts: z.boolean().catch(true),

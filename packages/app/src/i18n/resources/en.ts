@@ -1,4 +1,36 @@
 export const en = {
+  settingsSync: {
+    title: "Settings sync",
+    hint: "Sync app preferences and sidebar item visibility through one chosen host. Host/project filters, workspace order and collapsed groups stay local. Switching loads saved settings before editing.",
+    host: "Settings host",
+    deviceOnly: "This device only",
+    unavailableHost: "Selected host unavailable",
+    status: "Status",
+    publish: "Use this device settings",
+    publishHint:
+      "This host has no saved app settings. Publishing copies your current preferences to it.",
+    useHost: "Use host settings",
+    keepDevice: "Publish my changes",
+    keepDeviceHint:
+      "Explicitly overwrite conflicting preferences on {{host}} with your pending changes. Other preferences are preserved.",
+    restore: "Restore device settings",
+    restoreHint: "Stop syncing and restore the preferences saved before adopting this host.",
+    conflictHint:
+      "These preferences changed on another client. Use {{host}} settings to discard only its pending edits.",
+    retryHint: "Reconnect and read settings again. Pending edits stay with their original host.",
+    states: {
+      loading: "Loading sync configuration",
+      local: "Preferences are saved on this device",
+      reading: "Waiting to load the selected host",
+      ready: "Connected. Pending changes: {{count}}",
+      offline: "Offline. Pending changes: {{count}}",
+      empty: "No settings published on this host",
+      unsupported: "Update this host to sync app settings",
+      error: "Settings could not be synced. Your pending edits are retained.",
+      conflict: "Conflicting changes need your choice",
+      readonly: "This connection can read settings but cannot change them",
+    },
+  },
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Save",

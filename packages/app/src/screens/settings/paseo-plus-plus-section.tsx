@@ -1,6 +1,7 @@
 import { SidebarLimitSection } from "@/screens/settings/paseo-plus-plus/sidebar-limit-section";
 import { FEATURE_EXAMPLE_IMAGES } from "@/paseo-plus-plus/settings-examples";
 import { SettingsExample } from "@/components/settings/settings-example";
+import { SettingsSyncSection } from "./settings-sync-section";
 import { ExplorerSection } from "@/screens/settings/paseo-plus-plus/explorer-section";
 import { useQueryClient } from "@tanstack/react-query";
 import { APP_SETTINGS_QUERY_KEY } from "@/hooks/use-settings/storage";
@@ -66,6 +67,7 @@ export function PaseoPlusPlusSection() {
 
   return (
     <View testID="paseo-plus-plus-settings">
+      <SettingsSyncSection />
       <SettingsSection title={t("paseoPlusPlus.optional")} info={t("paseoPlusPlus.optionalHint")}>
         {settingsError !== null ? (
           <Alert variant="error" description={t("paseoPlusPlus.loadFailed")}>

@@ -81,7 +81,7 @@ export const MAX_CONTENT_MAX_WIDTH = 4000;
 export const DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT = 20;
 
 export interface AppSettings {
-  /** Optional fork features, local to this app installation. */
+  /** Optional fork feature preferences, synced when a settings host is selected. */
   paseoPlusPlus: PaseoPlusPlusPreferences;
   theme: ThemePreference;
   /** Which contributed theme `theme: "plugin"` selects. */

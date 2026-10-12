@@ -2,6 +2,38 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  settingsSync: {
+    title: "설정 동기화",
+    hint: "선택한 호스트를 통해 앱 환경설정과 사이드바 항목 표시를 동기화합니다. 호스트/프로젝트 필터, 작업공간 순서와 접힌 그룹은 로컬에 유지됩니다. 전환하면 설정을 읽은 후 편집할 수 있습니다.",
+    host: "설정 호스트",
+    deviceOnly: "이 기기만",
+    unavailableHost: "선택한 호스트를 사용할 수 없음",
+    status: "상태",
+    publish: "이 기기의 설정 사용",
+    publishHint:
+      "이 호스트에는 저장된 앱 설정이 없습니다. 게시하면 현재 환경설정을 호스트로 복사합니다.",
+    useHost: "호스트 설정 사용",
+    keepDevice: "내 변경사항 게시",
+    keepDeviceHint:
+      "{{host}}에서 충돌한 환경설정을 대기 중인 변경사항으로 명시적으로 덮어씁니다. 다른 환경설정은 유지됩니다.",
+    restore: "기기 설정 복원",
+    restoreHint: "동기화를 중지하고 이 호스트를 선택하기 전에 저장한 환경설정을 복원합니다.",
+    conflictHint:
+      "이 환경설정은 다른 클라이언트에서 변경되었습니다. {{host}}의 설정을 사용하면 이 호스트의 대기 중인 변경사항만 버립니다.",
+    retryHint: "다시 연결하여 설정을 읽으세요. 대기 중인 변경사항은 원래 호스트에 유지됩니다.",
+    states: {
+      loading: "동기화 설정 불러오는 중",
+      local: "환경설정이 이 기기에 저장됩니다",
+      reading: "선택한 호스트의 설정을 기다리는 중",
+      ready: "연결됨. 대기 중인 변경사항: {{count}}",
+      offline: "오프라인. 대기 중인 변경사항: {{count}}",
+      empty: "이 호스트에 게시된 설정이 없음",
+      unsupported: "앱 설정을 동기화하려면 이 호스트를 업데이트하세요",
+      error: "설정을 동기화할 수 없습니다. 대기 중인 변경사항은 유지됩니다.",
+      conflict: "충돌하는 변경사항 처리 방법을 선택하세요",
+      readonly: "이 연결은 설정을 읽을 수 있지만 변경할 수는 없습니다",
+    },
+  },
   paseoPlusPlus: {
     workspaceLimit: {
       save: "저장",

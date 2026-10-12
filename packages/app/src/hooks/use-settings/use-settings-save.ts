@@ -1,9 +1,18 @@
-import { useCallback, useRef, useState } from "react";
+import {
+  getSettingsEditingBlocked,
+  subscribeSettingsEditingBlocked,
+} from "@/settings-sync/save-handler";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { useAppSettings, type AppSettingsUpdate } from "./index";
 
 /** Own a settings surface's pending/error state while storage retains durable write ordering. */
 export function useSettingsSave<Key extends string>() {
   const appSettings = useAppSettings();
+  const syncBlocked = useSyncExternalStore(
+    subscribeSettingsEditingBlocked,
+    getSettingsEditingBlocked,
+    getSettingsEditingBlocked,
+  );
   const { updateSettings } = appSettings;
   const saving = useRef(false);
   const [pending, setPending] = useState<Key | null>(null);
@@ -29,5 +38,5 @@ export function useSettingsSave<Key extends string>() {
     [updateSettings],
   );
 
-  return { ...appSettings, pending, failed, save };
+  return { ...appSettings, isLoading: appSettings.isLoading || syncBlocked, pending, failed, save };
 }

@@ -2518,6 +2518,34 @@ export class DaemonClient {
     });
   }
 
+  /** Refresh a selected host without creating another subscription. */
+  getAppSettings(): Promise<CorrelatedResponsePayload<"app.settings.get.response">> {
+    return this.sendNamespacedCorrelatedSessionRequest({
+      message: { type: "app.settings.get.request" },
+    });
+  }
+
+  /** Observe settings on an explicitly selected host; the caller gates appSettingsSync once. */
+  observeAppSettings(options?: {
+    signal?: AbortSignal;
+  }): OwnedSubscription<CorrelatedResponsePayload<"app.settings.get.response">> {
+    return this.observe(
+      "app.settings.get.response",
+      { type: "app.settings.get.request", subscribe: {} },
+      options,
+    );
+  }
+
+  /** Send touched leaves with their original host revisions. Never replay a full local snapshot. */
+  patchAppSettings(
+    patches: import("@getpaseo/protocol/app-settings").AppSettingsPatch[],
+    initialize = false,
+  ): Promise<CorrelatedResponsePayload<"app.settings.patch.response">> {
+    return this.sendNamespacedCorrelatedSessionRequest({
+      message: { type: "app.settings.patch.request", patches, initialize },
+    });
+  }
+
   listWorkspaceLabels(
     options: {
       sync?: { generation: string; afterSeq: number };

@@ -1,3 +1,4 @@
+import { getSettingsHostSelected, getSettingsEditingBlocked } from "@/settings-sync/save-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist, type StateStorage } from "zustand/middleware";
@@ -226,64 +227,92 @@ export function createSidebarViewStorage(
   };
 }
 
+const preferenceEditListeners = new Set<
+  (next: SidebarViewStoreState, previous: SidebarViewStoreState) => void
+>();
+
+/** Observe user preference commands, excluding hydration, remote projection and reconciliation. */
+export function subscribeSidebarPreferenceEdits(
+  listener: (next: SidebarViewStoreState, previous: SidebarViewStoreState) => void,
+): () => void {
+  preferenceEditListeners.add(listener);
+  return () => {
+    preferenceEditListeners.delete(listener);
+  };
+}
+
 export const useSidebarViewStore = create<SidebarViewStoreState>()(
   persist(
-    (set) => ({
-      showBackground: false,
-      groupMode: "project",
-      sortMode: "custom",
-      workspaceSortMode: "custom",
-      projectVisibility: "all",
-      groupEmptyProjects: true,
-      emptyProjectSortMode: "custom",
-      hostFilters: [],
-      projectFilters: [],
-      labelFilter: emptyLabelFilter(),
-      setEmptyProjectSortMode: (mode) => set({ emptyProjectSortMode: mode }),
-      setGroupEmptyProjects: (enabled) => set({ groupEmptyProjects: enabled }),
-      toggleBackground: () => set((state) => ({ showBackground: !state.showBackground })),
-      setGroupMode: (mode) => set({ groupMode: mode }),
-      setWorkspaceSortMode: (mode) => set({ workspaceSortMode: mode }),
-      setSortMode: (mode) => set({ sortMode: mode }),
-      setProjectVisibility: (visibility) => set({ projectVisibility: visibility }),
-      toggleHostFilter: (serverId) =>
-        set((state) => ({ hostFilters: toggleFilterEntry(state.hostFilters, serverId) })),
-      clearHostFilters: () => set({ hostFilters: [] }),
-      selectProjectFilter: (viewKey) => set({ projectFilters: [viewKey] }),
-      toggleProjectFilter: (viewKey) =>
-        set((state) => ({ projectFilters: toggleFilterEntry(state.projectFilters, viewKey) })),
-      clearProjectFilters: () => set({ projectFilters: [] }),
-      toggleLabelFilter: (name) =>
-        set((state) => {
-          const key = workspaceLabelKey(name);
-          const labels = state.labelFilter.labels.includes(key)
-            ? state.labelFilter.labels.filter((label) => label !== key)
-            : [...state.labelFilter.labels, key];
-          return { labelFilter: { ...state.labelFilter, labels } };
-        }),
-      clearLabelFilter: () => set({ labelFilter: emptyLabelFilter() }),
-      reconcileLabelFilter: (labels) =>
-        set((state) => {
-          const available = new Set(labels.map(workspaceLabelKey));
-          const next = state.labelFilter.labels.filter(
-            (label) => label === SIDEBAR_UNLABELLED_LABEL_KEY || available.has(label),
-          );
-          if (next.length === state.labelFilter.labels.length) return state;
-          return { labelFilter: { labels: next } };
-        }),
-      reconcileHostFilters: (serverIds) =>
-        set((state) => {
-          if (state.hostFilters.length === 0) {
-            return state;
-          }
-          const allowed = new Set(serverIds);
-          const next = state.hostFilters.filter((id) => allowed.has(id));
-          if (next.length === state.hostFilters.length) {
-            return state;
-          }
-          return { hostFilters: next };
-        }),
-    }),
+    (set, get) => {
+      const setPreferences = (
+        patch:
+          | Partial<SidebarViewStoreState>
+          | ((state: SidebarViewStoreState) => Partial<SidebarViewStoreState>),
+      ) => {
+        if (getSettingsEditingBlocked()) return;
+        const previous = get();
+        set(patch);
+        for (const listener of preferenceEditListeners) listener(get(), previous);
+      };
+      return {
+        showBackground: false,
+        groupMode: "project",
+        sortMode: "custom",
+        workspaceSortMode: "custom",
+        projectVisibility: "all",
+        groupEmptyProjects: true,
+        emptyProjectSortMode: "custom",
+        hostFilters: [],
+        projectFilters: [],
+        labelFilter: emptyLabelFilter(),
+        setEmptyProjectSortMode: (mode) => setPreferences({ emptyProjectSortMode: mode }),
+        setGroupEmptyProjects: (enabled) => setPreferences({ groupEmptyProjects: enabled }),
+        toggleBackground: () =>
+          setPreferences((state) => ({ showBackground: !state.showBackground })),
+        setGroupMode: (mode) => setPreferences({ groupMode: mode }),
+        setWorkspaceSortMode: (mode) => setPreferences({ workspaceSortMode: mode }),
+        setSortMode: (mode) => setPreferences({ sortMode: mode }),
+        setProjectVisibility: (visibility) => setPreferences({ projectVisibility: visibility }),
+        toggleHostFilter: (serverId) =>
+          set((state) => ({ hostFilters: toggleFilterEntry(state.hostFilters, serverId) })),
+        clearHostFilters: () => set({ hostFilters: [] }),
+        selectProjectFilter: (viewKey) => set({ projectFilters: [viewKey] }),
+        toggleProjectFilter: (viewKey) =>
+          set((state) => ({ projectFilters: toggleFilterEntry(state.projectFilters, viewKey) })),
+        clearProjectFilters: () => set({ projectFilters: [] }),
+        toggleLabelFilter: (name) =>
+          setPreferences((state) => {
+            const key = workspaceLabelKey(name);
+            const labels = state.labelFilter.labels.includes(key)
+              ? state.labelFilter.labels.filter((label) => label !== key)
+              : [...state.labelFilter.labels, key];
+            return { labelFilter: { ...state.labelFilter, labels } };
+          }),
+        clearLabelFilter: () => setPreferences({ labelFilter: emptyLabelFilter() }),
+        reconcileLabelFilter: (labels) =>
+          set((state) => {
+            if (getSettingsHostSelected()) return state;
+            const available = new Set(labels.map(workspaceLabelKey));
+            const next = state.labelFilter.labels.filter(
+              (label) => label === SIDEBAR_UNLABELLED_LABEL_KEY || available.has(label),
+            );
+            if (next.length === state.labelFilter.labels.length) return state;
+            return { labelFilter: { labels: next } };
+          }),
+        reconcileHostFilters: (serverIds) =>
+          set((state) => {
+            if (state.hostFilters.length === 0) {
+              return state;
+            }
+            const allowed = new Set(serverIds);
+            const next = state.hostFilters.filter((id) => allowed.has(id));
+            if (next.length === state.hostFilters.length) {
+              return state;
+            }
+            return { hostFilters: next };
+          }),
+      };
+    },
     {
       name: SIDEBAR_VIEW_STORAGE_KEY,
       version: SIDEBAR_VIEW_STORE_VERSION,
