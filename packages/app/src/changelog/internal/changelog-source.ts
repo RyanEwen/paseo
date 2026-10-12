@@ -1,7 +1,6 @@
+import { PRODUCT_LINKS } from "@/constants/product-links";
 import { useCallback, useEffect, useState } from "react";
 import { parseChangelog, type ChangelogRelease } from "./parse-changelog";
-
-const CHANGELOG_URL = "https://raw.githubusercontent.com/getpaseo/paseo/main/CHANGELOG.md";
 
 export type ChangelogState =
   | { status: "loading" }
@@ -41,7 +40,7 @@ export function useChangelog(enabled: boolean): Changelog {
 
     void (async () => {
       try {
-        const response = await fetch(CHANGELOG_URL, { signal: controller.signal });
+        const response = await fetch(PRODUCT_LINKS.changelogSource, { signal: controller.signal });
         if (!response.ok) throw new Error(`Changelog request failed: ${response.status}`);
         const markdown = await response.text();
         if (cached?.markdown === markdown) return;

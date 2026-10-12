@@ -3,8 +3,6 @@ import { Text, View } from "react-native";
 import { Activity, CircleHelp, Gift, Keyboard } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { DiscordIcon } from "@/components/icons/discord-icon";
-import { GitHubIcon } from "@/components/icons/github-icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,16 +25,11 @@ import type { HostProfile } from "@/types/host-connection";
 import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { resolveAppVersion } from "@/utils/app-version";
 import { openChangelog } from "@/changelog";
-import { openExternalUrl } from "@/utils/open-external-url";
 
-const DISCORD_URL = "https://discord.gg/jz8T2uahpH";
-const GITHUB_ISSUE_URL = "https://github.com/getpaseo/paseo/issues/new";
 const ThemedActivity = withUnistyles(Activity);
 const ThemedCircleHelp = withUnistyles(CircleHelp);
 const ThemedGift = withUnistyles(Gift);
 const ThemedKeyboard = withUnistyles(Keyboard);
-const ThemedDiscordIcon = withUnistyles(DiscordIcon);
-const ThemedGitHubIcon = withUnistyles(GitHubIcon);
 const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const foregroundMutedColorMapping = (theme: Theme) => ({
   color: theme.colors.foregroundMuted,
@@ -46,12 +39,6 @@ const diagnosticLeadingIcon = (
 );
 const shortcutsLeadingIcon = (
   <ThemedKeyboard size={ICON_SIZE.sm} uniProps={foregroundMutedColorMapping} />
-);
-const discordLeadingIcon = (
-  <ThemedDiscordIcon size={ICON_SIZE.sm} uniProps={foregroundMutedColorMapping} />
-);
-const githubLeadingIcon = (
-  <ThemedGitHubIcon size={ICON_SIZE.sm} uniProps={foregroundMutedColorMapping} />
 );
 const changelogLeadingIcon = (
   <ThemedGift size={ICON_SIZE.sm} uniProps={foregroundMutedColorMapping} />
@@ -91,14 +78,6 @@ export function SidebarHelpMenu() {
   const openKeyboardShortcuts = useCallback(() => {
     setShortcutsDialogOpen(true);
   }, [setShortcutsDialogOpen]);
-
-  const openDiscord = useCallback(() => {
-    void openExternalUrl(DISCORD_URL);
-  }, []);
-
-  const openGitHubIssue = useCallback(() => {
-    void openExternalUrl(GITHUB_ISSUE_URL);
-  }, []);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -148,22 +127,6 @@ export function SidebarHelpMenu() {
           onSelect={openAppDiagnostic}
         >
           {t("sidebar.help.diagnostics")}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>{t("sidebar.help.reportIssue")}</DropdownMenuLabel>
-        <DropdownMenuItem
-          testID="sidebar-help-discord"
-          leading={discordLeadingIcon}
-          onSelect={openDiscord}
-        >
-          {t("sidebar.help.discord")}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          testID="sidebar-help-github"
-          leading={githubLeadingIcon}
-          onSelect={openGitHubIssue}
-        >
-          {t("sidebar.help.github")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <View style={styles.versionList}>
