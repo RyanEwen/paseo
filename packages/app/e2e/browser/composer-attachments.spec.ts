@@ -17,6 +17,7 @@ import {
   expectComposerEditable,
   expectAttachButtonDisabled,
   fillComposerDraft,
+  submitMessageWithButton,
   dropFileOnComposer,
   sendDraftToQueue,
   expectQueuedMessageButton,
@@ -39,6 +40,11 @@ import { hasGithubAuth, createTempGithubRepo } from "../support/helpers/github-f
 import { getServerId } from "../support/helpers/server-id";
 import { openFileExplorer } from "../support/helpers/file-explorer";
 import { attachFileFromMenu, controlFileUploadCompletion } from "../support/helpers/composer";
+
+import {
+  openAgentTimeline,
+  seedLongMockAgentTimeline,
+} from "../support/helpers/timeline-pagination";
 
 const MINIMAL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
@@ -309,4 +315,31 @@ test.describe("Composer attachments", () => {
       await workspace.cleanup();
     }
   });
+});
+
+test("sticky user message preserves uploaded image and file attachments", async ({ page }) => {
+  test.setTimeout(120_000);
+  const agent = await seedLongMockAgentTimeline({ turns: 2 });
+  try {
+    await openAgentTimeline(page, agent);
+    const sticky = page.getByTestId("sticky-user-message");
+    await sticky.getByRole("button", { name: "Previous user message", exact: true }).click();
+    await expect(sticky).toContainText(agent.oldestPrompt);
+    await attachImageFromMenu(page, TEST_IMAGE);
+    await attachFileFromMenu(page, TEST_JSON);
+    await expectAttachmentPill(page, "composer-file-attachment-pill");
+    const prompt = "Text with attachments\n  Preserve indentation.";
+    await submitMessageWithButton(page, prompt);
+    await expect(sticky).toContainText("2 attachments");
+    await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
+    await expect(sticky.getByTestId("user-message")).toContainText(prompt);
+    await expect(sticky).toContainText(TEST_JSON.name);
+    await expect(
+      sticky.getByRole("button", { name: "Open image attachment", exact: true }),
+    ).toBeVisible();
+    await sticky.getByRole("button", { name: "Collapse user message", exact: true }).click();
+    await expect(sticky).toContainText("2 attachments");
+  } finally {
+    await agent.cleanup();
+  }
 });

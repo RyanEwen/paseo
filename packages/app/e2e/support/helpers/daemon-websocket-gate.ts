@@ -138,7 +138,11 @@ function forceTimelineReset(message: string | Buffer, enabled: boolean): string 
 const TIMELINE_WRITER_CONFLICT_ERROR =
   "Failed to resume Codex thread playwright-thread: thread playwright-thread already has an active writer";
 
-function failTimelineResponse(message: string | Buffer, agentId: string | null): string | Buffer {
+function failTimelineResponse(
+  message: string | Buffer,
+  agentId: string | null,
+  rowsKey = "entries",
+): string | Buffer {
   if (!agentId || typeof message !== "string") return message;
   const envelope = JSON.parse(message) as {
     message?: { payload?: Record<string, unknown> };
@@ -147,7 +151,7 @@ function failTimelineResponse(message: string | Buffer, agentId: string | null):
   const payload = envelope.message?.payload ?? envelope.payload;
   if (!payload || payload.agentId !== agentId) return message;
   payload.error = TIMELINE_WRITER_CONFLICT_ERROR;
-  payload.entries = [];
+  payload[rowsKey] = [];
   return JSON.stringify(envelope);
 }
 
@@ -303,6 +307,7 @@ export async function installDaemonWebSocketGate(page: Page) {
   let stripCanonicalSubmittedPromptsFeature = false;
   let shellToolCommandOverride: string | null = null;
   let failingTimelineAgentId: string | null = null;
+  let failingPromptIndexAgentId: string | null = null;
   let holdingTimelineAgentId: string | null = null;
   const heldTimelineResponses: Array<() => void> = [];
   const heldTimelineResponseWaiters = new Set<() => void>();
@@ -519,6 +524,13 @@ export async function installDaemonWebSocketGate(page: Page) {
       if (isTimelineResponse) {
         outboundMessage = failTimelineResponse(outboundMessage, failingTimelineAgentId);
       }
+      if (serverMessage?.type === "agent.timeline.list_prompts.response") {
+        outboundMessage = failTimelineResponse(
+          outboundMessage,
+          failingPromptIndexAgentId,
+          "prompts",
+        );
+      }
       const shouldForceTimelineReset =
         forceTimelineEpochReset && serverMessage?.type === "fetch_agent_timeline_response";
       outboundMessage = forceTimelineReset(outboundMessage, shouldForceTimelineReset);
@@ -606,6 +618,12 @@ export async function installDaemonWebSocketGate(page: Page) {
     },
     restore(): void {
       acceptingConnections = true;
+    },
+    failPromptIndexResponses(agentId: string): void {
+      failingPromptIndexAgentId = agentId;
+    },
+    allowPromptIndexResponses(): void {
+      failingPromptIndexAgentId = null;
     },
     failTimelineResponses(agentId: string): void {
       failingTimelineAgentId = agentId;

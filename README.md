@@ -9,6 +9,8 @@ for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
 - **Fork links:** Open the Paseo++ repository and published release notes from the app. Upstream issue,
   sponsorship, and Discord actions are removed.
+- **Keep user prompts in view:** A compact prompt stays at the top of chat. Expand it to read
+  the full message and attachments, and use the arrows to revisit earlier or later prompts.
 - **Reopen closed agents:** Find archived conversations and agents with closed tabs in a dialog from
   the workspace + menu. Open the same conversation, then choose Unarchive when you want to resume it.
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including

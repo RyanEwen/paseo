@@ -243,6 +243,16 @@ export const es: TranslationResources = {
       mode: "Cambiar modo",
     },
   },
+  stickyPrompt: {
+    latest: "Último mensaje del usuario",
+    selected: "Mensaje del usuario",
+    expand: "Expandir mensaje del usuario",
+    collapse: "Contraer mensaje del usuario",
+    previous: "Mensaje anterior del usuario",
+    next: "Mensaje siguiente del usuario",
+    failed: "No se pudieron cargar los mensajes del usuario.",
+    attachments: "{{count}} archivos adjuntos",
+  },
   agentStream: {
     empty: "Comience a chatear con este agente...",
     scrollToBottom: "Desplazarse hacia abajo",

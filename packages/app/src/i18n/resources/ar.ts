@@ -241,6 +241,16 @@ export const ar: TranslationResources = {
       mode: "تغيير الوضع",
     },
   },
+  stickyPrompt: {
+    latest: "أحدث رسالة للمستخدم",
+    selected: "رسالة المستخدم",
+    expand: "توسيع رسالة المستخدم",
+    collapse: "طي رسالة المستخدم",
+    previous: "رسالة المستخدم السابقة",
+    next: "رسالة المستخدم التالية",
+    failed: "تعذر تحميل رسائل المستخدم.",
+    attachments: "{{count}} مرفقات",
+  },
   agentStream: {
     empty: "ابدأ الدردشة مع هذا الوكيل...",
     scrollToBottom: "قم بالتمرير إلى الأسفل",

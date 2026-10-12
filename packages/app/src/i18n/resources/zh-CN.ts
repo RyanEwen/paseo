@@ -239,6 +239,16 @@ export const zhCN: TranslationResources = {
       mode: "更改模式",
     },
   },
+  stickyPrompt: {
+    latest: "最新用户消息",
+    selected: "用户消息",
+    expand: "展开用户消息",
+    collapse: "收起用户消息",
+    previous: "上一条用户消息",
+    next: "下一条用户消息",
+    failed: "无法加载用户消息。",
+    attachments: "{{count}} 个附件",
+  },
   agentStream: {
     empty: "开始和这个 Agent 对话...",
     scrollToBottom: "滚动到底部",

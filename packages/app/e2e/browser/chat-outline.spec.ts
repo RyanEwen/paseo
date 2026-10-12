@@ -1,4 +1,7 @@
 import { expect, test } from "../support/fixtures";
+import { expectNearBottom } from "../support/helpers/agent-bottom-anchor";
+import { fillComposerDraft, expectComposerDraft } from "../support/helpers/composer";
+import { installDaemonWebSocketGate } from "../support/helpers/daemon-websocket-gate";
 import { trackPromptJumpRequests } from "../support/helpers/agent-timeline-gate";
 import {
   clickChatOutlineRowEdge,
@@ -284,5 +287,103 @@ test("indexes a new agent's prompts only once the agent exists", async ({ page }
     expect(promptIndex.requestedAgentIds()).toEqual(agentIds);
   } finally {
     await creation.cleanup();
+  }
+});
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+]) {
+  test(`sticky user message navigation at ${viewport.width}px`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const agent = await seedLongMockAgentTimeline({ turns: 20 });
+    try {
+      await page.setViewportSize(viewport);
+      await openAgentTimeline(page, agent);
+      const sticky = page.getByTestId("sticky-user-message");
+      const previous = sticky.getByTestId("sticky-user-message-previous");
+      const next = sticky.getByTestId("sticky-user-message-next");
+      await expect(sticky).toContainText(agent.newestPrompt);
+      await expect(next).toBeDisabled();
+      for (let index = agent.prompts.length - 2; index >= 0; index -= 1) {
+        await expect(previous).toBeEnabled();
+        await previous.click();
+        await expect(sticky).toContainText(agent.prompts[index]);
+      }
+      await expect(previous).toBeDisabled();
+      await expectTimelinePromptVisible(page, agent.oldestPrompt);
+      await next.click();
+      await expect(sticky).toContainText(agent.prompts[1]);
+      const longPrompt = `Long sticky prompt\n${"  Preserve this line and whitespace.\n".repeat(60)}END OF STICKY PROMPT`;
+      await agent.client.sendAgentMessage(agent.agentId, longPrompt);
+      await agent.client.waitForFinish(agent.agentId, 15_000);
+      await expect(sticky).toContainText(agent.prompts[1]);
+      await page.getByTestId("scroll-to-bottom-button").click();
+      await expect(sticky).toContainText("Long sticky prompt");
+      await expectNearBottom(page);
+      const collapsed = await sticky.boundingBox();
+      expect(collapsed!.height).toBeLessThan(150);
+      await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
+      await expect(sticky).toContainText("END OF STICKY PROMPT");
+      await expectNearBottom(page);
+      const expanded = await sticky.boundingBox();
+      expect(expanded!.height).toBeLessThan(viewport.height * 0.6);
+      await page.screenshot({
+        path: `../../docs/qa-evidence/sticky-user-message/expanded-${viewport.width}.png`,
+      });
+      await sticky.getByRole("button", { name: "Collapse user message", exact: true }).click();
+      await expect(next).toBeDisabled();
+      await expectNearBottom(page);
+      await page.screenshot({
+        path: `../../docs/qa-evidence/sticky-user-message/compact-${viewport.width}.png`,
+      });
+      await fillComposerDraft(page, "Unsent draft survives prompt disclosure");
+      await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
+      await sticky.getByRole("button", { name: "Collapse user message", exact: true }).click();
+      await expectComposerDraft(page, "Unsent draft survives prompt disclosure");
+      await page.setViewportSize({ width: viewport.width, height: 500 });
+      await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
+      await expect
+        .poll(() =>
+          sticky.evaluate((element) => {
+            const paneHeight = element.parentElement!.getBoundingClientRect().height;
+            return element.getBoundingClientRect().height / paneHeight;
+          }),
+        )
+        .toBeLessThan(0.8);
+      await expectNearBottom(page);
+      await sticky.getByRole("button", { name: "Collapse user message", exact: true }).click();
+      await page.setViewportSize(viewport);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("sticky-user-message")).toContainText("Long sticky prompt");
+    } finally {
+      await agent.cleanup();
+    }
+  });
+}
+
+test("sticky user message exposes index loading and a retryable failure", async ({ page }) => {
+  test.setTimeout(120_000);
+  const agent = await seedLongMockAgentTimeline({ turns: 2 });
+  const gate = await installDaemonWebSocketGate(page);
+  try {
+    gate.failPromptIndexResponses(agent.agentId);
+    gate.holdNextServerMessage("agent.timeline.list_prompts.response");
+    await openAgentTimeline(page, agent);
+    const sticky = page.getByTestId("sticky-user-message");
+    await expect(sticky).toContainText(agent.newestPrompt);
+    await gate.waitForHeldServerMessage("agent.timeline.list_prompts.response");
+    await expect(
+      sticky.getByRole("button", { name: "Previous user message", exact: true }),
+    ).toBeDisabled();
+    gate.releaseHeldServerMessage("agent.timeline.list_prompts.response");
+    await expect(sticky.getByRole("alert")).toHaveText("Could not load user messages.");
+    gate.allowPromptIndexResponses();
+    await sticky.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect(sticky.getByRole("alert")).toHaveCount(0);
+    await sticky.getByRole("button", { name: "Previous user message", exact: true }).click();
+    await expect(sticky).toContainText(agent.oldestPrompt);
+  } finally {
+    await agent.cleanup();
   }
 });
