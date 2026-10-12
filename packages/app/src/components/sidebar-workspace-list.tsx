@@ -1,4 +1,4 @@
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-badge";
 import { getStatusBucketLabel } from "@/hooks/sidebar-status-view-model";
 import { filterSidebarProjects, sortSidebarProjectsByName } from "./sidebar/sidebar-arrangement";
 import { SidebarEmptyProjectGroup } from "./sidebar/sidebar-workspace-group";
@@ -866,9 +866,11 @@ function ProjectActivityChip({
 }) {
   const { t } = useTranslation();
   if (!bucket) return null;
-  let variant: "error" | "warning" | "muted" = "muted";
+  let variant: StatusBadgeVariant = "muted";
   if (bucket === "failed") variant = "error";
-  if (bucket === "needs_input" || bucket === "attention") variant = "warning";
+  if (bucket === "needs_input") variant = "warning";
+  if (bucket === "attention") variant = "success";
+  if (bucket === "running") variant = "info";
   let label = getStatusBucketLabel(bucket, t);
   if (bucket === "running" && workingWorkspaceCount > 1) {
     label = t("sidebar.statusBucket.workingCount", { count: workingWorkspaceCount });
@@ -2781,7 +2783,7 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.base,
     fontWeight: theme.fontWeight.bold,
     minWidth: 0,
-    flexShrink: 1,
+    flex: 1,
   },
   projectActionButton: {
     flexDirection: "row",

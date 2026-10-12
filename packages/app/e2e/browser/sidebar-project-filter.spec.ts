@@ -255,6 +255,18 @@ test("project chips stay visible through bulk collapse and reload", async ({ pag
     await page.getByTestId(`sidebar-workspace-kebab-${serverId}:${workspace.workspaceId}`).click();
     await page.getByRole("menuitem", { name: "Mark as unread", exact: true }).click();
     await expect(chip).toHaveText("Ready to review");
+    await page.mouse.move(0, 0);
+    const longNameChip = await chip.boundingBox();
+    if (!longNameChip) throw new Error("Project chip has no rendered bounds");
+    await workspace.client.renameProject(workspace.projectId, "Short");
+    await expect(projectRow).toContainText("Short");
+    await expect.poll(async () => (await chip.boundingBox())?.x).toBeCloseTo(longNameChip.x, 0);
+    await workspace.client.renameProject(
+      workspace.projectId,
+      "A long project name that should keep its activity and actions readable",
+    );
+    await expect(projectRow).toContainText("A long project name");
+
     await workspace.client.setWorkspacePinned(workspace.workspaceId, true);
     await expect(page.getByTestId("sidebar-pinned-section")).toBeVisible();
     await expect(chip).toHaveText("Ready to review");
