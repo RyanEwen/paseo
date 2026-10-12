@@ -1,0 +1,299 @@
+{
+  "branch": "feat/sidebar-workspace-transitions",
+  "state": "Preparation receipt at 61ad before the serialized documentation commit; no new validation or commit performed in this preparation pass.",
+  "owner": "sidebar workspace transitions",
+  "qualifiedSourcePatch": {
+    "sha256": "55b3ade6a110770af56f175561ed7100c360449232f816a636c66da7616babc7",
+    "files": [
+      {
+        "path": "README.md",
+        "sha256": "7933b1e5ad42a4e1897c055c3e981d0b3686478ec9aa1018154ba1e6bf8d958d"
+      },
+      {
+        "path": "packages/app/e2e/browser/sidebar-reorder.spec.ts",
+        "sha256": "3adac845dfbe26ea87756d77ba6c55b33acc919c9320043267a3d8eac4671d60"
+      },
+      {
+        "path": "packages/app/e2e/support/helpers/seed-client.ts",
+        "sha256": "2b7ef4dd47fc74c2a545abbe20ba8298975615bba35ec940971c3fa74d5e9570"
+      },
+      {
+        "path": "packages/app/e2e/support/metro-warmup.mjs",
+        "sha256": "6df49a7230b065ea7d0fc97c42baee34c3d7da1ebd0bb9ac3bc6d2f780569795"
+      },
+      {
+        "path": "packages/app/src/components/drag-reorder/drag-reducer.test.ts",
+        "sha256": "241a26aa0b93ecdb6c9251b0017d87e02fb064e44e021948580017bcdd932ce3"
+      },
+      {
+        "path": "packages/app/src/components/drag-reorder/reorder-items.test.ts",
+        "sha256": "58535495a5f97fbd64a887dfb4c8b129c6ca37e7aea714b29a0c57c018bb9890"
+      },
+      {
+        "path": "packages/app/src/components/drag-reorder/reorder-items.ts",
+        "sha256": "985df4b776e22be9c146eb3e2eead1a5e6fe933af7256ee46c065de3f4ab2c68"
+      },
+      {
+        "path": "packages/app/src/components/drag-reorder/use-drag-reorder-state.ts",
+        "sha256": "dc7164fabb241767448cb5c291c74b9b182d1e821fced8c18d9bfdff14709d92"
+      },
+      {
+        "path": "packages/app/src/components/draggable-list.native.tsx",
+        "sha256": "cf79dfa7510ead6b69beb7df0e92ff836c76c571c4c168b4abef8f32bfbbfab7"
+      },
+      {
+        "path": "packages/app/src/components/draggable-list.types.ts",
+        "sha256": "7256d6f638de0e31e25fc39247968190a97528cb6dd61fabda359fa4d30ba893"
+      },
+      {
+        "path": "packages/app/src/components/draggable-list.web.tsx",
+        "sha256": "0e758ddcc489fec405c1ed79d006ffc7ad7825f6fb7188533a1e687c3cc80b8f"
+      },
+      {
+        "path": "packages/app/src/components/sidebar-workspace-list.tsx",
+        "sha256": "54831768a656b012240c142c1a3ea44aac8962818db8d63a470502321279dbe8"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/sidebar-labels.test.ts",
+        "sha256": "fbf12020557589592076b99c24ece70e03a1170ee1769687bada2b584059ae64"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/sidebar-status-list.tsx",
+        "sha256": "bccc9b5807663df8ee5534c0fcf57ffc76faf3609dd998ff053dd0616149f3a6"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/use-limited-sidebar-group.ts",
+        "sha256": "629a8b2876aecf101b16615347439d662daad0057e608f4d71c8408a2b120b9a"
+      },
+      {
+        "path": "patches/react-native-draggable-flatlist+4.0.3.patch",
+        "sha256": "8d61de841827bd50b649727cb5d1172193ad5b67a497e64395abf4e38d61b51c"
+      },
+      {
+        "path": "packages/app/e2e/support/helpers/sidebar-motion.ts",
+        "sha256": "160457661d67f9a01b18de4d7ecc769a1c443690f4e4acb9227be1956fdc60ce"
+      },
+      {
+        "path": "packages/app/src/components/drag-reorder/position-transition.web.tsx",
+        "sha256": "e1e8992b9afbe6cd5ebf66603c3a3d3f31eedcb199f6da8f683f2c719090f190"
+      },
+      {
+        "path": "packages/app/src/components/drag-reorder/use-position-transition.ts",
+        "sha256": "d08b3838f115cefcc88033e44a67079e1ac16d29f2ec37c0c8aa23630cffd2f1"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/position-transitions.tsx",
+        "sha256": "6633f93e8f96635a0eb90f0204294489969aac81f4532da4a3e0f7ef56e1c61e"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/status-group-cell.tsx",
+        "sha256": "4f1d84b7d8941fe26abbb0937866ec415be307732d5e0307367f9d91d26b6a4b"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/status-group-cell.web.tsx",
+        "sha256": "21c57b4adb1bd5de7c8b3bbdf6d950766bfd735974c0853aad848acc2eb01539"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/status-list-items.ts",
+        "sha256": "569580548e41fd9758bc86258f1b200edbab65644f4194db95ec9df44921f92c"
+      },
+      {
+        "path": "packages/app/src/components/sidebar/workspace-rename.tsx",
+        "sha256": "57accc80abc4d021e98e2e2eae8ff4cea1e99a0a2e6cd366684087b926d39b57"
+      }
+    ],
+    "originalTemporaryPath": "/tmp/sidebar-workspace-transitions-review-v5b.patch",
+    "archivePath": ".dev/ownership-backups/sidebar-workspace-transitions/historical-qualified/sidebar-workspace-transitions-review-v5b.patch",
+    "artifactStatus": "Original temporary file is gone. The exact patch was reconstructed from the byte-verified pre-fast-forward archive and its SHA256 matched the historical receipt. The ignored archive is checkout-local and is not included in a clone.",
+    "fileHashScope": "Historical owned snapshot before fast-forward, based on 25da9772a768393b00ff9957a7fb16a59e132cb7. Shared README/sidebar-workspace-list additions and trailing-whitespace normalization in baseline logs can change current file hashes.",
+    "originalOwnedBase": "25da9772a768393b00ff9957a7fb16a59e132cb7"
+  },
+  "qualifiedEvidencePatch": {
+    "sha256": "83a008db343339f1955b03390b7a78c96ea389ba6a9e8321e29e9fc041234eee",
+    "files": [
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/browser-v3.txt",
+        "sha256": "dcf076b9c901f7985a6faeff411cdd22132ba8a2b89bde136c0638ec86fbfaad"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/browser-v4.txt",
+        "sha256": "132bc8b6605af75f5a0f1afff626e1a2e7998886c3655cec282a9da08e715e30"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/browser-v5b.txt",
+        "sha256": "5c664d63286f047e0816d9e74fe9226ab19eef37d2b89118cdfe1847b84d0f42"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/collapsed-header-clipped.png",
+        "sha256": "bfd013ee2790ef66702fc0a0fe2137de4fedcca09309c22362e8bef5ae829cdc"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/compact-after.png",
+        "sha256": "da82811acf88cc71c2adae554d6e5eb33ea2bf79ef19038d70d0240e3ce66128"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/compact-before.png",
+        "sha256": "3ef55b4602aace97bb59be7d8919e23fd3ff15c460d732838521173904938892"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/compact-hidden-reveal.png",
+        "sha256": "7861ae2a03ad53be962827a8ded1ead1adfc1a04967854f89167e4edcd75be9b"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/compact-middle.png",
+        "sha256": "610da811933dfe18e901bd019ec70e9869b8cbbca9c8553b395e14a70da365ef"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/desktop-after.png",
+        "sha256": "3744dfbee642a3876e6390d7f5f5255a1b72ae2c027b1c82a4c834beeadc6cd2"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/desktop-before.png",
+        "sha256": "7c0fd6475756d888314fb128d279ec1f918d3b7f8669139d4a88bcb0500fd4f5"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/desktop-hidden-reveal.png",
+        "sha256": "c21944935400c4a8d20d59332cdd8706a1e5b2152f9ebc4f1c85f12a295fe6aa"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/desktop-middle.png",
+        "sha256": "e0863878e4a50b647515ec75022af07b9011d6821c84309c9080aef2e9b272d8"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/limit-header-clipped.png",
+        "sha256": "c3a0b584310eac534e60bf48fa651dcb47afbdd613ec2546a01408a0a22d4367"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/nested-after.png",
+        "sha256": "5a4f8ba7bec4bc4a32d9e831e836be521815488d97758f0da1ce28e40c2dbb23"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/nested-before.png",
+        "sha256": "2f69f9a8406bae16610b8333d363d6021824bbd1847a9e2924bb6187e8aec874"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/nested-middle.png",
+        "sha256": "04e6e8895d5c2de529f38663603694b614f7002aa91f3ea6b54f5aafaaa79eb4"
+      },
+      {
+        "path": "docs/qa-evidence/sidebar-workspace-transitions/verification.md",
+        "sha256": "992d40e8f0da2416c92e95f6245d98a514dd23fc2b798fb8732d67704705783b"
+      }
+    ],
+    "originalTemporaryPath": "/tmp/sidebar-workspace-transitions-evidence.patch",
+    "archivePath": ".dev/ownership-backups/sidebar-workspace-transitions/historical-qualified/sidebar-workspace-transitions-evidence.patch",
+    "artifactStatus": "Original temporary file is gone. The exact patch was reconstructed from the byte-verified pre-fast-forward archive and its SHA256 matched the historical receipt. The ignored archive is checkout-local and is not included in a clone.",
+    "fileHashScope": "Historical owned snapshot before fast-forward, based on 25da9772a768393b00ff9957a7fb16a59e132cb7. Shared README/sidebar-workspace-list additions and trailing-whitespace normalization in baseline logs can change current file hashes.",
+    "originalOwnedBase": "25da9772a768393b00ff9957a7fb16a59e132cb7"
+  },
+  "ownershipProof": "Before fast-forward, both exact qualified source and evidence patches passed reverse-apply checks against the owned worktree. All feature code and tests are now present in the descendant baseline; no missing product hunks.",
+  "prerequisite": {
+    "ownerBranch": "feat/paseo-plus-plus-settings",
+    "canonicalSetting": "settings.paseoPlusPlus.sidebarWorkspaceTransitions",
+    "default": true,
+    "readThrough": "@/hooks/use-settings useAppSettings",
+    "schemaModule": "packages/app/src/paseo-plus-plus/preferences.ts",
+    "schemaWiring": "packages/app/src/hooks/use-settings/storage.ts",
+    "pageControl": "/settings/paseo-plus-plus: Animate workspace moves",
+    "pageControlTestId": "paseo-plus-plus-sidebarWorkspaceTransitions",
+    "validatedFoundation": {
+      "sha256": "2ad568442b4eb3d791672679c3a419969df9e68e779dc813ad00892e3c00094a",
+      "originalTemporaryPath": "/tmp/paseo-plus-plus-foundation-v3.patch",
+      "artifactStatus": "Original temporary patch is no longer available. SHA256 is retained as a historical validation receipt, not a currently accessible artifact."
+    },
+    "validatedPage": {
+      "sha256": "0b32f1da948cbc89f4bc5a2a5b6b487d5c522e8744576b97740c1849da1524a9",
+      "originalTemporaryPath": "/tmp/paseo-plus-plus-page-c139-v3.patch",
+      "artifactStatus": "Original temporary patch is no longer available. SHA256 is retained as a historical validation receipt, not a currently accessible artifact."
+    },
+    "integrationCommit": "14c6798518e585f040db819d1bc885d86dc6e4be",
+    "integrationCommitScope": "Broad integration commit, not a feature-owned prerequisite patch. Do not copy all its consumers into this branch.",
+    "dependencyPolicy": "Canonical shared schema, storage wiring and one actual page control must come from the settings prerequisite. No private setting store or duplicate switch is included here.",
+    "status": "Satisfied by the fast-forward baseline, including integration commit 14c6798518e585f040db819d1bc885d86dc6e4be.",
+    "portableSourceProof": "Integration commit 14c6798518e585f040db819d1bc885d86dc6e4be and the 61ad baseline contain the canonical preference, storage wiring and one page control."
+  },
+  "sharedSlices": [
+    {
+      "path": "README.md",
+      "owned": "Only the workspace position transitions and Off-setting sentences; preserve other fork overview entries and later removals."
+    },
+    {
+      "path": "packages/app/src/components/sidebar-workspace-list.tsx",
+      "owned": "Position-transition provider import/wrapper and duration consumers in ProjectBlock and ProjectModeList. No selector, project activity, bulk controls or pin settings added."
+    },
+    {
+      "path": "packages/app/src/components/sidebar/sidebar-status-list.tsx",
+      "owned": "Stable flat keyed cells, group-local drag policy, shared motion context, persistent rename owner and conditional focus handoff. Preserve later selector/project-pin and workspace-limit-owned changes when adapting to a future target."
+    },
+    {
+      "path": "packages/app/src/components/sidebar/status-list-items.ts",
+      "owned": "Stable header/workspace/footer identity and group-keyed visibility projection. Preserve the later workspace-limit slice initialCount/limitSidebarWorkspaces API during target integration."
+    },
+    {
+      "path": "packages/app/src/components/sidebar/use-limited-sidebar-group.ts",
+      "owned": "Export the existing fixed20limit for the qualified flat projection. The newer root workspace-limit feature owns configurable limits and replaces this slice; do not overwrite that implementation with this older body."
+    },
+    {
+      "path": "packages/app/e2e/support/helpers/seed-client.ts",
+      "owned": "Only actual markWorkspaceUnread and setWorkspaceTitle client method declarations used by motion fixtures."
+    },
+    {
+      "path": "packages/app/e2e/support/metro-warmup.mjs",
+      "owned": "Bounded HTTP error-body diagnostics for failed fixture bundle warmup."
+    },
+    {
+      "path": "patches/react-native-draggable-flatlist+4.0.3.patch",
+      "owned": "Preserve baseline gesture fixes; add supported layout transition API, group-bound placeholder/translation policy, cancellation reset and key/revision/session completion validation."
+    }
+  ],
+  "excludedPrerequisiteAndOtherFeatureFiles": [
+    "packages/app/src/paseo-plus-plus/preferences.ts",
+    "packages/app/src/hooks/use-settings/storage.ts",
+    "packages/app/src/screens/settings/paseo-plus-plus-section.tsx",
+    "packages/app/src/i18n/resources/*",
+    "packages/app/src/components/sidebar/sidebar-project-selector.tsx",
+    "packages/app/src/components/sidebar/workspace-limit.ts",
+    "sticky prompt, project-pin, selector, bulk/project status consumers outside existing branch baseline"
+  ],
+  "preservedQualifications": {
+    "browserDistinctCasesPassed": 15,
+    "focusedReorderProjectionTestsPassed": 13,
+    "actualPatchedNativePolicyTestsPassed": 9,
+    "sourceReviews": "Both reviewers approve final v4 product source; v5b changes tests only.",
+    "nativePhysicalRenderingGesturesAndWorklets": "unverified",
+    "ownershipPass": "No passing checks or browser/native fixtures rerun; no product code changed.",
+    "resultScope": "Historical validation results from the qualified assembled snapshot. This documentation preparation does not rerun or establish current-runtime validation.",
+    "repositoryBrowserEvidence": "Committed browser-v3.txt, browser-v4.txt, browser-v5b.txt and painted PNGs under docs/qa-evidence/sidebar-workspace-transitions. Raw pre-normalization logs also survive in the ignored historical archive.",
+    "missingTemporaryValidationLogs": {
+      "nativePolicyTests": "Original /tmp/sidebar-transitions-native-drag-tests-v3.txt is gone; nine passes remain a historical report, not a currently accessible raw log.",
+      "typecheck": "Original /tmp/sidebar-transitions-typecheck-v5b.txt is gone; prior pass remains a historical report.",
+      "lint": "Original /tmp/sidebar-transitions-lint-v5b.txt is gone; prior pass remains a historical report.",
+      "formatting": "Original /tmp/sidebar-transitions-format-check-v5b.txt is gone; prior pass remains a historical report.",
+      "focusedReorderProjection": "No dedicated raw log for the 13 focused cases is preserved in this archive; retain the historical reported result without claiming a currently available raw log."
+    }
+  },
+  "laterIntegrationPolicy": "Select PR target before base adaptation. Apply feature-owned hunks to shared files and preserve each other owner slice. If conflicts require changing the qualified motion behavior, present the plan before edits.",
+  "originalOwnedBase": "25da9772a768393b00ff9957a7fb16a59e132cb7",
+  "fastForwardPreparation": {
+    "oldHead": "25da9772a768393b00ff9957a7fb16a59e132cb7",
+    "newHead": "61ad3bc91cbc4ee263575d18ac9787aa04f72eb1",
+    "oldHeadRetainedInHistory": true,
+    "backupManifestSha256": "1c4056d515c175f8b09025f4039c59a4475165381a1699b3fceb2ef95db00bbb",
+    "backupFiles": "tracked.patch, untracked.tar.gz, all-owned-files.tar.gz, manifest.json; both archives were byte-verified before clearing only backed-up paths.",
+    "missingProductHunks": [],
+    "productAndTestsRestored": [],
+    "remainingOwnedChanges": [
+      "ownership-manifest.json",
+      "verification.md clipped destination capture links"
+    ],
+    "otherFeaturesPreserved": "Baseline shared README/sidebar-workspace-list changes retained. Old whole shared files and raw whitespace-only log differences were not restored.",
+    "historyAction": "git merge --ff-only of verified descendant. No new commit, reset, rebase, cherry-pick, rewrite or push.",
+    "validationPolicy": "Prior qualified evidence retained. No typecheck, lint, formatting, build, tests or fixtures rerun in this preparation pass.",
+    "originalTemporaryBackupDirectory": "/tmp/sidebar-motion-before-ff-61ad-eogv19zr",
+    "localIgnoredBackupDirectory": ".dev/ownership-backups/sidebar-workspace-transitions/before-ff-61ad",
+    "backupAvailability": "Byte-verified backup copied into the ignored owner worktree archive. Checkout-local only, not committed or expected to exist in another clone.",
+    "localIgnoredPriorReceiptsDirectory": ".dev/ownership-backups/sidebar-workspace-transitions/preparation-receipts"
+  },
+  "receiptScope": "Historical qualified file hashes describe the owned 25da source/evidence snapshot, not the later shared files at the 61ad baseline.",
+  "currentHeadAtPreparation": "61ad3bc91cbc4ee263575d18ac9787aa04f72eb1"
+}

@@ -46,3 +46,5 @@ Each browser run used one worker and two CPUs. Fixture teardown logs and direct 
 | Nested project and child | [Before](nested-before.png)  | [Intermediate](nested-middle.png)  | [After](nested-after.png)  |
 
 Reveal captures: [desktop](desktop-hidden-reveal.png), [compact](compact-hidden-reveal.png).
+
+Clipped destination captures: [collapsed](collapsed-header-clipped.png), [20-row limit](limit-header-clipped.png).
