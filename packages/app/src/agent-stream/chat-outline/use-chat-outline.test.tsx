@@ -794,11 +794,11 @@ describe("viewport-owned sticky prompt", () => {
     expect(result.current.stickyVisible).toBe(false);
     act(() =>
       reading.publish(first.id, [first.id], false, false, true, null, [
-        { id: first.id, progress: 0.5 },
+        { id: first.id, progress: 1 },
       ]),
     );
     expect(result.current.stickyVisible).toBe(true);
-    expect(result.current.stickyProgress).toBe(0.5);
+    expect(result.current.stickyProgress).toBe(1);
     act(() => reading.publish(first.id, [first.id]));
     expect(result.current.stickyVisible).toBe(false);
     act(() => reading.publish(answer.id));
@@ -1132,9 +1132,105 @@ it("lets a newer original cover an older sticky copy before replacing it", () =>
   expect(result.current.occlusionTop).toBe(12);
   act(() =>
     reading.publish(second.id, [second.id], false, false, true, 3, [
-      { id: second.id, progress: 0.5, top: -24 },
+      { id: second.id, progress: 1, top: -24 },
     ]),
   );
   expect(result.current.message?.id).toBe(second.id);
   expect(result.current.occlusionTop).toBeUndefined();
+});
+
+it("preserves measured bubble placement through virtualization and invalidates it on resize", () => {
+  const user = stickyUser("prompt", 1);
+  const reading = createPromptReadingPublisher();
+  const input = { ...stickyInput([user], stickyOutline([1])), reading };
+  const { result } = renderHook(useStickyPrompt, { initialProps: input });
+  act(() =>
+    reading.publish(
+      user.id,
+      [user.id],
+      false,
+      false,
+      true,
+      1,
+      [
+        {
+          id: user.id,
+          progress: 1,
+          top: 0,
+          left: 180,
+          width: 120,
+          viewportWidth: 320,
+          prefixHeightOne: 20,
+          prefixHeightTwo: 20,
+        },
+      ],
+      320,
+    ),
+  );
+  expect(result.current.geometry).toMatchObject({ left: 180, width: 120, viewportWidth: 320 });
+  act(() => reading.publish("answer", [], false, false, true, 2, [], 320));
+  expect(result.current.geometry).toMatchObject({ left: 180, width: 120, viewportWidth: 320 });
+  act(() => reading.publish("answer", [], false, false, true, 2, [], 480));
+  expect(result.current.geometry).toBeUndefined();
+});
+
+describe("return to the pinned prompt", () => {
+  it("reveals this loaded prompt rather than an adjacent one and retains it through incoming prompts", () => {
+    const latest = stickyUser("three", 3);
+    const reading = createPromptReadingPublisher();
+    const input = { ...stickyInput([latest]), reading };
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    act(() => result.current.reveal());
+    expect(input.jumpToLoaded).toHaveBeenCalledWith(latest.id);
+    expect(input.outline.jumpToPrompt).not.toHaveBeenCalled();
+    act(() => reading.publish(latest.id, [latest.id], false, false, false, 3));
+    const incoming = stickyUser("four", 4);
+    rerender({ ...input, items: [latest, incoming], outline: stickyOutline([1, 2, 3, 4]) });
+    expect(result.current.message?.id).toBe(latest.id);
+    act(() => result.current.followLatest());
+    expect(result.current.message?.id).toBe(incoming.id);
+  });
+  it("loads the indexed current prompt when only its response is in the window", async () => {
+    const old = stickyUser("one", 1);
+    const latest = stickyUser("three", 3);
+    const answer = {
+      kind: "assistant_message",
+      id: "answer",
+      text: "response",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch-1", seq: 2 },
+    } as const;
+    const reading = createPromptReadingPublisher();
+    reading.publish(answer.id, [], false, false, true, 2);
+    const input = {
+      ...stickyInput([answer, latest], stickyOutline([1, 3])),
+      reading,
+      fetchPrompt: vi.fn(async () => old),
+    };
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    await waitFor(() => expect(result.current.message?.id).toBe(old.id));
+    act(() => result.current.reveal());
+    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(1, { scroll: true, source: "sticky" });
+    expect(result.current.busy).toBe(true);
+    act(() => result.current.reveal());
+    expect(input.outline.jumpToPrompt).toHaveBeenCalledTimes(1);
+    rerender({ ...input, items: [old, answer, latest] });
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    expect(result.current.message?.id).toBe(old.id);
+  });
+  it("does not navigate from an empty, loading or disabled surface", () => {
+    const user = stickyUser("three", 3);
+    const input = stickyInput([user]);
+    const { result, rerender } = renderHook(useStickyPrompt, {
+      initialProps: { ...input, enabled: true },
+    });
+    rerender({ ...input, enabled: true, outline: { ...input.outline, isJumping: true } });
+    act(() => result.current.reveal());
+    rerender({ ...input, enabled: false });
+    act(() => result.current.reveal());
+    expect(input.jumpToLoaded).not.toHaveBeenCalled();
+    const empty = renderHook(useStickyPrompt, { initialProps: stickyInput([], stickyOutline([])) });
+    act(() => empty.result.current.reveal());
+    expect(empty.result.current.message).toBeUndefined();
+  });
 });

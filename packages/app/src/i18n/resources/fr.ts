@@ -354,6 +354,7 @@ export const fr: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "Aller à ce message",
     more: "plus…",
     less: "moins…",
     none: "Aucun message utilisateur dans cette conversation.",

@@ -353,6 +353,7 @@ export const ja: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "このメッセージへ移動",
     more: "もっと見る…",
     less: "閉じる…",
     none: "このチャットにはユーザーメッセージがありません。",

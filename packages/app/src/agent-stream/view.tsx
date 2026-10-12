@@ -1055,7 +1055,8 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     }, [streamLayout.liveHead]);
 
     const handleReadingPositionChange = useStableEvent((position: PromptReadingPosition) => {
-      const { rowId, visibleUserIds, navigating, following, manual, userHandoffs } = position;
+      const { rowId, visibleUserIds, navigating, following, manual, userHandoffs, viewportWidth } =
+        position;
       const row =
         rowId === null
           ? undefined
@@ -1072,6 +1073,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         manual,
         seq,
         userHandoffs,
+        viewportWidth,
       );
       if (manual && !wasManual) stickyPromptRef.current?.reviewReading();
       chatOutline.reportReadingPosition(seq);

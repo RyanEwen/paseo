@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 
+import { useTextOverflow } from "./use-text-overflow";
+
 import { act, renderHook } from "@testing-library/react";
-import type { LayoutChangeEvent } from "react-native";
-import { describe, expect, it } from "vitest";
+import type { LayoutChangeEvent, TextLayoutEvent } from "react-native";
+import { describe, expect, it, vi } from "vitest";
 import { readMeasuredWidth, useContainerWidthBelow } from "./use-container-width";
 
 function layoutEvent(width: number): LayoutChangeEvent {
@@ -86,5 +88,66 @@ describe("useContainerWidthBelow", () => {
 
     expect(result.current.isBelow).toBe(true);
     expect(renderCount).toBe(2);
+  });
+});
+
+vi.mock("@/constants/platform", () => ({ isWeb: false }));
+
+/** Supply actual native line-layout output, independently of text length. */
+function textLines(count: number): TextLayoutEvent {
+  return {
+    nativeEvent: {
+      lines: Array.from({ length: count }, () => ({ width: 100, text: "rendered line" })),
+    },
+  } as TextLayoutEvent;
+}
+
+describe("native clamped text overflow", () => {
+  it("does not disclose a short line, and detects actual wrapped lines", () => {
+    const { result } = renderHook(() => useTextOverflow("measured content", 1));
+    act(() => {
+      result.current.onLayout(layoutEvent(240));
+      result.current.onFullTextLayout(textLines(1));
+    });
+    expect(result.current.overflowing).toBe(false);
+    act(() => result.current.onFullTextLayout(textLines(2)));
+    expect(result.current.overflowing).toBe(true);
+    act(() => result.current.onFullTextLayout(textLines(1)));
+    expect(result.current.overflowing).toBe(false);
+  });
+  it("fits the exact desktop boundary and updates when its line policy changes", () => {
+    const { result, rerender } = renderHook(({ lines }) => useTextOverflow("same content", lines), {
+      initialProps: { lines: 2 },
+    });
+    act(() => {
+      result.current.onLayout(layoutEvent(180));
+      result.current.onFullTextLayout(textLines(2));
+    });
+    expect(result.current.overflowing).toBe(false);
+    rerender({ lines: 1 });
+    act(() => result.current.onLayout(layoutEvent(180)));
+    expect(result.current.overflowing).toBe(true);
+  });
+  it("accepts full text layout arriving before visible layout", () => {
+    const { result } = renderHook(() => useTextOverflow("full layout first", 1));
+    act(() => result.current.onFullTextLayout(textLines(3)));
+    expect(result.current.overflowing).toBe(false);
+    act(() => result.current.onLayout(layoutEvent(160)));
+    expect(result.current.overflowing).toBe(true);
+  });
+  it("preserves the last valid state while a retained pane has zero geometry", () => {
+    const { result } = renderHook(() => useTextOverflow("retained prompt", 1));
+    act(() => {
+      result.current.onLayout(layoutEvent(160));
+      result.current.onFullTextLayout(textLines(3));
+    });
+    expect(result.current.overflowing).toBe(true);
+    act(() => {
+      result.current.onLayout(layoutEvent(0));
+      result.current.onFullTextLayout(textLines(1));
+    });
+    expect(result.current.overflowing).toBe(true);
+    act(() => result.current.onLayout(layoutEvent(500)));
+    expect(result.current.overflowing).toBe(false);
   });
 });

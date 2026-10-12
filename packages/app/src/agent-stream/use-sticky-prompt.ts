@@ -1,7 +1,11 @@
 import { useLayoutEffect, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { TimelinePageAcceptance } from "@/timeline/fetch-viewed-timeline-page";
-import { EMPTY_PROMPT_READING_SOURCE, type PromptReadingSource } from "./prompt-reading-position";
+import {
+  EMPTY_PROMPT_READING_SOURCE,
+  type PromptReadingSource,
+  type PromptReadingPosition,
+} from "./prompt-reading-position";
 import { useReadingPrompt } from "./use-reading-prompt";
 import { usePromptDiscovery } from "./use-prompt-discovery";
 import type { StreamItem } from "@/types/stream";
@@ -13,6 +17,7 @@ import {
   isStickyPromptVisible,
   resolveStickyPromptProgress,
   resolvePromptOcclusionTop,
+  resolvePromptGeometry,
   shouldDiscoverPrompt,
   needsReadingPromptDiscovery,
   hasDiscoveredPrompt,
@@ -70,7 +75,11 @@ export function useStickyPrompt(input: Input) {
   const [pending, setPending] = useState<PromptTarget | "previous" | null>(null);
   const [error, setError] = useState(false);
   const [cancelled, setCancelled] = useState(false);
-  const retryTarget = useRef<{ target: PromptTarget; scroll: boolean } | null>(null);
+  const retryTarget = useRef<{
+    target: PromptTarget;
+    scroll: boolean;
+    preserveSelection?: boolean;
+  } | null>(null);
   const retryDirection = useRef<-1 | 1>(-1);
   const latest = targets.at(-1)?.item;
   const selectedMessage = selected ?? latest;
@@ -158,25 +167,31 @@ export function useStickyPrompt(input: Input) {
     loadOlder,
   });
 
-  const selectTarget = useStableEvent((target: PromptTarget, scroll: boolean = true) => {
-    if (!enabled) return;
-    setError(false);
-    retryTarget.current = { target, scroll };
-    if (target.item) {
-      setSelected(target.key === targets.at(-1)?.key ? null : target.item);
-      setPending(null);
-      if (scroll) jumpToLoaded(target.item.id);
-    } else if (target.seq !== undefined) {
-      setPending(target);
-      outline.jumpToPrompt(target.seq, { scroll, source: "sticky" });
-    }
-  });
+  const selectTarget = useStableEvent(
+    (target: PromptTarget, scroll: boolean = true, options?: { preserveSelection?: boolean }) => {
+      if (!enabled) return;
+      setError(false);
+      retryTarget.current = { target, scroll, preserveSelection: options?.preserveSelection };
+      if (target.item) {
+        setSelected(
+          !options?.preserveSelection && target.key === targets.at(-1)?.key ? null : target.item,
+        );
+        setPending(null);
+        if (scroll) jumpToLoaded(target.item.id);
+      } else if (target.seq !== undefined) {
+        setPending(target);
+        outline.jumpToPrompt(target.seq, { scroll, source: "sticky" });
+      }
+    },
+  );
 
   useEffect(() => {
     if (!enabled || !pending || pending === "previous") return;
     const loaded = targets.find((target) => target.key === pending.key);
     if (loaded?.item) {
-      setSelected(loaded.key === targets.at(-1)?.key ? null : loaded.item);
+      const preserveSelection =
+        retryTarget.current?.target.key === loaded.key && retryTarget.current.preserveSelection;
+      setSelected(!preserveSelection && loaded.key === targets.at(-1)?.key ? null : loaded.item);
       setPending(null);
     } else if (outline.jumpError) {
       setError(true);
@@ -271,7 +286,9 @@ export function useStickyPrompt(input: Input) {
     if (previousAttempt) {
       const target =
         targets.find((entry) => entry.key === previousAttempt.target.key) ?? previousAttempt.target;
-      selectTarget(target, previousAttempt.scroll);
+      selectTarget(target, previousAttempt.scroll, {
+        preserveSelection: previousAttempt.preserveSelection,
+      });
     } else if (message) navigate(retryDirection.current);
     else if (indexed) {
       const newest = targets.at(-1);
@@ -317,10 +334,31 @@ export function useStickyPrompt(input: Input) {
     setError(false);
     setCancelled(true);
   }, [enabled, cancelStickyJump, cancelReading, cancelDiscovery, restartDiscovery]);
+  const { geometry, sourceMounted } = usePromptGeometry(message?.id, reading);
   const stickyProgress = resolveStickyPromptProgress(message, reading);
+  const busy = isPromptNavigationBusy({
+    pending: pending !== null || readingContent.loading,
+    jumping: outline.isJumping,
+    discovering: discovery.status === "loading",
+    indexed,
+    epoch,
+    cancelled,
+    indexReady: outline.indexReady,
+    indexError: outline.indexError,
+  });
+
+  // The current prompt can be outside the rendered window. Its indexed target
+  // uses the same window acceptance and scrolling owner as arrow navigation.
+  const reveal = useStableEvent(() => {
+    if (!enabled || busy) return;
+    const target = targets[position];
+    if (target) selectTarget(target, true, { preserveSelection: true });
+  });
   return {
     message,
     stickyProgress,
+    geometry,
+    sourceMounted,
     occlusionTop: resolvePromptOcclusionTop(targets, position, reading),
     targets,
     previousKnownBoundary: indexed ? outline.indexReady : !hasOlder,
@@ -329,16 +367,8 @@ export function useStickyPrompt(input: Input) {
       enabled && isStickyPromptVisible(message, readingTarget, reading.rowId, stickyProgress),
     discoveryStatus: discovery.status,
     cancelled,
-    busy: isPromptNavigationBusy({
-      pending: pending !== null || readingContent.loading,
-      jumping: outline.isJumping,
-      discovering: discovery.status === "loading",
-      indexed,
-      epoch,
-      cancelled,
-      indexReady: outline.indexReady,
-      indexError: outline.indexError,
-    }),
+    busy,
+    reveal,
     error: [
       error,
       outline.indexError,
@@ -362,4 +392,23 @@ export function useStickyPrompt(input: Input) {
     followLatest,
     reviewReading,
   };
+}
+
+/** Retain measured bubble geometry through virtualization, but discard it after a pane resize. */
+function usePromptGeometry(messageId: string | undefined, reading: PromptReadingPosition) {
+  const currentGeometry = resolvePromptGeometry(
+    reading.userHandoffs?.find((frame) => frame.id === messageId),
+    reading.viewportWidth,
+  );
+  const lastGeometry = useRef<ReturnType<typeof resolvePromptGeometry>>(undefined);
+  useLayoutEffect(() => {
+    if (currentGeometry) lastGeometry.current = currentGeometry;
+  }, [currentGeometry]);
+  const geometry =
+    currentGeometry ??
+    (lastGeometry.current?.id === messageId &&
+    lastGeometry.current?.viewportWidth === reading.viewportWidth
+      ? lastGeometry.current
+      : undefined);
+  return { geometry, sourceMounted: currentGeometry !== undefined };
 }

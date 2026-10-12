@@ -2,6 +2,7 @@ import { resolvePromptHandoffProgress } from "./prompt-handoff";
 import {
   createNativePromptHandoffPair,
   createNativePromptHandoffSampler,
+  type NativePromptWindowRect,
 } from "./native-prompt-handoff";
 import type { StreamItem } from "@/types/stream";
 import { createNativePromptJumpController } from "./native-prompt-jump";
@@ -453,14 +454,14 @@ it("native live prompt uses its measured landing offset and the animated path", 
 });
 
 describe("scroll driven prompt handoff", () => {
-  it("overlaps before the original leaves view and reverses with scrolling", () => {
+  it("transfers ownership exactly at the edge and reverses without overlapping alpha", () => {
     expect([8, 0, -24, -48, -100, -24, 8].map(resolvePromptHandoffProgress)).toEqual([
-      0, 0, 0.5, 1, 1, 0.5, 0,
+      0, 1, 1, 1, 1, 1, 0,
     ]);
   });
   it("accepts same-target progress without starvation and rejects stale native measurements", () => {
-    const viewport: ((y: number | null) => void)[] = [];
-    const prompts: ((y: number | null) => void)[] = [];
+    const viewport: ((rect: NativePromptWindowRect | null) => void)[] = [];
+    const prompts: ((rect: NativePromptWindowRect | null) => void)[] = [];
     const measured = vi.fn();
     const sampler = createNativePromptHandoffSampler({
       measureViewport: (callback) => viewport.push(callback),
@@ -469,40 +470,114 @@ describe("scroll driven prompt handoff", () => {
     });
     sampler.sample("first");
     sampler.sample("first");
-    viewport[0]!(100);
-    viewport[1]!(100);
-    prompts[0]!(76);
-    expect(measured).toHaveBeenLastCalledWith("first", 0.5, -24);
-    prompts[1]!(52);
-    expect(measured).toHaveBeenLastCalledWith("first", 1, -48);
+    viewport[0]!(viewportRect(100));
+    viewport[1]!(viewportRect(100));
+    prompts[0]!(bubbleRect(76));
+    expect(measured).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "first",
+        progress: 1,
+        top: -24,
+        left: 90,
+        width: 180,
+        viewportWidth: 320,
+      }),
+    );
+    prompts[1]!(bubbleRect(52));
+    expect(measured).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "first", progress: 1, top: -48 }),
+    );
     sampler.sample("first");
-    viewport[2]!(100);
+    viewport[2]!(viewportRect(100));
     sampler.sample("second");
-    prompts[2]!(80);
+    prompts[2]!(bubbleRect(80));
     expect(measured).toHaveBeenCalledTimes(2);
-    viewport[3]!(100);
+    viewport[3]!(viewportRect(100));
     sampler.cancel();
-    prompts[3]!(60);
+    prompts[3]!(bubbleRect(60));
     expect(measured).toHaveBeenCalledTimes(2);
   });
 });
 
 it("measures both overlapping native prompts with a bounded pair", () => {
-  const requests: { id: string; complete: (y: number | null) => void }[] = [];
+  const requests: { id: string; complete: (rect: NativePromptWindowRect | null) => void }[] = [];
   const measured = vi.fn();
   const pair = createNativePromptHandoffPair({
-    measureViewport: (callback) => callback(100),
+    measureViewport: (callback) => callback(viewportRect(100)),
     measurePrompt: (id, complete) => requests.push({ id, complete }),
     onMeasured: measured,
   });
   pair.sample(["older", "newer", "outside-budget"]);
   expect(requests.map((request) => request.id)).toEqual(["older", "newer"]);
-  requests[0]!.complete(80);
-  requests[1]!.complete(124);
-  expect(measured).toHaveBeenCalledWith("older", 20 / 48, -20);
-  expect(measured).toHaveBeenCalledWith("newer", 0, 24);
+  requests[0]!.complete(bubbleRect(80));
+  requests[1]!.complete(bubbleRect(124));
+  expect(measured).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "older", progress: 1, top: -20 }),
+  );
+  expect(measured).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "newer", progress: 0, top: 24 }),
+  );
   pair.sample(["newer"]);
   pair.cancel();
-  requests[2]!.complete(90);
+  requests[2]!.complete(bubbleRect(90));
   expect(measured).toHaveBeenCalledTimes(2);
+});
+
+/** Window-space rectangles include an inset so tests prove viewport-relative positioning. */
+function viewportRect(y: number): NativePromptWindowRect {
+  return { x: 10, y, width: 320, height: 600 };
+}
+function bubbleRect(y: number): NativePromptWindowRect {
+  return { x: 100, y, width: 180, height: 60, prefixHeightOne: 20, prefixHeightTwo: 40 };
+}
+
+it("ignores zero native geometry and retains actual bubble prefix extents", () => {
+  const measured = vi.fn();
+  let viewport = { ...viewportRect(100), width: 0 };
+  const sampler = createNativePromptHandoffSampler({
+    measureViewport: (complete) => complete(viewport),
+    measurePrompt: (_id, complete) => complete(bubbleRect(100)),
+    onMeasured: measured,
+  });
+  sampler.sample("prompt");
+  expect(measured).not.toHaveBeenCalled();
+  viewport = viewportRect(100);
+  sampler.sample("prompt");
+  expect(measured).toHaveBeenCalledWith(
+    expect.objectContaining({
+      id: "prompt",
+      progress: 1,
+      top: 0,
+      left: 90,
+      width: 180,
+      prefixHeightOne: 20,
+      prefixHeightTwo: 40,
+    }),
+  );
+});
+
+it("waits for native text layout before publishing a copy and accepts an explicit empty prefix", () => {
+  const measured = vi.fn();
+  let bubble: NativePromptWindowRect = {
+    ...bubbleRect(99),
+    prefixHeightOne: undefined,
+    prefixHeightTwo: undefined,
+  };
+  const sampler = createNativePromptHandoffSampler({
+    measureViewport: (complete) => complete(viewportRect(100)),
+    measurePrompt: (_id, complete) => complete(bubble),
+    onMeasured: measured,
+  });
+  sampler.sample("prompt");
+  expect(measured).not.toHaveBeenCalled();
+  bubble = bubbleRect(99);
+  sampler.sample("prompt");
+  expect(measured).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "prompt", top: -1, prefixHeightOne: 20 }),
+  );
+  bubble = { ...bubbleRect(100), prefixHeightOne: 0, prefixHeightTwo: 0 };
+  sampler.sample("attachments-only");
+  expect(measured).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: "attachments-only", progress: 1, prefixHeightOne: 0 }),
+  );
 });

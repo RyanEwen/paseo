@@ -353,6 +353,7 @@ export const ptBR: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "Ir para esta mensagem",
     more: "mais…",
     less: "menos…",
     none: "Não há mensagens do usuário neste chat.",

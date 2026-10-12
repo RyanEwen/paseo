@@ -1,12 +1,5 @@
-import {
-  type ComponentRef,
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { PromptBubbleGeometryContext, type PromptBubbleNode } from "./prompt-bubble-geometry";
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -28,7 +21,7 @@ import {
   resolveNativeLivePromptOffset,
 } from "./native-reading-position";
 import { createNativePromptHandoffPair } from "./native-prompt-handoff";
-import { resolvePromptHandoffProgress, type PromptHandoff } from "./prompt-handoff";
+import { type PromptHandoff } from "./prompt-handoff";
 import { createNativePromptJumpController } from "./native-prompt-jump";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { useKeyboardStreamInset } from "@/keyboard/shift";
@@ -90,32 +83,6 @@ function MeasuredLiveRow({
     [id, onMeasure],
   );
   return <View onLayout={handleLayout}>{children}</View>;
-}
-
-/** Measure mounted history prompts through public native refs, without extra scroll ownership. */
-function MeasuredHistoryPrompt({
-  id,
-  nodes,
-  onLayout,
-  children,
-}: {
-  id: string;
-  nodes: Map<string, ComponentRef<typeof View>>;
-  onLayout: () => void;
-  children: React.ReactNode;
-}) {
-  const register = useCallback(
-    (node: ComponentRef<typeof View> | null) => {
-      if (node) nodes.set(id, node);
-      else nodes.delete(id);
-    },
-    [id, nodes],
-  );
-  return (
-    <View collapsable={false} ref={register} onLayout={onLayout}>
-      {children}
-    </View>
-  );
 }
 
 function keyExtractor(item: { id: string }): string {
@@ -432,7 +399,11 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       }),
     [findHistoryPromptIndex, reportPromptFailure, reducedMotion],
   );
-  const promptNodes = useRef(new Map<string, ComponentRef<typeof View>>());
+  const promptNodes = useRef(new Map<string, PromptBubbleNode>());
+  const textPrefixRef = useRef(
+    new Map<string, { prefixHeightOne: number; prefixHeightTwo: number }>(),
+  );
+  const viewportWidthRef = useRef(0);
   const measuredHandoff = useRef(new Map<string, PromptHandoff>());
   const reportReadingPosition = useStableEvent(() => {
     const metrics = streamViewportMetricsRef.current;
@@ -448,19 +419,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     for (const handoff of measuredHandoff.current.values()) {
       if (visibleUserIds.includes(handoff.id)) userHandoffs.push(handoff);
     }
-    if (liveHeaderHeightRef.current !== null) {
-      const top = liveHeaderHeightRef.current - metrics.viewportHeight - metrics.offsetY;
-      for (const item of segments.liveHead) {
-        const geometry = liveGeometryRef.current.get(item.id);
-        if (item.kind === "user_message" && geometry && visibleUserIds.includes(item.id))
-          userHandoffs.push({
-            id: item.id,
-            progress: resolvePromptHandoffProgress(geometry.y - top),
-            top: geometry.y - top,
-          });
-      }
-    }
     props.onReadingPositionChange?.({
+      viewportWidth: viewportWidthRef.current,
       userHandoffs,
       rowId,
       visibleUserIds,
@@ -474,16 +434,20 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       createNativePromptHandoffPair({
         measureViewport(callback) {
           const node = flatListRef.current?.getNativeScrollRef();
-          if (node && "measureInWindow" in node) node.measureInWindow((_x, y) => callback(y));
+          if (node && "measureInWindow" in node)
+            node.measureInWindow((x, y, width, height) => callback({ x, y, width, height }));
           else callback(null);
         },
         measurePrompt(id, callback) {
           const node = promptNodes.current.get(id);
-          if (node) node.measureInWindow((_x, y) => callback(y));
+          if (node)
+            node.measureInWindow((x, y, width, height) =>
+              callback({ x, y, width, height, ...textPrefixRef.current.get(id) }),
+            );
           else callback(null);
         },
-        onMeasured(id, progress, top) {
-          measuredHandoff.current.set(id, { id, progress, top });
+        onMeasured(frame) {
+          measuredHandoff.current.set(frame.id, frame);
           reportReadingPosition();
         },
       }),
@@ -495,16 +459,51 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       measuredHandoff.current.clear();
       return;
     }
-    const ids = visibleHistoryRef.current
-      .filter((token) => token.isViewable && token.item.kind === "user_message")
-      .toSorted((a, b) => (b.index ?? 0) - (a.index ?? 0))
-      .slice(0, 2)
-      .map((token) => token.item.id);
+    const metrics = streamViewportMetricsRef.current;
+    const { visibleUserIds } = resolveNativeReadingPosition({
+      visibleHistory: visibleHistoryRef.current,
+      liveHead: segments.liveHead,
+      liveGeometry: liveGeometryRef.current,
+      headerHeight: liveHeaderHeightRef.current,
+      viewportHeight: metrics.viewportHeight,
+      offsetY: metrics.offsetY,
+    });
+    const ids = [...new Set(visibleUserIds)].slice(0, 2);
     for (const id of measuredHandoff.current.keys()) {
       if (!ids.includes(id)) measuredHandoff.current.delete(id);
     }
     handoffSampler.sample(ids);
   });
+  const registerPromptBubble = useStableEvent((id: string, node: PromptBubbleNode | null) => {
+    if (node) promptNodes.current.set(id, node);
+    else {
+      promptNodes.current.delete(id);
+      textPrefixRef.current.delete(id);
+      measuredHandoff.current.delete(id);
+    }
+  });
+  const recordPromptTextLayout = useStableEvent(
+    (id: string, lines: readonly { y: number; height: number }[]) => {
+      const first = lines[0];
+      const second = lines[1] ?? first;
+      textPrefixRef.current.set(id, {
+        prefixHeightOne: first ? first.y + first.height : 0,
+        prefixHeightTwo: second ? second.y + second.height : 0,
+      });
+      samplePromptHandoff();
+    },
+  );
+  const bubbleGeometryOwner = useMemo(
+    () =>
+      props.trackPromptHandoff === false
+        ? null
+        : {
+            register: registerPromptBubble,
+            onLayout: samplePromptHandoff,
+            onTextLayout: recordPromptTextLayout,
+          },
+    [props.trackPromptHandoff, registerPromptBubble, samplePromptHandoff, recordPromptTextLayout],
+  );
   useEffect(() => {
     measuredHandoff.current.clear();
     handoffSampler.cancel();
@@ -684,6 +683,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   );
 
   const handleListLayout = useStableEvent((event: LayoutChangeEvent) => {
+    if (event.nativeEvent.layout.width > 0)
+      viewportWidthRef.current = event.nativeEvent.layout.width;
     const previousViewportWidth = streamViewportMetricsRef.current.viewportWidth;
     const previousViewportHeight = streamViewportMetricsRef.current.viewportHeight;
     const viewportWidth = Math.max(0, event.nativeEvent.layout.width);
@@ -747,17 +748,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   const renderItem = useStableEvent(
     ({ item, index }: ListRenderItemInfo<StreamItem>): ReactElement | null => {
       const rendered = renderHistoryMountedRow(item, index, historyItems);
-      if (item.kind !== "user_message" || !rendered)
-        return (rendered ?? null) as ReactElement | null;
-      return (
-        <MeasuredHistoryPrompt
-          id={item.id}
-          nodes={promptNodes.current}
-          onLayout={samplePromptHandoff}
-        >
-          {rendered}
-        </MeasuredHistoryPrompt>
-      );
+      return (rendered ?? null) as ReactElement | null;
     },
   );
 
@@ -831,38 +822,40 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   // RN's FlatList strictMode keeps its internal renderItem wrapper stable when
   // data or the live header changes, preserving the row identities above.
   return (
-    <FlatList
-      {...listInsetProps}
-      ref={flatListRef}
-      data={historyRows}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      strictMode
-      testID="agent-chat-scroll"
-      nativeID="agent-chat-scroll-native-virtualized"
-      ListHeaderComponent={liveHeaderContent ?? undefined}
-      ListFooterComponent={historyFooterContent ?? undefined}
-      contentContainerStyle={listContentContainerStyle}
-      style={listStyle}
-      onLayout={handleListLayout}
-      onScroll={handleScroll}
-      onScrollBeginDrag={handleScrollBeginDrag}
-      onScrollEndDrag={handleScrollEndDrag}
-      onMomentumScrollBegin={handleMomentumScrollBegin}
-      onMomentumScrollEnd={handleMomentumScrollEnd}
-      scrollEventThrottle={16}
-      onContentSizeChange={handleContentSizeChange}
-      maintainVisibleContentPosition={maintainVisibleContentPosition}
-      onScrollToIndexFailed={handleScrollToIndexFailed}
-      onViewableItemsChanged={handleViewableItemsChanged}
-      viewabilityConfig={viewabilityConfig}
-      initialNumToRender={12}
-      windowSize={10}
-      removeClippedSubviews={false}
-      scrollEnabled={scrollEnabled}
-      showsVerticalScrollIndicator
-      inverted
-    />
+    <PromptBubbleGeometryContext.Provider value={bubbleGeometryOwner}>
+      <FlatList
+        {...listInsetProps}
+        ref={flatListRef}
+        data={historyRows}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        strictMode
+        testID="agent-chat-scroll"
+        nativeID="agent-chat-scroll-native-virtualized"
+        ListHeaderComponent={liveHeaderContent ?? undefined}
+        ListFooterComponent={historyFooterContent ?? undefined}
+        contentContainerStyle={listContentContainerStyle}
+        style={listStyle}
+        onLayout={handleListLayout}
+        onScroll={handleScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollBegin={handleMomentumScrollBegin}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        scrollEventThrottle={16}
+        onContentSizeChange={handleContentSizeChange}
+        maintainVisibleContentPosition={maintainVisibleContentPosition}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+        onViewableItemsChanged={handleViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        initialNumToRender={12}
+        windowSize={10}
+        removeClippedSubviews={false}
+        scrollEnabled={scrollEnabled}
+        showsVerticalScrollIndicator
+        inverted
+      />
+    </PromptBubbleGeometryContext.Provider>
   );
 }
 

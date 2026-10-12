@@ -10,6 +10,7 @@ import { RetainedPanelActivity } from "@/components/retained-panel";
 import type { StreamItem } from "@/types/stream";
 import type { StreamRenderInput, StreamSegmentRenderers, StreamViewportHandle } from "./strategy";
 import { createWebStreamStrategy } from "./strategy-web";
+import type { PromptReadingPosition } from "./prompt-reading-position";
 
 vi.hoisted(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -42,6 +43,16 @@ function userMessage(index: number): Extract<StreamItem, { kind: "user_message" 
 }
 
 const VIRTUAL_ROW_STYLE = { height: 24 };
+
+// A measurable viewport following output reports ownership as well as the row identity.
+const FOLLOWING_READING_POSITION = {
+  viewportWidth: 500,
+  visibleUserIds: [],
+  userHandoffs: [],
+  navigating: false,
+  following: true,
+  manual: false,
+} satisfies Omit<PromptReadingPosition, "rowId">;
 
 function createRenderers(onRowRender: () => void): StreamSegmentRenderers {
   return {
@@ -492,6 +503,17 @@ describe("createWebStreamStrategy", () => {
   });
 
   it("reports the live-head row as the reading position", () => {
+    // JSDOM has no layout; reading samples require a real positive viewport extent.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        const rowId = this.dataset.historyRowId;
+        // The history row has left the reading edge; the live head is now visible there.
+        const top = rowId === "message-1" ? -24 : 0;
+        const height = rowId ? 24 : 500;
+        return { top, left: 0, width: 500, height, bottom: top + height, right: 500 } as DOMRect;
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(500);
     const strategy = createWebStreamStrategy({ isMobileBreakpoint: false });
     const viewportRef = React.createRef<StreamViewportHandle>();
     const onReadingPositionChange = vi.fn();
@@ -533,7 +555,10 @@ describe("createWebStreamStrategy", () => {
       );
     });
 
-    expect(onReadingPositionChange).toHaveBeenLastCalledWith("message-2");
+    expect(onReadingPositionChange).toHaveBeenLastCalledWith({
+      ...FOLLOWING_READING_POSITION,
+      rowId: "message-2",
+    });
   });
 
   it("keeps bottom anchoring through subpixel browser rounding", () => {
@@ -1519,7 +1544,8 @@ describe("createWebStreamStrategy", () => {
       throw new Error("Expected retained history rows");
     }
     let rowsShifted = false;
-    scrollContainer.getBoundingClientRect = () => ({ top: 0, height: 500, bottom: 500 }) as DOMRect;
+    scrollContainer.getBoundingClientRect = () =>
+      ({ top: 0, left: 0, width: 500, height: 500, bottom: 500, right: 500 }) as DOMRect;
     firstRow.getBoundingClientRect = () =>
       ({ top: rowsShifted ? -116 : 0, height: 120, bottom: rowsShifted ? 4 : 120 }) as DOMRect;
     secondRow.getBoundingClientRect = () =>
@@ -1535,7 +1561,10 @@ describe("createWebStreamStrategy", () => {
     const viewportObservation = observed.get(scrollContainer);
     expect(viewportObservation).toBeDefined();
     act(() => notifyResize(scrollContainer, contentNode));
-    expect(onReadingPositionChange).toHaveBeenLastCalledWith("message-1");
+    expect(onReadingPositionChange).toHaveBeenLastCalledWith({
+      ...FOLLOWING_READING_POSITION,
+      rowId: "message-1",
+    });
 
     act(() => root?.render(renderWithActivity(false)));
     expect(container.querySelector('[data-testid="agent-chat-scroll"]')).toBe(scrollContainer);
@@ -1544,7 +1573,10 @@ describe("createWebStreamStrategy", () => {
     rowsShifted = true;
     act(() => root?.render(renderWithActivity(true)));
     act(() => notifyResize(scrollContainer, contentNode));
-    expect(onReadingPositionChange).toHaveBeenLastCalledWith("message-2");
+    expect(onReadingPositionChange).toHaveBeenLastCalledWith({
+      ...FOLLOWING_READING_POSITION,
+      rowId: "message-2",
+    });
     expect(scrollTo).not.toHaveBeenCalled();
 
     act(() => root?.render(renderWithActivity(false)));

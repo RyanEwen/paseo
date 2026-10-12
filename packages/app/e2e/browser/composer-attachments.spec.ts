@@ -1,5 +1,4 @@
 import { chatOutlineRail } from "../support/helpers/chat-outline";
-import { expectNearBottom } from "../support/helpers/agent-bottom-anchor";
 import { expect, test } from "../support/fixtures";
 import { clickNewChat } from "../support/helpers/launcher";
 import { expectComposerVisible } from "../support/helpers/composer";
@@ -333,10 +332,63 @@ test("sticky user message preserves uploaded image and file attachments", async 
     await attachImageFromMenu(page, TEST_IMAGE);
     await attachFileFromMenu(page, TEST_JSON);
     await expectAttachmentPill(page, "composer-file-attachment-pill");
-    const prompt =
-      "Text with attachments\n  Preserve indentation.\nemit 85 assistant messages before synthetic user message";
+    const prompt = "Attached sample.";
     await submitMessageWithButton(page, prompt);
-    await expectNearBottom(page);
+    await agent.client.waitForFinish(agent.agentId, 15_000);
+    await agent.client.sendAgentMessage(
+      agent.agentId,
+      "emit 85 assistant messages before synthetic user message",
+    );
+    await agent.client.waitForFinish(agent.agentId, 15_000);
+    // Select the intended attachment prompt explicitly; synthetic stream fixtures can
+    // insert additional user rows, so a previous arrow does not identify this target.
+    await chatOutlineRail(page)
+      .getByRole("tab", { name: /Attached sample\./ })
+      .click();
+    await expectTimelinePromptLandedBelowTop(page, prompt);
+    const timeline = page.getByTestId("agent-chat-scroll");
+    const original = timeline.getByTestId("user-message").filter({ hasText: prompt });
+    const originalBody = (await original.getByTestId("user-message-bubble").boundingBox())!;
+    const viewportBox = (await timeline.boundingBox())!;
+    await timeline.hover();
+    await page.mouse.wheel(0, originalBody.y - viewportBox.y + 1);
+    await expect(sticky).toContainText("2 attachments");
+    const originalText = original.getByTestId("user-message-text");
+    await expect(originalText).toBeInViewport();
+    await expect(original.getByTestId("user-message-prefix-mask")).toBeVisible();
+    // The full attachment layout places its text below the compact copy. Verify
+    // those source glyphs are actually covered instead of painting a second Files.
+    const originalTextBounds = (await originalText.boundingBox())!;
+    const stickyBounds = (await sticky.boundingBox())!;
+    const visibleTextTop = Math.max(originalTextBounds.y, stickyBounds.y + stickyBounds.height + 1);
+    const visibleTextHeight = originalTextBounds.y + originalTextBounds.height - visibleTextTop;
+    expect(visibleTextHeight).toBeGreaterThan(0);
+    const paintedText = await page.screenshot({
+      clip: {
+        x: originalTextBounds.x,
+        y: visibleTextTop,
+        width: originalTextBounds.width,
+        height: visibleTextHeight,
+      },
+      path: "../../docs/qa-evidence/sticky-user-message/attachment-covered-text.png",
+    });
+    const uniformBackground = await page.evaluate(async (base64) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d")!;
+      context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(0, 0, image.width, image.height).data;
+      return pixels.every((channel, index) => channel === pixels[index % 4]);
+    }, paintedText.toString("base64"));
+    expect(uniformBackground).toBe(true);
+    await page.screenshot({
+      path: "../../docs/qa-evidence/sticky-user-message/attachment-single-copy.png",
+    });
+    await scrollTimelinePastPrompt(page, prompt);
     await expect(sticky).toContainText("2 attachments");
     await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
     await expect(sticky.getByTestId("user-message")).toContainText(prompt);

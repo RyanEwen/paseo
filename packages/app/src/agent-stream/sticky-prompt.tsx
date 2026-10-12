@@ -1,3 +1,4 @@
+import { PromptPixelOwnerContext } from "./prompt-bubble-geometry";
 import { type ReactNode, forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -45,8 +46,11 @@ export const StickyPrompt = forwardRef<StickyPromptHandle, Props>(function Stick
   );
   const message = navigation.message;
   const contentStyle = useMemo(
-    () => ({ width: "100%" as const, maxWidth: contentMaxWidth }),
-    [contentMaxWidth],
+    () => ({
+      width: "100%" as const,
+      maxWidth: navigation.geometry?.viewportWidth ?? contentMaxWidth,
+    }),
+    [contentMaxWidth, navigation.geometry?.viewportWidth],
   );
   const expandedScrollStyle = useMemo(
     // Bound the disclosure by the measured chat pane as well as the screen. Native
@@ -60,32 +64,44 @@ export const StickyPrompt = forwardRef<StickyPromptHandle, Props>(function Stick
   const expanded = expandedKey !== null && expandedKey === message?.id;
   const disclosureState = useMemo(() => ({ expanded }), [expanded]);
   const size = compact ? "md" : "sm";
+  const pinnedPrefixHeight = compact
+    ? navigation.geometry?.prefixHeightOne
+    : navigation.geometry?.prefixHeightTwo;
+  const pixelOwner = useMemo(
+    () =>
+      message && navigation.stickyVisible
+        ? { id: message.id, expanded, prefixHeight: pinnedPrefixHeight ?? 0 }
+        : null,
+    [message, navigation.stickyVisible, expanded, pinnedPrefixHeight],
+  );
   return (
-    <PromptNavigationContext.Provider value={input.enabled === false ? null : controls}>
-      <View style={styles.timeline} testID="sticky-prompt-timeline">
-        {children}
-        <View style={styles.overlay} pointerEvents="box-none">
-          <View style={contentStyle} pointerEvents="box-none">
-            {input.enabled !== false &&
-              (message && navigation.stickyVisible ? (
-                <PromptMessageSurface
-                  navigation={navigation}
-                  message={message}
-                  serverId={serverId}
-                  client={client}
-                  expanded={expanded}
-                  disclosureState={disclosureState}
-                  toggleExpanded={toggleExpanded}
-                  expandedScrollStyle={expandedScrollStyle}
-                  size={size}
-                />
-              ) : (
-                <PromptDiscoverySurface navigation={navigation} />
-              ))}
+    <PromptPixelOwnerContext.Provider value={pixelOwner}>
+      <PromptNavigationContext.Provider value={input.enabled === false ? null : controls}>
+        <View style={styles.timeline} testID="sticky-prompt-timeline">
+          {children}
+          <View style={styles.overlay} pointerEvents="box-none">
+            <View style={contentStyle} pointerEvents="box-none">
+              {input.enabled !== false &&
+                (message && navigation.stickyVisible ? (
+                  <PromptMessageSurface
+                    navigation={navigation}
+                    message={message}
+                    serverId={serverId}
+                    client={client}
+                    expanded={expanded}
+                    disclosureState={disclosureState}
+                    toggleExpanded={toggleExpanded}
+                    expandedScrollStyle={expandedScrollStyle}
+                    size={size}
+                  />
+                ) : (
+                  <PromptDiscoverySurface navigation={navigation} />
+                ))}
+            </View>
           </View>
         </View>
-      </View>
-    </PromptNavigationContext.Provider>
+      </PromptNavigationContext.Provider>
+    </PromptPixelOwnerContext.Provider>
   );
 });
 

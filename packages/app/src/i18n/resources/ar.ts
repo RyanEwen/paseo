@@ -351,6 +351,7 @@ export const ar: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "الانتقال إلى هذه الرسالة",
     more: "المزيد…",
     less: "أقل…",
     none: "لا توجد رسائل للمستخدم في هذه المحادثة.",

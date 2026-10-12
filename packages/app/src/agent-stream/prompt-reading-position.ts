@@ -2,6 +2,7 @@ import type { PromptHandoff } from "./prompt-handoff";
 
 export interface PromptReadingPosition {
   rowId: string | null;
+  viewportWidth?: number | null;
   seq?: number | null;
   navigating: boolean;
   following: boolean;
@@ -43,9 +44,11 @@ export function createPromptReadingPublisher() {
       manual = true,
       seq: number | null = null,
       userHandoffs: readonly PromptHandoff[] = [],
+      viewportWidth: number | null = null,
     ) {
       if (
         sameHandoffs(snapshot.userHandoffs ?? [], userHandoffs) &&
+        snapshot.viewportWidth === viewportWidth &&
         snapshot.seq === seq &&
         snapshot.manual === manual &&
         snapshot.following === following &&
@@ -55,7 +58,16 @@ export function createPromptReadingPublisher() {
         snapshot.visibleUserIds.every((id, index) => id === visibleUserIds[index])
       )
         return;
-      snapshot = { rowId, seq, visibleUserIds, userHandoffs, navigating, following, manual };
+      snapshot = {
+        rowId,
+        seq,
+        viewportWidth,
+        visibleUserIds,
+        userHandoffs,
+        navigating,
+        following,
+        manual,
+      };
       for (const listener of listeners) listener();
     },
   };
@@ -71,7 +83,13 @@ function sameHandoffs(left: readonly PromptHandoff[], right: readonly PromptHand
       (value, index) =>
         value.id === right[index]?.id &&
         value.progress === right[index]?.progress &&
-        value.top === right[index]?.top,
+        value.top === right[index]?.top &&
+        value.left === right[index]?.left &&
+        value.width === right[index]?.width &&
+        value.height === right[index]?.height &&
+        value.viewportWidth === right[index]?.viewportWidth &&
+        value.prefixHeightOne === right[index]?.prefixHeightOne &&
+        value.prefixHeightTwo === right[index]?.prefixHeightTwo,
     )
   );
 }
