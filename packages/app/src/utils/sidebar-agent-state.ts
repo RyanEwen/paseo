@@ -57,3 +57,15 @@ export function aggregateSidebarStateBuckets(
   }
   return STATUS_BUCKET_PRIORITY[bestRank] ?? "done";
 }
+
+/** Compare status timestamps newest first, placing unknown times last and preserving ties. */
+export function compareSidebarStatusRecency(a: Date | null, b: Date | null): number {
+  const aTime = a?.getTime() ?? null;
+  const bTime = b?.getTime() ?? null;
+  if (aTime !== null && bTime !== null) {
+    return bTime - aTime;
+  }
+  if (aTime !== null) return -1;
+  if (bTime !== null) return 1;
+  return 0;
+}

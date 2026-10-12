@@ -121,6 +121,50 @@ function twoProjectInput(groupMode: "project" | "status") {
 }
 
 describe("buildSidebarProjection", () => {
+  it("sorts equal statuses newest first without changing priority, pins, ties, or saved order", () => {
+    const input = projectionInput();
+    const old = makeWorkspace("old");
+    const newest = makeWorkspace("newest");
+    const tied = makeWorkspace("tied");
+    const unknown = makeWorkspace("unknown");
+    const missing = makeWorkspace("missing");
+    const failed = makeWorkspace("failed", "failed");
+    const attention = makeWorkspace("attention", "attention");
+    const running = makeWorkspace("running", "running");
+    old.entry.statusEnteredAt = new Date("2026-10-04T12:00:00Z");
+    newest.entry.statusEnteredAt = new Date("2026-10-11T12:00:00Z");
+    tied.entry.statusEnteredAt = newest.entry.statusEnteredAt;
+    const workspaces = [unknown, old, missing, newest, tied, running, attention, failed];
+    input.projects[0].workspaces.push(...workspaces.map(({ placement }) => placement));
+    for (const { entry } of workspaces) input.workspaceEntriesByKey.set(entry.workspaceKey, entry);
+    input.workspaceEntriesByKey.delete(missing.entry.workspaceKey);
+    const savedOrder = input.projects[0].workspaces.map((row) => row.name);
+    const projection = buildSidebarProjection({ ...input, workspaceSortMode: "status" });
+    const sorted = [
+      "unpinned",
+      "failed",
+      "attention",
+      "running",
+      "newest",
+      "tied",
+      "old",
+      "unknown",
+      "missing",
+    ];
+    expect(projection.pinnedGroups.unpinnedProjects[0].workspaces.map((row) => row.name)).toEqual(
+      sorted,
+    );
+    expect(projection.pinnedGroups.pinnedChats.map((row) => row.name)).toEqual(["pinned"]);
+    expect(projection.shortcutModel.shortcutTargets.map((row) => row.workspaceId)).toEqual(
+      ["pinned", ...sorted].slice(0, 9),
+    );
+    expect(input.projects[0].workspaces.map((row) => row.name)).toEqual(savedOrder);
+    const custom = buildSidebarProjection(input);
+    expect(custom.pinnedGroups.unpinnedProjects[0].workspaces.map((row) => row.name)).toEqual(
+      savedOrder.slice(1),
+    );
+  });
+
   it("sorts workspace rows without changing pins, groups, or saved custom order", () => {
     const input = projectionInput();
     const zeta = makeWorkspace("Zeta", "done");

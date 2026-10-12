@@ -5,7 +5,11 @@ import type {
   SidebarWorkspaceEntry,
   SidebarWorkspacePlacement,
 } from "@/hooks/use-sidebar-workspaces-list";
-import { aggregateSidebarStateBuckets, STATUS_BUCKET_ORDER } from "@/utils/sidebar-agent-state";
+import {
+  aggregateSidebarStateBuckets,
+  compareSidebarStatusRecency,
+  STATUS_BUCKET_ORDER,
+} from "@/utils/sidebar-agent-state";
 import type {
   SidebarProjectVisibility,
   SidebarSortMode,
@@ -111,8 +115,15 @@ export function arrangeSidebarWorkspaces<T extends SidebarWorkspacePlacement>({
       });
       return aName.localeCompare(bName);
     }
-    const aStatus = entries.get(a.workspaceKey)?.statusBucket ?? "done";
-    const bStatus = entries.get(b.workspaceKey)?.statusBucket ?? "done";
-    return STATUS_BUCKET_ORDER.indexOf(aStatus) - STATUS_BUCKET_ORDER.indexOf(bStatus);
+    const aEntry = entries.get(a.workspaceKey);
+    const bEntry = entries.get(b.workspaceKey);
+    const aStatus = aEntry?.statusBucket ?? "done";
+    const bStatus = bEntry?.statusBucket ?? "done";
+    const statusRank = STATUS_BUCKET_ORDER.indexOf(aStatus) - STATUS_BUCKET_ORDER.indexOf(bStatus);
+    if (statusRank !== 0) return statusRank;
+    return compareSidebarStatusRecency(
+      aEntry?.statusEnteredAt ?? null,
+      bEntry?.statusEnteredAt ?? null,
+    );
   });
 }

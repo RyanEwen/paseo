@@ -9,7 +9,7 @@ for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including
   project names, workspace names, status, and custom ordering. Show agent activity and code-change
-  totals together.
+  totals together. Status sorting puts the newest workspaces first within each status.
 - **Chrome extensions in the desktop browser:** Install and manage extensions, use toolbar
   popups and extension context menus, and open extension windows. Compatibility depends on the
   Chrome APIs an extension uses.
