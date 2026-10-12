@@ -1,0 +1,24 @@
+{
+  "id": "compact-help-sidebarActivityChips",
+  "source": "compact-help-sidebarActivityChips-1791843796442.png",
+  "sourceManifestSha256": "e77f1801daec0906d70ac21085a3cf9c58cad33c1a7ebc007b067013c81dc3ff",
+  "sourceSha256": "3b73d353443370cb7e22ade1d283e45ee26d3201ecf3a3e684730c614ac89bac",
+  "capturedAtUtc": "2026-10-12T22:23:16.509Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "pixels": {
+    "width": 390,
+    "height": 844
+  },
+  "crop": {
+    "left": 100,
+    "top": 610,
+    "width": 290,
+    "height": 168
+  },
+  "description": "Actual local screenshot help after real keyboard focus or compact touch disclosure.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified."
+}

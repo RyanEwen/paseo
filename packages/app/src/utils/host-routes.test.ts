@@ -9,6 +9,9 @@ import {
   resolveKnownHostRoute,
   buildSessionsRoute,
   buildSettingsAddHostRoute,
+  buildDefaultSettingsRoute,
+  buildSettingsRoute,
+  buildSettingsSectionRoute,
   buildProjectSettingsRoute,
   buildProjectsSettingsRoute,
   decodeFilePathFromPathSegment,
@@ -185,6 +188,11 @@ describe("workspace route parsing", () => {
 });
 
 describe("projects settings routes", () => {
+  it("opens fork preferences by default without changing explicit routes or the navigation root", () => {
+    expect(buildDefaultSettingsRoute()).toBe("/settings/paseo-plus-plus");
+    expect(buildSettingsRoute()).toBe("/settings");
+    expect(buildSettingsSectionRoute("general")).toBe("/settings/general");
+  });
   it("buildSettingsAddHostRoute opens settings with the add-host flag", () => {
     expect(buildSettingsAddHostRoute()).toBe("/settings/general?addHost=1");
   });

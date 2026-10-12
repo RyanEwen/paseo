@@ -1,14 +1,23 @@
 export const en = {
   paseoPlusPlus: {
+    examples: {
+      annotated: "Arrows highlight the feature.",
+      before: "Before the status change",
+      after: "After the status change",
+      imageLabel: "{{title}} example",
+      positions:
+        "Settled positions before and after a status change. These still images do not show animation timing.",
+      explorer: "Example of the Changes list and working-copy diff.",
+      workspaceLimit:
+        "Choose a starting count for each group or Show all. Groups you have expanded stay expanded.",
+    },
     loadFailed: "Unable to load saved preferences. Retry before changing features.",
     saving: "Saving...",
     title: "Paseo++",
     optional: "Optional features",
     optionalHint:
-      "Choices apply to this app installation. Turning a feature off preserves its saved data and preferences.",
-    preferences: "Existing preferences",
-    preferencesHint: "Use the existing controls for these fork additions",
-    configure: "Configure",
+      "Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
+    preferences: "More sidebar controls",
     fixes: "Fixes and fork essentials",
     fixesHint: "These improvements stay enabled",
     additions: "Other additions",
@@ -54,12 +63,8 @@ export const en = {
     },
     links: {
       sidebar: {
-        label: "Sidebar display options",
-        hint: "Use Display in the workspace sidebar for filtering, grouping, sorting, project/branch labels, activity and code-change totals",
-      },
-      updates: {
-        label: "Preview updates",
-        hint: "Desktop and supported Android builds can check and install updates from About. Android installation requires your approval.",
+        label: "Workspace order and details",
+        hint: "Sort projects and workspaces independently by name, status or custom order. Show last activity and code-change totals together; project and branch labels are on by default. Adjust these in Display in the workspace sidebar.",
       },
     },
     fixesList: {

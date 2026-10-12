@@ -1,0 +1,38 @@
+{
+  "id": "explorer-changes-list",
+  "source": "explorer-changes-list-1791840618191.png",
+  "sourceManifestSha256": "0cf9381502201d07e54a3b8bdaf21caa80d7b716f1b55a59e6f285030603f939",
+  "sourceSha256": "1f5c646768ec955f232da5b4647630bffcda515e8bad515e5487b74be576216a",
+  "capturedAtUtc": "2026-10-12T21:30:18.325Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 1119,
+    "top": 0,
+    "width": 321,
+    "height": 152
+  },
+  "description": "Explorer's Changes view lists a modified file.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/explorer-changes-list-1791840618191.json",
+  "captureSuggestedCrop": {
+    "left": 1112,
+    "top": 0,
+    "width": 328,
+    "height": 900
+  },
+  "asset": "explorer-changes-list.png",
+  "assetSha256": "c0a9e0fa2028fa55d0b46708ed9038902792c536eb656a7c8cef952e0809032e",
+  "assetPixels": {
+    "width": 321,
+    "height": 152
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

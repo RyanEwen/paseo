@@ -3,16 +3,25 @@ import { pluginSettings } from "./plugin-settings";
 
 export const ptBR: TranslationResources = {
   paseoPlusPlus: {
+    examples: {
+      annotated: "As setas destacam o recurso.",
+      before: "Antes da mudança de status",
+      after: "Depois da mudança de status",
+      imageLabel: "Exemplo de {{title}}",
+      positions:
+        "Posições finais antes e depois de uma mudança de estado. Estas imagens não mostram a duração da animação.",
+      explorer: "Exemplo da lista de alterações e das diferenças da cópia de trabalho.",
+      workspaceLimit:
+        "Escolha uma quantidade inicial por grupo ou Mostrar tudo. Os grupos que você expandiu continuam expandidos.",
+    },
     loadFailed:
       "Não foi possível carregar as preferências. Tente novamente antes de alterar recursos.",
     saving: "Salvando...",
     title: "Paseo++",
     optional: "Recursos opcionais",
     optionalHint:
-      "As escolhas valem para esta instalação. Desativar preserva dados e preferências.",
-    preferences: "Preferências existentes",
-    preferencesHint: "Use os controles existentes para estas melhorias",
-    configure: "Configurar",
+      "As opções seguem o host de configurações selecionado quando a sincronização está ativada. Desativar um recurso preserva seus dados e preferências.",
+    preferences: "Mais controles da barra lateral",
     fixes: "Correções e itens essenciais",
     fixesHint: "Estas melhorias permanecem ativas",
     additions: "Outras melhorias",
@@ -58,12 +67,8 @@ export const ptBR: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Opções da barra lateral",
-        hint: "Use Exibição na barra lateral do espaço para filtros, grupos, ordem, rótulos de projeto/branch, atividade e totais de alterações",
-      },
-      updates: {
-        label: "Atualizações de prévia",
-        hint: "As versões de desktop e Android compatíveis podem verificar e instalar atualizações em Sobre. A instalação no Android exige sua aprovação.",
+        label: "Ordem e detalhes dos espaços de trabalho",
+        hint: "Ordene projetos e espaços de trabalho separadamente por nome, status ou ordem personalizada. Mostre a última atividade e os totais de alterações de código juntos; os rótulos de projeto e branch estão ativados por padrão. Ajuste essas opções em Exibição, na barra lateral dos espaços de trabalho.",
       },
     },
     fixesList: {

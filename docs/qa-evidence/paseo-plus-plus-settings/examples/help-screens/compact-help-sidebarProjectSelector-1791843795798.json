@@ -1,0 +1,24 @@
+{
+  "id": "compact-help-sidebarProjectSelector",
+  "source": "compact-help-sidebarProjectSelector-1791843795798.png",
+  "sourceManifestSha256": "e77f1801daec0906d70ac21085a3cf9c58cad33c1a7ebc007b067013c81dc3ff",
+  "sourceSha256": "663f0800a64d66d66b5310007fbf1fbe70c1ac7231be5aa1d01579b99a22a4e7",
+  "capturedAtUtc": "2026-10-12T22:23:15.989Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "pixels": {
+    "width": 390,
+    "height": 844
+  },
+  "crop": {
+    "left": 100,
+    "top": 442,
+    "width": 290,
+    "height": 235
+  },
+  "description": "Actual local screenshot help after real keyboard focus or compact touch disclosure.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified."
+}

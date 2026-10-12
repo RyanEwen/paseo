@@ -322,13 +322,13 @@ describe("routeKeyboardShortcut — message-input.action", () => {
 });
 
 describe("routeKeyboardShortcut — settings.toggle", () => {
-  it("pushes to the settings root when not currently in settings", () => {
+  it("opens Paseo++ when not currently in settings", () => {
     expect(
       routeKeyboardShortcut(
         { action: "settings.toggle", payload: null },
         makeCtx({ pathname: "/h/srv/workspace/ws-2" }),
       ),
-    ).toEqual<ShortcutAction>({ kind: "router-push", route: "/settings" });
+    ).toEqual<ShortcutAction>({ kind: "router-push", route: "/settings/paseo-plus-plus" });
   });
 
   it("navigates to the last workspace when leaving settings on desktop", () => {

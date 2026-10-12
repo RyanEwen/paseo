@@ -1,23 +1,15 @@
+import { FEATURE_EXAMPLE_IMAGES } from "@/paseo-plus-plus/settings-examples";
+import { SettingsExample } from "@/components/settings/settings-example";
 import { ExplorerSection } from "@/screens/settings/paseo-plus-plus/explorer-section";
 import { useQueryClient } from "@tanstack/react-query";
 import { APP_SETTINGS_QUERY_KEY } from "@/hooks/use-settings/storage";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Platform, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "expo-router";
-import {
-  SettingsAction,
-  SettingsCard,
-  SettingsRow,
-  SettingsSection,
-  SettingsSwitch,
-} from "@/components/settings";
+import { SettingsCard, SettingsRow, SettingsSection, SettingsSwitch } from "@/components/settings";
 import { useSettingsSave } from "@/hooks/use-settings/use-settings-save";
-import { getIsElectron } from "@/constants/platform";
-import { androidUpdaterNative } from "@/app-updates/native";
-import { buildSettingsSectionRoute } from "@/utils/host-routes";
 import type { PaseoPlusPlusFeature } from "@/paseo-plus-plus/preferences";
 
 const OPTIONAL_FEATURES: readonly PaseoPlusPlusFeature[] = [
@@ -44,7 +36,7 @@ const FIXES = [
   "identity",
 ] as const;
 
-/** The fork inventory uses existing controls and device-local opt-outs without resetting data. */
+/** The fork inventory uses existing controls and preference opt-outs without resetting data. */
 export function PaseoPlusPlusSection() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -97,16 +89,12 @@ export function PaseoPlusPlusSection() {
         </SettingsCard>
       </SettingsSection>
       <ExplorerSection />
-      <SettingsSection
-        title={t("paseoPlusPlus.preferences")}
-        info={t("paseoPlusPlus.preferencesHint")}
-      >
+      <SettingsSection title={t("paseoPlusPlus.preferences")}>
         <SettingsCard>
           <SettingsRow
             label={t("paseoPlusPlus.links.sidebar.label")}
             hint={t("paseoPlusPlus.links.sidebar.hint")}
           />
-          <UpdatePreferenceAction />
         </SettingsCard>
       </SettingsSection>
       <SettingsSection title={t("paseoPlusPlus.additions")} info={t("paseoPlusPlus.additionsHint")}>
@@ -158,40 +146,33 @@ function FeatureSwitch({
     (enabled: boolean) => void onChange(feature, enabled),
     [feature, onChange],
   );
+  const label = t(`paseoPlusPlus.features.${feature}.label`);
+  const hint = t(`paseoPlusPlus.features.${feature}.hint`);
+  const help = useMemo(
+    () => (
+      <SettingsExample
+        title={label}
+        caption={
+          feature === "sidebarWorkspaceTransitions"
+            ? `${hint} ${t("paseoPlusPlus.examples.positions")}`
+            : hint
+        }
+        images={FEATURE_EXAMPLE_IMAGES[feature]}
+        testID={`settings-example-${feature}`}
+      />
+    ),
+    [feature, label, hint, t],
+  );
   return (
     <SettingsSwitch
       testID={`paseo-plus-plus-${feature}`}
-      label={t(`paseoPlusPlus.features.${feature}.label`)}
-      hint={pending ? t("paseoPlusPlus.saving") : t(`paseoPlusPlus.features.${feature}.hint`)}
+      label={label}
+      labelAccessory={help}
+      hint={pending ? t("paseoPlusPlus.saving") : hint}
       value={value}
       disabled={disabled}
       onValueChange={change}
       error={failed ? t("paseoPlusPlus.saveFailed") : undefined}
-    />
-  );
-}
-
-/** Navigate to the single existing control rather than maintaining a second setting. */
-function UpdatePreferenceAction() {
-  const { t } = useTranslation();
-  const router = useRouter();
-  const open = useCallback(() => router.push(buildSettingsSectionRoute("about")), [router]);
-  if (!getIsElectron() && androidUpdaterNative === null) {
-    return (
-      <SettingsRow
-        testID="paseo-plus-plus-updates-info"
-        label={t("paseoPlusPlus.links.updates.label")}
-        hint={t("paseoPlusPlus.links.updates.hint")}
-      />
-    );
-  }
-  return (
-    <SettingsAction
-      testID="paseo-plus-plus-link-updates"
-      label={t("paseoPlusPlus.links.updates.label")}
-      hint={t("paseoPlusPlus.links.updates.hint")}
-      actionLabel={t("paseoPlusPlus.configure")}
-      onPress={open}
     />
   );
 }
