@@ -1,3 +1,4 @@
+import { setSectionsCollapsed } from "@/stores/sidebar-collapsed-sections-store/state";
 import { i18n } from "@/i18n/i18next";
 import { describe, expect, it } from "vitest";
 import type {
@@ -10,7 +11,7 @@ import {
   arrangeSidebarProjects,
   sortSidebarProjectsByName,
 } from "./sidebar-arrangement";
-import { buildSidebarProjection } from "./sidebar-projection";
+import { buildSidebarProjection, resolveSidebarCollapseTargets } from "./sidebar-projection";
 
 function makeWorkspace(
   id: string,
@@ -391,4 +392,80 @@ describe("buildSidebarProjection", () => {
       { serverId: "srv", workspaceId: "unpinned" },
     ]);
   });
+});
+
+describe("bulk collapse targets", () => {
+  it("preserves hidden project and empty-group preferences when all children are globally pinned in status mode", () => {
+    const input = projectionInput({ groupMode: "status" });
+    const pinned = makeWorkspace("pinned", "running");
+    input.projects = [makeProject([pinned.placement])];
+    input.workspaceEntriesByKey = new Map([[pinned.entry.workspaceKey, pinned.entry]]);
+    const projection = buildSidebarProjection(input);
+    expect(
+      resolveSidebarCollapseTargets({
+        ...projection,
+        projects: input.projects,
+        groupMode: input.groupMode,
+        groupEmptyProjects: true,
+      }),
+    ).toEqual({
+      projectKeys: [],
+      workspaceGroupKeys: [],
+      includePinned: true,
+    });
+  });
+  it("collapses all-pinned project headers in project mode without inventing an empty section", () => {
+    const input = projectionInput({ groupMode: "project" });
+    const pinned = makeWorkspace("pinned", "running");
+    input.projects = [makeProject([pinned.placement])];
+    input.workspaceEntriesByKey = new Map([[pinned.entry.workspaceKey, pinned.entry]]);
+    const projection = buildSidebarProjection(input);
+    expect(
+      resolveSidebarCollapseTargets({
+        ...projection,
+        projects: input.projects,
+        groupMode: input.groupMode,
+        groupEmptyProjects: true,
+      }),
+    ).toEqual({ projectKeys: ["project"], workspaceGroupKeys: [], includePinned: true });
+  });
+  it.each(["project", "status"] as const)(
+    "includes genuine empty headers and their section in %s mode",
+    (groupMode) => {
+      const input = projectionInput({ groupMode });
+      input.projects.push(makeProject([], "empty"));
+      const projection = buildSidebarProjection(input);
+      const targets = resolveSidebarCollapseTargets({
+        ...projection,
+        projects: input.projects,
+        groupMode,
+        groupEmptyProjects: true,
+      });
+      const expectedProjects = groupMode === "project" ? ["project", "empty"] : ["empty"];
+      const expectedGroups =
+        groupMode === "status"
+          ? ["needs_input", "no-unarchived-workspaces"]
+          : ["no-unarchived-workspaces"];
+      expect(targets).toEqual({
+        projectKeys: expectedProjects,
+        workspaceGroupKeys: expectedGroups,
+        includePinned: true,
+      });
+      const hiddenPreferences = {
+        collapsedProjectKeys: new Set(["hidden-project"]),
+        collapsedWorkspaceGroupKeys: new Set(["hidden-status"]),
+        collapsedPinned: false,
+      };
+      const collapsed = setSectionsCollapsed(hiddenPreferences, targets, true);
+      expect(setSectionsCollapsed(collapsed, targets, false)).toEqual(hiddenPreferences);
+      expect(
+        resolveSidebarCollapseTargets({
+          ...projection,
+          projects: input.projects,
+          groupMode,
+          groupEmptyProjects: false,
+        }).workspaceGroupKeys,
+      ).toEqual(groupMode === "status" ? ["needs_input"] : []);
+    },
+  );
 });
