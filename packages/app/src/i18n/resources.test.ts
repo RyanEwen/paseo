@@ -148,12 +148,16 @@ describe("translation resources", () => {
       expect(Object.keys(resource.sidebar.projectSelector).sort()).toEqual([
         "all",
         "allWorkspaces",
+        "includeProject",
         "multipleWorkspaces_one",
         "multipleWorkspaces_other",
         "projectWorkspaces",
+        "selectOnlyProject",
         "title",
         "workspaces",
       ]);
+      expect(resource.sidebar.projectSelector.selectOnlyProject).toContain("{{project}}");
+      expect(resource.sidebar.projectSelector.includeProject).toContain("{{project}}");
       expect(resource.sidebar.projectSelector.projectWorkspaces).toContain("{{project}}");
       expect(resource.sidebar.projectSelector.multipleWorkspaces_other).toContain("{{count}}");
     }

@@ -1315,6 +1315,8 @@ export const ru: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "Показать только {{project}}",
+      includeProject: "Включить {{project}}",
       workspaces: "Рабочие области",
       all: "Все",
       allWorkspaces: "Все рабочие области",

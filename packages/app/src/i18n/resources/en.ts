@@ -1304,6 +1304,8 @@ export const en = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "Show only {{project}}",
+      includeProject: "Include {{project}}",
       workspaces: "Workspaces",
       all: "All",
       allWorkspaces: "All Workspaces",

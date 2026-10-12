@@ -1303,6 +1303,8 @@ export const ko: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "{{project}}만 표시",
+      includeProject: "{{project}} 포함",
       workspaces: "워크스페이스",
       all: "모두",
       allWorkspaces: "모든 워크스페이스",

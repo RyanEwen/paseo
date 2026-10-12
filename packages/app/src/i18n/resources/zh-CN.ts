@@ -1284,6 +1284,8 @@ export const zhCN: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "仅显示 {{project}}",
+      includeProject: "包含 {{project}}",
       workspaces: "工作区",
       all: "全部",
       allWorkspaces: "所有工作区",

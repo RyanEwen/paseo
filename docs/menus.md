@@ -111,6 +111,13 @@ Hover lives on a plain `View`, never on a `Pressable` — see [hover.md](hover.m
 rule. Hover only fires on web, which is exactly where flyouts exist; everywhere else the page
 opens on press.
 
+## Separate actions in one row
+
+Use `MenuItem.secondaryToggle` when choosing a row and including it in a multi-selection are
+separate actions. The checkbox is a sibling of the primary pressable, has its own accessible
+label, and stays open after a change. Both controls use the menu engine for selection and keyboard
+navigation. `trailing` is for decorations, not another pressable nested inside the row.
+
 ## Item states
 
 `selected` and `active` are different questions and must not be merged.

@@ -1311,6 +1311,8 @@ export const ja: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "{{project}} のみ表示",
+      includeProject: "{{project}} を含める",
       workspaces: "ワークスペース",
       all: "すべて",
       allWorkspaces: "すべてのワークスペース",

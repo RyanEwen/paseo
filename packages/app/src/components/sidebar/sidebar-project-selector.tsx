@@ -1,3 +1,4 @@
+import { useSidebarProjectActivity } from "./use-sidebar-project-activity";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { useCallback, useMemo, type ReactElement } from "react";
 import { Text } from "react-native";
@@ -38,8 +39,11 @@ export function SidebarProjectSelector(): ReactElement {
 function ProjectSelectorMenu(): ReactElement {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
-  const { allProjects, resolvedProjectFilters } = useSidebarModel();
+  const { allProjects, allWorkspaceEntriesByKey, resolvedProjectFilters } = useSidebarModel();
+  const { settings } = useAppSettings();
+  const activity = useSidebarProjectActivity(allProjects, allWorkspaceEntriesByKey);
   const hosts = useHosts();
+  const selectProjectFilter = useSidebarViewStore((state) => state.selectProjectFilter);
   const toggleProjectFilter = useSidebarViewStore((state) => state.toggleProjectFilter);
   const clearProjectFilters = useSidebarViewStore((state) => state.clearProjectFilters);
   const labels = useMemo(
@@ -91,7 +95,6 @@ function ProjectSelectorMenu(): ReactElement {
       >
         <MenuItem
           selected={resolvedProjectFilters.length === 0}
-          closeOnSelect={false}
           onSelect={clearProjectFilters}
           testID="sidebar-project-selector-all"
         >
@@ -104,8 +107,13 @@ function ProjectSelectorMenu(): ReactElement {
             label={labels.get(project.viewKey) ?? project.projectName}
             iconDataUri={icons.get(project.viewKey) ?? null}
             selected={resolvedProjectFilters.includes(project.viewKey)}
-            onSelect={toggleProjectFilter}
-            closeOnSelect={false}
+            activity={
+              settings.paseoPlusPlus.sidebarActivityChips
+                ? activity.get(project.viewKey)
+                : undefined
+            }
+            onSelect={selectProjectFilter}
+            onToggle={toggleProjectFilter}
             testID={`sidebar-project-selector-${project.viewKey}`}
           />
         ))}

@@ -329,6 +329,14 @@ describe("sidebar view store", () => {
     ).toEqual({ labels: ["urgent", "blocked"] });
   });
 
+  it("selects one project explicitly, replacing saved multi-project and unavailable choices", () => {
+    useSidebarViewStore.setState({ projectFilters: ["project-a", "project-b", "offline-project"] });
+    useSidebarViewStore.getState().selectProjectFilter("project-b");
+    expect(useSidebarViewStore.getState().projectFilters).toEqual(["project-b"]);
+    useSidebarViewStore.getState().toggleProjectFilter("project-a");
+    expect(useSidebarViewStore.getState().projectFilters).toEqual(["project-b", "project-a"]);
+  });
+
   it("toggles multiple projects into and out of the filter", () => {
     const store = useSidebarViewStore.getState();
     store.toggleProjectFilter("project-a");
