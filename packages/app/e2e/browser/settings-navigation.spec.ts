@@ -1,3 +1,11 @@
+import { verifySettingsExamplesHelp } from "../support/helpers/settings-example-help";
+import {
+  capturePreviousAgentsExample,
+  captureExplorerExample,
+  captureStickyExample,
+  captureSidebarControlsExample,
+  captureWorkspacePositionsExample,
+} from "../support/helpers/settings-example-scenes";
 import {
   openMobileAgentSidebar,
   closeMobileAgentSidebar,
@@ -380,9 +388,11 @@ for (const width of [1440, 390]) {
         }),
       ).toBeVisible();
       await expect(section.getByTestId("paseo-plus-plus-link-updates")).toHaveCount(0);
-      await expect(section.getByTestId("paseo-plus-plus-updates-info")).toContainText(
-        "Desktop and supported Android builds",
-      );
+      await expect(section.getByTestId("paseo-plus-plus-updates-info")).toHaveCount(0);
+      await expect(section.getByText("Preview updates", { exact: true })).toHaveCount(0);
+      await expect(section.getByText("Workspace order and details", { exact: true })).toBeVisible();
+      await expect(section).toContainText("Sort projects and workspaces independently");
+      await expect(section).toContainText("project and branch labels are on by default");
       await page.goto(buildSettingsSectionRoute("sidebar"));
       await expect(page.getByTestId("sidebar-nav-section-header")).toBeVisible();
       await expect(
@@ -512,3 +522,50 @@ for (const width of [1440, 390]) {
     }
   });
 }
+
+// Capture cases stay separate so a failed locator never repeats already qualified scenes.
+test.describe("Settings example captures", () => {
+  const directory = process.env.PASEO_SETTINGS_EXAMPLE_CAPTURE_DIR;
+  test.skip(!directory, "Only run under a coordinator-granted isolated capture slot.");
+
+  test("capture only Previous agents example", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await capturePreviousAgentsExample(page, directory!);
+  });
+
+  test("capture only Explorer and Changes examples", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await captureExplorerExample(page, directory!);
+  });
+
+  test("capture only sticky prompt example", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await captureStickyExample(page, directory!);
+  });
+  test("capture only sidebar controls examples", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await captureSidebarControlsExample(page, directory!);
+  });
+
+  test("capture only settled workspace positions example", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await captureWorkspacePositionsExample(page, directory!);
+  });
+});
+
+test.describe("Settings screenshot help", () => {
+  test.use({ hasTouch: true });
+  const directory = process.env.PASEO_SETTINGS_EXAMPLE_CAPTURE_DIR;
+  test.skip(
+    process.env.PASEO_SETTINGS_EXAMPLE_HELP_VERIFY !== "1" || !directory,
+    "Needs a separate coordinator-granted image-help verification stage.",
+  );
+  for (const compact of [false, true]) {
+    test(`real images and accessible disclosure at ${compact ? "390" : "1440"}`, async ({
+      page,
+    }) => {
+      test.setTimeout(120_000);
+      await verifySettingsExamplesHelp(page, compact, directory!);
+    });
+  }
+});

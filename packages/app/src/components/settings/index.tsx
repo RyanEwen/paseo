@@ -33,6 +33,10 @@ interface AppSettingsRowProps extends Omit<SettingsRowProps, "hint"> {
   labelAccessory?: ReactNode;
 }
 
+type AppSettingsSwitchProps = SettingsSwitchProps & Pick<AppSettingsRowProps, "labelAccessory">;
+type AppSettingsSelectProps<Value extends string> = SettingsSelectProps<Value> &
+  Pick<AppSettingsRowProps, "labelAccessory">;
+
 export function SettingsCard({ children, testID }: { children: ReactNode; testID?: string }) {
   return (
     <View style={settingsStyles.card} testID={testID}>
@@ -81,7 +85,7 @@ export function SettingsRow({
   );
 }
 
-export function SettingsSwitch({ value, onValueChange, disabled, ...row }: SettingsSwitchProps) {
+export function SettingsSwitch({ value, onValueChange, disabled, ...row }: AppSettingsSwitchProps) {
   return (
     <SettingsRow {...row}>
       <Switch
@@ -117,7 +121,7 @@ export function SettingsSelect<Value extends string>({
   onValueChange,
   disabled,
   ...row
-}: SettingsSelectProps<Value>) {
+}: AppSettingsSelectProps<Value>) {
   const selectedLabel = options.find((option) => option.value === value)?.label ?? value;
   return (
     <SettingsRow {...row}>

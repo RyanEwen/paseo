@@ -1,0 +1,24 @@
+{
+  "id": "compact-help-sidebarWorkspaceTransitions",
+  "source": "compact-help-sidebarWorkspaceTransitions-1791843798607.png",
+  "sourceManifestSha256": "e77f1801daec0906d70ac21085a3cf9c58cad33c1a7ebc007b067013c81dc3ff",
+  "sourceSha256": "0e02564d55a876ef0b88862b70dff1af05361114005c8160708b262c1475e6cd",
+  "capturedAtUtc": "2026-10-12T22:23:18.667Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "pixels": {
+    "width": 390,
+    "height": 844
+  },
+  "crop": {
+    "left": 100,
+    "top": 96,
+    "width": 290,
+    "height": 537
+  },
+  "description": "Actual local screenshot help after real keyboard focus or compact touch disclosure.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified."
+}

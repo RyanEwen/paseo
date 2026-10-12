@@ -318,17 +318,18 @@ export function TooltipTrigger({
   const handleHoverIn = useCallback(
     (e?: unknown) => {
       if (isCallable(onHoverIn)) onHoverIn(e);
-      scheduleOpen();
+      // Touch emits pointer boundaries too. Tap-mode help must stay owned by the press.
+      if (!ctx.openOnPress) scheduleOpen();
     },
-    [onHoverIn, scheduleOpen],
+    [ctx.openOnPress, onHoverIn, scheduleOpen],
   );
 
   const handleHoverOut = useCallback(
     (e?: unknown) => {
       if (isCallable(onHoverOut)) onHoverOut(e);
-      close();
+      if (!ctx.openOnPress) close();
     },
-    [onHoverOut, close],
+    [ctx.openOnPress, onHoverOut, close],
   );
 
   const handleFocus = useCallback(

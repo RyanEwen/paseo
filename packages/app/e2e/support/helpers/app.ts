@@ -1,5 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { escapeRegex } from "./regex";
+import { buildDefaultSettingsRoute } from "@/utils/host-routes";
+import { expectAppRoute } from "./route-assertions";
 
 export const gotoAppShell = async (page: Page) => {
   await page.goto("/");
@@ -35,7 +37,7 @@ export const openSettings = async (page: Page) => {
   const settingsButton = page.locator('[data-testid="sidebar-settings"]:visible').first();
   await expect(settingsButton).toBeVisible();
   await settingsButton.click();
-  await expect(page).toHaveURL(/\/settings\/general$/);
+  await expectAppRoute(page, buildDefaultSettingsRoute());
 };
 
 export const setWorkingDirectory = async (page: Page, directory: string) => {

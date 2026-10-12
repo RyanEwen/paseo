@@ -3,15 +3,24 @@ import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
   paseoPlusPlus: {
+    examples: {
+      annotated: "Las flechas señalan la función.",
+      before: "Antes del cambio de estado",
+      after: "Después del cambio de estado",
+      imageLabel: "Ejemplo de {{title}}",
+      positions:
+        "Posiciones finales antes y después de un cambio de estado. Estas imágenes no muestran la duración de la animación.",
+      explorer: "Ejemplo de la lista de cambios y las diferencias de la copia de trabajo.",
+      workspaceLimit:
+        "Elige una cantidad inicial por grupo o Mostrar todo. Los grupos que hayas expandido permanecen expandidos.",
+    },
     loadFailed: "No se pudieron cargar las preferencias. Reintenta antes de cambiar funciones.",
     saving: "Guardando...",
     title: "Paseo++",
     optional: "Funciones opcionales",
     optionalHint:
-      "Estos ajustes se aplican a esta instalación. Desactivarlos conserva los datos y preferencias.",
-    preferences: "Preferencias existentes",
-    preferencesHint: "Usa los controles existentes para estas mejoras",
-    configure: "Configurar",
+      "Las opciones siguen al host de ajustes seleccionado cuando la sincronización está activada. Desactivar una función conserva sus datos y preferencias.",
+    preferences: "Más controles de la barra lateral",
     fixes: "Correcciones y elementos esenciales",
     fixesHint: "Estas mejoras siguen activas",
     additions: "Otras mejoras",
@@ -57,12 +66,8 @@ export const es: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Opciones de la barra lateral",
-        hint: "Usa Vista en la barra lateral del espacio para filtros, grupos, orden, etiquetas de proyecto/rama, actividad y totales de cambios",
-      },
-      updates: {
-        label: "Actualizaciones preliminares",
-        hint: "Las versiones de escritorio y Android compatibles pueden comprobar e instalar actualizaciones desde Acerca de. Android requiere tu aprobación.",
+        label: "Orden y detalles de los espacios de trabajo",
+        hint: "Ordena proyectos y espacios de trabajo por separado por nombre, estado o un orden personalizado. Muestra la última actividad y los totales de cambios de código juntos; las etiquetas de proyecto y rama están activadas por defecto. Ajusta estas opciones en Mostrar, en la barra lateral de espacios de trabajo.",
       },
     },
     fixesList: {
