@@ -51,6 +51,8 @@ test.describe("New tab keyboard launcher", () => {
       await expectLauncherSelection(launcher, "Agent");
 
       await page.keyboard.press("ArrowDown");
+      await expectLauncherSelection(launcher, "Reopen closed agent");
+      await page.keyboard.press("ArrowDown");
       await expectLauncherSelection(launcher, "Terminal");
       await page.keyboard.press("ArrowDown");
       await expectLauncherSelection(launcher, "Diff");
