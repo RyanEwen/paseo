@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
+import { isWeb } from "@/constants/platform";
 import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -21,10 +22,27 @@ interface HoverRevealActionsProps {
   width: number;
   height: number;
   children: ReactNode;
+  testID?: string;
 }
 
 /** Animate the reserved action space inside a fixed row so adjacent metadata slides aside. */
-export function HoverRevealActions({ visible, width, height, children }: HoverRevealActionsProps) {
+export function HoverRevealActions({
+  visible,
+  width,
+  height,
+  children,
+  testID,
+}: HoverRevealActionsProps) {
+  // Opacity and pointerEvents do not remove descendant buttons from the browser tab order.
+  // Gate the shared container so arbitrary controls cannot retain invisible keyboard focus.
+  const setActionsRef = useCallback(
+    (node: unknown) => {
+      if (isWeb && node instanceof HTMLElement) {
+        node.inert = !visible;
+      }
+    },
+    [visible],
+  );
   const progress = useDerivedValue(() => withTiming(visible ? 1 : 0, TIMING));
   const animatedStyle = useAnimatedStyle(() => ({
     width: width * progress.value,
@@ -34,6 +52,8 @@ export function HoverRevealActions({ visible, width, height, children }: HoverRe
   }));
   return (
     <Animated.View
+      ref={setActionsRef}
+      testID={testID}
       style={[styles.slot, { height }, animatedStyle]}
       pointerEvents={visible ? "auto" : "none"}
     >

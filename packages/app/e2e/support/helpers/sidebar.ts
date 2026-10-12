@@ -98,7 +98,12 @@ export async function expectWorkspaceRowHoverCleared(
   workspaceId: string,
 ): Promise<void> {
   const workspaceKey = `${getServerId()}:${workspaceId}`;
-  await expect(page.getByTestId(`sidebar-workspace-kebab-${workspaceKey}`)).toBeHidden();
+  // The animated rail stays mounted; hidden means no painted or interactive action space.
+  const actions = page.getByTestId(`sidebar-workspace-hover-actions-${workspaceKey}`);
+  await expect(actions).toHaveCSS("opacity", "0");
+  await expect(actions).toHaveCSS("width", "0px");
+  await expect(actions).toHaveCSS("pointer-events", "none");
+  await expect(actions).toHaveJSProperty("inert", true);
   await expect(page.getByTestId("workspace-hover-card")).toHaveCount(0);
 }
 
