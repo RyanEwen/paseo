@@ -1,14 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
-
-export const SIDEBAR_INITIAL_VISIBLE_ITEMS = 20;
+import { useAppSettings } from "@/hooks/use-settings";
+import { limitSidebarWorkspaces } from "./workspace-limit";
 
 export function useLimitedSidebarGroup<T>(items: readonly T[]) {
   const [expanded, setExpanded] = useState(false);
-  const visibleItems = useMemo(
-    () => (expanded ? items.slice() : items.slice(0, SIDEBAR_INITIAL_VISIBLE_ITEMS)),
-    [expanded, items],
+  const { settings } = useAppSettings();
+  const initialCount = settings.sidebarInitialWorkspaceCount;
+  const { visibleItems, canToggle } = useMemo(
+    () => limitSidebarWorkspaces({ items, initialCount, expanded }),
+    [expanded, items, initialCount],
   );
-  const canToggle = items.length > SIDEBAR_INITIAL_VISIBLE_ITEMS;
   const toggleExpanded = useCallback(() => setExpanded((current) => !current), []);
 
   return { visibleItems, expanded, canToggle, toggleExpanded };

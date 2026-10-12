@@ -1,5 +1,14 @@
 export const en = {
   paseoPlusPlus: {
+    workspaceLimit: {
+      save: "Save",
+      title: "Workspace list",
+      label: "Initially show per group",
+      limited: "Limited",
+      all: "Show all",
+      count: "Workspace count",
+      invalid: "Enter a positive whole number.",
+    },
     examples: {
       annotated: "Arrows highlight the feature.",
       before: "Before the status change",

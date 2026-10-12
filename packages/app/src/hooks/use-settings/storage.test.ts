@@ -46,6 +46,34 @@ function makeDeps(
 }
 
 describe("loadAppSettingsFromStorage", () => {
+  it.each([undefined, 0, -1, 1.5, "25", Number.MAX_SAFE_INTEGER + 1])(
+    "defaults malformed sidebar initial count %s to 20",
+    async (value) => {
+      const deps = makeDeps({
+        storage: createInMemoryKeyValueStorage({
+          [APP_SETTINGS_KEY]: JSON.stringify({ sidebarInitialWorkspaceCount: value }),
+        }),
+      });
+      const settings = await loadAppSettingsFromStorage(deps);
+      expect(settings.sidebarInitialWorkspaceCount).toBe(20);
+    },
+  );
+
+  it.each([1, 37, Number.MAX_SAFE_INTEGER, null])(
+    "retains sidebar initial count %s across save and reload",
+    async (value) => {
+      const deps = makeDeps();
+      const queryClient = new QueryClient();
+      await saveAppSettings({
+        deps,
+        queryClient,
+        updates: { sidebarInitialWorkspaceCount: value },
+      });
+      const settings = await loadAppSettingsFromStorage(deps);
+      expect(settings.sidebarInitialWorkspaceCount).toBe(value);
+    },
+  );
+
   it.each(Object.keys(DEFAULT_PASEO_PLUS_PLUS_PREFERENCES))(
     "normalizes missing or malformed %s to on while retaining an explicit off",
     async (feature) => {

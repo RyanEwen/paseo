@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Page, TestInfo } from "@playwright/test";
+import type { Page, TestInfo, Locator } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import {
@@ -13,6 +13,7 @@ import {
   movePointerAwayFromWorkspaceHoverCard,
   openMobileAgentSidebar,
   pinWorkspaceFromSidebar,
+  selectSidebarStatusGrouping,
 } from "../support/helpers/sidebar";
 import { seedWorkspace } from "../support/helpers/seed-client";
 import { expectWorkspaceHeader } from "../support/helpers/workspace-ui";
@@ -22,6 +23,11 @@ import { projectEquivalenceViewKey } from "../support/helpers/project-view-key";
 import { escapeRegex } from "../support/helpers/regex";
 import { openFilesPanel } from "../support/helpers/workspace-tabs";
 import { seedMockAgentWorkspace } from "../support/helpers/mock-agent";
+
+/** Check the outer scroll owner without confusing a visible viewport with overflowing content. */
+async function hasScrollOverflow(scroll: Locator): Promise<boolean> {
+  return scroll.evaluate((node) => node.scrollHeight > node.clientHeight);
+}
 
 const GITHUB_REMOTE_URL = "https://github.com/test-owner/test-repo.git";
 
@@ -309,6 +315,79 @@ async function expectRecoveredWorkspacesAfterReload(
 }
 
 test.describe("Sidebar workspace list", () => {
+  test("configurable limits cover project, status and pinned groups with outer scroll indicators", async ({
+    page,
+  }) => {
+    const workspace = await seedWorkspace({ repoPrefix: "sidebar-initial-limit-" });
+    try {
+      const ids = [workspace.workspaceId];
+      for (let index = 1; index < 25; index += 1) {
+        const created = await workspace.client.createWorkspace({
+          source: { kind: "directory", path: workspace.repoPath, projectId: workspace.projectId },
+          title: `Limited workspace ${index}`,
+        });
+        if (!created.workspace) throw new Error(created.error ?? "Unable to fill sidebar");
+        ids.push(created.workspace.id);
+      }
+      await page.addInitScript(() => {
+        const key = "@paseo:app-settings";
+        const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+        if (settings.sidebarInitialWorkspaceCount === undefined)
+          settings.sidebarInitialWorkspaceCount = 7;
+        localStorage.setItem(key, JSON.stringify(settings));
+      });
+      await gotoAppShell(page);
+      const rowSelector = '[data-testid^="sidebar-workspace-row-"]';
+      await expect(page.locator(rowSelector)).toHaveCount(7);
+      const projectToggle = page.getByTestId(
+        `sidebar-project-show-more-${projectEquivalenceViewKey(workspace.projectKey)}`,
+      );
+      await projectToggle.click();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      const projectScroll = page.getByTestId("sidebar-project-workspace-list-scroll");
+      await expect.poll(() => hasScrollOverflow(projectScroll)).toBe(true);
+      expect(
+        await projectScroll.evaluate((node) => getComputedStyle(node).scrollbarWidth),
+      ).not.toBe("none");
+      for (const id of ids.slice(0, 9)) await pinWorkspaceFromSidebar(page, id);
+      await expect(page.locator(rowSelector)).toHaveCount(23); // Expanded project16 + initially pinned7.
+      await page.getByTestId("sidebar-pinned-show-more").click();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      await selectSidebarStatusGrouping(page);
+      await expect(page.locator(rowSelector)).toHaveCount(14); // Two independent initial limits.
+      await page.getByTestId("sidebar-pinned-show-more").click();
+      await page.getByTestId("sidebar-status-group-show-more-done").click();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      const statusScroll = page.getByTestId("sidebar-status-list-scroll");
+      await expect.poll(() => hasScrollOverflow(statusScroll)).toBe(true);
+      expect(await statusScroll.evaluate((node) => getComputedStyle(node).scrollbarWidth)).not.toBe(
+        "none",
+      );
+      await page.evaluate(() => {
+        const key = "@paseo:app-settings";
+        const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+        localStorage.setItem(
+          key,
+          JSON.stringify({ ...settings, sidebarInitialWorkspaceCount: null }),
+        );
+      });
+      await page.reload();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      await expect(page.getByTestId("sidebar-pinned-show-more")).toHaveCount(0);
+      await expect(page.getByTestId("sidebar-status-group-show-more-done")).toHaveCount(0);
+      await page.evaluate(() => {
+        const key = "@paseo:app-settings";
+        const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+        localStorage.setItem(key, JSON.stringify({ ...settings, sidebarInitialWorkspaceCount: 1 }));
+      });
+      await page.reload();
+      await expect(page.locator(rowSelector)).toHaveCount(2);
+      await expect.poll(() => hasScrollOverflow(statusScroll)).toBe(false);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   test("recovers missing workspaces from a damaged legacy cache after reload", async ({
     page,
   }, testInfo) => {

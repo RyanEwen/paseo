@@ -3,6 +3,15 @@ import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
   paseoPlusPlus: {
+    workspaceLimit: {
+      save: "保存",
+      title: "ワークスペース一覧",
+      label: "グループごとの初期表示",
+      limited: "件数を指定",
+      all: "すべて表示",
+      count: "ワークスペース数",
+      invalid: "正の整数を入力してください。",
+    },
     examples: {
       annotated: "矢印は対象の機能を示しています。",
       before: "状態変更前",

@@ -3,6 +3,15 @@ import { pluginSettings } from "./plugin-settings";
 
 export const ru: TranslationResources = {
   paseoPlusPlus: {
+    workspaceLimit: {
+      save: "Сохранить",
+      title: "Список рабочих пространств",
+      label: "Показывать в каждой группе сначала",
+      limited: "Ограниченное число",
+      all: "Показать все",
+      count: "Количество рабочих пространств",
+      invalid: "Введите положительное целое число.",
+    },
     examples: {
       annotated: "Стрелки указывают на функцию.",
       before: "До изменения статуса",
