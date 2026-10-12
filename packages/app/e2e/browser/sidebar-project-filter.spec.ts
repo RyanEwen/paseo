@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type Locator } from "@playwright/test";
 import { test } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import { seedWorkspace } from "../support/helpers/seed-client";
@@ -9,6 +9,7 @@ import {
   openSidebarProjectFilter,
   pinWorkspaceFromSidebar,
   openMobileAgentSidebar,
+  expectMobileAgentSidebarVisible,
   selectAllProjectsFilter,
   selectSidebarStatusGrouping,
   toggleProjectFilter,
@@ -19,6 +20,14 @@ async function selectDisplayOption(page: Page, section: string, option: string):
   await openSidebarDisplayPage(page, `sidebar-display-${section}`);
   await page.getByTestId(option).click();
   await closeSidebarDisplayPreferences(page);
+}
+
+/** Every activity state uses the trailing rail rather than the leading title rail. */
+async function expectStatusOnRight(row: Locator, state: string): Promise<void> {
+  const rowBounds = await row.boundingBox();
+  const statusBounds = await row.getByTestId(`workspace-status-indicator-${state}`).boundingBox();
+  if (!rowBounds || !statusBounds) throw new Error("Workspace status has no rendered bounds");
+  expect(statusBounds.x).toBeGreaterThan(rowBounds.x + rowBounds.width / 2);
 }
 
 test.describe("Sidebar project filter", () => {
@@ -230,6 +239,7 @@ test("project chips stay visible through bulk collapse and reload", async ({ pag
     await gotoAppShell(page);
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(chip).toHaveText("Done");
+    await expectStatusOnRight(row, "done");
     const projectRow = page.getByTestId(`sidebar-project-row-${workspace.projectKey}`);
     await row.hover();
     const workspaceHoverColor = await row.evaluate(
@@ -255,6 +265,7 @@ test("project chips stay visible through bulk collapse and reload", async ({ pag
     await page.getByTestId(`sidebar-workspace-kebab-${serverId}:${workspace.workspaceId}`).click();
     await page.getByRole("menuitem", { name: "Mark as unread", exact: true }).click();
     await expect(chip).toHaveText("Ready to review");
+    await expectStatusOnRight(row, "attention");
     await page.mouse.move(0, 0);
     const projectBounds = await projectRow.boundingBox();
     if (!projectBounds) throw new Error("Project row has no rendered bounds");
@@ -296,6 +307,7 @@ test("project chips stay visible through bulk collapse and reload", async ({ pag
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ colorScheme: "dark" });
     await openMobileAgentSidebar(page);
+    await expectMobileAgentSidebarVisible(page);
     await expect(chip).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath("sidebar-project-activity-compact-dark.png"),
@@ -395,6 +407,27 @@ test("project working count includes pinned workspaces", async ({ page }, testIn
     await page.mouse.move(0, 0);
     await expect.poll(async () => (await chip.boundingBox())?.x).toBeCloseTo(restingBounds.x, 0);
 
+    const workspaceRow = page.getByTestId(
+      `sidebar-workspace-row-${getServerId()}:${workspace.workspaceId}`,
+    );
+    const workspaceSpinner = workspaceRow.getByTestId("workspace-status-indicator-running");
+    await page.mouse.move(0, 0);
+    const rowBounds = await workspaceRow.boundingBox();
+    const spinnerBounds = await workspaceSpinner.boundingBox();
+    if (!rowBounds || !spinnerBounds)
+      throw new Error("Working workspace row has no rendered bounds");
+    expect(spinnerBounds.x).toBeGreaterThan(rowBounds.x + rowBounds.width / 2);
+    await workspaceRow.hover();
+    await expect
+      .poll(async () => (await workspaceSpinner.boundingBox())?.x ?? Infinity)
+      .toBeLessThan(spinnerBounds.x - 10);
+    await expect(
+      page.getByTestId(`sidebar-workspace-kebab-${getServerId()}:${workspace.workspaceId}`),
+    ).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(async () => (await workspaceSpinner.boundingBox())?.x)
+      .toBeCloseTo(spinnerBounds.x, 0);
     await workspace.client.setWorkspacePinned(second.id, true);
     await expect(chip).toHaveText("2 working");
     await page.getByTestId("sidebar-collapse-all").click();
@@ -407,6 +440,32 @@ test("project working count includes pinned workspaces", async ({ page }, testIn
       })
       .toBeCloseTo(restingBounds.x + restingBounds.width, 0);
     await page.screenshot({ path: testInfo.outputPath("sidebar-two-working.png") });
+    await page.getByTestId("sidebar-expand-all").click();
+    const pinnedRow = page.getByTestId(`sidebar-workspace-row-${getServerId()}:${second.id}`);
+    await expect(pinnedRow.getByTestId("workspace-status-indicator-running")).toBeVisible();
+    await selectSidebarStatusGrouping(page);
+    await expect(workspaceSpinner).toBeVisible();
+    const statusSpinnerBounds = await workspaceSpinner.boundingBox();
+    if (!statusSpinnerBounds) throw new Error("Status-group working spinner has no bounds");
+    await workspaceRow.hover();
+    await expect
+      .poll(async () => (await workspaceSpinner.boundingBox())?.x ?? Infinity)
+      .toBeLessThan(statusSpinnerBounds.x - 10);
+    await page
+      .getByTestId(`sidebar-workspace-kebab-${getServerId()}:${workspace.workspaceId}`)
+      .click();
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole("menuitem", { name: "Archive", exact: true })).toBeVisible();
+    await expect(workspaceSpinner).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openMobileAgentSidebar(page);
+    await expectMobileAgentSidebarVisible(page);
+    await expect(workspaceSpinner).toBeVisible();
+    await expect(
+      page.getByTestId(`sidebar-workspace-kebab-${getServerId()}:${workspace.workspaceId}`),
+    ).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("sidebar-working-workspaces-compact.png") });
   } finally {
     await workspace.cleanup();
   }

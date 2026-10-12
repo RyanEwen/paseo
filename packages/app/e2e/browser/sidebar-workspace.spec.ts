@@ -79,6 +79,15 @@ async function openWorkspaceHoverCard(page: import("@playwright/test").Page, wor
   return hoverCard;
 }
 
+/** Assert the rendered hover-card value is readable without single-line clipping. */
+async function expectHoverCardValueFits(page: Page, testID: string, value: string): Promise<void> {
+  const text = page.getByTestId(testID);
+  await expect(text).toHaveText(value);
+  await expect
+    .poll(async () => text.evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBe(0);
+}
+
 interface PaseoOwnedWorktree {
   projectName: string;
   workspaceId: string;
@@ -88,8 +97,12 @@ interface PaseoOwnedWorktree {
 async function withPaseoOwnedWorktree(
   run: (workspace: PaseoOwnedWorktree) => Promise<void>,
 ): Promise<void> {
-  const project = await seedWorkspace({ repoPrefix: "sidebar-hover-owned-worktree-" });
-  const worktreeSlug = "hover-card-owned-worktree";
+  const branchName = "feature/hover-card-with-a-long-branch-name-that-should-remain-readable";
+  const project = await seedWorkspace({
+    repoPrefix: "sidebar-hover-owned-worktree-",
+    repo: { branches: [branchName] },
+  });
+  const worktreeSlug = "hover-card-owned-worktree-with-a-long-directory";
 
   try {
     const created = await project.client.createWorkspace({
@@ -98,6 +111,8 @@ async function withPaseoOwnedWorktree(
         cwd: project.repoPath,
         projectId: project.projectId,
         worktreeSlug,
+        action: "checkout",
+        refName: branchName,
       },
     });
     if (!created.workspace) {
@@ -481,13 +496,26 @@ test.describe("Sidebar workspace list", () => {
     }
   });
 
-  test("Paseo-owned worktree hover card shows the worktree directory name", async ({ page }) => {
+  test("Paseo-owned worktree hover card fits long branch and directory names", async ({
+    page,
+  }, testInfo) => {
     await withPaseoOwnedWorktree(async ({ projectName, workspaceId, worktreeSlug }) => {
       await gotoAppShell(page);
       await waitForSidebarProject(page, projectName);
       await openWorkspaceHoverCard(page, workspaceId);
 
-      await expect(page.getByTestId("hover-card-workspace-cwd")).toHaveText(worktreeSlug);
+      await expectHoverCardValueFits(page, "hover-card-workspace-cwd", worktreeSlug);
+      await expectHoverCardValueFits(
+        page,
+        "hover-card-workspace-branch",
+        "feature/hover-card-with-a-long-branch-name-that-should-remain-readable",
+      );
+      const card = page.getByTestId("workspace-hover-card");
+      const bounds = await card.boundingBox();
+      if (!bounds) throw new Error("Workspace hover card has no rendered bounds");
+      expect(bounds.width).toBeGreaterThan(260);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(1280);
+      await page.screenshot({ path: testInfo.outputPath("workspace-hover-card-long-names.png") });
     });
   });
 });
