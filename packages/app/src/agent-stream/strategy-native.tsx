@@ -1,4 +1,12 @@
-import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentRef,
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FlatList,
   Platform,
@@ -19,6 +27,8 @@ import {
   resolveNativeReadingPosition,
   resolveNativeLivePromptOffset,
 } from "./native-reading-position";
+import { createNativePromptHandoffSampler } from "./native-prompt-handoff";
+import { resolvePromptHandoffProgress, type PromptHandoff } from "./prompt-handoff";
 import { createNativePromptJumpController } from "./native-prompt-jump";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { useKeyboardStreamInset } from "@/keyboard/shift";
@@ -80,6 +90,32 @@ function MeasuredLiveRow({
     [id, onMeasure],
   );
   return <View onLayout={handleLayout}>{children}</View>;
+}
+
+/** Measure mounted history prompts through public native refs, without extra scroll ownership. */
+function MeasuredHistoryPrompt({
+  id,
+  nodes,
+  onLayout,
+  children,
+}: {
+  id: string;
+  nodes: Map<string, ComponentRef<typeof View>>;
+  onLayout: () => void;
+  children: React.ReactNode;
+}) {
+  const register = useCallback(
+    (node: ComponentRef<typeof View> | null) => {
+      if (node) nodes.set(id, node);
+      else nodes.delete(id);
+    },
+    [id, nodes],
+  );
+  return (
+    <View collapsable={false} ref={register} onLayout={onLayout}>
+      {children}
+    </View>
+  );
 }
 
 function keyExtractor(item: { id: string }): string {
@@ -396,6 +432,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       }),
     [findHistoryPromptIndex, reportPromptFailure, reducedMotion],
   );
+  const promptNodes = useRef(new Map<string, ComponentRef<typeof View>>());
+  const measuredHandoff = useRef<PromptHandoff | null>(null);
   const reportReadingPosition = useStableEvent(() => {
     const metrics = streamViewportMetricsRef.current;
     const { rowId, visibleUserIds } = resolveNativeReadingPosition({
@@ -406,7 +444,22 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       viewportHeight: metrics.viewportHeight,
       offsetY: metrics.offsetY,
     });
+    const userHandoffs: PromptHandoff[] = [];
+    if (measuredHandoff.current && visibleUserIds.includes(measuredHandoff.current.id))
+      userHandoffs.push(measuredHandoff.current);
+    if (liveHeaderHeightRef.current !== null) {
+      const top = liveHeaderHeightRef.current - metrics.viewportHeight - metrics.offsetY;
+      for (const item of segments.liveHead) {
+        const geometry = liveGeometryRef.current.get(item.id);
+        if (item.kind === "user_message" && geometry && visibleUserIds.includes(item.id))
+          userHandoffs.push({
+            id: item.id,
+            progress: resolvePromptHandoffProgress(geometry.y - top),
+          });
+      }
+    }
     props.onReadingPositionChange?.({
+      userHandoffs,
       rowId,
       visibleUserIds,
       navigating: navigatingPromptRef.current,
@@ -414,6 +467,41 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       manual: isUserScrollActiveRef.current,
     });
   });
+  const handoffSampler = useMemo(
+    () =>
+      createNativePromptHandoffSampler({
+        measureViewport(callback) {
+          const node = flatListRef.current?.getNativeScrollRef();
+          if (node && "measureInWindow" in node) node.measureInWindow((_x, y) => callback(y));
+          else callback(null);
+        },
+        measurePrompt(id, callback) {
+          const node = promptNodes.current.get(id);
+          if (node) node.measureInWindow((_x, y) => callback(y));
+          else callback(null);
+        },
+        onMeasured(id, progress) {
+          measuredHandoff.current = { id, progress };
+          reportReadingPosition();
+        },
+      }),
+    [reportReadingPosition],
+  );
+  const samplePromptHandoff = useStableEvent(() => {
+    const leading = visibleHistoryRef.current
+      .filter((token) => token.isViewable)
+      .toSorted((a, b) => (b.index ?? 0) - (a.index ?? 0))[0];
+    if (leading?.item.kind === "user_message") handoffSampler.sample(leading.item.id);
+    else {
+      handoffSampler.cancel();
+      measuredHandoff.current = null;
+    }
+  });
+  useEffect(() => {
+    measuredHandoff.current = null;
+    handoffSampler.cancel();
+    return () => handoffSampler.cancel();
+  }, [agentId, handoffSampler]);
   const finishPromptAnimation = useStableEvent(() => {
     if (promptSettleTimerRef.current !== null) clearTimeout(promptSettleTimerRef.current);
     promptSettleTimerRef.current = null;
@@ -434,6 +522,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   const handleViewableItemsChanged = useStableEvent(
     ({ viewableItems }: { viewableItems: ViewToken<StreamItem>[] }) => {
       visibleHistoryRef.current = viewableItems;
+      samplePromptHandoff();
       reportReadingPosition();
     },
   );
@@ -516,6 +605,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       contentMeasuredForKey: "native-virtualized",
     };
 
+    samplePromptHandoff();
     reportReadingPosition();
     if (navigatingPromptRef.current) schedulePromptSettle(120);
     const nearBottom = isScrollEventNearBottom(event);
@@ -649,7 +739,17 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   const renderItem = useStableEvent(
     ({ item, index }: ListRenderItemInfo<StreamItem>): ReactElement | null => {
       const rendered = renderHistoryMountedRow(item, index, historyItems);
-      return (rendered ?? null) as ReactElement | null;
+      if (item.kind !== "user_message" || !rendered)
+        return (rendered ?? null) as ReactElement | null;
+      return (
+        <MeasuredHistoryPrompt
+          id={item.id}
+          nodes={promptNodes.current}
+          onLayout={samplePromptHandoff}
+        >
+          {rendered}
+        </MeasuredHistoryPrompt>
+      );
     },
   );
 

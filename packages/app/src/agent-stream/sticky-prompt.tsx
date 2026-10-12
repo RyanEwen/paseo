@@ -24,7 +24,7 @@ export interface StickyPromptHandle {
   reviewReading(): void;
 }
 
-/** Overlay the original bubble after it leaves view, without resizing the timeline viewport. */
+/** Overlay a compact copy as the original bubble crosses the viewport top, without resizing the timeline viewport. */
 export const StickyPrompt = forwardRef<StickyPromptHandle, Props>(function StickyPrompt(
   { serverId, agentId, client, availableHeight, contentMaxWidth, children, ...input },
   ref,

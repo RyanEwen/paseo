@@ -330,6 +330,29 @@ for (const viewport of [
         // Older turns leave enough later content to scroll their original bubble offscreen.
         if (index < agent.prompts.length - 8) {
           await expectTimelinePromptLandedBelowTop(page, agent.prompts[index]!);
+          if (index === 10) {
+            const timeline = page.getByTestId("agent-chat-scroll");
+            const viewportBox = await timeline.boundingBox();
+            const originalBox = await target.boundingBox();
+            await timeline.hover();
+            await page.mouse.wheel(0, originalBox!.y - viewportBox!.y + 24);
+            await expect(sticky).toBeVisible();
+            await expect(target).toBeInViewport();
+            await expect
+              .poll(() => sticky.evaluate((element) => Number(getComputedStyle(element).opacity)))
+              .toBeGreaterThan(0);
+            await expect
+              .poll(() => sticky.evaluate((element) => Number(getComputedStyle(element).opacity)))
+              .toBeLessThan(1);
+            const bubble = await sticky.getByTestId("user-message").boundingBox();
+            const controls = await sticky.getByTestId("sticky-user-message-controls").boundingBox();
+            expect(controls!.y).toBeGreaterThanOrEqual(bubble!.y + bubble!.height - 1);
+            await page.screenshot({
+              path: `../../docs/qa-evidence/sticky-user-message/handoff-${viewport.width}.png`,
+            });
+            await page.mouse.wheel(0, -40);
+            await expect(sticky).toHaveCount(0);
+          }
           await scrollTimelinePastPrompt(page, agent.prompts[index]!);
         }
       }

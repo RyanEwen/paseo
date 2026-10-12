@@ -1,3 +1,4 @@
+import type { PromptReadingPosition } from "./prompt-reading-position";
 import type { StreamItem } from "@/types/stream";
 import type { ChatOutlinePrompt } from "./chat-outline/model";
 
@@ -114,10 +115,10 @@ export function getMissingReadingPromptSeq(input: {
 export function isStickyPromptVisible(
   message: UserPrompt | undefined,
   target: PromptTarget | undefined,
-  visibleIds: readonly string[],
   rowId: string | null,
+  progress: number,
 ): boolean {
-  return rowId !== null && !!message && !!target && !visibleIds.includes(message.id);
+  return rowId !== null && !!message && !!target && progress > 0;
 }
 
 /** Discovery may also begin before the first loaded user message exists. */
@@ -174,4 +175,15 @@ export function resolveStickyPromptMessage(
   if (readingMissing) return undefined;
   if (missingSeq !== undefined && canFetch) return fetched;
   return selected;
+}
+
+/** The compact copy starts before the original leaves view and fades with its scroll position. */
+export function resolveStickyPromptProgress(
+  message: UserPrompt | undefined,
+  reading: PromptReadingPosition,
+): number {
+  if (!message || reading.rowId === null) return 0;
+  const handoff = reading.userHandoffs?.find((value) => value.id === message.id);
+  if (handoff) return handoff.progress;
+  return reading.visibleUserIds.includes(message.id) ? 0 : 1;
 }

@@ -1,3 +1,4 @@
+import { resolvePromptHandoffProgress, type PromptHandoff } from "./prompt-handoff";
 import React, {
   type CSSProperties,
   useCallback,
@@ -720,16 +721,22 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     }
     const viewport = scrollContainer.getBoundingClientRect();
     const visibleUsers: string[] = [];
+    const userHandoffs: PromptHandoff[] = [];
     for (const bubble of contentNode.querySelectorAll<HTMLElement>(
       '[data-testid="user-message"]',
     )) {
       const bounds = bubble.getBoundingClientRect();
       const id = bubble.closest<HTMLElement>("[data-message-id]")?.dataset.messageId;
-      if (id && bounds.bottom > viewport.top && bounds.top < viewport.bottom) visibleUsers.push(id);
+      if (id && bounds.bottom > viewport.top && bounds.top < viewport.bottom) {
+        visibleUsers.push(id);
+        const progress = resolvePromptHandoffProgress(bounds.top - viewport.top);
+        if (progress > 0) userHandoffs.push({ id, progress });
+      }
     }
     onReadingPositionChange({
       rowId: readingAnchor.getReadingRowId(scrollContainer.scrollTop),
       visibleUserIds: visibleUsers,
+      userHandoffs,
       navigating: isJumpSettling(),
       following: followOutputRef.current,
       manual: manualReadingRef.current,

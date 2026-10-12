@@ -1048,7 +1048,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     }, [streamLayout.liveHead]);
 
     const handleReadingPositionChange = useStableEvent((position: PromptReadingPosition) => {
-      const { rowId, visibleUserIds, navigating, following, manual } = position;
+      const { rowId, visibleUserIds, navigating, following, manual, userHandoffs } = position;
       const row =
         rowId === null
           ? undefined
@@ -1057,7 +1057,15 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       const wasManual = promptReading.getSnapshot().manual;
       // Presentation rows can be Markdown blocks or plugin cards. Resolve their
       // authoritative position before publishing to surfaces that hold canonical prompts.
-      promptReading.publish(rowId, visibleUserIds, navigating, following, manual, seq);
+      promptReading.publish(
+        rowId,
+        visibleUserIds,
+        navigating,
+        following,
+        manual,
+        seq,
+        userHandoffs,
+      );
       if (manual && !wasManual) stickyPromptRef.current?.reviewReading();
       chatOutline.reportReadingPosition(seq);
     });

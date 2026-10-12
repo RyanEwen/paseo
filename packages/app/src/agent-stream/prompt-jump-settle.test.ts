@@ -1,3 +1,5 @@
+import { resolvePromptHandoffProgress } from "./prompt-handoff";
+import { createNativePromptHandoffSampler } from "./native-prompt-handoff";
 import type { StreamItem } from "@/types/stream";
 import { createNativePromptJumpController } from "./native-prompt-jump";
 import { describe, expect, it, vi } from "vitest";
@@ -445,4 +447,39 @@ it("native live prompt uses its measured landing offset and the animated path", 
   expect(f.scrollToIndex).not.toHaveBeenCalled();
   expect(f.onFailure).not.toHaveBeenCalled();
   expect(f.controller.isActive()).toBe(false);
+});
+
+describe("scroll driven prompt handoff", () => {
+  it("overlaps before the original leaves view and reverses with scrolling", () => {
+    expect([8, 0, -24, -48, -100, -24, 8].map(resolvePromptHandoffProgress)).toEqual([
+      0, 0, 0.5, 1, 1, 0.5, 0,
+    ]);
+  });
+  it("accepts same-target progress without starvation and rejects stale native measurements", () => {
+    const viewport: ((y: number | null) => void)[] = [];
+    const prompts: ((y: number | null) => void)[] = [];
+    const measured = vi.fn();
+    const sampler = createNativePromptHandoffSampler({
+      measureViewport: (callback) => viewport.push(callback),
+      measurePrompt: (_id, callback) => prompts.push(callback),
+      onMeasured: measured,
+    });
+    sampler.sample("first");
+    sampler.sample("first");
+    viewport[0]!(100);
+    viewport[1]!(100);
+    prompts[0]!(76);
+    expect(measured).toHaveBeenLastCalledWith("first", 0.5);
+    prompts[1]!(52);
+    expect(measured).toHaveBeenLastCalledWith("first", 1);
+    sampler.sample("first");
+    viewport[2]!(100);
+    sampler.sample("second");
+    prompts[2]!(80);
+    expect(measured).toHaveBeenCalledTimes(2);
+    viewport[3]!(100);
+    sampler.cancel();
+    prompts[3]!(60);
+    expect(measured).toHaveBeenCalledTimes(2);
+  });
 });

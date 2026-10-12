@@ -791,6 +791,15 @@ describe("viewport-owned sticky prompt", () => {
     act(() => reading.publish(first.id, [first.id]));
     expect(result.current.message?.id).toBe("first");
     expect(result.current.stickyVisible).toBe(false);
+    act(() =>
+      reading.publish(first.id, [first.id], false, false, true, null, [
+        { id: first.id, progress: 0.5 },
+      ]),
+    );
+    expect(result.current.stickyVisible).toBe(true);
+    expect(result.current.stickyProgress).toBe(0.5);
+    act(() => reading.publish(first.id, [first.id]));
+    expect(result.current.stickyVisible).toBe(false);
     act(() => reading.publish(answer.id));
     expect(result.current.stickyVisible).toBe(true);
     const incoming = stickyUser("third", 4);
