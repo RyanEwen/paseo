@@ -10,6 +10,7 @@ import type {
   SidebarProjectEntry,
   SidebarWorkspaceEntry,
 } from "@/hooks/use-sidebar-workspaces-list";
+import { applyStoredOrdering } from "@/hooks/sidebar-workspaces-view-model";
 import { arrangeSidebarWorkspaces } from "./sidebar-arrangement";
 import type { SidebarWorkspaceSortMode, SidebarGroupMode } from "@/stores/sidebar-view-store";
 import {
@@ -64,12 +65,15 @@ export function buildSidebarProjection(input: SidebarProjectionInput): SidebarPr
   if (input.groupMode === "project") {
     pinnedGroups.unpinnedProjects = pinnedGroups.unpinnedProjects.map((project) => ({
       ...project,
-      workspaces: arrangeSidebarWorkspaces({
-        workspaces: project.workspaces,
-        mode: input.workspaceSortMode,
-        entries: input.workspaceEntriesByKey,
-        workspaceTitleSource: input.workspaceTitleSource,
-      }),
+      workspaces: arrangeProjectPinnedWorkspaces(
+        input,
+        arrangeSidebarWorkspaces({
+          workspaces: project.workspaces,
+          mode: input.workspaceSortMode,
+          entries: input.workspaceEntriesByKey,
+          workspaceTitleSource: input.workspaceTitleSource,
+        }),
+      ),
     }));
   }
   const pinnedWorkspaceKeys = new Set(input.pinnedKeys.pinnedWorkspaceKeys);
@@ -144,4 +148,28 @@ function buildWorkspaceGroups(
       });
     }
   }
+}
+
+/** Keep project pins ahead of sorted siblings without writing their saved custom order. */
+function arrangeProjectPinnedWorkspaces(
+  input: SidebarProjectionInput,
+  workspaces: SidebarProjectEntry["workspaces"],
+): SidebarProjectEntry["workspaces"] {
+  const pins = workspaces.filter(
+    (workspace) => input.workspaceEntriesByKey.get(workspace.workspaceKey)?.projectPinnedAt != null,
+  );
+  const pinKeys = new Set(pins.map((workspace) => workspace.workspaceKey));
+  pins.sort((a, b) => {
+    const aTime = input.workspaceEntriesByKey.get(a.workspaceKey)?.projectPinnedAt ?? "";
+    const bTime = input.workspaceEntriesByKey.get(b.workspaceKey)?.projectPinnedAt ?? "";
+    return bTime.localeCompare(aTime);
+  });
+  return [
+    ...applyStoredOrdering({
+      items: pins,
+      storedOrder: input.pinnedWorkspaceOrder,
+      getKey: (workspace) => workspace.workspaceKey,
+    }),
+    ...workspaces.filter((workspace) => !pinKeys.has(workspace.workspaceKey)),
+  ];
 }

@@ -14,6 +14,8 @@ export interface SeedWorkspaceDescriptor {
   workspaceDirectory: string;
   diffStat: { additions: number; deletions: number } | null;
   labels?: string[];
+  pinnedAt?: string | null;
+  projectPinnedAt?: string | null;
 }
 
 interface SeedProjectDescriptor {

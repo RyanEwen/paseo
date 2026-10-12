@@ -8288,6 +8288,30 @@ test("workspace.pin.set.request stores the pin timestamp and emits an updated de
       pinnedAt: response?.payload.pinnedAt,
     },
   });
+  for (const [scope, pinned] of [
+    ["project", true],
+    ["global", true],
+    ["project", true],
+    ["project", false],
+  ] as const) {
+    emitted.length = 0;
+    await session.handleMessage({
+      type: "workspace.pin.set.request",
+      workspaceId: workspace.workspaceId,
+      pinned,
+      scope,
+      requestId: `req-${scope}-${pinned}`,
+    });
+    const record = workspaces.get("ws-1")!;
+    expect(record.pinnedAt).toEqual(pinned && scope === "global" ? expect.any(String) : null);
+    expect(record.projectPinnedAt).toEqual(
+      pinned && scope === "project" ? expect.any(String) : null,
+    );
+    expect(findByType(emitted, "workspace_update")?.payload).toMatchObject({
+      kind: "upsert",
+      workspace: { id: "ws-1", pinnedAt: record.pinnedAt, projectPinnedAt: record.projectPinnedAt },
+    });
+  }
 });
 
 test("workspace.title.set.request with whitespace-only title clears the title", async () => {

@@ -1357,7 +1357,9 @@ export const es: TranslationResources = {
         copyPath: "Copiar ruta",
         copyBranchName: "Copiar nombre de sucursal",
         rename: "Cambiar nombre del espacio de trabajo",
-        pin: "Anclar arriba",
+        pin: "Fijar al inicio de la barra lateral",
+        pinInProject: "Fijar en el proyecto",
+        unpinInProject: "Desfijar del proyecto",
         unpin: "Desanclar",
         archive: "Archivo",
         archiveWorkspace: "Archivar espacio de trabajo",
@@ -1378,6 +1380,8 @@ export const es: TranslationResources = {
         invalidBranchName: "Nombre de sucursal no válido",
       },
       toasts: {
+        updateHostToPinInProject:
+          "Actualiza este host para fijar espacios de trabajo en un proyecto.",
         workspacePathUnavailable: "RutaWorkspaceno disponible",
         pathCopied: "Ruta copiada",
         branchNameCopied: "Nombre de la sucursal copiado",

@@ -1335,7 +1335,9 @@ export const ja: TranslationResources = {
         copyPath: "パスをコピー",
         copyBranchName: "ブランチ名をコピー",
         rename: "ワークスペースの名前を変更",
-        pin: "上部に固定",
+        pin: "サイドバーの先頭にピン留め",
+        pinInProject: "プロジェクト内でピン留め",
+        unpinInProject: "プロジェクト内のピン留めを解除",
         unpin: "固定解除",
         archive: "アーカイブ",
         archiveWorkspace: "ワークスペースをアーカイブ",
@@ -1356,6 +1358,8 @@ export const ja: TranslationResources = {
         invalidBranchName: "無効なブランチ名",
       },
       toasts: {
+        updateHostToPinInProject:
+          "プロジェクト内でワークスペースをピン留めするには、このホストを更新してください。",
         workspacePathUnavailable: "ワークスペースパスが利用できません",
         pathCopied: "パスをコピーしました",
         branchNameCopied: "ブランチ名をコピーしました",

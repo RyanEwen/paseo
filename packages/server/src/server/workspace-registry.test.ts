@@ -516,6 +516,40 @@ describe("workspace registries", () => {
     });
   });
 
+  test("retains project pins across reload and archive for same-cwd siblings", async () => {
+    await workspaceRegistry.initialize();
+    for (const id of ["pin", "ordinary"]) {
+      await workspaceRegistry.upsert(
+        createPersistedWorkspaceRecord({
+          workspaceId: id,
+          projectId: "proj-1",
+          cwd: "/tmp/repo",
+          kind: "local_checkout",
+          displayName: id,
+          createdAt: "2026-10-11T12:00:00.000Z",
+          updatedAt: "2026-10-11T12:00:00.000Z",
+          ...(id === "pin" ? { projectPinnedAt: "2026-10-11T12:00:00.000Z" } : {}),
+        }),
+      );
+    }
+    await workspaceRegistry.archive("pin", "2026-10-11T13:00:00.000Z");
+    const reloaded = new FileBackedWorkspaceRegistry(
+      path.join(tmpDir, "projects", "workspaces.json"),
+      logger,
+    );
+    await reloaded.initialize();
+    expect(await reloaded.get("pin")).toMatchObject({
+      pinnedAt: null,
+      projectPinnedAt: "2026-10-11T12:00:00.000Z",
+    });
+    expect((await reloaded.get("ordinary"))?.projectPinnedAt).toBeUndefined();
+    await reloaded.update("pin", (record) => ({ ...record, archivedAt: null }));
+    expect(await reloaded.get("pin")).toMatchObject({
+      archivedAt: null,
+      projectPinnedAt: "2026-10-11T12:00:00.000Z",
+    });
+  });
+
   test("composes concurrent workspace field updates without losing either change", async () => {
     await workspaceRegistry.initialize();
     await workspaceRegistry.upsert(
