@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import {
+  expectReconnectingToastGone,
+  expectReconnectingToastVisible,
+} from "../support/helpers/workspace-ui";
+import { installDaemonWebSocketGate } from "../support/helpers/daemon-websocket-gate";
 import { test } from "../support/fixtures";
 import { getServerId } from "../support/helpers/server-id";
 import { connectSeedClient } from "../support/helpers/seed-client";
@@ -25,6 +30,25 @@ import {
   reloadWorkspace,
 } from "../support/helpers/archive-tab";
 import { expectAgentTabActive } from "../support/helpers/launcher";
+
+/** Open the shared launcher dialog from the active desktop workspace. */
+async function openReopenDialog(page: Page): Promise<void> {
+  await page.getByTestId("workspace-new-tab-button").filter({ visible: true }).first().click();
+  await page.getByTestId("workspace-new-tab-menu-reopen-closed-agent").click();
+  await expect(page.getByTestId("reopen-closed-agent-dialog-content")).toBeVisible();
+}
+
+/** Known host failure must remain actionable and must not be covered by a progress indicator. */
+async function expectReopenFailure(page: Page): Promise<void> {
+  await expectReconnectingToastVisible(page);
+  await expect(page.getByTestId("reopen-closed-agent-error")).toBeVisible();
+  await expect(page.getByTestId("reopen-closed-agent-loading")).toHaveCount(0);
+  await expect(
+    page
+      .getByTestId("reopen-closed-agent-error")
+      .getByRole("button", { name: "Retry", exact: true }),
+  ).toBeVisible();
+}
 
 test.describe("Archive tab reconciliation", () => {
   let client: Awaited<ReturnType<typeof connectSeedClient>>;
@@ -165,6 +189,141 @@ test.describe("Archive tab reconciliation", () => {
     await clickSessionRow(page, title);
     await expectAgentTabActive(page, child.id);
     expect(await fetchAgentArchivedAt(client, child.id)).toBeNull();
+  });
+
+  test("Reopen closed agent reports held-initial failure, then recovers cached rows", async ({
+    page,
+  }) => {
+    const archived = await createMockIdleAgent(client, {
+      cwd: tempRepo.path,
+      workspaceId,
+      title: `repair-initial-${randomUUID().slice(0, 8)}`,
+    });
+    const active = await createMockIdleAgent(client, {
+      cwd: tempRepo.path,
+      workspaceId,
+      title: "Repair active",
+    });
+    const gate = await installDaemonWebSocketGate(page);
+    await resetSeededPageState(page);
+    await openWorkspaceWithAgents(page, [archived, active]);
+    await archiveAgentFromDaemon(client, archived.id);
+    await expectWorkspaceTabHidden(page, archived.id);
+    gate.holdNextClientRequest("fetch_agent_history_request");
+    await openReopenDialog(page);
+    await gate.waitForHeldClientRequest();
+    await expect(page.getByTestId("reopen-closed-agent-loading")).toBeVisible();
+    await gate.drop();
+    await expectReopenFailure(page);
+    await page.keyboard.press("Escape");
+    await openReopenDialog(page);
+    await expectReopenFailure(page);
+    gate.discardHeldClientRequest();
+    gate.restore();
+    await expectReconnectingToastGone(page);
+    await page
+      .getByTestId("reopen-closed-agent-error")
+      .getByRole("button", { name: "Retry", exact: true })
+      .click();
+    await expectSessionRowArchived(page, archived.title);
+    await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
+    await gate.drop();
+    await expectReopenFailure(page);
+    await expectSessionRowArchived(page, archived.title);
+    gate.restore();
+    await expectReconnectingToastGone(page);
+    await page
+      .getByTestId("reopen-closed-agent-error")
+      .getByRole("button", { name: "Retry", exact: true })
+      .click();
+    await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
+    await expectSessionRowArchived(page, archived.title);
+  });
+
+  test("Reopen closed agent reports fresh-offline failure without starting a fetch", async ({
+    page,
+  }) => {
+    const archived = await createMockIdleAgent(client, {
+      cwd: tempRepo.path,
+      workspaceId,
+      title: `repair-offline-${randomUUID().slice(0, 8)}`,
+    });
+    const active = await createMockIdleAgent(client, {
+      cwd: tempRepo.path,
+      workspaceId,
+      title: "Offline repair active",
+    });
+    const gate = await installDaemonWebSocketGate(page);
+    await resetSeededPageState(page);
+    await openWorkspaceWithAgents(page, [archived, active]);
+    await archiveAgentFromDaemon(client, archived.id);
+    await expectWorkspaceTabHidden(page, archived.id);
+    await gate.drop();
+    await openReopenDialog(page);
+    await expectReopenFailure(page);
+    expect(gate.getClientRequestCount("fetch_agent_history_request")).toBe(0);
+    gate.restore();
+    await expectReconnectingToastGone(page);
+    await page
+      .getByTestId("reopen-closed-agent-error")
+      .getByRole("button", { name: "Retry", exact: true })
+      .click();
+    await expectSessionRowArchived(page, archived.title);
+    await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
+  });
+
+  test("Reopen closed agent stops cached all-open pagination on disconnect and resumes in the same workspace", async ({
+    page,
+  }) => {
+    const created = await client.createWorkspace({
+      source: { kind: "directory", path: tempRepo.path },
+      title: "Pagination repair",
+    });
+    if (!created.workspace)
+      throw new Error(created.error ?? "Missing pagination fixture workspace");
+    const scopedWorkspaceId = created.workspace.id;
+    const archived = await createMockIdleAgent(client, {
+      cwd: tempRepo.path,
+      workspaceId: scopedWorkspaceId,
+      title: `repair-page-closed-${randomUUID().slice(0, 8)}`,
+    });
+    await archiveAgentFromDaemon(client, archived.id);
+    const activeAgents = [];
+    for (let index = 0; index < 200; index += 1) {
+      activeAgents.push(
+        await createMockIdleAgent(client, {
+          cwd: tempRepo.path,
+          workspaceId: scopedWorkspaceId,
+          title: `repair-open-${index}`,
+        }),
+      );
+    }
+    const gate = await installDaemonWebSocketGate(page);
+    await resetSeededPageState(page);
+    await openWorkspaceWithAgents(page, [activeAgents[0], activeAgents[199]]);
+    gate.holdNextServerMessage("fetch_agent_history_response");
+    await openReopenDialog(page);
+    await gate.waitForHeldServerMessage("fetch_agent_history_response");
+    gate.holdNextClientRequest("fetch_agent_history_request");
+    gate.releaseHeldServerMessage("fetch_agent_history_response");
+    await gate.waitForHeldClientRequest();
+    await expect(page.getByTestId("reopen-closed-agent-loading")).toBeVisible();
+    await gate.drop();
+    await expectReopenFailure(page);
+    await page.keyboard.press("Escape");
+    await openReopenDialog(page);
+    await expectReopenFailure(page);
+    await expect(page).toHaveURL(new RegExp(`/workspace/${scopedWorkspaceId}`));
+    gate.discardHeldClientRequest();
+    gate.restore();
+    await expectReconnectingToastGone(page);
+    await page
+      .getByTestId("reopen-closed-agent-error")
+      .getByRole("button", { name: "Retry", exact: true })
+      .click();
+    await expectSessionRowArchived(page, archived.title);
+    await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/workspace/${scopedWorkspaceId}`));
   });
 
   test("non-UI archive prunes the archived tab across open pages and reload", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { selectPreviousAgents } from "./previous-agents";
+import { resolveClosedAgentDialogState, selectPreviousAgents } from "./previous-agents";
 import { beforeAll, describe, expect, it } from "vitest";
 import type {
   DaemonClient,
@@ -686,4 +686,50 @@ it("lists hidden live agents and archived conversations once without confusing r
   expect(previous.map((agent) => agent.id)).toEqual(["hidden", "archived"]);
   expect(previous[0].status).toBe("running");
   expect(previous[0].labels["paseo.parent-agent-id"]).toBe("parent");
+});
+
+describe("closed-agent dialog failure precedence", () => {
+  const offline = [{ serverId: "host-a", serverName: "A" }];
+  const ready = { hasMore: true, isError: false, hostErrors: [], isInitialLoad: false };
+
+  it("stops cached all-open page scanning during disconnect and resumes after reconnect", () => {
+    expect(
+      resolveClosedAgentDialogState({
+        closedAgentCount: 0,
+        history: { ...ready, hostErrors: offline },
+      }),
+    ).toEqual({ failed: true, scanningOpenPages: false, showLoading: false });
+    expect(resolveClosedAgentDialogState({ closedAgentCount: 0, history: ready })).toEqual({
+      failed: false,
+      scanningOpenPages: true,
+      showLoading: true,
+    });
+  });
+
+  it("shows failure when a held initial fetch loses its host", () => {
+    expect(
+      resolveClosedAgentDialogState({
+        closedAgentCount: 0,
+        history: { ...ready, hasMore: false, isInitialLoad: true, hostErrors: offline },
+      }),
+    ).toEqual({ failed: true, scanningOpenPages: false, showLoading: false });
+  });
+
+  it("shows fresh offline failure without inventing progress", () => {
+    expect(
+      resolveClosedAgentDialogState({
+        closedAgentCount: 0,
+        history: { ...ready, hasMore: false, hostErrors: offline },
+      }),
+    ).toEqual({ failed: true, scanningOpenPages: false, showLoading: false });
+  });
+
+  it("keeps cached closed rows visible during failure and reconnect", () => {
+    expect(
+      resolveClosedAgentDialogState({
+        closedAgentCount: 1,
+        history: { ...ready, hostErrors: offline },
+      }),
+    ).toEqual({ failed: true, scanningOpenPages: false, showLoading: false });
+  });
 });
