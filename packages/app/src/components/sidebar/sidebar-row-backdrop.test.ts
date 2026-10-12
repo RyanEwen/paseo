@@ -13,17 +13,12 @@ describe("getSidebarRowBackdrop", () => {
   });
 });
 
-describe("project header backdrop", () => {
-  it("matches the persistent fill and selected workspace hover color", () => {
-    expect(getSidebarRowBackdrop({ rowKind: "project" })).toBe("surfaceSidebarHover");
-    expect(getSidebarRowBackdrop({ rowKind: "project", isHovered: true })).toBe(
-      "surfaceSidebarSelected",
-    );
+describe("sidebar row backdrop", () => {
+  it("uses the sidebar surface at rest", () => {
+    expect(getSidebarRowBackdrop({})).toBe("surfaceSidebar");
   });
   it("keeps pressed and dragging icon cutouts matched to their row", () => {
-    expect(getSidebarRowBackdrop({ rowKind: "project", isHovered: true, isPressed: true })).toBe(
-      "surface2",
-    );
-    expect(getSidebarRowBackdrop({ rowKind: "project", isDragging: true })).toBe("surface2");
+    expect(getSidebarRowBackdrop({ isHovered: true, isPressed: true })).toBe("surface2");
+    expect(getSidebarRowBackdrop({ isDragging: true })).toBe("surface2");
   });
 });

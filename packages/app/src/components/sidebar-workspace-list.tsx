@@ -1001,7 +1001,6 @@ function ProjectHeaderRow({
             isPressed,
             selected,
             isHovered,
-            rowKind: "project",
           })}
           chevron={chevron}
           showChevron={isHovered && chevron !== null}
@@ -2766,7 +2765,6 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foreground,
   },
   projectRow: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
     position: "relative",
     minHeight: 36,
     paddingVertical: theme.spacing[2],
@@ -2780,7 +2778,7 @@ const styles = StyleSheet.create((theme) => ({
     userSelect: "none",
   },
   projectRowHovered: {
-    backgroundColor: theme.colors.surfaceSidebarSelected,
+    backgroundColor: theme.colors.surfaceSidebarHover,
   },
   projectRowPressed: {
     backgroundColor: theme.colors.surface2,
