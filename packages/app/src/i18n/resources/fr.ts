@@ -245,6 +245,8 @@ export const fr: TranslationResources = {
     },
   },
   stickyPrompt: {
+    more: "plus…",
+    less: "moins…",
     none: "Aucun message utilisateur dans cette conversation.",
     cancelled: "Chargement annulé.",
     moreHistory: "Un historique plus ancien est disponible. Réessayez pour continuer la recherche.",

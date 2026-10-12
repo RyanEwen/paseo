@@ -240,6 +240,8 @@ export const zhCN: TranslationResources = {
     },
   },
   stickyPrompt: {
+    more: "更多…",
+    less: "收起…",
     none: "此聊天中没有用户消息。",
     cancelled: "加载已取消。",
     moreHistory: "还有更多历史记录。重试以继续查找。",

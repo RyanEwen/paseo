@@ -27,7 +27,7 @@ import {
   resolveNativeReadingPosition,
   resolveNativeLivePromptOffset,
 } from "./native-reading-position";
-import { createNativePromptHandoffSampler } from "./native-prompt-handoff";
+import { createNativePromptHandoffPair } from "./native-prompt-handoff";
 import { resolvePromptHandoffProgress, type PromptHandoff } from "./prompt-handoff";
 import { createNativePromptJumpController } from "./native-prompt-jump";
 import { useStableEvent } from "@/hooks/use-stable-event";
@@ -433,7 +433,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     [findHistoryPromptIndex, reportPromptFailure, reducedMotion],
   );
   const promptNodes = useRef(new Map<string, ComponentRef<typeof View>>());
-  const measuredHandoff = useRef<PromptHandoff | null>(null);
+  const measuredHandoff = useRef(new Map<string, PromptHandoff>());
   const reportReadingPosition = useStableEvent(() => {
     const metrics = streamViewportMetricsRef.current;
     const { rowId, visibleUserIds } = resolveNativeReadingPosition({
@@ -445,8 +445,9 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       offsetY: metrics.offsetY,
     });
     const userHandoffs: PromptHandoff[] = [];
-    if (measuredHandoff.current && visibleUserIds.includes(measuredHandoff.current.id))
-      userHandoffs.push(measuredHandoff.current);
+    for (const handoff of measuredHandoff.current.values()) {
+      if (visibleUserIds.includes(handoff.id)) userHandoffs.push(handoff);
+    }
     if (liveHeaderHeightRef.current !== null) {
       const top = liveHeaderHeightRef.current - metrics.viewportHeight - metrics.offsetY;
       for (const item of segments.liveHead) {
@@ -455,6 +456,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
           userHandoffs.push({
             id: item.id,
             progress: resolvePromptHandoffProgress(geometry.y - top),
+            top: geometry.y - top,
           });
       }
     }
@@ -469,7 +471,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   });
   const handoffSampler = useMemo(
     () =>
-      createNativePromptHandoffSampler({
+      createNativePromptHandoffPair({
         measureViewport(callback) {
           const node = flatListRef.current?.getNativeScrollRef();
           if (node && "measureInWindow" in node) node.measureInWindow((_x, y) => callback(y));
@@ -480,25 +482,26 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
           if (node) node.measureInWindow((_x, y) => callback(y));
           else callback(null);
         },
-        onMeasured(id, progress) {
-          measuredHandoff.current = { id, progress };
+        onMeasured(id, progress, top) {
+          measuredHandoff.current.set(id, { id, progress, top });
           reportReadingPosition();
         },
       }),
     [reportReadingPosition],
   );
   const samplePromptHandoff = useStableEvent(() => {
-    const leading = visibleHistoryRef.current
-      .filter((token) => token.isViewable)
-      .toSorted((a, b) => (b.index ?? 0) - (a.index ?? 0))[0];
-    if (leading?.item.kind === "user_message") handoffSampler.sample(leading.item.id);
-    else {
-      handoffSampler.cancel();
-      measuredHandoff.current = null;
+    const ids = visibleHistoryRef.current
+      .filter((token) => token.isViewable && token.item.kind === "user_message")
+      .toSorted((a, b) => (b.index ?? 0) - (a.index ?? 0))
+      .slice(0, 2)
+      .map((token) => token.item.id);
+    for (const id of measuredHandoff.current.keys()) {
+      if (!ids.includes(id)) measuredHandoff.current.delete(id);
     }
+    handoffSampler.sample(ids);
   });
   useEffect(() => {
-    measuredHandoff.current = null;
+    measuredHandoff.current.clear();
     handoffSampler.cancel();
     return () => handoffSampler.cancel();
   }, [agentId, handoffSampler]);

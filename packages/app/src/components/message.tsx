@@ -116,6 +116,8 @@ export type { InlinePathTarget } from "@/assistant-file-links";
 export type { AssistantForkTarget };
 
 interface UserMessageProps {
+  /** Optional accessible content action, rendered inside the bubble. */
+  contentAction?: ReactNode;
   navigationActions?: ReactNode;
   previewLines?: number;
   serverId?: string;
@@ -396,6 +398,7 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
 const MESSAGE_TEXT_DATASET = { messageText: "true" };
 
 export const UserMessage = memo(function UserMessage({
+  contentAction,
   navigationActions,
   previewLines,
   serverId,
@@ -487,6 +490,7 @@ export const UserMessage = memo(function UserMessage({
               {message}
             </Text>
           ) : null}
+          {contentAction}
         </View>
         {navigationActions}
         {hasText && previewLines === undefined ? (

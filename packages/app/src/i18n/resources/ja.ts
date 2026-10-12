@@ -244,6 +244,8 @@ export const ja: TranslationResources = {
     },
   },
   stickyPrompt: {
+    more: "もっと見る…",
+    less: "閉じる…",
     none: "このチャットにはユーザーメッセージがありません。",
     cancelled: "読み込みをキャンセルしました。",
     moreHistory: "さらに古い履歴があります。再試行して検索を続けてください。",

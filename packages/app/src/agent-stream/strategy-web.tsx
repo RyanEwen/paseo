@@ -730,7 +730,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       if (id && bounds.bottom > viewport.top && bounds.top < viewport.bottom) {
         visibleUsers.push(id);
         const progress = resolvePromptHandoffProgress(bounds.top - viewport.top);
-        if (progress > 0) userHandoffs.push({ id, progress });
+        userHandoffs.push({ id, progress, top: bounds.top - viewport.top });
       }
     }
     onReadingPositionChange({

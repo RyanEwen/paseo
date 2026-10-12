@@ -354,6 +354,39 @@ for (const viewport of [
             await expect(sticky).toHaveCount(0);
           }
           await scrollTimelinePastPrompt(page, agent.prompts[index]!);
+          if (index === 10) {
+            const timeline = page.getByTestId("agent-chat-scroll");
+            const newer = timeline
+              .getByTestId("user-message")
+              .filter({ hasText: agent.prompts[index + 1]! });
+            const viewportBox = await timeline.boundingBox();
+            const newerBox = await newer.boundingBox();
+            await timeline.hover();
+            await page.mouse.wheel(0, newerBox!.y - viewportBox!.y - 24);
+            await expect(sticky).toContainText(agent.prompts[index]!);
+            await expect(newer).toBeInViewport();
+            await expect
+              .poll(() =>
+                sticky.evaluate((element) => element.parentElement!.getBoundingClientRect().height),
+              )
+              .toBeLessThan(40);
+            await expect(sticky.getByTestId("sticky-user-message-disclosure")).toHaveText("more…");
+            const visibleNewer = await newer.boundingBox();
+            const paintedMessage = await page.evaluate(
+              ({ x, y }) =>
+                document.elementFromPoint(x, y)?.closest('[data-testid="user-message"]')
+                  ?.textContent,
+              { x: visibleNewer!.x + visibleNewer!.width / 2, y: visibleNewer!.y + 30 },
+            );
+            expect(paintedMessage).toContain(agent.prompts[index + 1]!);
+            await page.screenshot({
+              path: `../../docs/qa-evidence/sticky-user-message/overlap-${viewport.width}.png`,
+            });
+            await page.mouse.wheel(0, 70);
+            await expect(sticky).toContainText(agent.prompts[index + 1]!);
+            await page.mouse.wheel(0, -70);
+            await expect(sticky).toContainText(agent.prompts[index]!);
+          }
         }
       }
       await expect(previous).toBeDisabled();

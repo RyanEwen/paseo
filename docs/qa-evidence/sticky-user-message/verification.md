@@ -3,7 +3,10 @@
 Branch: `feat/sticky-user-message-navigation`.
 
 The original user bubble remains in the conversation. Its compact copy fades into place while
-the bubble crosses the top edge, with controls below the copy. Manual scrolling selects the prompt for the response at the
+the bubble crosses the top edge, with arrows below the copy. Newer original bubbles cover
+the older copy as they approach. The more…/less… disclosure sits inside the bubble; no
+user-message caption is shown. Compact previews use one line to retain the height bound
+with 44px touch controls; desktop previews use two lines. Manual scrolling selects the prompt for the response at the
 reading edge; arrow navigation scrolls smoothly and retains its target through clamped landings.
 The overlay follows the transcript's content rail and does not resize its viewport. Expansion
 preserves full text and attachments within a height bounded by the screen and measured chat pane.
@@ -14,6 +17,18 @@ older window application, errors, animation frames, and native retry callbacks. 
 reads retain their own acceptance and the timeline owner's request and epoch fences.
 
 ## Results
+
+The newest overlap/disclosure checks cover actual painted precedence through hit testing,
+older/newer prompt transitions and reverse scrolling. See [desktop overlap](overlap-1440.png),
+[compact overlap](overlap-390.png), [desktop run](overlap-browser-desktop.txt) and
+[compact rerun](overlap-browser-compact.txt). The first compact run caught a 170px collapsed
+preview, corrected to one line before its passing rerun. Earlier boot attempts failed before
+behavior assertions because the unassembled checkout lacked the canonical toggle foundation
+and an archive Metro fixture could not resolve outside generated-output symlinks. Those are
+fixture failures, not feature results. Standalone source passes 92 unique focused cases across
+hooks, controllers and locales, plus root typecheck/lint/format. Native now samples only the
+leading pair so a partly visible original cannot suppress measurement of its next prompt.
+No physical Android/iOS execution is claimed.
 
 The latest two handoff/navigation Chromium cases passed at desktop and compact widths, with 51
 focused hook/controller cases, root typecheck, lint and format. See [handoff browser output](handoff-browser.txt),

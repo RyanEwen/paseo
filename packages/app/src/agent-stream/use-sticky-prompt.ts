@@ -12,6 +12,7 @@ import {
   getMissingReadingPromptSeq,
   isStickyPromptVisible,
   resolveStickyPromptProgress,
+  resolvePromptOcclusionTop,
   shouldDiscoverPrompt,
   needsReadingPromptDiscovery,
   hasDiscoveredPrompt,
@@ -288,6 +289,7 @@ export function useStickyPrompt(input: Input) {
   return {
     message,
     stickyProgress,
+    occlusionTop: resolvePromptOcclusionTop(targets, position, reading),
     targets,
     previousKnownBoundary: indexed ? outline.indexReady : !hasOlder,
     activate,
