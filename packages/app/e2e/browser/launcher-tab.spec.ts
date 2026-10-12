@@ -166,6 +166,7 @@ test.describe("Tab creation", () => {
 
     const panel = page.getByTestId("workspace-new-tab-panel").filter({ visible: true });
     const agent = panel.getByRole("button", { name: /^Agent/ });
+    const previous = panel.getByRole("button", { name: "Reopen closed agent", exact: true });
     const terminal = panel.getByRole("button", { name: /^Terminal/ });
     const diff = panel.getByRole("button", { name: /Diff/ });
     const shortcutPrefix = process.platform === "darwin" ? /⇧⌘/ : /Ctrl.*Shift/;
@@ -175,7 +176,15 @@ test.describe("Tab creation", () => {
     await expect(agent).toBeFocused();
 
     await page.keyboard.press("ArrowDown");
+    await expect(previous).toBeFocused();
+    await page.keyboard.press("ArrowDown");
     await expect(terminal).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(diff).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(terminal).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(previous).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(agent).toBeFocused();
 
