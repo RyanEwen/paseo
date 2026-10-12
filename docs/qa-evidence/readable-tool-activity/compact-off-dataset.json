@@ -1,0 +1,124 @@
+[
+  {
+    "type": "tool_call",
+    "callId": "read",
+    "name": "shell",
+    "status": "completed",
+    "error": null,
+    "detail": {
+      "type": "shell",
+      "command": "cat src/notifications.ts",
+      "cwd": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/tmp/readable-capture-Tqn9un",
+      "output": "export const notification = 'exact preserved output';",
+      "exitCode": 0
+    },
+    "metadata": {
+      "commandActions": [
+        {
+          "type": "read",
+          "command": "cat src/notifications.ts",
+          "name": "notifications.ts",
+          "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/tmp/readable-capture-Tqn9un/src/notifications.ts"
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_call",
+    "callId": "failed-edit",
+    "name": "Edit",
+    "detail": {
+      "type": "edit",
+      "filePath": "src/failed-edit.ts",
+      "oldString": "before",
+      "newString": "after"
+    },
+    "status": "failed",
+    "error": "Edit failed before writing"
+  },
+  {
+    "type": "tool_call",
+    "callId": "canceled-write",
+    "name": "write",
+    "status": "canceled",
+    "error": null,
+    "detail": {
+      "type": "write",
+      "filePath": "src/canceled-write.ts",
+      "content": "unchanged"
+    }
+  },
+  {
+    "type": "tool_call",
+    "callId": "search",
+    "name": "grep",
+    "status": "completed",
+    "detail": {
+      "type": "search",
+      "query": "notification",
+      "toolName": "grep",
+      "content": "src/notifications.ts",
+      "numFiles": 0
+    },
+    "error": null
+  },
+  {
+    "type": "tool_call",
+    "callId": "multi-patch",
+    "name": "apply_patch",
+    "status": "completed",
+    "error": null,
+    "detail": {
+      "type": "edit",
+      "filePath": "src/created.ts",
+      "newString": "+created-file-exact-diff"
+    },
+    "metadata": {
+      "fileChanges": [
+        {
+          "path": "src/created.ts",
+          "diff": "+created-file-exact-diff",
+          "kind": "add"
+        },
+        {
+          "path": "src/updated.ts",
+          "diff": "-before\n+updated-file-exact-diff",
+          "kind": "update"
+        },
+        {
+          "path": "src/deleted.ts",
+          "diff": "-deleted-file-exact-diff",
+          "kind": "delete"
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_call",
+    "callId": "running-script",
+    "name": "shell",
+    "status": "running",
+    "error": null,
+    "detail": {
+      "type": "shell",
+      "command": "npm run test",
+      "cwd": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/tmp/readable-capture-Tqn9un"
+    }
+  },
+  {
+    "type": "tool_call",
+    "callId": "opaque-failed",
+    "name": "shell",
+    "status": "failed",
+    "error": {
+      "message": "Tool call failed"
+    },
+    "detail": {
+      "type": "shell",
+      "command": "python - <<'PY'\nprint('opaque script output')\nPY",
+      "cwd": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/tmp/readable-capture-Tqn9un",
+      "output": "opaque script output",
+      "exitCode": 1
+    }
+  }
+]

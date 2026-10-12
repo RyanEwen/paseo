@@ -1,3 +1,5 @@
+import { useSettings } from "@/hooks/use-settings";
+import { buildOverviewGroup } from "./model";
 import React, { memo, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -32,7 +34,7 @@ function joinSummaryParts(parts: string[], conjunction: string): string {
   return firstCharacter ? `${firstCharacter.toLocaleUpperCase()}${joined.slice(1)}` : joined;
 }
 
-function useOverviewSummary(summary: OverviewSummary): string {
+function useOverviewSummary(summary: OverviewSummary, descriptive: boolean): string {
   const { t } = useTranslation();
   return useMemo(() => {
     const parts: string[] = [];
@@ -46,11 +48,17 @@ function useOverviewSummary(summary: OverviewSummary): string {
     ] as const;
     for (const [count, key] of entries) {
       if (count > 0) {
-        parts.push(t(`${key}.${count === 1 ? "one" : "other"}`, { count }));
+        parts.push(
+          descriptive
+            ? t(`toolActivity.counts.${key.split(".")[1]}.${count === 1 ? "one" : "other"}`, {
+                count,
+              })
+            : t(`${key}.${count === 1 ? "one" : "other"}`, { count }),
+        );
       }
     }
     return joinSummaryParts(parts, t("toolCallGroup.and"));
-  }, [summary, t]);
+  }, [summary, descriptive, t]);
 }
 
 export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView({
@@ -62,7 +70,13 @@ export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView
 }: OverviewGroupProps) {
   const scrollRef = useRef<ScrollView>(null);
   const isCompact = useIsCompactFormFactor();
-  const aggregateSummary = useOverviewSummary(group.summary);
+  const descriptive = useSettings((settings) => settings.paseoPlusPlus.descriptiveToolCalls);
+  const summary = useMemo(
+    () =>
+      descriptive ? buildOverviewGroup(group.run, { descriptive: true }).summary : group.summary,
+    [group.run, group.summary, descriptive],
+  );
+  const aggregateSummary = useOverviewSummary(summary, descriptive);
   const scrollToLatest = useCallback(() => {
     scrollRef.current?.scrollToEnd({ animated: false });
   }, []);

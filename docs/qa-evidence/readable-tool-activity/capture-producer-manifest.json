@@ -1,0 +1,27 @@
+{
+  "qualifiedPatchSha256": "1919afcf502c06ebee92f7d6b75e528dd337f3f80e92c6ba89cc91c62245a7d2",
+  "qualifiedFileCount": 30,
+  "supplementalFixtureFiles": [
+    {
+      "path": "packages/app/capture.config.ts",
+      "sha256": "cb894393dc23ad636c9028fd5fe0cc994e2e6f2c6060bc9bb43b689bfbda0e09"
+    },
+    {
+      "path": "packages/app/e2e/browser/supplemental-capture.spec.ts",
+      "sha256": "f04bad980c7f56cde63acc84a2f0a683fe6767b0cb5bb39d7b714dca22d5cf63"
+    },
+    {
+      "path": "packages/app/e2e/support/capture-global-setup.ts",
+      "sha256": "c05389f72e9f1930529b5347a3278ba670987e546223ac060d79dddba5e9703f"
+    },
+    {
+      "path": "packages/app/e2e/support/metro-warmup.mjs",
+      "sha256": "05b5aa8d99606d8c4d3d9f0e011ad3b067553e02f4c180c33d6dbb9a4ef6c658"
+    },
+    {
+      "path": "packages/app/metro.config.cjs",
+      "sha256": "d49785f8fc806e584ce68fa1eb0ff3c7976c4e2d6e6ce6c39aeba32d99aa28d5"
+    }
+  ],
+  "constraint": "Capture-only disposable files, bounded300s compile warmup, production qualified bytes unchanged; no green suites rerun"
+}

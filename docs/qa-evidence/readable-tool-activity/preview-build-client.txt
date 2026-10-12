@@ -1,0 +1,25 @@
+
+> paseo@0.11.2 build:client
+> npm run build --workspace=@getpaseo/client
+
+
+> @getpaseo/client@0.11.2 build
+> npm run build --workspace=@getpaseo/protocol && npm run build --workspace=@getpaseo/relay && tsc -p tsconfig.json --incremental false
+
+
+> @getpaseo/protocol@0.11.2 prebuild
+> npm run generate:validators
+
+
+> @getpaseo/protocol@0.11.2 generate:validators
+> node scripts/generate-validation-aot.mjs
+
+generated src/generated/validation/ws-outbound.aot.ts from codegen/ws-outbound.compile.ts (WSOutboundMessageSchema)
+
+> @getpaseo/protocol@0.11.2 build
+> tsc -p tsconfig.json --incremental false
+
+
+> @getpaseo/relay@0.11.2 build
+> tsc -p tsconfig.json --incremental false
+

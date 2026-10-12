@@ -33,6 +33,11 @@ export const zhCN: TranslationResources = {
     additionsHint: "这些工作流程仍然可用",
     saveFailed: "无法保存。请重试。",
     features: {
+      descriptiveToolCalls: {
+        label: "易读的工具活动",
+        hint: "描述已知操作，并在详情中保留准确命令和输出。关闭后恢复经典标签。",
+      },
+
       sidebarProjectSelector: {
         label: "侧边栏项目选择器",
         hint: "从工作区标题选择项目；关闭后恢复项目过滤菜单",
@@ -2132,6 +2137,69 @@ export const zhCN: TranslationResources = {
     subAgentActivity: "Sub-agent 活动",
     input: "输入",
     output: "输出",
+  },
+  toolActivity: {
+    files: { intent: "更改文件", running: "正在更改文件", completed: "已更改文件" },
+    read: {
+      intent: "读取文件",
+      running: "正在读取文件",
+      completed: "已读取文件",
+    },
+    edit: {
+      intent: "编辑文件",
+      running: "正在编辑文件",
+      completed: "已编辑文件",
+    },
+    write: {
+      intent: "写入文件",
+      running: "正在写入文件",
+      completed: "已写入文件",
+    },
+    create: {
+      intent: "创建文件",
+      running: "正在创建文件",
+      completed: "已创建文件",
+    },
+    delete: {
+      intent: "删除文件",
+      running: "正在删除文件",
+      completed: "已删除文件",
+    },
+    search: {
+      intent: "搜索",
+      running: "正在搜索",
+      completed: "已搜索",
+    },
+    list: {
+      intent: "列出文件",
+      running: "正在列出文件",
+      completed: "已列出文件",
+    },
+    command: {
+      intent: "运行命令",
+      running: "正在运行命令",
+      completed: "已运行命令",
+    },
+    script: {
+      intent: "运行脚本",
+      running: "正在运行脚本",
+      completed: "已运行脚本",
+    },
+    activity: {
+      intent: "执行操作",
+      running: "正在执行操作",
+      completed: "已执行操作",
+    },
+    failed: "失败：{{action}}",
+    canceled: "已取消：{{action}}",
+    counts: {
+      editedFiles: { one: "{{count}} 项文件操作", other: "{{count}} 项文件操作" },
+      commands: { one: "{{count}} 条命令", other: "{{count}} 条命令" },
+      readFiles: { one: "{{count}} 项文件读取", other: "{{count}} 项文件读取" },
+      searches: { one: "{{count}} 次搜索", other: "{{count}} 次搜索" },
+      otherTools: { one: "{{count}} 项其他操作", other: "{{count}} 项其他操作" },
+      paseoCalls: { one: "{{count}} 次 Paseo 调用", other: "{{count}} 次 Paseo 调用" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

@@ -1,0 +1,23 @@
+{
+  "ownedPorts": [
+    {
+      "port": 33471,
+      "result": "ConnectionRefusedError: [Errno 111] Connection refused"
+    },
+    {
+      "port": 42653,
+      "result": "ConnectionRefusedError: [Errno 111] Connection refused"
+    },
+    {
+      "port": 40997,
+      "result": "ConnectionRefusedError: [Errno 111] Connection refused"
+    },
+    {
+      "port": 37411,
+      "result": "ConnectionRefusedError: [Errno 111] Connection refused"
+    }
+  ],
+  "remainingSourceActors": [],
+  "allPortsRefused": true,
+  "allActorsAbsent": true
+}

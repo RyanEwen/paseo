@@ -36,6 +36,11 @@ export const ko: TranslationResources = {
     additionsHint: "이 작업은 계속 사용할 수 있습니다",
     saveFailed: "저장하지 못했습니다. 다시 시도하세요.",
     features: {
+      descriptiveToolCalls: {
+        label: "읽기 쉬운 도구 활동",
+        hint: "알려진 작업을 설명하고 정확한 명령과 출력은 세부 정보에 보존합니다. 끄면 기존 레이블로 돌아갑니다.",
+      },
+
       sidebarProjectSelector: {
         label: "사이드바 프로젝트 선택",
         hint: "워크스페이스 제목에서 프로젝트를 선택합니다. 끄면 프로젝트 필터 메뉴가 복원됩니다",
@@ -2168,6 +2173,69 @@ export const ko: TranslationResources = {
     subAgentActivity: "서브에이전트 활동",
     input: "입력",
     output: "출력",
+  },
+  toolActivity: {
+    files: { intent: "파일 변경", running: "파일 변경 중", completed: "파일 변경함" },
+    read: {
+      intent: "파일 읽기",
+      running: "파일 읽는 중",
+      completed: "파일 읽음",
+    },
+    edit: {
+      intent: "파일 편집",
+      running: "파일 편집 중",
+      completed: "파일 편집함",
+    },
+    write: {
+      intent: "파일 쓰기",
+      running: "파일 쓰는 중",
+      completed: "파일 씀",
+    },
+    create: {
+      intent: "파일 생성",
+      running: "파일 생성 중",
+      completed: "파일 생성함",
+    },
+    delete: {
+      intent: "파일 삭제",
+      running: "파일 삭제 중",
+      completed: "파일 삭제함",
+    },
+    search: {
+      intent: "검색",
+      running: "검색 중",
+      completed: "검색함",
+    },
+    list: {
+      intent: "파일 목록 조회",
+      running: "파일 목록 조회 중",
+      completed: "파일 목록 조회함",
+    },
+    command: {
+      intent: "명령 실행",
+      running: "명령 실행 중",
+      completed: "명령 실행함",
+    },
+    script: {
+      intent: "스크립트 실행",
+      running: "스크립트 실행 중",
+      completed: "스크립트 실행함",
+    },
+    activity: {
+      intent: "작업 실행",
+      running: "작업 실행 중",
+      completed: "작업 실행함",
+    },
+    failed: "실패: {{action}}",
+    canceled: "취소됨: {{action}}",
+    counts: {
+      editedFiles: { one: "파일 작업 {{count}}개", other: "파일 작업 {{count}}개" },
+      commands: { one: "명령 {{count}}개", other: "명령 {{count}}개" },
+      readFiles: { one: "파일 읽기 {{count}}개", other: "파일 읽기 {{count}}개" },
+      searches: { one: "검색 {{count}}개", other: "검색 {{count}}개" },
+      otherTools: { one: "기타 작업 {{count}}개", other: "기타 작업 {{count}}개" },
+      paseoCalls: { one: "Paseo 호출 {{count}}개", other: "Paseo 호출 {{count}}개" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

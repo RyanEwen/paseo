@@ -33,6 +33,11 @@ export const en = {
     additionsHint: "These workflows remain available",
     saveFailed: "Unable to save. Try again.",
     features: {
+      descriptiveToolCalls: {
+        label: "Readable tool activity",
+        hint: "Describe known operations while keeping exact commands and output in details. Turn off to restore classic labels.",
+      },
+
       sidebarProjectSelector: {
         label: "Project selector in sidebar",
         hint: "Choose a project from the workspace heading; turning this off restores the Project filter menu",
@@ -2183,6 +2188,69 @@ export const en = {
     subAgentActivity: "Sub-agent activity",
     input: "Input",
     output: "Output",
+  },
+  toolActivity: {
+    files: { intent: "Change files", running: "Changing files", completed: "Changed files" },
+    read: {
+      intent: "Read",
+      running: "Reading",
+      completed: "Read",
+    },
+    edit: {
+      intent: "Edit",
+      running: "Editing",
+      completed: "Edited",
+    },
+    write: {
+      intent: "Write",
+      running: "Writing",
+      completed: "Wrote",
+    },
+    create: {
+      intent: "Create",
+      running: "Creating",
+      completed: "Created",
+    },
+    delete: {
+      intent: "Delete",
+      running: "Deleting",
+      completed: "Deleted",
+    },
+    search: {
+      intent: "Search",
+      running: "Searching",
+      completed: "Searched",
+    },
+    list: {
+      intent: "List files",
+      running: "Listing files",
+      completed: "Listed files",
+    },
+    command: {
+      intent: "Run command",
+      running: "Running command",
+      completed: "Ran command",
+    },
+    script: {
+      intent: "Run script",
+      running: "Running script",
+      completed: "Ran script",
+    },
+    activity: {
+      intent: "Run operations",
+      running: "Running operations",
+      completed: "Ran operations",
+    },
+    failed: "Failed: {{action}}",
+    canceled: "Canceled: {{action}}",
+    counts: {
+      editedFiles: { one: "{{count}} file operation", other: "{{count}} file operations" },
+      commands: { one: "{{count}} command", other: "{{count}} commands" },
+      readFiles: { one: "{{count}} file read", other: "{{count}} file reads" },
+      searches: { one: "{{count}} search", other: "{{count}} searches" },
+      otherTools: { one: "{{count}} other operation", other: "{{count}} other operations" },
+      paseoCalls: { one: "{{count}} Paseo call", other: "{{count}} Paseo calls" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

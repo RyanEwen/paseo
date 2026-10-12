@@ -1,5 +1,6 @@
 import { useTextLink } from "@/hooks/use-text-link";
 import { TextPreview } from "@/components/ui/text-preview";
+import { useSettings } from "@/hooks/use-settings";
 import type { AgentMessage } from "@getpaseo/protocol/agent-message";
 import { ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO } from "@/utils/assistant-image-metadata";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -3171,6 +3172,10 @@ export const ToolCall = memo(function ToolCall({
   maxDetailHeight = 400,
 }: ToolCallProps) {
   const { openToolCall } = useToolCallSheet();
+  const descriptiveToolCalls = useSettings(
+    (settings) => settings.paseoPlusPlus.descriptiveToolCalls,
+  );
+  const { t: activityTranslation } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
 
   const isMobile = useIsCompactFormFactor();
@@ -3201,8 +3206,19 @@ export const ToolCall = memo(function ToolCall({
         metadata,
         cwd,
         resolveIcon: resolveToolCallIcon,
+        activityTranslation: descriptiveToolCalls ? activityTranslation : undefined,
       }),
-    [toolName, status, error, effectiveDetail, metadata, cwd, agentMessage],
+    [
+      toolName,
+      status,
+      error,
+      effectiveDetail,
+      metadata,
+      cwd,
+      agentMessage,
+      descriptiveToolCalls,
+      activityTranslation,
+    ],
   );
   const handleOpenFile = useMemo(() => {
     const openFilePath = presentation.openFilePath;

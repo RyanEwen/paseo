@@ -2,6 +2,7 @@ import { z } from "zod";
 
 /** Device-local opt-outs for optional fork UI. Disabling never deletes feature data. */
 const preferencesObject = z.looseObject({
+  descriptiveToolCalls: z.boolean().catch(true),
   stickyUserPrompts: z.boolean().catch(true),
   previousAgents: z.boolean().catch(true),
   sidebarProjectSelector: z.boolean().catch(true),

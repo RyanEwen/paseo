@@ -1,3 +1,4 @@
+import { describeToolActivity } from "@getpaseo/protocol/tool-call-activity";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,6 +17,15 @@ function expectMapped<T>(item: T | null): T {
 }
 
 describe("claude tool-call mapper", () => {
+  it.each([
+    ["Read", { file_path: "a.ts" }, "read"],
+    ["Edit", { file_path: "a.ts", old_string: "x", new_string: "y" }, "edit"],
+    ["Write", { file_path: "a.ts", content: "x" }, "write"],
+    ["Grep", { pattern: "needle" }, "search"],
+  ] as const)("exposes %s activity through canonical details", (name, input, kind) => {
+    const call = expectMapped(mapClaudeRunningToolCall({ name, callId: "activity", input }));
+    expect(describeToolActivity(call)[0]?.kind).toBe(kind);
+  });
   it("preserves a plan's original tool identity and outcome for live and replayed results", () => {
     const proposal = { name: "ExitPlanMode", callId: "plan-tool-1", input: { plan: "Ship it" } };
     const pending = expectMapped(mapClaudeRunningToolCall(proposal));
