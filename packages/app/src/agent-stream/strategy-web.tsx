@@ -340,11 +340,13 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
   const [followOutput, setFollowOutputr] = useState(true);
   const followOutputRef = useRef(followOutput);
   const manualReadingRef = useRef(false);
-  const setFollowOutput = (value: boolean) => {
+  // The viewport handle depends on this setter. Keep its identity through resize
+  // renders so handle cleanup cannot cancel the owner's queued bottom-follow frame.
+  const setFollowOutput = useCallback((value: boolean) => {
     followOutputRef.current = value;
     setFollowOutputr(value);
     return value;
-  };
+  }, []);
   const lastKnownScrollTopRef = useRef(0);
   const mouseScrollGestureRef = useRef<
     | { kind: "scrollbar"; pointerId: number }
@@ -720,20 +722,34 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       return;
     }
     const viewport = scrollContainer.getBoundingClientRect();
+    if (viewport.width <= 0 || viewport.height <= 0) return;
     const visibleUsers: string[] = [];
     const userHandoffs: PromptHandoff[] = [];
     for (const bubble of props.trackPromptHandoff === false
       ? []
       : contentNode.querySelectorAll<HTMLElement>('[data-testid="user-message"]')) {
-      const bounds = bubble.getBoundingClientRect();
+      const body = bubble.querySelector<HTMLElement>('[data-testid="user-message-bubble"]');
+      const bounds = (body ?? bubble).getBoundingClientRect();
       const id = bubble.closest<HTMLElement>("[data-message-id]")?.dataset.messageId;
-      if (id && bounds.bottom > viewport.top && bounds.top < viewport.bottom) {
-        visibleUsers.push(id);
+      if (id && bounds.width > 0 && bounds.height > 0) {
+        if (bounds.bottom > viewport.top && bounds.top < viewport.bottom) visibleUsers.push(id);
         const progress = resolvePromptHandoffProgress(bounds.top - viewport.top);
-        userHandoffs.push({ id, progress, top: bounds.top - viewport.top });
+        const { prefixHeightOne, prefixHeightTwo } = measurePromptTextPrefix(bubble);
+        userHandoffs.push({
+          id,
+          progress,
+          top: bounds.top - viewport.top,
+          left: bounds.left - viewport.left,
+          width: bounds.width,
+          height: bounds.height,
+          viewportWidth: viewport.width,
+          prefixHeightOne,
+          prefixHeightTwo,
+        });
       }
     }
     onReadingPositionChange({
+      viewportWidth: viewport.width,
       rowId: readingAnchor.getReadingRowId(scrollContainer.scrollTop),
       visibleUserIds: visibleUsers,
       userHandoffs,
@@ -871,6 +887,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     isJumpSettling,
     readingAnchor,
     stopFollowingOutputFromUserIntent,
+    setFollowOutput,
     updateScrollMetrics,
   ]);
 
@@ -920,6 +937,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     activationKey,
     forceStickToBottom,
     hasRouteBottomAnchorRequest,
+    setFollowOutput,
     isActivationReady,
     scheduleStickToBottom,
   ]);
@@ -1245,6 +1263,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     cancelScrollToMessage,
     scheduleStickToBottom,
     scrollToMessage,
+    setFollowOutput,
     viewportRef,
   ]);
 
@@ -1450,4 +1469,16 @@ export function createWebStreamStrategy(input: CreateWebStreamStrategyInput): St
     },
     getBottomOffset: (metrics) => Math.max(0, metrics.contentHeight - metrics.viewportHeight),
   });
+}
+
+/** Read actual source line boxes without estimating wrapping from message length. */
+function measurePromptTextPrefix(bubble: HTMLElement) {
+  const text = bubble.querySelector<HTMLElement>('[data-testid="user-message-text"]');
+  // The renderer supplies an explicit line-height. This is the actual CSS line box,
+  // not a character-count or wrapping estimate; the source text remains unbounded.
+  const lineHeight = text ? Number.parseFloat(window.getComputedStyle(text).lineHeight) : 0;
+  const textHeight = text?.clientHeight ?? 0;
+  const prefixHeightOne = Number.isFinite(lineHeight) ? Math.min(textHeight, lineHeight) : 0;
+  const prefixHeightTwo = Number.isFinite(lineHeight) ? Math.min(textHeight, lineHeight * 2) : 0;
+  return { prefixHeightOne, prefixHeightTwo };
 }

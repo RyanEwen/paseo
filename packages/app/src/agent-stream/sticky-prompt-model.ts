@@ -111,7 +111,7 @@ export function getMissingReadingPromptSeq(input: {
   return input.target?.seq;
 }
 
-/** Never show a copy while its original user bubble still intersects the viewport. */
+/** Paint the pinned prefix only after its original bubble reaches the viewport edge. */
 export function isStickyPromptVisible(
   message: UserPrompt | undefined,
   target: PromptTarget | undefined,
@@ -177,7 +177,7 @@ export function resolveStickyPromptMessage(
   return selected;
 }
 
-/** The compact copy starts before the original leaves view and fades with its scroll position. */
+/** The compact copy owns the leading pixels once the original bubble reaches the top. */
 export function resolveStickyPromptProgress(
   message: UserPrompt | undefined,
   reading: PromptReadingPosition,
@@ -203,4 +203,28 @@ export function resolvePromptOcclusionTop(
     .filter((value) => laterIds.has(value.id) && value.top !== undefined && value.top >= 0)
     .map((value) => value.top!);
   return tops.length ? Math.min(...tops) : undefined;
+}
+
+/** Accept only real source-bubble measurements; unknown/index-only prompts retain the rail. */
+export function resolvePromptGeometry(
+  frame: import("./prompt-handoff").PromptHandoff | undefined,
+  viewportWidth?: number | null,
+) {
+  if (
+    frame?.left === undefined ||
+    frame.width === undefined ||
+    frame.viewportWidth === undefined ||
+    frame.width <= 0 ||
+    frame.viewportWidth <= 0
+  )
+    return undefined;
+  if (viewportWidth && frame.viewportWidth !== viewportWidth) return undefined;
+  return {
+    id: frame.id,
+    left: frame.left,
+    width: frame.width,
+    viewportWidth: frame.viewportWidth,
+    prefixHeightOne: frame.prefixHeightOne,
+    prefixHeightTwo: frame.prefixHeightTwo,
+  };
 }

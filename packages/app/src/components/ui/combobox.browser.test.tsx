@@ -1,3 +1,4 @@
+import { TextPreview } from "./text-preview";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { userEvent } from "vitest/browser";
@@ -13,6 +14,8 @@ vi.mock("react-native-reanimated", async (importOriginal) => {
     FadeOut: { duration: () => undefined },
   };
 });
+
+const TEXT_PREVIEW_TEST_STYLE = { fontSize: 20, lineHeight: 24 };
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -69,4 +72,77 @@ it("reveals truncated dropdown values, updates on resize, and preserves selectio
     await userEvent.hover(row);
   });
   expect(document.querySelector('[role="tooltip"]')).toBeNull();
+});
+
+it("measures clamped preview content at exact line boundaries and after resize", async () => {
+  const onOverflow = vi.fn();
+  container = document.createElement("div");
+  Object.assign(container.style, { width: "320px", display: "flex", flexDirection: "column" });
+  document.body.appendChild(container);
+  root = createRoot(container);
+  act(() =>
+    root!.render(
+      <TextPreview
+        style={TEXT_PREVIEW_TEST_STYLE}
+        numberOfLines={2}
+        onOverflowChange={onOverflow}
+        testID="preview-actual"
+      >
+        {"First line\nSecond line"}
+      </TextPreview>,
+    ),
+  );
+  await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(false);
+  const actual = container.querySelector('[data-testid="preview-actual"]') as HTMLElement;
+  const full = container.querySelector('[data-testid="text-preview-measurement"]') as HTMLElement;
+  await expect.poll(() => actual.clientHeight).toBe(48);
+  expect(full.parentElement?.getAttribute("aria-hidden")).toBe("true");
+  act(() =>
+    root!.render(
+      <TextPreview
+        style={TEXT_PREVIEW_TEST_STYLE}
+        numberOfLines={1}
+        onOverflowChange={onOverflow}
+        testID="preview-actual"
+      >
+        {"First line\nSecond line"}
+      </TextPreview>,
+    ),
+  );
+  await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(true);
+  await expect.poll(() => actual.clientHeight).toBe(24);
+  expect(full.clientHeight).toBe(48);
+  act(() =>
+    root!.render(
+      <TextPreview
+        style={TEXT_PREVIEW_TEST_STYLE}
+        numberOfLines={1}
+        onOverflowChange={onOverflow}
+        testID="preview-actual"
+      >
+        short
+      </TextPreview>,
+    ),
+  );
+  await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(false);
+  act(() =>
+    root!.render(
+      <TextPreview
+        style={TEXT_PREVIEW_TEST_STYLE}
+        numberOfLines={2}
+        onOverflowChange={onOverflow}
+        testID="preview-actual"
+      >
+        Boundary wrapping content uses the actual font and width
+      </TextPreview>,
+    ),
+  );
+  container.style.width = "140px";
+  await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(true);
+  container.style.display = "none";
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  expect(onOverflow.mock.lastCall?.[0]).toBe(true);
+  container.style.width = "900px";
+  container.style.display = "flex";
+  await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(false);
 });

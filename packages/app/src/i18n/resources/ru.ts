@@ -367,6 +367,7 @@ export const ru: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "Перейти к этому сообщению",
     more: "больше…",
     less: "меньше…",
     none: "В этом чате нет сообщений пользователя.",

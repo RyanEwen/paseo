@@ -1,0 +1,25 @@
+Evidence availability: This is the reported qualification summary from the completed isolated run.
+The /tmp source, logs, patch and fresh frames listed below were lost during WSL recovery.
+They are historical artifact identifiers, not available review files. No fresh browser or native
+validation was run during branch preparation. Physical Android/iOS/Electron frames remain unverified.
+
+Sticky repair review candidate
+Base: 61ad3bc91
+Source: /tmp/sticky-overflow-61ad-source
+Patch: /tmp/paseo-sticky-single-copy-overflow.patch
+SHA256: 9f3c76270e3328ae42eb74aedc972eeb8c2f32a2cf29b2d6946e49227c421ca9
+33 owned source/test files; no README, contract/storage/settings, ToolCall, dependency, Metro or warmup changes.
+
+Implemented: actual-bubble geometry, opaque top-zero pin with one painted copy, complementary original text masking, newer prompt clips previous header, shared message/attachment renderer, measured rendered overflow disclosure (desktop2lines/compact1line), original-width positioning, below-copy arrows. Header click/Enter returns to itself through existing navigation owner; selecting text does not jump; disclosure/full attachment controls independent. Current self-jump retains review selection across incoming messages and retry. Existing canonical toggle retained.
+
+Checks: build:client declarations passed; full root typecheck passed with exit0 (/tmp/sticky-final-typecheck.log); all33-file npm lint zero (/tmp/sticky-final-all-lint.log); npm format:files passed (/tmp/sticky-final-all-format.log). Focused114 unit cases: native22, outline/sticky43, width9, i18n40; browserunit2 passed before keyboard-only addition, newest actual-app desktop navigation covers keyboard. Patch whitespace/apply check passed and all33 applied bytes match reviewed source.
+
+Browser: desktop overflow/pixel handoff1440 PASS42.7s (/tmp/sticky-click-handoff-recheck.log); desktop navigation1440 PASS41.4s (/tmp/sticky-click-handoff-remaining.log). Fine threshold forward/reverse offsets:6,3,1,-1,-3,-6,-12,-24,-12,-3,-1,1,3,6; pinned textPNG pixels exact, x/width/relative firstline positions checked. Short prompt no disclosure/extra height; literal Markdown and long content preserved. Compact overflow390 PASS32.6s; compact navigation390 PASS33.6s (/tmp/sticky-click-handoff-remaining.log). Exact source compact keyboard navigation PASS43.8s (/tmp/sticky-final-attachment-keyboard.log). Attachment PASS31.4s (/tmp/sticky-final-attachment-labelled-target.log), original lower text crop uniform painted background proves no duplicate glyphs; expands image+JSON pills and collapses count2. All five scoped cases passed.
+
+Diagnostic history: initial Text Enter self-jump failed because RNweb Text only forwards click; fixed shared keyboard activation. Actual compact RN/Unistyles inline clamp override repaired. Rounded outer corner antialias differences (one RGB level /7 cornerpixels max2) excluded from text-pixel equality; text exact. Later navigation fixture opening timed out before userprompt visible under host delay; no feature assertions reached, one bounded retry of remaining cases then desktop PASS. Attachment fixture Files selector matched assistant too; corrected unique short Attached sample. Initial fulltypecheck keyboard-prop TS2769 was overlooked due logtail; corrected probe destructuring boundary and final fulltypecheck exit0 verified. Attachment previous-arrow fixture selected an uncertain prompt after synthetic stream; explicit outline target now isolates attachment paint/fidelity (adjacent arrows independently passed). Explicit outline tick first attempt incorrectly queried visible text; fixed source-established accessible label. Final attachment target app typecheck exit0, npm lint/format passed. No fullsuite/live service controls.
+
+Platform limits: Chromium desktop/mobile-sized viewports are actual browser evidence. Physical Android/iOS/Electron paint and touch frames unverified; public native bubble-ref/measurement controller focused tests do not establish physical-device pixel behavior.
+
+README wording for owner: Prompts pin as their bubbles reach the top with one visible copy. More… appears only when rendered text or attachment details are hidden. Click a pinned message to return to it; arrows move to adjacent prompts. Existing docs/qa-evidence/sticky-user-message/verification.md fade text/table is obsolete and should reference this repair evidence, not claim partial-alpha behavior.
+
+Teardown: final worker daemon/Metro stopped in final log; read-only ss confirms all owned run ports45639/34015/44089/40831/33791/39131/33811/36145/36111/44783 closed. Browser lane released. No live8082/daemon/service mutations. Original feature worktree retains its exact9 older dirty settings files, current33-file repair stays isolated/uncommitted.

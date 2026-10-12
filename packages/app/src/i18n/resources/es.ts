@@ -367,6 +367,7 @@ export const es: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "Ir a este mensaje",
     more: "más…",
     less: "menos…",
     none: "No hay mensajes del usuario en este chat.",

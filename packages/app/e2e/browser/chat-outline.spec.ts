@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { seedMockAgentWorkspace } from "../support/helpers/mock-agent";
+import { openAgentRoute, seedMockAgentWorkspace } from "../support/helpers/mock-agent";
 import { expect, test } from "../support/fixtures";
 import { expectNearBottom } from "../support/helpers/agent-bottom-anchor";
 import { fillComposerDraft, expectComposerDraft, submitMessage } from "../support/helpers/composer";
@@ -297,6 +297,91 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
 ]) {
+  test(`sticky preview discloses only rendered overflow at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    const prompts = [
+      "Short prompt.",
+      "First line\nSecond line",
+      "**Heading**\n  indented `code`\nThird rendered line",
+      `Long preview\n${"  actual content and whitespace\n".repeat(60)}END OF FULL PREVIEW`,
+    ];
+    const agent = await seedMockAgentWorkspace({
+      repoPrefix: "sticky-preview",
+      title: "Sticky overflow",
+      initialPrompt: prompts[0],
+    });
+    try {
+      await agent.client.waitForFinish(agent.agentId, 15_000);
+      for (const prompt of prompts.slice(1)) {
+        await agent.client.sendAgentMessage(agent.agentId, prompt);
+        await agent.client.waitForFinish(agent.agentId, 15_000);
+      }
+      await agent.client.sendAgentMessage(
+        agent.agentId,
+        "emit 85 assistant messages before synthetic user message",
+      );
+      await agent.client.waitForFinish(agent.agentId, 15_000);
+      // The outline rail is deliberately hidden on compact panes. Bootstrap the
+      // route at desktop width, then navigate through the shared arrows after resizing.
+      await page.setViewportSize(WIDE_VIEWPORT);
+      await page.emulateMedia({ colorScheme: viewport.width === 390 ? "dark" : "light" });
+      await openAgentRoute(page, agent);
+      await expect(chatOutlineRail(page).getByRole("tab")).toHaveCount(5);
+      await page.setViewportSize(viewport);
+      const initialCopy = page.getByTestId("sticky-user-message");
+      await expect(initialCopy).toContainText(
+        "emit 85 assistant messages before synthetic user message",
+      );
+      for (let index = prompts.length - 1; index >= 0; index -= 1) {
+        await initialCopy.getByTestId("sticky-user-message-previous").click();
+        await expectTimelinePromptLandedBelowTop(page, prompts[index]!);
+        if (index > 0) await scrollTimelinePastPrompt(page, prompts[index]!);
+      }
+      const timeline = page.getByTestId("agent-chat-scroll");
+      const original = timeline.getByTestId("user-message").filter({ hasText: prompts[0]! });
+      const realHeight = (await original.getByTestId("user-message-bubble").boundingBox())!.height;
+      await expectSinglePaintedPromptHandoff(page, prompts[0]!, viewport.width);
+      await scrollTimelinePastPrompt(page, prompts[0]!);
+      const sticky = page.getByTestId("sticky-user-message");
+      const disclosure = sticky.getByTestId("sticky-user-message-disclosure");
+      await expect(disclosure).toHaveCount(0);
+      expect((await sticky.getByTestId("user-message-bubble").boundingBox())!.height).toBeCloseTo(
+        realHeight,
+        0,
+      );
+      await page.screenshot({
+        path: `../../docs/qa-evidence/sticky-user-message/short-preview-${viewport.width}.png`,
+      });
+      for (let index = 1; index < prompts.length; index += 1) {
+        await sticky.getByTestId("sticky-user-message-next").click();
+        await expectTimelinePromptLandedBelowTop(page, prompts[index]!);
+        await scrollTimelinePastPrompt(page, prompts[index]!);
+        if (index === 1 && viewport.width === 1440) {
+          await expect(disclosure).toHaveCount(0);
+          continue;
+        }
+        await expect(disclosure).toHaveText("more…");
+        const collapsed = (await sticky.getByTestId("user-message-bubble").boundingBox())!.height;
+        await disclosure.click();
+        await expect(disclosure).toHaveText("less…");
+        await expect(sticky.getByTestId("text-preview-measurement")).toHaveCount(0);
+        await expect(sticky.getByTestId("user-message")).toContainText(prompts[index]!);
+        await disclosure.click();
+        await expect(disclosure).toHaveText("more…");
+        await expect
+          .poll(async () => (await sticky.getByTestId("user-message-bubble").boundingBox())!.height)
+          .toBe(collapsed);
+      }
+      await page.screenshot({
+        path: `../../docs/qa-evidence/sticky-user-message/overflow-preview-${viewport.width}.png`,
+      });
+    } finally {
+      await agent.cleanup();
+    }
+  });
+
   test(`sticky user message navigation at ${viewport.width}px`, async ({ page }) => {
     test.setTimeout(180_000);
     const agent = await seedLongMockAgentTimeline({ turns: 20 });
@@ -340,10 +425,7 @@ for (const viewport of [
             await expect(target).toBeInViewport();
             await expect
               .poll(() => sticky.evaluate((element) => Number(getComputedStyle(element).opacity)))
-              .toBeGreaterThan(0);
-            await expect
-              .poll(() => sticky.evaluate((element) => Number(getComputedStyle(element).opacity)))
-              .toBeLessThan(1);
+              .toBe(1);
             const bubble = await sticky.getByTestId("user-message").boundingBox();
             const controls = await sticky.getByTestId("sticky-user-message-controls").boundingBox();
             expect(controls!.y).toBeGreaterThanOrEqual(bubble!.y + bubble!.height - 1);
@@ -370,7 +452,9 @@ for (const viewport of [
                 sticky.evaluate((element) => element.parentElement!.getBoundingClientRect().height),
               )
               .toBeLessThan(40);
-            await expect(sticky.getByTestId("sticky-user-message-disclosure")).toHaveText("more…");
+            await expect(sticky.getByTestId("sticky-user-message-disclosure")).toHaveCount(
+              viewport.width === 1440 ? 0 : 1,
+            );
             const visibleNewer = await newer.boundingBox();
             const paintedMessage = await page.evaluate(
               ({ x, y }) =>
@@ -392,6 +476,32 @@ for (const viewport of [
       await expect(previous).toBeDisabled();
       await next.click();
       await expectTimelinePromptLandedBelowTop(page, agent.prompts[1]!);
+      await scrollTimelinePastPrompt(page, agent.prompts[1]!);
+      // The bubble returns to itself; the arrows still navigate to adjacent prompts.
+      await sticky.getByTestId("user-message-content-target").click({ position: { x: 10, y: 4 } });
+      await expectTimelinePromptLandedBelowTop(page, agent.prompts[1]!);
+      await expect(sticky).toHaveCount(0);
+      await scrollTimelinePastPrompt(page, agent.prompts[1]!);
+      const messageLink = sticky.getByTestId("user-message-text");
+      const textBounds = (await messageLink.boundingBox())!;
+      await page.mouse.move(textBounds.x + 4, textBounds.y + textBounds.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(
+        textBounds.x + Math.min(textBounds.width - 4, 80),
+        textBounds.y + textBounds.height / 2,
+        { steps: 8 },
+      );
+      await page.mouse.up();
+      await expect
+        .poll(() => page.evaluate(() => window.getSelection()?.toString().length ?? 0))
+        .toBeGreaterThan(0);
+      await expect(sticky).toContainText(agent.prompts[1]!);
+      await page.evaluate(() => window.getSelection()?.removeAllRanges());
+      await expect(messageLink).toHaveAttribute("role", "link");
+      await messageLink.focus();
+      await messageLink.press("Enter");
+      await expectTimelinePromptLandedBelowTop(page, agent.prompts[1]!);
+      await expect(sticky).toHaveCount(0);
       await scrollTimelinePastPrompt(page, agent.prompts[1]!);
       const longPrompt = `Long sticky prompt\n${"  Preserve this line and whitespace.\n".repeat(60)}END OF STICKY PROMPT: emit 85 assistant messages before synthetic user message`;
       await agent.client.sendAgentMessage(agent.agentId, longPrompt);
@@ -621,4 +731,59 @@ for (const indexed of [true, false]) {
       await agent.cleanup();
     }
   });
+}
+
+/** Compare painted bubble pixels at fine forward/reverse offsets around the pin threshold. */
+async function expectSinglePaintedPromptHandoff(page: Page, prompt: string, width: number) {
+  const timeline = page.getByTestId("agent-chat-scroll");
+  const original = timeline.getByTestId("user-message").filter({ hasText: prompt });
+  const source = original.getByTestId("user-message-bubble");
+  const sticky = page.getByTestId("sticky-user-message");
+  const viewport = (await timeline.boundingBox())!;
+  await page.evaluate(() => document.fonts.ready);
+  const sourceBox = (await source.boundingBox())!;
+  const originalText = original.getByTestId("user-message-text");
+  const originalTextBox = (await originalText.boundingBox())!;
+  await timeline.hover();
+  const originalPixels = await originalText.screenshot({
+    animations: "disabled",
+    path: `../../docs/qa-evidence/sticky-user-message/original-body-${width}.png`,
+  });
+  for (const offset of [6, 3, 1, -1, -3, -6, -12, -24, -12, -3, -1, 1, 3, 6]) {
+    const current = (await source.boundingBox())!;
+    await page.mouse.wheel(0, current.y - viewport.y - offset);
+    await expect
+      .poll(async () => (await source.boundingBox())!.y - viewport.y)
+      .toBeCloseTo(offset, 0);
+    if (offset > 0) {
+      await expect(sticky).toHaveCount(0);
+      await expect(original.getByTestId("user-message-prefix-mask")).toHaveCount(0);
+      continue;
+    }
+    await expect(sticky).toBeVisible();
+    const body = sticky.getByTestId("user-message-bubble");
+    const pinned = (await body.boundingBox())!;
+    expect(pinned.x).toBeCloseTo(sourceBox.x, 0);
+    expect(pinned.width).toBeCloseTo(sourceBox.width, 0);
+    expect(pinned.height).toBeCloseTo(sourceBox.height, 0);
+    expect(pinned.y).toBeCloseTo(viewport.y, 0);
+    await expect(original.getByTestId("user-message-prefix-mask")).toBeVisible();
+    await body.screenshot({
+      animations: "disabled",
+      path: `../../docs/qa-evidence/sticky-user-message/pinned-body-${width}-${offset}.png`,
+    });
+    const pinnedText = sticky.getByTestId("user-message-text");
+    const pinnedTextBox = (await pinnedText.boundingBox())!;
+    expect(pinnedTextBox.x).toBeCloseTo(originalTextBox.x, 3);
+    expect(pinnedTextBox.y - pinned.y).toBeCloseTo(originalTextBox.y - sourceBox.y, 3);
+    expect(pinnedTextBox.width).toBeCloseTo(originalTextBox.width, 3);
+    // Compare actual text pixels, avoiding a one-level antialias difference on a
+    // rounded outer corner at fractional source coordinates.
+    expect((await pinnedText.screenshot({ animations: "disabled" })).equals(originalPixels)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: `../../docs/qa-evidence/sticky-user-message/single-copy-${width}-${offset}.png`,
+    });
+  }
 }

@@ -1,12 +1,22 @@
-import { resolvePromptHandoffProgress } from "./prompt-handoff";
+import { resolvePromptHandoffProgress, type PromptHandoff } from "./prompt-handoff";
 
-/** Sample public native window coordinates. Changing targets invalidates old callbacks;
- * samples for the same target may finish out of order without starving during scrolling.
+export interface NativePromptWindowRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  prefixHeightOne?: number;
+  prefixHeightTwo?: number;
+}
+
+/** Sample actual bubble and viewport window rectangles. Changing targets invalidates old
+ * callbacks; same-target samples can finish out of order without starving during scroll.
+ * Non-positive retained-pane geometry never replaces a valid presentation measurement.
  */
 export function createNativePromptHandoffSampler(ports: {
-  measureViewport(callback: (y: number | null) => void): void;
-  measurePrompt(id: string, callback: (y: number | null) => void): void;
-  onMeasured(id: string, progress: number, top: number): void;
+  measureViewport(callback: (rect: NativePromptWindowRect | null) => void): void;
+  measurePrompt(id: string, callback: (rect: NativePromptWindowRect | null) => void): void;
+  onMeasured(frame: PromptHandoff): void;
 }) {
   let target: string | null = null;
   let generation = 0;
@@ -24,21 +34,43 @@ export function createNativePromptHandoffSampler(ports: {
       }
       const owner = generation;
       const sequence = ++request;
-      ports.measureViewport((viewportY) => {
-        if (owner !== generation || viewportY === null) return;
-        ports.measurePrompt(id, (promptY) => {
-          if (owner !== generation || sequence < completed || promptY === null) return;
+      ports.measureViewport((viewport) => {
+        if (owner !== generation || !viewport || viewport.width <= 0 || viewport.height <= 0)
+          return;
+        ports.measurePrompt(id, (bubble) => {
+          if (
+            owner !== generation ||
+            sequence < completed ||
+            !bubble ||
+            bubble.width <= 0 ||
+            bubble.height <= 0 ||
+            // Layout events can arrive after the public rectangle callback. Never
+            // publish a visible copy before the source prefix can be covered.
+            bubble.prefixHeightOne === undefined ||
+            bubble.prefixHeightTwo === undefined
+          )
+            return;
           completed = sequence;
-          const top = promptY - viewportY;
-          ports.onMeasured(id, resolvePromptHandoffProgress(top), top);
+          const top = bubble.y - viewport.y;
+          ports.onMeasured({
+            id,
+            progress: resolvePromptHandoffProgress(top),
+            top,
+            left: bubble.x - viewport.x,
+            width: bubble.width,
+            height: bubble.height,
+            viewportWidth: viewport.width,
+            prefixHeightOne: bubble.prefixHeightOne,
+            prefixHeightTwo: bubble.prefixHeightTwo,
+          });
         });
       });
     },
   };
 }
 
-/** Measure only the leading pair: an older prompt still partly visible and its incoming
- * replacement. Each slot retains independent callback ordering and cancellation fences.
+/** Bound work to the leading original and its approaching replacement, each with its own
+ * callback ordering and cancellation fences. Both slots measure the real bubble, not a cell.
  */
 export function createNativePromptHandoffPair(
   ports: Parameters<typeof createNativePromptHandoffSampler>[0],

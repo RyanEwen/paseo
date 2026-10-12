@@ -1,5 +1,8 @@
-import { useMemo } from "react";
-import { Text, View, ScrollView, type ViewStyle } from "react-native";
+import { inlineUnistylesStyle } from "@/styles/unistyles-inline-style";
+import { isWeb } from "@/constants/platform";
+import { useStableEvent } from "@/hooks/use-stable-event";
+import { useMemo, useState } from "react";
+import { Text, View, ScrollView, type ViewStyle, type GestureResponderEvent } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
@@ -34,28 +37,78 @@ export function PromptMessageSurface({
 }) {
   const { t } = useTranslation();
   const compact = useIsCompactFormFactor();
+  const previewLines = compact ? 1 : 2;
+  const revealMessage = useStableEvent((event: GestureResponderEvent) => {
+    if (isWeb) {
+      const selection = window.getSelection();
+      const currentTarget: unknown = event.currentTarget;
+      const keyboard = event.nativeEvent instanceof KeyboardEvent;
+      if (
+        !keyboard &&
+        selection &&
+        !selection.isCollapsed &&
+        currentTarget instanceof HTMLElement &&
+        (currentTarget.contains(selection.anchorNode) ||
+          currentTarget.contains(selection.focusNode))
+      ) {
+        return;
+      }
+    }
+    navigation.reveal();
+  });
+  const [textOverflow, setTextOverflow] = useState({
+    id: message.id,
+    text: message.text,
+    lines: previewLines,
+    hidden: false,
+  });
+  const reportTextOverflow = useStableEvent((hidden: boolean) => {
+    setTextOverflow((current) =>
+      current.id === message.id &&
+      current.text === message.text &&
+      current.lines === previewLines &&
+      current.hidden === hidden
+        ? current
+        : { id: message.id, text: message.text, lines: previewLines, hidden },
+    );
+  });
+  // A compact attachment summary omits the real attachment pills. Text disclosure,
+  // however, is driven only by the full renderer's measured wrapping.
+  const hidesContent = hidesPromptPreviewContent(message, textOverflow, previewLines);
   const surfaceStyle = useMemo(
-    () => [styles.container, { opacity: navigation.stickyProgress }],
-    [navigation.stickyProgress],
+    () => [
+      styles.container,
+      navigation.geometry
+        ? inlineUnistylesStyle({
+            paddingLeft: navigation.geometry.left,
+            paddingRight:
+              navigation.geometry.viewportWidth -
+              navigation.geometry.left -
+              navigation.geometry.width,
+          })
+        : undefined,
+    ],
+    [navigation.geometry],
   );
   const clipStyle = useMemo(
-    () => ({ overflow: "hidden" as const, maxHeight: navigation.occlusionTop }),
+    () => inlineUnistylesStyle({ overflow: "hidden" as const, maxHeight: navigation.occlusionTop }),
     [navigation.occlusionTop],
   );
   const disclosure = useMemo(
-    () => (
-      <Button
-        variant="ghost"
-        size={size}
-        accessibilityLabel={expanded ? t("stickyPrompt.collapse") : t("stickyPrompt.expand")}
-        accessibilityState={disclosureState}
-        onPress={toggleExpanded}
-        testID="sticky-user-message-disclosure"
-      >
-        {expanded ? t("stickyPrompt.less") : t("stickyPrompt.more")}
-      </Button>
-    ),
-    [size, expanded, t, disclosureState, toggleExpanded],
+    () =>
+      expanded || hidesContent ? (
+        <Button
+          variant="ghost"
+          size={size}
+          accessibilityLabel={expanded ? t("stickyPrompt.collapse") : t("stickyPrompt.expand")}
+          accessibilityState={disclosureState}
+          onPress={toggleExpanded}
+          testID="sticky-user-message-disclosure"
+        >
+          {expanded ? t("stickyPrompt.less") : t("stickyPrompt.more")}
+        </Button>
+      ) : null,
+    [size, expanded, hidesContent, t, disclosureState, toggleExpanded],
   );
   return (
     <View style={clipStyle}>
@@ -64,19 +117,28 @@ export function PromptMessageSurface({
           <UserMessage
             serverId={serverId}
             client={client}
+            onContentPress={navigation.busy ? undefined : revealMessage}
+            contentAccessibilityLabel={t("stickyPrompt.goToMessage")}
+            bubbleWidth={navigation.geometry?.width}
+            hideTextAccessibility={navigation.sourceMounted && !expanded}
             message={message.text}
             images={message.images}
             attachments={message.attachments}
             timestamp={message.timestamp.getTime()}
             disableOuterSpacing
             contentAction={disclosure}
-            previewLines={compact ? 1 : 2}
+            previewLines={previewLines}
+            onPreviewOverflowChange={reportTextOverflow}
           />
         ) : (
           <ScrollView style={expandedScrollStyle} nestedScrollEnabled>
             <UserMessage
               serverId={serverId}
               client={client}
+              onContentPress={navigation.busy ? undefined : revealMessage}
+              contentAccessibilityLabel={t("stickyPrompt.goToMessage")}
+              bubbleWidth={navigation.geometry?.width}
+              hideTextAccessibility={navigation.sourceMounted && !expanded}
               message={message.text}
               images={message.images}
               attachments={message.attachments}
@@ -190,3 +252,18 @@ const styles = StyleSheet.create((theme) => ({
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
   text: { color: theme.colors.foreground, fontSize: theme.fontSize.base },
 }));
+
+/** Only this prompt's actual measured clipping or summarized attachments need disclosure. */
+function hidesPromptPreviewContent(
+  message: UserPrompt,
+  overflow: { id: string; text: string; lines: number; hidden: boolean },
+  lines: number,
+): boolean {
+  if ((message.images?.length ?? 0) + (message.attachments?.length ?? 0) > 0) return true;
+  return (
+    overflow.id === message.id &&
+    overflow.text === message.text &&
+    overflow.lines === lines &&
+    overflow.hidden
+  );
+}

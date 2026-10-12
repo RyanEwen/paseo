@@ -1,16 +1,18 @@
-/** The original and compact copy overlap for this short scroll distance, before the
- * original has left view. Progress follows scrolling in either direction, without timers.
- */
-export const PROMPT_HANDOFF_DISTANCE = 48;
-
 export interface PromptHandoff {
   id: string;
+  /** Exclusive ownership: zero before the bubble reaches the edge, one once pinned. */
   progress: number;
-  /** Original visual top in viewport pixels, including upcoming prompts. */
   top?: number;
+  /** Actual bubble geometry in viewport pixels, including its original wrapping width. */
+  left?: number;
+  width?: number;
+  height?: number;
+  viewportWidth?: number;
+  prefixHeightOne?: number;
+  prefixHeightTwo?: number;
 }
 
-/** Convert the original bubble's visual top relative to the viewport into its handoff. */
+/** Pin at the original bubble's edge. There is no interval with two translucent copies. */
 export function resolvePromptHandoffProgress(top: number): number {
-  return Math.min(1, Math.max(0, -top / PROMPT_HANDOFF_DISTANCE));
+  return top <= 0 ? 1 : 0;
 }

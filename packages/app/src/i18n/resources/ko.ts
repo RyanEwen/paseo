@@ -364,6 +364,7 @@ export const ko: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "이 메시지로 이동",
     more: "더 보기…",
     less: "접기…",
     none: "이 채팅에는 사용자 메시지가 없습니다.",

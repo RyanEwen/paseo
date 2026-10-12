@@ -360,6 +360,7 @@ export const en = {
     },
   },
   stickyPrompt: {
+    goToMessage: "Go to this message",
     more: "more…",
     less: "less…",
     none: "No user messages in this chat.",

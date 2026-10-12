@@ -360,6 +360,7 @@ export const zhCN: TranslationResources = {
     },
   },
   stickyPrompt: {
+    goToMessage: "跳转到此消息",
     more: "更多…",
     less: "收起…",
     none: "此聊天中没有用户消息。",

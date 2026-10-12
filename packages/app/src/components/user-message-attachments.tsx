@@ -1,5 +1,6 @@
+import { useTextLink } from "@/hooks/use-text-link";
 import { useCallback } from "react";
-import { Text, View } from "react-native";
+import { Text, View, type GestureResponderEvent } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import type { AgentAttachment } from "@getpaseo/protocol/messages";
@@ -9,12 +10,16 @@ import { AttachmentFrame, AttachmentLabel, AttachmentThumbnail } from "./attachm
 
 /** A compact copy counts attachments; disclosure restores every original attachment pill. */
 export function UserMessageAttachments({
+  onContentPress,
+  contentAccessibilityLabel,
   images,
   attachments,
   compact,
   hasText,
   onOpen,
 }: {
+  onContentPress?: (event: GestureResponderEvent) => void;
+  contentAccessibilityLabel?: string;
   images: UserMessageImageAttachment[];
   attachments: AgentAttachment[];
   compact: boolean;
@@ -22,10 +27,19 @@ export function UserMessageAttachments({
   onOpen: (image: UserMessageImageAttachment) => void;
 }) {
   const { t } = useTranslation();
+  const keyboardLink = useTextLink(onContentPress);
   const count = images.length + attachments.length;
   if (compact)
     return count > 0 ? (
-      <Text style={styles.summary}>{t("stickyPrompt.attachments", { count })}</Text>
+      <Text
+        style={styles.summary}
+        {...keyboardLink}
+        onPress={onContentPress}
+        accessibilityRole={onContentPress ? "link" : undefined}
+        accessibilityHint={contentAccessibilityLabel}
+      >
+        {t("stickyPrompt.attachments", { count })}
+      </Text>
     ) : null;
   return (
     <>
