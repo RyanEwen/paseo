@@ -1224,6 +1224,7 @@ async function main() {
   const children = [];
   let browser = null;
   let client = null;
+  let appPage = null;
 
   try {
     // Observe the real Electron shell handoff without launching a user's browser.
