@@ -629,3 +629,18 @@ export async function captureSpokenTimeline(
     contentType: "image/png",
   });
 }
+
+/** Move the reading edge below a prompt using the isolated timeline's actual bubble bounds. */
+export async function scrollTimelinePastPrompt(page: Page, prompt: string): Promise<void> {
+  const timeline = page.locator('[data-testid="agent-chat-scroll"]:visible').first();
+  const delta = await timeline
+    .getByTestId("user-message")
+    .filter({ hasText: prompt })
+    .evaluate((bubble) => {
+      const scroll = bubble.closest<HTMLElement>('[data-testid="agent-chat-scroll"]')!;
+      return bubble.getBoundingClientRect().bottom - scroll.getBoundingClientRect().top + 2;
+    });
+  await timeline.hover();
+  await page.mouse.wheel(0, delta);
+  await expect(page.getByTestId("sticky-user-message")).toContainText(prompt);
+}

@@ -244,6 +244,10 @@ export const es: TranslationResources = {
     },
   },
   stickyPrompt: {
+    none: "No hay mensajes del usuario en este chat.",
+    cancelled: "Carga cancelada.",
+    moreHistory: "Hay más historial disponible. Reintenta para seguir buscando.",
+
     latest: "Último mensaje del usuario",
     selected: "Mensaje del usuario",
     expand: "Expandir mensaje del usuario",

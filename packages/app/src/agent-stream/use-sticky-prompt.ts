@@ -1,15 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStableEvent } from "@/hooks/use-stable-event";
+import type { TimelinePageAcceptance } from "@/timeline/fetch-viewed-timeline-page";
+import { EMPTY_PROMPT_READING_SOURCE, type PromptReadingSource } from "./prompt-reading-position";
+import { useReadingPrompt } from "./use-reading-prompt";
+import { usePromptDiscovery } from "./use-prompt-discovery";
 import type { StreamItem } from "@/types/stream";
 import type { ChatOutline } from "./chat-outline/use-chat-outline";
 import {
   buildPromptTargets,
+  resolveReadingPromptTarget,
+  getMissingReadingPromptSeq,
+  isStickyPromptVisible,
+  shouldDiscoverPrompt,
+  needsReadingPromptDiscovery,
+  hasDiscoveredPrompt,
+  resolveStickyPromptMessage,
+  isNextPromptDisabled,
   findPromptTarget,
+  isPromptNavigationBusy,
+  isPreviousPromptDisabled,
   type PromptTarget,
   type UserPrompt,
 } from "./sticky-prompt-model";
 
 interface Input {
+  reading?: PromptReadingSource;
+  fetchPrompt?: (seq: number) => Promise<UserPrompt>;
   items: StreamItem[];
   epoch: string | null;
   outline: ChatOutline;
@@ -17,7 +33,7 @@ interface Input {
   hasOlder: boolean;
   loadingOlder: boolean;
   progressKey: string | null;
-  loadOlder: () => boolean | Promise<boolean>;
+  loadOlder: (acceptance?: TimelinePageAcceptance) => boolean | Promise<boolean>;
   jumpToLoaded: (id: string) => void;
 }
 
@@ -34,6 +50,12 @@ export function useStickyPrompt(input: Input) {
     loadOlder,
     jumpToLoaded,
   } = input;
+  const readingSource = input.reading ?? EMPTY_PROMPT_READING_SOURCE;
+  const reading = useSyncExternalStore(
+    readingSource.subscribe,
+    readingSource.getSnapshot,
+    readingSource.getSnapshot,
+  );
   const targets = useMemo(
     () => buildPromptTargets(items, outline.prompts, epoch),
     [items, outline.prompts, epoch],
@@ -41,31 +63,107 @@ export function useStickyPrompt(input: Input) {
   const [selected, setSelected] = useState<UserPrompt | null>(null);
   const [pending, setPending] = useState<PromptTarget | "previous" | null>(null);
   const [error, setError] = useState(false);
-  const [pagePending, setPagePending] = useState(false);
-  const mounted = useRef(true);
+  const [cancelled, setCancelled] = useState(false);
+  const retryTarget = useRef<{ target: PromptTarget; scroll: boolean } | null>(null);
   const retryDirection = useRef<-1 | 1>(-1);
-  const requestedPageRef = useRef<string | null>(null);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  const latest =
-    targets.at(-1)?.item ??
-    items.findLast((item): item is UserPrompt => item.kind === "user_message");
-  const message = selected ?? latest;
-  const position = message ? findPromptTarget(targets, message) : -1;
+  const latest = targets.at(-1)?.item;
+  const selectedMessage = selected ?? latest;
 
-  const selectTarget = useStableEvent((target: PromptTarget) => {
+  // The reading row is authoritative for manual scrolling. Keep full selected content
+  // across page replacements, and never replace an explicit pending navigation.
+  const readingTarget = useMemo(
+    () =>
+      reading.following
+        ? targets.at(-1)
+        : resolveReadingPromptTarget(items, targets, reading.rowId, reading.seq),
+    [items, reading.rowId, reading.seq, reading.following, targets],
+  );
+  const discoverReading = needsReadingPromptDiscovery(
+    indexed,
+    reading.manual,
+    reading.rowId,
+    readingTarget,
+  );
+  const missingReadingSeq = getMissingReadingPromptSeq({
+    navigating: reading.navigating,
+    intentional: reading.manual || reading.following,
+    pending: pending !== null || outline.isJumping,
+    target: readingTarget,
+    latest: targets.at(-1),
+    selected: selectedMessage,
+  });
+  const knownPrompts = useMemo(
+    () => items.filter((item): item is UserPrompt => item.kind === "user_message"),
+    [items],
+  );
+  const readingContent = useReadingPrompt({
+    knownPrompts,
+    seq: missingReadingSeq,
+    fetchPrompt: input.fetchPrompt,
+  });
+  const readingItem = readingTarget?.item ?? readingContent.item;
+  const message = resolveStickyPromptMessage(
+    selectedMessage,
+    readingContent.item,
+    discoverReading,
+    missingReadingSeq,
+    input.fetchPrompt !== undefined,
+  );
+  const position = message ? findPromptTarget(targets, message) : -1;
+  useEffect(() => {
+    if (
+      (!reading.manual && !reading.following) ||
+      reading.navigating ||
+      pending ||
+      outline.isJumping ||
+      !readingItem
+    )
+      return;
+    setSelected(readingTarget?.key === targets.at(-1)?.key ? null : readingItem);
+  }, [
+    reading.manual,
+    reading.following,
+    reading.navigating,
+    outline.isJumping,
+    pending,
+    readingTarget,
+    readingItem,
+    targets,
+  ]);
+
+  const previous = targets[position - 1];
+  const discoveringPrevious = pending === "previous";
+  const discovery = usePromptDiscovery({
+    enabled: shouldDiscoverPrompt(
+      discoveringPrevious,
+      indexed,
+      message,
+      cancelled,
+      discoverReading,
+    ),
+    reached: hasDiscoveredPrompt(
+      discoveringPrevious,
+      previous,
+      discoverReading,
+      readingTarget,
+      message,
+    ),
+    hasOlder,
+    loadingOlder,
+    progressKey: progressKey ?? items[0]?.id ?? "empty",
+    loadOlder,
+  });
+
+  const selectTarget = useStableEvent((target: PromptTarget, scroll: boolean = true) => {
     setError(false);
+    retryTarget.current = { target, scroll };
     if (target.item) {
       setSelected(target.key === targets.at(-1)?.key ? null : target.item);
       setPending(null);
-      jumpToLoaded(target.item.id);
+      if (scroll) jumpToLoaded(target.item.id);
     } else if (target.seq !== undefined) {
       setPending(target);
-      outline.jumpToPrompt(target.seq);
+      outline.jumpToPrompt(target.seq, { scroll });
     }
   });
 
@@ -83,62 +181,39 @@ export function useStickyPrompt(input: Input) {
 
   useEffect(() => {
     const newest = targets.at(-1);
-    if (!message && newest && !pending && !error && !outline.jumpError) selectTarget(newest);
-  }, [error, message, outline.jumpError, pending, selectTarget, targets]);
-
-  // Index-free child/older-host transcripts use ordinary backwards pagination. Keep
-  // loading until a user prompt is found, rather than mistaking a tool-only page for a bound.
-  useEffect(() => {
-    if (pending !== "previous" || loadingOlder || pagePending) return;
-    const previous = targets[position - 1];
-    if (previous) {
-      selectTarget(previous);
-      return;
-    }
-    if (!hasOlder) {
-      setPending(null);
-      return;
-    }
-    const pageKey = progressKey ?? items[0]?.id ?? "empty";
-    if (requestedPageRef.current === pageKey) {
-      setError(true);
-      setPending(null);
-      return;
-    }
-    requestedPageRef.current = pageKey;
-    setPagePending(true);
-    void (async () => {
-      try {
-        const started = await loadOlder();
-        if (mounted.current && !started) {
-          setError(true);
-          setPending(null);
-        }
-      } catch {
-        if (mounted.current) {
-          setError(true);
-          setPending(null);
-        }
-      } finally {
-        if (mounted.current) setPagePending(false);
-      }
-    })();
+    if (
+      indexed &&
+      !selectedMessage &&
+      newest &&
+      !pending &&
+      !cancelled &&
+      !error &&
+      !outline.jumpError
+    )
+      selectTarget(newest, false);
   }, [
-    hasOlder,
-    items,
-    loadOlder,
-    loadingOlder,
-    pagePending,
+    cancelled,
+    error,
+    indexed,
+    selectedMessage,
+    outline.jumpError,
     pending,
-    position,
-    progressKey,
     selectTarget,
     targets,
   ]);
 
+  useEffect(() => {
+    if (!discoveringPrevious) return;
+    if (previous) selectTarget(previous);
+    else if (["error", "limited", "exhausted", "cancelled"].includes(discovery.status))
+      setPending(null);
+  }, [discoveringPrevious, discovery.status, previous, selectTarget]);
+
   const navigate = useStableEvent((direction: -1 | 1) => {
     if (!message) return;
-    requestedPageRef.current = null;
+    discovery.restart();
+    retryTarget.current = null;
+    setCancelled(false);
     retryDirection.current = direction;
     // Freeze the current prompt before a remote jump replaces the loaded window.
     setSelected(message);
@@ -147,22 +222,111 @@ export function useStickyPrompt(input: Input) {
     else if (direction === -1 && hasOlder) setPending("previous");
   });
 
+  const cancel = useStableEvent(() => {
+    outline.cancelJump();
+    readingContent.cancel();
+    retryTarget.current = null;
+    discovery.cancel();
+    setPending(null);
+    setError(false);
+    setCancelled(true);
+  });
+  const reviewReading = useStableEvent(() => {
+    outline.cancelJump();
+    readingContent.cancel();
+    discovery.restart();
+    retryTarget.current = null;
+    setPending(null);
+    setError(false);
+    setCancelled(false);
+  });
+  const followLatest = useStableEvent(() => {
+    cancel();
+    setSelected(null);
+  });
+  const retry = useStableEvent(() => {
+    if (readingContent.error) {
+      readingContent.retry();
+      return;
+    }
+    setCancelled(false);
+    setError(false);
+    discovery.restart();
+    if (outline.indexError) {
+      outline.retryIndex();
+      return;
+    }
+    const previousAttempt = retryTarget.current;
+    if (previousAttempt) {
+      const target =
+        targets.find((entry) => entry.key === previousAttempt.target.key) ?? previousAttempt.target;
+      selectTarget(target, previousAttempt.scroll);
+    } else if (message) navigate(retryDirection.current);
+    else if (indexed) {
+      const newest = targets.at(-1);
+      if (newest) selectTarget(newest, false);
+      else outline.retryIndex();
+    }
+  });
+
+  const previousAction = useStableEvent(() => navigate(-1));
+  const nextAction = useStableEvent(() => navigate(1));
+  const activate = useStableEvent((id: string, direction: -1 | 1) => {
+    const current = targets.findIndex((target) => target.item?.id === id);
+    const item = targets[current]?.item;
+    if (!item) return;
+    setSelected(item);
+    discovery.restart();
+    setCancelled(false);
+    retryDirection.current = direction;
+    const target = targets[current + direction];
+    if (target) selectTarget(target);
+    else if (direction === -1 && hasOlder) setPending("previous");
+  });
   return {
     message,
-    busy: pending !== null || outline.isJumping,
-    error: error || outline.indexError,
-    previousDisabled:
-      !message ||
-      (indexed && !outline.indexReady) ||
-      (position <= 0 && (indexed ? outline.indexReady : !hasOlder) && !outline.indexError),
-    nextDisabled: !message || position < 0 || position >= targets.length - 1,
-    retry: () => navigate(retryDirection.current),
-    previous: () => navigate(-1),
-    next: () => navigate(1),
-    followLatest: () => {
-      setSelected(null);
-      setPending(null);
-      setError(false);
-    },
+    targets,
+    previousKnownBoundary: indexed ? outline.indexReady : !hasOlder,
+    activate,
+    stickyVisible: isStickyPromptVisible(
+      message,
+      readingTarget,
+      reading.visibleUserIds,
+      reading.rowId,
+    ),
+    discoveryStatus: discovery.status,
+    cancelled,
+    busy: isPromptNavigationBusy({
+      pending: pending !== null || readingContent.loading,
+      jumping: outline.isJumping,
+      discovering: discovery.status === "loading",
+      indexed,
+      epoch,
+      cancelled,
+      indexReady: outline.indexReady,
+      indexError: outline.indexError,
+    }),
+    error: [
+      error,
+      outline.indexError,
+      outline.jumpError,
+      discovery.status === "error",
+      readingContent.error,
+    ].some(Boolean),
+    previousDisabled: isPreviousPromptDisabled({
+      message,
+      indexed,
+      position,
+      hasOlder,
+      indexReady: outline.indexReady,
+      indexError: outline.indexError,
+    }),
+    nextDisabled: isNextPromptDisabled(message, position, targets.length),
+    retry,
+    cancel,
+    previous: previousAction,
+    next: nextAction,
+    followLatest,
+    reviewReading,
   };
 }

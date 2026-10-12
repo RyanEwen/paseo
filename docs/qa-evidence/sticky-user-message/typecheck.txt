@@ -58,4 +58,3 @@ generated src/generated/validation/ws-outbound.aot.ts from codegen/ws-outbound.c
 
 > @getpaseo/cli@0.11.2 typecheck
 > tsgo --noEmit
-

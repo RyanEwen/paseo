@@ -243,6 +243,10 @@ export const ptBR: TranslationResources = {
     },
   },
   stickyPrompt: {
+    none: "Não há mensagens do usuário neste chat.",
+    cancelled: "Carregamento cancelado.",
+    moreHistory: "Há mais histórico disponível. Tente novamente para continuar procurando.",
+
     latest: "Última mensagem do usuário",
     selected: "Mensagem do usuário",
     expand: "Expandir mensagem do usuário",

@@ -1,3 +1,5 @@
+import { chatOutlineRail } from "../support/helpers/chat-outline";
+import { expectNearBottom } from "../support/helpers/agent-bottom-anchor";
 import { expect, test } from "../support/fixtures";
 import { clickNewChat } from "../support/helpers/launcher";
 import { expectComposerVisible } from "../support/helpers/composer";
@@ -44,6 +46,8 @@ import { attachFileFromMenu, controlFileUploadCompletion } from "../support/help
 import {
   openAgentTimeline,
   seedLongMockAgentTimeline,
+  scrollTimelinePastPrompt,
+  expectTimelinePromptLandedBelowTop,
 } from "../support/helpers/timeline-pagination";
 
 const MINIMAL_PNG = Buffer.from(
@@ -319,17 +323,20 @@ test.describe("Composer attachments", () => {
 
 test("sticky user message preserves uploaded image and file attachments", async ({ page }) => {
   test.setTimeout(120_000);
-  const agent = await seedLongMockAgentTimeline({ turns: 2 });
+  const agent = await seedLongMockAgentTimeline({ turns: 20 });
   try {
     await openAgentTimeline(page, agent);
     const sticky = page.getByTestId("sticky-user-message");
-    await sticky.getByRole("button", { name: "Previous user message", exact: true }).click();
-    await expect(sticky).toContainText(agent.oldestPrompt);
+    await chatOutlineRail(page).getByRole("tab").first().click();
+    await expectTimelinePromptLandedBelowTop(page, agent.oldestPrompt);
+    await scrollTimelinePastPrompt(page, agent.oldestPrompt);
     await attachImageFromMenu(page, TEST_IMAGE);
     await attachFileFromMenu(page, TEST_JSON);
     await expectAttachmentPill(page, "composer-file-attachment-pill");
-    const prompt = "Text with attachments\n  Preserve indentation.";
+    const prompt =
+      "Text with attachments\n  Preserve indentation.\nemit 85 assistant messages before synthetic user message";
     await submitMessageWithButton(page, prompt);
+    await expectNearBottom(page);
     await expect(sticky).toContainText("2 attachments");
     await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
     await expect(sticky.getByTestId("user-message")).toContainText(prompt);

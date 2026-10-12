@@ -13,7 +13,7 @@ export interface PromptJumpSettleViewport {
 }
 
 export interface PromptJumpSettleController {
-  start(messageId: string): void;
+  start(messageId: string, options?: { smooth?: boolean }): void;
   cancel(): void;
   isActive(): boolean;
 }
@@ -31,14 +31,20 @@ export function createPromptJumpSettleController(input: {
   viewport: PromptJumpSettleViewport;
   requestFrame: (callback: () => void) => number;
   cancelFrame: (frameId: number) => void;
+  now?: () => number;
+  onFinished?: () => void;
 }): PromptJumpSettleController {
   let activeMessageId: string | null = null;
+  let startedAt = 0;
+  let smooth = false;
+  let previousEase = 0;
   let frameId: number | null = null;
   let sampledFrames = 0;
   let stableFrames = 0;
   let unsubscribeFromUserIntent: (() => void) | null = null;
 
   function finish(): void {
+    const wasActive = activeMessageId !== null;
     if (frameId !== null) input.cancelFrame(frameId);
     unsubscribeFromUserIntent?.();
     activeMessageId = null;
@@ -46,6 +52,7 @@ export function createPromptJumpSettleController(input: {
     sampledFrames = 0;
     stableFrames = 0;
     unsubscribeFromUserIntent = null;
+    if (wasActive) input.onFinished?.();
   }
 
   function scheduleNextFrame(): void {
@@ -70,7 +77,13 @@ export function createPromptJumpSettleController(input: {
       } else {
         stableFrames = 0;
         const before = input.viewport.getScrollMetrics();
-        input.viewport.setScrollTop(before.scrollTop + delta);
+        const progress = smooth
+          ? Math.min(1, ((input.now?.() ?? performance.now()) - startedAt) / 240)
+          : 1;
+        const ease = 1 - (1 - progress) ** 3;
+        const fraction = previousEase >= 1 ? 1 : (ease - previousEase) / (1 - previousEase);
+        previousEase = ease;
+        input.viewport.setScrollTop(before.scrollTop + delta * fraction);
         const after = input.viewport.getScrollMetrics();
         const adjustedTargetTop = input.viewport.findTargetTop(messageId);
         let remainingDelta = 0;
@@ -97,8 +110,11 @@ export function createPromptJumpSettleController(input: {
   }
 
   return {
-    start(messageId) {
+    start(messageId, options) {
       finish();
+      smooth = options?.smooth === true;
+      previousEase = 0;
+      startedAt = input.now?.() ?? performance.now();
       activeMessageId = messageId;
       unsubscribeFromUserIntent = input.viewport.subscribeToUserIntent(finish);
       scheduleNextFrame();

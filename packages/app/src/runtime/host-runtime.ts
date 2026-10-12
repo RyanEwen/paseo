@@ -83,6 +83,10 @@ import {
   type ViewedTimelineOwner,
   type ViewedTimelineOwnerPorts,
 } from "@/timeline/viewed-timeline-sync";
+import {
+  fetchViewedTimelinePage,
+  type TimelinePageAcceptance,
+} from "@/timeline/fetch-viewed-timeline-page";
 import { projectIconCache } from "@/projects/icon-cache";
 import { nativePerformanceTrace } from "@/performance/native-trace";
 import { revokePushNotifications } from "@/push-notifications";
@@ -2647,20 +2651,22 @@ export class HostRuntimeStore {
     await replica.prepare(agentId);
   }
 
+  /** Fetch through the viewed owner. Cancelling this caller's acceptance suppresses
+   * its page application without aborting transport shared with unrelated reads. */
   async fetchAgentTimeline(
     serverId: string,
     agentId: string,
     request: Parameters<DaemonClient["fetchAgentTimeline"]>[1],
+    acceptance?: TimelinePageAcceptance,
   ): Promise<Awaited<ReturnType<DaemonClient["fetchAgentTimeline"]>>> {
     const directory = this.directorySyncByServer.get(serverId);
     if (!directory) throw new Error(`Unknown host runtime for serverId ${serverId}`);
-    const owner = useSessionStore.getState().sessions[serverId]?.viewedTimelineSync;
-    const page = await directory.fetchTimeline(agentId, request);
-    if (owner && useSessionStore.getState().sessions[serverId]?.viewedTimelineSync === owner) {
-      owner.flushStreamAgent(agentId);
-      owner.applyTimelineResponse(page);
-    }
-    return page;
+    return fetchViewedTimelinePage({
+      agentId,
+      fetchPage: () => directory.fetchTimeline(agentId, request),
+      getOwner: () => useSessionStore.getState().sessions[serverId]?.viewedTimelineSync,
+      signal: acceptance?.signal,
+    });
   }
 
   createViewedTimelineOwner(

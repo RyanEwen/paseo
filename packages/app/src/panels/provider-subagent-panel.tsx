@@ -26,6 +26,7 @@ import {
 } from "@/subagents/provider-store";
 import { useTranslation } from "react-i18next";
 import type { PendingPermission } from "@/types/shared";
+import type { TimelinePageAcceptance } from "@/timeline/fetch-viewed-timeline-page";
 import type { StreamItem } from "@/types/stream";
 import { deriveSidebarStateBucket } from "@/utils/sidebar-agent-state";
 import { TIMELINE_FETCH_PAGE_SIZE } from "@/timeline/timeline-fetch-policy";
@@ -173,39 +174,44 @@ function ProviderSubagentPanel() {
   }, [client, supported, serverId, target.parentAgentId, target.subagentId]);
 
   // Return settlement to prompt navigation, which may need several tool-only pages.
-  const loadOlder = useCallback(async (): Promise<boolean> => {
-    if (!client || !supported || isLoadingOlder || !timeline?.hasOlder || !timeline.epoch) {
-      return false;
-    }
-    const firstSeq = timeline.cursor?.startSeq ?? null;
-    if (firstSeq === null) return false;
-    setIsLoadingOlder(true);
-    try {
-      const payload = await client.fetchProviderSubagentTimeline(
-        target.parentAgentId,
-        target.subagentId,
-        {
-          direction: "before",
-          cursor: { epoch: timeline.epoch, seq: firstSeq },
-          limit: TIMELINE_FETCH_PAGE_SIZE,
-        },
-      );
-      useProviderSubagentStore.getState().replaceTimeline(serverId, payload);
-      return true;
-    } catch {
-      return false;
-    } finally {
-      setIsLoadingOlder(false);
-    }
-  }, [
-    client,
-    isLoadingOlder,
-    serverId,
-    supported,
-    target.parentAgentId,
-    target.subagentId,
-    timeline,
-  ]);
+  const loadOlder = useCallback(
+    async (acceptance?: TimelinePageAcceptance): Promise<boolean> => {
+      if (acceptance?.signal.aborted) return false;
+      if (!client || !supported || isLoadingOlder || !timeline?.hasOlder || !timeline.epoch) {
+        return false;
+      }
+      const firstSeq = timeline.cursor?.startSeq ?? null;
+      if (firstSeq === null) return false;
+      setIsLoadingOlder(true);
+      try {
+        const payload = await client.fetchProviderSubagentTimeline(
+          target.parentAgentId,
+          target.subagentId,
+          {
+            direction: "before",
+            cursor: { epoch: timeline.epoch, seq: firstSeq },
+            limit: TIMELINE_FETCH_PAGE_SIZE,
+          },
+        );
+        if (acceptance?.signal.aborted) return false;
+        useProviderSubagentStore.getState().replaceTimeline(serverId, payload);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        setIsLoadingOlder(false);
+      }
+    },
+    [
+      client,
+      isLoadingOlder,
+      serverId,
+      supported,
+      target.parentAgentId,
+      target.subagentId,
+      timeline,
+    ],
+  );
   const firstTimelineSeq = timeline?.cursor?.startSeq ?? null;
   const progressKey =
     timeline?.epoch && firstTimelineSeq !== null ? `${timeline.epoch}:${firstTimelineSeq}` : null;
