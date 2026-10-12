@@ -1282,6 +1282,8 @@ export const ar: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "عرض {{project}} فقط",
+      includeProject: "تضمين {{project}}",
       workspaces: "مساحات العمل",
       all: "الكل",
       allWorkspaces: "كل مساحات العمل",

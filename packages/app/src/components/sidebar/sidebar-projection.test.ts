@@ -1,3 +1,4 @@
+import { summarizeSidebarProjectActivity } from "./sidebar-project-activity";
 import { setSectionsCollapsed } from "@/stores/sidebar-collapsed-sections-store/state";
 import { i18n } from "@/i18n/i18next";
 import { describe, expect, it } from "vitest";
@@ -610,4 +611,84 @@ describe("optional project pinning", () => {
       expect(statusOff.workspaceGroups).toEqual(statusOn.workspaceGroups);
     },
   );
+});
+
+describe("project activity summaries", () => {
+  it("includes the complete selectable project catalog and all working children", () => {
+    const selected = makeWorkspace("selected", "done", [], "selected-project");
+    const first = makeWorkspace("first", "running", [], "other-project");
+    const pinned = makeWorkspace("pinned", "running", [], "other-project");
+    const projects = [
+      makeProject([selected.placement], "selected-project"),
+      makeProject([first.placement, pinned.placement], "other-project"),
+    ];
+    const entries = new Map(
+      [selected, first, pinned].map(({ entry }) => [entry.workspaceKey, entry]),
+    );
+    const summary = summarizeSidebarProjectActivity(
+      projects,
+      entries,
+      new Map([["srv", "online"]]),
+    );
+    expect(summary.get("other-project")).toEqual({ bucket: "running", workingCount: 2 });
+    expect(summary.get("selected-project")).toEqual({ bucket: "done", workingCount: 0 });
+  });
+
+  it("keeps needs-input ahead of working while retaining the working count", () => {
+    const first = makeWorkspace("first", "running");
+    const second = makeWorkspace("second", "needs_input");
+    const entries = new Map([first, second].map(({ entry }) => [entry.workspaceKey, entry]));
+    expect(
+      summarizeSidebarProjectActivity(
+        [makeProject([first.placement, second.placement])],
+        entries,
+        new Map([["srv", "online"]]),
+      ).get("project"),
+    ).toEqual({ bucket: "needs_input", workingCount: 1 });
+  });
+
+  it("suppresses stale offline activity and avoids marking unknown or empty projects done", () => {
+    const worker = makeWorkspace("worker", "running");
+    const entries = new Map([[worker.entry.workspaceKey, worker.entry]]);
+    const project = makeProject([worker.placement]);
+    expect(
+      summarizeSidebarProjectActivity([project], entries, new Map([["srv", "offline"]])).get(
+        "project",
+      ),
+    ).toEqual({ bucket: null, workingCount: 0 });
+    expect(
+      summarizeSidebarProjectActivity(
+        [project, makeProject([], "empty")],
+        new Map(),
+        new Map([["srv", "online"]]),
+      ).get("project"),
+    ).toEqual({ bucket: null, workingCount: 0 });
+    expect(
+      summarizeSidebarProjectActivity(
+        [makeProject([], "empty")],
+        entries,
+        new Map([["srv", "online"]]),
+      ).get("empty"),
+    ).toEqual({ bucket: null, workingCount: 0 });
+  });
+
+  it("updates as runtime entries change without retaining a previous priority", () => {
+    const worker = makeWorkspace("worker", "needs_input");
+    const project = makeProject([worker.placement]);
+    const online = new Map([["srv", "online"]] as const);
+    expect(
+      summarizeSidebarProjectActivity(
+        [project],
+        new Map([[worker.entry.workspaceKey, worker.entry]]),
+        online,
+      ).get("project")?.bucket,
+    ).toBe("needs_input");
+    expect(
+      summarizeSidebarProjectActivity(
+        [project],
+        new Map([[worker.entry.workspaceKey, { ...worker.entry, statusBucket: "done" }]]),
+        online,
+      ).get("project")?.bucket,
+    ).toBe("done");
+  });
 });

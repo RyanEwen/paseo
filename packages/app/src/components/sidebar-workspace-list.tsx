@@ -1,8 +1,7 @@
+import { ProjectActivityChip } from "./sidebar/project-activity-chip";
+import { useSidebarProjectActivity } from "./sidebar/use-sidebar-project-activity";
 import { useAppSettings } from "@/hooks/use-settings";
 import { HoverRevealActions } from "@/components/sidebar/hover-reveal-actions";
-import { StatusRing } from "@/components/status-ring";
-import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-badge";
-import { getStatusBucketLabel } from "@/hooks/sidebar-status-view-model";
 import { filterSidebarProjects, sortSidebarProjectsByName } from "./sidebar/sidebar-arrangement";
 import { SidebarEmptyProjectGroup } from "./sidebar/sidebar-workspace-group";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -46,11 +45,7 @@ import { ExternalLink, Settings, MoreVertical, Plus, Trash2 } from "lucide-react
 import { NestableScrollContainer } from "react-native-draggable-flatlist";
 import { DraggableList, type DraggableRenderItemInfo } from "./draggable-list";
 import type { DraggableListDragHandleProps } from "./draggable-list.types";
-import {
-  getHostRuntimeStore,
-  useHosts,
-  useHostRuntimeConnectionStatuses,
-} from "@/runtime/host-runtime";
+import { getHostRuntimeStore, useHosts } from "@/runtime/host-runtime";
 import type { PinnedSidebarGroups } from "@/hooks/use-sidebar-pins";
 import {
   useSidebarWorkspacePinController,
@@ -97,10 +92,7 @@ import {
   resolveProjectWorkspaceReorder,
 } from "@/utils/sidebar-reorder";
 import { confirmDialog } from "@/utils/confirm-dialog";
-import {
-  aggregateKnownSidebarStateBuckets,
-  type SidebarStateBucket,
-} from "@/utils/sidebar-agent-state";
+import { type SidebarStateBucket } from "@/utils/sidebar-agent-state";
 import { SidebarStatusWorkspaceList } from "@/components/sidebar/sidebar-status-list";
 import type { SidebarWorkspaceGroup } from "@/components/sidebar/sidebar-labels";
 import {
@@ -879,42 +871,6 @@ function NewWorkspaceGhostRow({
         </>
       )}
     </Pressable>
-  );
-}
-
-/** Render the canonical aggregate label without competing with the project title. */
-function ProjectActivityChip({
-  bucket,
-  workingWorkspaceCount,
-  projectViewKey,
-}: {
-  bucket: SidebarStateBucket | null;
-  workingWorkspaceCount: number;
-  projectViewKey: string;
-}) {
-  const { t } = useTranslation();
-  const leading = useMemo(() => {
-    if (bucket !== "running") return undefined;
-    return (
-      <View testID={`sidebar-project-working-spinner-${projectViewKey}`}>
-        <StatusRing />
-      </View>
-    );
-  }, [bucket, projectViewKey]);
-  if (!bucket) return null;
-  let variant: StatusBadgeVariant = "muted";
-  if (bucket === "failed") variant = "error";
-  if (bucket === "needs_input") variant = "warning";
-  if (bucket === "attention") variant = "success";
-  if (bucket === "running") variant = "info";
-  let label = getStatusBucketLabel(bucket, t);
-  if (bucket === "running" && workingWorkspaceCount > 1) {
-    label = t("sidebar.statusBucket.workingCount", { count: workingWorkspaceCount });
-  }
-  return (
-    <View style={styles.projectStatusChip} testID={`sidebar-project-status-${projectViewKey}`}>
-      <StatusBadge label={label} size="xs" variant={variant} leading={leading} />
-    </View>
   );
 }
 
@@ -2302,31 +2258,7 @@ function ProjectModeList({
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspacePlacement[]) => void;
 }) {
   const positionTransitionDuration = useSidebarPositionTransitionDuration();
-  const projectServerIds = useMemo(
-    () => [...new Set(projects.flatMap((project) => project.hosts.map((host) => host.serverId)))],
-    [projects],
-  );
-  const hostStatuses = useHostRuntimeConnectionStatuses(projectServerIds);
-  // Derive once for the collection, including filtered children hoisted into Pinned.
-  const projectStatusBuckets = useMemo(
-    () =>
-      new Map(
-        projects.map((project) => {
-          const childBuckets = project.workspaces.map((workspace) => {
-            if (hostStatuses.get(workspace.serverId) !== "online") return null;
-            return workspaceEntriesByKey.get(workspace.workspaceKey)?.statusBucket ?? null;
-          });
-          return [
-            project.viewKey,
-            {
-              bucket: aggregateKnownSidebarStateBuckets(childBuckets),
-              workingCount: childBuckets.filter((bucket) => bucket === "running").length,
-            },
-          ];
-        }),
-      ),
-    [projects, workspaceEntriesByKey, hostStatuses],
-  );
+  const projectStatusBuckets = useSidebarProjectActivity(projects, workspaceEntriesByKey);
   const { settings } = useAppSettings();
   const projectPinningEnabled = settings.paseoPlusPlus.projectPinning;
   const hasActiveHostFilter = useSidebarViewStore((state) => state.hostFilters.length > 0);
@@ -2846,9 +2778,6 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[1],
     flex: 1,
     minWidth: 0,
-  },
-  projectStatusChip: {
-    flexShrink: 0,
   },
   projectTitle: {
     color: theme.colors.foregroundMuted,

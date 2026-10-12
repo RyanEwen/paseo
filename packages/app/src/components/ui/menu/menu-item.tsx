@@ -1,3 +1,5 @@
+import { MenuItemActions, type MenuItemSecondaryToggle } from "./menu-secondary-toggle";
+export type { MenuItemSecondaryToggle } from "./menu-secondary-toggle";
 import {
   useCallback,
   useMemo,
@@ -223,6 +225,8 @@ function resolveItemLabel(input: {
 
 export interface MenuItemProps {
   description?: string;
+  accessibilityLabel?: string;
+  secondaryToggle?: MenuItemSecondaryToggle;
   onSelect?: () => void;
   disabled?: boolean;
   muted?: boolean;
@@ -256,6 +260,8 @@ export interface MenuItemProps {
 export function MenuItem({
   children,
   description,
+  accessibilityLabel,
+  secondaryToggle,
   onSelect,
   disabled,
   muted = false,
@@ -310,6 +316,7 @@ export function MenuItem({
       focused = false,
     }: PressableStateCallbackType & { hovered?: boolean; focused?: boolean }) => [
       styles.item,
+      secondaryToggle ? styles.splitPrimary : null,
       active ? styles.itemActive : null,
       isDisabled ? styles.itemDisabled : null,
       muted && !isDisabled ? styles.itemMuted : null,
@@ -317,7 +324,7 @@ export function MenuItem({
       focused && !isDisabled ? styles.itemHovered : null,
       pressed && !isDisabled ? styles.itemPressed : null,
     ],
-    [active, isDisabled, muted],
+    [active, isDisabled, muted, secondaryToggle],
   );
 
   const itemTextStyle = useMemo(
@@ -334,10 +341,11 @@ export function MenuItem({
     [isDisabled],
   );
 
-  const content = (
+  const primaryContent = (
     <Pressable
       testID={testID}
       accessibilityRole="menuitem"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
       aria-checked={selected}
       tabIndex={-1}
@@ -366,13 +374,25 @@ export function MenuItem({
     </Pressable>
   );
 
-  if (!tooltip) {
-    return content;
-  }
+  return (
+    <MenuItemActions toggle={secondaryToggle} disabled={Boolean(isDisabled)}>
+      <MenuItemTooltip tooltip={tooltip}>{primaryContent}</MenuItemTooltip>
+    </MenuItemActions>
+  );
+}
 
+/** Attach hover handlers and the anchor ref to the primary pressable, including in a split row. */
+function MenuItemTooltip({
+  children,
+  tooltip,
+}: {
+  children: ReactElement;
+  tooltip?: string;
+}): ReactElement {
+  if (!tooltip) return children;
   return (
     <Tooltip delayDuration={250} enabledOnDesktop enabledOnMobile={false}>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side="right" align="center" offset={10}>
         <Text style={styles.tooltipText}>{tooltip}</Text>
       </TooltipContent>
@@ -476,6 +496,11 @@ const styles = StyleSheet.create((theme) => ({
     lineHeight: MENU_ITEM_LINE_HEIGHT,
     paddingVertical: 0,
     paddingHorizontal: 0,
+  },
+  splitPrimary: {
+    flex: 1,
+    minWidth: 0,
+    marginHorizontal: 0,
   },
   itemHovered: {
     backgroundColor: theme.colors.surface2,

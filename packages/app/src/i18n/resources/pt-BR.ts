@@ -1310,6 +1310,8 @@ export const ptBR: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "Mostrar apenas {{project}}",
+      includeProject: "Incluir {{project}}",
       workspaces: "Espaços de trabalho",
       all: "Todos",
       allWorkspaces: "Todos os espaços",

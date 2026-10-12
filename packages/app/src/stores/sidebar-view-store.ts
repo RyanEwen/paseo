@@ -80,6 +80,8 @@ interface SidebarViewStoreState {
   setProjectVisibility: (visibility: SidebarProjectVisibility) => void;
   toggleHostFilter: (serverId: string) => void;
   clearHostFilters: () => void;
+  /** Explicitly choose one project, replacing previous choices including unavailable keys. */
+  selectProjectFilter: (viewKey: string) => void;
   toggleProjectFilter: (viewKey: string) => void;
   clearProjectFilters: () => void;
   toggleLabelFilter: (name: string) => void;
@@ -247,6 +249,7 @@ export const useSidebarViewStore = create<SidebarViewStoreState>()(
       toggleHostFilter: (serverId) =>
         set((state) => ({ hostFilters: toggleFilterEntry(state.hostFilters, serverId) })),
       clearHostFilters: () => set({ hostFilters: [] }),
+      selectProjectFilter: (viewKey) => set({ projectFilters: [viewKey] }),
       toggleProjectFilter: (viewKey) =>
         set((state) => ({ projectFilters: toggleFilterEntry(state.projectFilters, viewKey) })),
       clearProjectFilters: () => set({ projectFilters: [] }),

@@ -1319,6 +1319,8 @@ export const es: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      selectOnlyProject: "Mostrar solo {{project}}",
+      includeProject: "Incluir {{project}}",
       workspaces: "Espacios de trabajo",
       all: "Todos",
       allWorkspaces: "Todos los espacios",
