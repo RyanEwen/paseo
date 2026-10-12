@@ -11,6 +11,7 @@ import {
   resolveReadingPromptTarget,
   getMissingReadingPromptSeq,
   isStickyPromptVisible,
+  resolveStickyPromptProgress,
   shouldDiscoverPrompt,
   needsReadingPromptDiscovery,
   hasDiscoveredPrompt,
@@ -283,17 +284,14 @@ export function useStickyPrompt(input: Input) {
     if (target) selectTarget(target);
     else if (direction === -1 && hasOlder) setPending("previous");
   });
+  const stickyProgress = resolveStickyPromptProgress(message, reading);
   return {
     message,
+    stickyProgress,
     targets,
     previousKnownBoundary: indexed ? outline.indexReady : !hasOlder,
     activate,
-    stickyVisible: isStickyPromptVisible(
-      message,
-      readingTarget,
-      reading.visibleUserIds,
-      reading.rowId,
-    ),
+    stickyVisible: isStickyPromptVisible(message, readingTarget, reading.rowId, stickyProgress),
     discoveryStatus: discovery.status,
     cancelled,
     busy: isPromptNavigationBusy({

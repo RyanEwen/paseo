@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Text, View, ScrollView, type ViewStyle } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
@@ -32,26 +33,40 @@ export function PromptMessageSurface({
   size: "md" | "sm";
 }) {
   const { t } = useTranslation();
+  const surfaceStyle = useMemo(
+    () => [styles.container, { opacity: navigation.stickyProgress }],
+    [navigation.stickyProgress],
+  );
   return (
-    <View style={styles.container} testID="sticky-user-message">
-      <View style={styles.row}>
-        <View style={styles.preview}>
-          <Text style={styles.promptLabel}>
-            {navigation.nextDisabled ? t("stickyPrompt.latest") : t("stickyPrompt.selected")}
-          </Text>
-          {!expanded && (
-            <UserMessage
-              serverId={serverId}
-              client={client}
-              message={message.text}
-              images={message.images}
-              attachments={message.attachments}
-              timestamp={message.timestamp.getTime()}
-              disableOuterSpacing
-              previewLines={2}
-            />
-          )}
-        </View>
+    <View style={surfaceStyle} testID="sticky-user-message">
+      {!expanded ? (
+        <UserMessage
+          serverId={serverId}
+          client={client}
+          message={message.text}
+          images={message.images}
+          attachments={message.attachments}
+          timestamp={message.timestamp.getTime()}
+          disableOuterSpacing
+          previewLines={2}
+        />
+      ) : (
+        <ScrollView style={expandedScrollStyle} nestedScrollEnabled>
+          <UserMessage
+            serverId={serverId}
+            client={client}
+            message={message.text}
+            images={message.images}
+            attachments={message.attachments}
+            timestamp={message.timestamp.getTime()}
+            disableOuterSpacing
+          />
+        </ScrollView>
+      )}
+      <View style={styles.controls} testID="sticky-user-message-controls">
+        <Text style={styles.label}>
+          {navigation.nextDisabled ? t("stickyPrompt.latest") : t("stickyPrompt.selected")}
+        </Text>
         <Button
           variant="ghost"
           size={size}
@@ -94,19 +109,6 @@ export function PromptMessageSurface({
             {t("common.actions.retry")}
           </Button>
         </View>
-      )}
-      {expanded && (
-        <ScrollView style={expandedScrollStyle} nestedScrollEnabled>
-          <UserMessage
-            serverId={serverId}
-            client={client}
-            message={message.text}
-            images={message.images}
-            attachments={message.attachments}
-            timestamp={message.timestamp.getTime()}
-            disableOuterSpacing
-          />
-        </ScrollView>
       )}
     </View>
   );
@@ -169,16 +171,12 @@ const styles = StyleSheet.create((theme) => ({
   container: {
     backgroundColor: theme.colors.surface0,
     flexShrink: 0,
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[2],
+    paddingHorizontal: theme.spacing[2],
+    paddingBottom: theme.spacing[2],
   },
   row: { flexDirection: "row", alignItems: "center", gap: theme.spacing[1] },
   preview: { flex: 1, minWidth: 0 },
-  promptLabel: {
-    alignSelf: "flex-end",
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
-  },
+  controls: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
   label: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm },
   text: { color: theme.colors.foreground, fontSize: theme.fontSize.base },
 }));

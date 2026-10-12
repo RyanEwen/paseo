@@ -2,8 +2,8 @@
 
 Branch: `feat/sticky-user-message-navigation`.
 
-The original user bubble remains in the conversation. Its compact copy appears only after
-that bubble leaves the viewport. Manual scrolling selects the prompt for the response at the
+The original user bubble remains in the conversation. Its compact copy fades into place while
+the bubble crosses the top edge, with controls below the copy. Manual scrolling selects the prompt for the response at the
 reading edge; arrow navigation scrolls smoothly and retains its target through clamped landings.
 The overlay follows the transcript's content rail and does not resize its viewport. Expansion
 preserves full text and attachments within a height bounded by the screen and measured chat pane.
@@ -15,14 +15,20 @@ reads retain their own acceptance and the timeline owner's request and epoch fen
 
 ## Results
 
-Eight isolated Chromium cases passed, with one worker and two CPUs. Each run used its own Metro
+The latest two handoff/navigation Chromium cases passed at desktop and compact widths, with 51
+focused hook/controller cases, root typecheck, lint and format. See [handoff browser output](handoff-browser.txt),
+[focused output](handoff-tests.txt), [desktop transition](handoff-1440.png) and [compact transition](handoff-390.png).
+Native history uses public window measurements with cancellation and response-order checks;
+physical Android/iOS remain unexecuted.
+
+The preceding eight isolated Chromium cases passed, with one worker and two CPUs. Each run used its own Metro
 port and disposable fixture daemon home. The final run stopped both services afterward. No live
 service was restarted or controlled. Screenshots below were reviewed at the actual test viewports.
 
 | Acceptance area                                | Evidence                                                                                                                                        |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Latest entry, previous/next order and bounds   | Browser navigation through 20 prompts at 1440 × 900 and 390 × 844; hook coverage                                                                |
-| Copy appears after original leaves view        | Real wheel scrolling; original bubble visible after arrow jumps; projected Markdown source-position hook regression                             |
+| Copy handoff at the top edge                   | Desktop and compact wheel scrolling: original still intersects viewport with partial copy opacity; reversal hides copy; controls below bubble   |
 | Manual and smooth navigation                   | Browser reading transitions; measured smooth-controller intermediate positions, settling and manual cancellation                                |
 | Unloaded prompts                               | Bounded indexed navigation to oldest prompt; content-only reads preserve the active window                                                      |
 | Incoming user and assistant events             | Browser retains earlier reading during a new user prompt and 85 assistant rows                                                                  |

@@ -1,3 +1,5 @@
+import type { PromptHandoff } from "./prompt-handoff";
+
 export interface PromptReadingPosition {
   rowId: string | null;
   seq?: number | null;
@@ -5,6 +7,7 @@ export interface PromptReadingPosition {
   following: boolean;
   manual: boolean;
   visibleUserIds: readonly string[];
+  userHandoffs?: readonly PromptHandoff[];
 }
 
 export interface PromptReadingSource {
@@ -17,6 +20,7 @@ export function createPromptReadingPublisher() {
   let snapshot: PromptReadingPosition = {
     rowId: null,
     seq: null,
+    userHandoffs: [],
     visibleUserIds: [],
     navigating: false,
     following: false,
@@ -38,8 +42,10 @@ export function createPromptReadingPublisher() {
       following = false,
       manual = true,
       seq: number | null = null,
+      userHandoffs: readonly PromptHandoff[] = [],
     ) {
       if (
+        sameHandoffs(snapshot.userHandoffs ?? [], userHandoffs) &&
         snapshot.seq === seq &&
         snapshot.manual === manual &&
         snapshot.following === following &&
@@ -49,10 +55,20 @@ export function createPromptReadingPublisher() {
         snapshot.visibleUserIds.every((id, index) => id === visibleUserIds[index])
       )
         return;
-      snapshot = { rowId, seq, visibleUserIds, navigating, following, manual };
+      snapshot = { rowId, seq, visibleUserIds, userHandoffs, navigating, following, manual };
       for (const listener of listeners) listener();
     },
   };
 }
 
 export const EMPTY_PROMPT_READING_SOURCE: PromptReadingSource = createPromptReadingPublisher();
+
+/** Geometry changes only wake the compact surface; unchanged scroll samples are ignored. */
+function sameHandoffs(left: readonly PromptHandoff[], right: readonly PromptHandoff[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (value, index) => value.id === right[index]?.id && value.progress === right[index]?.progress,
+    )
+  );
+}
