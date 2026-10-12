@@ -242,6 +242,16 @@ export const ptBR: TranslationResources = {
       mode: "Alterar modo de permissão",
     },
   },
+  stickyPrompt: {
+    latest: "Última mensagem do usuário",
+    selected: "Mensagem do usuário",
+    expand: "Expandir mensagem do usuário",
+    collapse: "Recolher mensagem do usuário",
+    previous: "Mensagem anterior do usuário",
+    next: "Próxima mensagem do usuário",
+    failed: "Não foi possível carregar as mensagens do usuário.",
+    attachments: "{{count}} anexos",
+  },
   agentStream: {
     empty: "Comece a conversar com este agente...",
     scrollToBottom: "Rolar para o fim",

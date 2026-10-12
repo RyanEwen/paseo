@@ -113,11 +113,15 @@ function ProviderSubagentPanel() {
   invariant(target.kind === "provider_subagent", "ProviderSubagentPanel requires provider target");
   const key = providerSubagentKey(serverId, target.parentAgentId, target.subagentId);
   const streamId = `provider:${encodeURIComponent(target.parentAgentId)}:${encodeURIComponent(target.subagentId)}`;
-  const { descriptor, timeline } = useProviderSubagentStore(
-    useShallow((state) => ({
-      descriptor: state.descriptors.get(key) ?? null,
-      timeline: state.timelines.get(key) ?? null,
-    })),
+  const { descriptor, timeline, epoch } = useProviderSubagentStore(
+    useShallow((state) => {
+      const cachedTimeline = state.timelines.get(key) ?? null;
+      return {
+        descriptor: state.descriptors.get(key) ?? null,
+        timeline: cachedTimeline,
+        epoch: cachedTimeline?.epoch ?? null,
+      };
+    }),
   );
   const parent = useSessionStore(
     (state) =>
@@ -168,26 +172,31 @@ function ProviderSubagentPanel() {
     });
   }, [client, supported, serverId, target.parentAgentId, target.subagentId]);
 
-  const loadOlder = useCallback((): boolean => {
+  // Return settlement to prompt navigation, which may need several tool-only pages.
+  const loadOlder = useCallback(async (): Promise<boolean> => {
     if (!client || !supported || isLoadingOlder || !timeline?.hasOlder || !timeline.epoch) {
       return false;
     }
     const firstSeq = timeline.cursor?.startSeq ?? null;
     if (firstSeq === null) return false;
     setIsLoadingOlder(true);
-    void client
-      .fetchProviderSubagentTimeline(target.parentAgentId, target.subagentId, {
-        direction: "before",
-        cursor: { epoch: timeline.epoch, seq: firstSeq },
-        limit: TIMELINE_FETCH_PAGE_SIZE,
-      })
-      .then((payload) => {
-        useProviderSubagentStore.getState().replaceTimeline(serverId, payload);
-        return undefined;
-      })
-      .catch(() => undefined)
-      .finally(() => setIsLoadingOlder(false));
-    return true;
+    try {
+      const payload = await client.fetchProviderSubagentTimeline(
+        target.parentAgentId,
+        target.subagentId,
+        {
+          direction: "before",
+          cursor: { epoch: timeline.epoch, seq: firstSeq },
+          limit: TIMELINE_FETCH_PAGE_SIZE,
+        },
+      );
+      useProviderSubagentStore.getState().replaceTimeline(serverId, payload);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setIsLoadingOlder(false);
+    }
   }, [
     client,
     isLoadingOlder,
@@ -216,12 +225,13 @@ function ProviderSubagentPanel() {
   );
   const historyPagination = useMemo(
     () => ({
+      epoch,
       hasOlder: timeline?.hasOlder === true,
       isLoadingOlder,
       progressKey,
       onLoadOlder: loadOlder,
     }),
-    [isLoadingOlder, loadOlder, progressKey, timeline?.hasOlder],
+    [epoch, isLoadingOlder, loadOlder, progressKey, timeline?.hasOlder],
   );
   const turnPresentation = useMemo<TurnPresentation>(
     () => ({

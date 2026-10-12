@@ -4,6 +4,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StreamViewportHandle } from "../strategy";
+import { useStickyPrompt } from "../use-sticky-prompt";
+import type { StreamItem } from "@/types/stream";
+import type { ChatOutline } from "./use-chat-outline";
+import { createActivePromptPublisher } from "./model";
 import { useChatOutline } from "./use-chat-outline";
 
 const runtime = vi.hoisted(() => ({
@@ -400,5 +404,162 @@ describe("useChatOutline", () => {
     await waitFor(() => expect(result.current.prompts).toHaveLength(1));
     await act(async () => result.current.jumpToPrompt(2));
     expect(scrollToMessage).toHaveBeenCalledWith("live-prompt");
+  });
+});
+
+function stickyUser(id: string, seq: number): Extract<StreamItem, { kind: "user_message" }> {
+  return {
+    kind: "user_message",
+    id,
+    text: `Prompt ${seq}\n  preserve whitespace`,
+    timestamp: new Date(0),
+    timelineCursor: { epoch: "epoch-1", seq },
+  };
+}
+
+function stickyOutline(prompts = [1, 2, 3]): ChatOutline {
+  return {
+    prompts: prompts.map((seq) => ({
+      seq,
+      timestamp: new Date(0).toISOString(),
+      preview: `Prompt ${seq}`,
+    })),
+    activePrompt: createActivePromptPublisher(),
+    jumpToPrompt: vi.fn(),
+    jumpToMessage: vi.fn(),
+    reportReadingPosition: vi.fn(),
+    isJumping: false,
+    jumpError: false,
+    indexReady: true,
+    indexError: false,
+    retryIndex: vi.fn(),
+  };
+}
+
+function stickyInput(items: StreamItem[], outline = stickyOutline()) {
+  return {
+    items,
+    epoch: "epoch-1",
+    outline,
+    indexed: true,
+    hasOlder: true,
+    loadingOlder: false,
+    progressKey: "initial",
+    loadOlder: vi.fn(async () => false),
+    jumpToLoaded: vi.fn(),
+  };
+}
+
+describe("sticky user prompt navigation", () => {
+  it("defaults to latest, navigates in order and follows incoming prompts intentionally", () => {
+    const items = [stickyUser("one", 1), stickyUser("two", 2), stickyUser("three", 3)];
+    const input = stickyInput(items);
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    expect(result.current.message).toEqual(items[2]);
+    expect(result.current.nextDisabled).toBe(true);
+    act(() => result.current.previous());
+    expect(result.current.message).toEqual(items[1]);
+    expect(input.jumpToLoaded).toHaveBeenLastCalledWith("two");
+    const assistant: StreamItem = {
+      kind: "assistant_message",
+      id: "assistant",
+      text: "Reply",
+      timestamp: new Date(0),
+    };
+    rerender({ ...input, items: [...items, assistant, stickyUser("four", 4)] });
+    expect(result.current.message).toEqual(items[1]);
+    act(() => result.current.previous());
+    expect(result.current.message).toEqual(items[0]);
+    expect(result.current.previousDisabled).toBe(true);
+    act(() => result.current.next());
+    expect(result.current.message).toEqual(items[1]);
+    act(() => result.current.followLatest());
+    expect(result.current.message?.id).toBe("four");
+    rerender({ ...input, items: [...items, stickyUser("five", 5)] });
+    expect(result.current.message?.id).toBe("five");
+  });
+
+  it("holds the selection through an unloaded jump, reports failure and retries", async () => {
+    const newest = stickyUser("three", 3);
+    const input = stickyInput([newest]);
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    act(() => result.current.previous());
+    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(2);
+    expect(result.current.busy).toBe(true);
+    expect(result.current.message).toEqual(newest);
+    rerender({ ...input, outline: { ...input.outline, jumpError: true } });
+    await waitFor(() => expect(result.current.error).toBe(true));
+    expect(result.current.busy).toBe(false);
+    rerender(input);
+    act(() => result.current.retry());
+    const older = stickyUser("two", 2);
+    rerender({ ...input, items: [older, newest] });
+    await waitFor(() => expect(result.current.message).toEqual(older));
+    expect(result.current.busy).toBe(false);
+  });
+
+  it("preserves complete text and attachment identity and isolates independent panes", () => {
+    const message = {
+      ...stickyUser("one", 1),
+      images: [{ id: "image" }],
+      attachments: [{ id: "file" }],
+    } as unknown as Extract<StreamItem, { kind: "user_message" }>;
+    const input = stickyInput([message], stickyOutline([1]));
+    const first = renderHook(useStickyPrompt, { initialProps: input });
+    const second = renderHook(useStickyPrompt, {
+      initialProps: stickyInput([], stickyOutline([])),
+    });
+    expect(first.result.current.message).toBe(message);
+    expect(first.result.current.message?.images).toBe(message.images);
+    expect(first.result.current.message?.attachments).toBe(message.attachments);
+    expect(second.result.current.message).toBeUndefined();
+    expect(second.result.current.previousDisabled).toBe(true);
+    expect(second.result.current.nextDisabled).toBe(true);
+  });
+
+  it("does not loop when index-free pagination fails without advancing", async () => {
+    const loadOlder = vi.fn(async () => true);
+    const input = {
+      ...stickyInput([stickyUser("three", 3)], stickyOutline([])),
+      indexed: false,
+      loadOlder,
+    };
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    act(() => result.current.previous());
+    await waitFor(() => expect(result.current.error).toBe(true));
+    expect(loadOlder).toHaveBeenCalledTimes(1);
+    const older = stickyUser("one", 1);
+    rerender({ ...input, items: [older, ...input.items] });
+    act(() => result.current.retry());
+    expect(result.current.message).toEqual(older);
+  });
+});
+
+describe("sticky pagination across hidden history", () => {
+  it("continues when the cursor advances without adding a visible prompt", async () => {
+    const firstPage = deferred<boolean>();
+    const secondPage = deferred<boolean>();
+    const loadOlder = vi
+      .fn()
+      .mockReturnValueOnce(firstPage.promise)
+      .mockReturnValueOnce(secondPage.promise);
+    const input = {
+      ...stickyInput([stickyUser("three", 3)], stickyOutline([])),
+      indexed: false,
+      loadOlder,
+    };
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    act(() => result.current.previous());
+    expect(loadOlder).toHaveBeenCalledTimes(1);
+    // A hidden system/tool page moves the authoritative cursor without adding a user row.
+    rerender({ ...input, progressKey: "older-page-1" });
+    await act(async () => firstPage.resolve(true));
+    await waitFor(() => expect(loadOlder).toHaveBeenCalledTimes(2));
+    const older = stickyUser("one", 1);
+    rerender({ ...input, progressKey: "older-page-2", items: [older, ...input.items] });
+    await act(async () => secondPage.resolve(true));
+    await waitFor(() => expect(result.current.message).toEqual(older));
+    expect(result.current.error).toBe(false);
+    expect(result.current.busy).toBe(false);
   });
 });

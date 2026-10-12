@@ -1,0 +1,9 @@
+
+ RUN  v4.1.7 /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/sticky-user-message-navigation/packages/app
+
+
+ Test Files  2 passed (2)
+      Tests  52 passed (52)
+   Start at  22:08:04
+   Duration  1.49s (transform 725ms, setup 59ms, import 927ms, tests 1.17s, environment 543ms)
+

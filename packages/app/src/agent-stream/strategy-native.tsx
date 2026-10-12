@@ -64,6 +64,25 @@ const historyStartSlotStyle: ViewStyle = {
 };
 const HISTORY_START_SETTLE_FRAMES = 2;
 
+/** Record live-header row offsets without creating handlers during the parent's render. */
+function MeasuredLiveRow({
+  id,
+  onMeasure,
+  children,
+}: {
+  id: string;
+  onMeasure: (id: string, offset: number) => void;
+  children: React.ReactNode;
+}) {
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      onMeasure(id, event.nativeEvent.layout.y);
+    },
+    [id, onMeasure],
+  );
+  return <View onLayout={handleLayout}>{children}</View>;
+}
+
 function keyExtractor(item: { id: string }): string {
   return item.id;
 }
@@ -92,6 +111,10 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   } = props;
   const { renderHistoryMountedRow, renderLiveHeadRow, renderLiveAuxiliary } = renderers;
   const flatListRef = useRef<FlatList<StreamItem>>(null);
+  const promptJumpIdRef = useRef<string | null>(null);
+  const promptJumpRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const livePromptOffsetsRef = useRef(new Map<string, number>());
+
   const streamViewportMetricsRef = useRef({
     containerKey: "native-virtualized",
     contentHeight: 0,
@@ -332,14 +355,46 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     bottomAnchorController.prepareForStickyContentChange();
   }, [bottomAnchorController, historyRows, segments.liveHead]);
 
+  const cancelPromptJump = useCallback(() => {
+    promptJumpIdRef.current = null;
+    if (promptJumpRetryRef.current !== null) {
+      clearTimeout(promptJumpRetryRef.current);
+      promptJumpRetryRef.current = null;
+    }
+  }, []);
+
+  /** Scroll by identity after the mounted window has exposed the target row. */
+  const scrollToPrompt = useStableEvent((messageId: string) => {
+    cancelPromptJump();
+    bottomAnchorController.detachByUser();
+    promptJumpIdRef.current = messageId;
+    const index = historyItems.findIndex((item) => item.id === messageId);
+    if (index >= 0) {
+      flatListRef.current?.scrollToIndex({ index, animated: false, viewPosition: 1 });
+      return;
+    }
+    const offset = livePromptOffsetsRef.current.get(messageId);
+    if (offset !== undefined) {
+      flatListRef.current?.scrollToOffset({ offset, animated: false });
+    }
+  });
+
+  useEffect(() => {
+    cancelPromptJump();
+    livePromptOffsetsRef.current.clear();
+    return cancelPromptJump;
+  }, [agentId, cancelPromptJump]);
+
   useEffect(() => {
     const handle: StreamViewportHandle = {
       scrollToBottom: (reason = "jump-to-bottom") => {
+        cancelPromptJump();
         bottomAnchorController.requestLocalAnchor({
           agentId,
           reason,
         });
       },
+      scrollToMessage: scrollToPrompt,
       prepareForViewportChange: () => {
         bottomAnchorController.prepareForStickyViewportChange();
         markNativeViewportSettling();
@@ -351,7 +406,14 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
         viewportRef.current = null;
       }
     };
-  }, [agentId, bottomAnchorController, markNativeViewportSettling, viewportRef]);
+  }, [
+    agentId,
+    bottomAnchorController,
+    cancelPromptJump,
+    markNativeViewportSettling,
+    scrollToPrompt,
+    viewportRef,
+  ]);
 
   const isScrollEventNearBottom = useStableEvent(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -403,6 +465,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   });
 
   const handleScrollBeginDrag = useStableEvent((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    cancelPromptJump();
     clearPendingUserScrollEnd();
     isUserScrollActiveRef.current = true;
     scrollKeyboardDismiss.onScrollBeginDrag(event);
@@ -506,6 +569,18 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     scheduleHistoryStartSettle,
   ]);
 
+  const handleScrollToIndexFailed = useStableEvent(
+    ({ averageItemLength, index }: { averageItemLength: number; index: number }) => {
+      // Variable-height rows must be mounted before FlatList can address them exactly.
+      flatListRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
+      if (promptJumpRetryRef.current !== null) clearTimeout(promptJumpRetryRef.current);
+      promptJumpRetryRef.current = setTimeout(() => {
+        const id = promptJumpIdRef.current;
+        if (id) scrollToPrompt(id);
+      }, 100);
+    },
+  );
+
   const renderItem = useStableEvent(
     ({ item, index }: ListRenderItemInfo<StreamItem>): ReactElement | null => {
       const rendered = renderHistoryMountedRow(item, index, historyItems);
@@ -513,12 +588,24 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     },
   );
 
+  const recordLivePromptOffset = useStableEvent((id: string, offset: number) => {
+    livePromptOffsetsRef.current.set(id, offset);
+  });
+  useEffect(() => {
+    const liveIds = new Set(segments.liveHead.map((item) => item.id));
+    for (const id of livePromptOffsetsRef.current.keys()) {
+      if (!liveIds.has(id)) livePromptOffsetsRef.current.delete(id);
+    }
+  }, [segments.liveHead]);
+
   const liveHeaderContent = useMemo(() => {
     // Stable render events read the latest expansion state; this revision makes
     // the memo invoke them again when that state changes.
     void liveHeadRowRevision;
     const liveHeadRows = segments.liveHead.map((item, index) => (
-      <Fragment key={item.id}>{renderLiveHeadRow(item, index, segments.liveHead)}</Fragment>
+      <MeasuredLiveRow key={item.id} id={item.id} onMeasure={recordLivePromptOffset}>
+        {renderLiveHeadRow(item, index, segments.liveHead)}
+      </MeasuredLiveRow>
     ));
     const liveAuxiliary = renderLiveAuxiliary();
     if (
@@ -542,6 +629,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     renderLiveAuxiliary,
     renderLiveHeadRow,
     segments.liveHead,
+    recordLivePromptOffset,
   ]);
 
   const historyFooterContent = useMemo(() => {
@@ -582,6 +670,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       scrollEventThrottle={16}
       onContentSizeChange={handleContentSizeChange}
       maintainVisibleContentPosition={maintainVisibleContentPosition}
+      onScrollToIndexFailed={handleScrollToIndexFailed}
       initialNumToRender={12}
       windowSize={10}
       removeClippedSubviews={false}

@@ -236,6 +236,16 @@ export const en = {
       mode: "Change mode",
     },
   },
+  stickyPrompt: {
+    latest: "Latest user message",
+    selected: "User message",
+    expand: "Expand user message",
+    collapse: "Collapse user message",
+    previous: "Previous user message",
+    next: "Next user message",
+    failed: "Could not load user messages.",
+    attachments: "{{count}} attachments",
+  },
   agentStream: {
     empty: "Start chatting with this agent...",
     scrollToBottom: "Scroll to bottom",

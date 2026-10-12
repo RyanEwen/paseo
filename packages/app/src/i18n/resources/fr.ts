@@ -244,6 +244,16 @@ export const fr: TranslationResources = {
       mode: "Changer de mode",
     },
   },
+  stickyPrompt: {
+    latest: "Dernier message utilisateur",
+    selected: "Message utilisateur",
+    expand: "Développer le message utilisateur",
+    collapse: "Réduire le message utilisateur",
+    previous: "Message utilisateur précédent",
+    next: "Message utilisateur suivant",
+    failed: "Impossible de charger les messages utilisateur.",
+    attachments: "{{count}} pièces jointes",
+  },
   agentStream: {
     empty: "Commencez à discuter avec cet agent…",
     scrollToBottom: "Faire défiler vers le bas",

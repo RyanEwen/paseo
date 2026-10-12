@@ -243,6 +243,16 @@ export const ja: TranslationResources = {
       mode: "権限モードを変更",
     },
   },
+  stickyPrompt: {
+    latest: "最新のユーザーメッセージ",
+    selected: "ユーザーメッセージ",
+    expand: "ユーザーメッセージを展開",
+    collapse: "ユーザーメッセージを折りたたむ",
+    previous: "前のユーザーメッセージ",
+    next: "次のユーザーメッセージ",
+    failed: "ユーザーメッセージを読み込めませんでした。",
+    attachments: "添付ファイル {{count}} 件",
+  },
   agentStream: {
     empty: "このエージェントとチャットを始めましょう...",
     scrollToBottom: "下にスクロール",

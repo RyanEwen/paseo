@@ -240,6 +240,16 @@ export const ko: TranslationResources = {
       mode: "모드 변경",
     },
   },
+  stickyPrompt: {
+    latest: "최근 사용자 메시지",
+    selected: "사용자 메시지",
+    expand: "사용자 메시지 펼치기",
+    collapse: "사용자 메시지 접기",
+    previous: "이전 사용자 메시지",
+    next: "다음 사용자 메시지",
+    failed: "사용자 메시지를 불러올 수 없습니다.",
+    attachments: "첨부 파일 {{count}}개",
+  },
   agentStream: {
     empty: "이 에이전트와 대화를 시작하세요...",
     scrollToBottom: "맨 아래로 스크롤",

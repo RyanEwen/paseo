@@ -63,6 +63,18 @@ the anchored page still leaves the viewport at history start, as with short or c
 that case pagination continues as one loading operation until the page fills the viewport or history
 is exhausted.
 
+## Prompt navigation
+
+The Chat outline and sticky user-message surface share the viewed timeline's prompt index and
+window loading. Keep navigation inside that owner: a prompt may be indexed without belonging to
+the loaded window, and a loaded row may still sit outside the mounted presentation window.
+Child transcripts use their own history pagination rather than the parent agent's index.
+
+Reviewing an earlier prompt keeps the sticky selection stable during incoming messages. Returning
+to the latest prompt, sending from the composer, or pressing Jump to bottom resumes following
+new user messages. Retained panes
+keep their own selection; a new session or timeline epoch starts at the latest prompt.
+
 ## Durable item anchors
 
 Provider message IDs are not guaranteed for every displayed item. Paseo-generated system errors are one example. Rendered item indices are not durable either because pagination and projection can merge source rows.
