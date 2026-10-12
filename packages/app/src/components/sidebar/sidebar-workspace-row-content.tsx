@@ -1,3 +1,4 @@
+import { HoverRevealActions } from "./hover-reveal-actions";
 import { memo, useMemo, useCallback, useState, type ReactNode } from "react";
 import { Text, View, type ViewStyle } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -27,7 +28,6 @@ import {
 import { shouldRenderSyncedStatusLoader } from "@/utils/status-loader";
 import { StatusRing } from "@/components/status-ring";
 import { resolveSidebarWorkspacePrimaryLabel } from "@/components/sidebar/sidebar-workspace-title";
-import { TrailingActionScrim } from "@/components/ui/trailing-action-scrim";
 import { useWorkspaceLabelDefinitions } from "@/workspace-labels";
 
 const foregroundMutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
@@ -143,15 +143,14 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
             iconDataUri={leadingProjectIconDataUri}
             displayName={leadingProjectName}
             projectViewKey={workspace.projectViewKey}
-            statusBucket={workspace.statusBucket}
+            statusBucket={null}
             backdrop={backdrop}
             loading={isLoading}
             testID={`sidebar-row-project-icon-${workspace.workspaceKey}`}
           />
         ) : (
-          <WorkspaceStatusIndicator
-            bucket={workspace.statusBucket}
-            workspaceKind={workspace.workspaceKind}
+          <WorkspaceLeadingStatusSpace
+            workspace={workspace}
             loading={isLoading}
             reserveIdleSpace={reserveIdleStatusIndicatorSpace}
           />
@@ -182,6 +181,28 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
   );
 });
 
+/** Keep title indentation stable; operation loaders stay here while activity moves right. */
+function WorkspaceLeadingStatusSpace({
+  workspace,
+  loading,
+  reserveIdleSpace,
+}: {
+  workspace: SidebarWorkspaceEntry;
+  loading: boolean;
+  reserveIdleSpace: boolean;
+}) {
+  if (loading) {
+    return (
+      <WorkspaceStatusIndicator
+        bucket={workspace.statusBucket}
+        workspaceKind={workspace.workspaceKind}
+        loading
+      />
+    );
+  }
+  return reserveIdleSpace ? <View style={styles.workspaceStatusDot} /> : null;
+}
+
 function WorkspaceStatusIndicator({
   bucket,
   workspaceKind,
@@ -193,10 +214,7 @@ function WorkspaceStatusIndicator({
   loading?: boolean;
   reserveIdleSpace?: boolean;
 }) {
-  // Busy is the only status that moves, and it is the ring rather than a dot for the same
-  // reason it is a dot elsewhere: every status in the sidebar sits in this one slot, so busy
-  // has to fill it without displacing anything. A row starting up and a row working are both
-  // busy, so they share the ring and differ only in testID.
+  // Startup and archive loaders stay on the leading rail; working activity lives at the right.
   if (loading) {
     return (
       <View style={styles.workspaceStatusDot} testID="workspace-status-indicator-loading">
@@ -328,11 +346,6 @@ export const sidebarWorkspaceRowStyles = StyleSheet.create((theme) => ({
     alignItems: "flex-end",
     justifyContent: "flex-start",
   },
-  trailingActionOverlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-  },
 }));
 
 export function SidebarWorkspaceShortcutBadge({ number }: { number: number }) {
@@ -346,14 +359,9 @@ export function SidebarWorkspaceShortcutBadge({ number }: { number: number }) {
 export type SidebarWorkspaceTrailingPresentation = "visible" | "hidden" | "absent";
 
 /**
- * What the trailing slot shows for a row. Derived in one place because three row renderers
- * share it: the two project-mode rows and the status-mode row. The rule used to be copied
- * into each of them and immediately drifted — one call site kept hiding the diff after the
- * others stopped.
- *
- * The trailing content survives the kebab on hover and fades under the scrim instead of
- * blinking out. Touch has no hover, so its permanent kebab still hides the content outright
- * rather than scrimming an unhovered row whose background doesn't match the gradient.
+ * Shared metadata and menu policy for every workspace row renderer.
+ * Desktop metadata stays beside the status and revealed actions; touch keeps the menu visible
+ * and replaces the metadata. Shortcut hints temporarily conceal metadata without changing width.
  */
 export function resolveTrailingActionVisibility({
   workspace,
@@ -372,7 +380,6 @@ export function resolveTrailingActionVisibility({
 }): {
   trailingPresentation: SidebarWorkspaceTrailingPresentation;
   showKebab: boolean;
-  showScrim: boolean;
   renderSlot: boolean;
   reserveSlotWidth: boolean;
 } {
@@ -386,15 +393,8 @@ export function resolveTrailingActionVisibility({
   return {
     trailingPresentation,
     showKebab,
-    // The scrim paints the row's own hover background, so it can only be drawn on a hovered
-    // row — over an unhovered one the gradient fades to the wrong color. That is also why
-    // touch, which shows the kebab without ever hovering, never gets one.
-    showScrim: showKebab && isHovered,
-    renderSlot: hasArchiveAction || hasTrailing,
-    // The slot only holds width for something that permanently sits in it. Trailing content
-    // does; the kebab only does on touch, where there is no hover for it to appear on and so
-    // no scrim to let it overlay the title. Everywhere else the width goes back to the title
-    // and the kebab fades in over its tail.
+    renderSlot: true,
+    // Metadata reserves its own width; the status and actions lay out alongside it.
     reserveSlotWidth: hasContent || (hasArchiveAction && isTouchPlatform),
   };
 }
@@ -408,11 +408,12 @@ export function SidebarWorkspaceTrailingActionSlot({
 }) {
   return (
     <View
-      style={
+      style={[
         reserveWidth
           ? sidebarWorkspaceRowStyles.trailingActionSlotReserved
-          : sidebarWorkspaceRowStyles.trailingActionSlot
-      }
+          : sidebarWorkspaceRowStyles.trailingActionSlot,
+        styles.trailingContentRow,
+      ]}
     >
       {children}
     </View>
@@ -434,28 +435,35 @@ export function SidebarWorkspaceTrailingActionBase({
   );
 }
 
-export function SidebarWorkspaceTrailingActionOverlay({
+/** Keep every status at the trailing rail and slide it aside for hover or persistent menus. */
+export function SidebarWorkspaceTrailingStatusActions({
+  workspace,
   visible,
-  scrimBackdrop,
   children,
 }: {
+  workspace: SidebarWorkspaceEntry;
   visible: boolean;
-  /** Fade the row into the kebab when something (the diff stat) is still rendered behind it. */
-  scrimBackdrop?: SidebarSurfaceBackdrop;
   children: ReactNode;
 }) {
-  if (!visible || !children) return null;
   return (
-    <>
-      {scrimBackdrop ? (
-        <TrailingActionScrim backdrop={scrimBackdrop} testID="sidebar-workspace-trailing-scrim" />
-      ) : null}
-      <View style={sidebarWorkspaceRowStyles.trailingActionOverlay}>{children}</View>
-    </>
+    <View style={styles.trailingContentRow}>
+      <WorkspaceStatusIndicator
+        bucket={workspace.statusBucket}
+        workspaceKind={workspace.workspaceKind}
+      />
+      <HoverRevealActions visible={visible} width={18} height={20}>
+        {children}
+      </HoverRevealActions>
+    </View>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
+  trailingContentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[2],
+  },
   workspaceRowContent: {
     position: "relative",
   },

@@ -10,7 +10,7 @@ import Animated, {
 import { SPACING } from "@/styles/theme";
 
 const TIMING = {
-  duration: 180,
+  duration: 100,
   easing: Easing.inOut(Easing.ease),
   reduceMotion: ReduceMotion.System,
 };

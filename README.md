@@ -18,6 +18,7 @@ for clipped text on iOS. Paseo++ includes those updates plus these additions:
   totals together. Pin a workspace at the top of its project or the whole sidebar. Status sorting
   puts the newest workspaces first within each status. Scan project activity chips and expand or
   collapse all visible sidebar groups.
+  Workspace statuses slide aside for row actions, and hover details grow to fit branch and worktree names.
 - **Chrome extensions in the desktop browser:** Install and manage extensions, use toolbar
   popups and extension context menus, and open extension windows. Compatibility depends on the
   Chrome APIs an extension uses.
