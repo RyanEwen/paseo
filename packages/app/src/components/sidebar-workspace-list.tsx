@@ -991,6 +991,7 @@ function ProjectHeaderRow({
           chevron={chevron}
           showChevron={isHovered && chevron !== null}
           isArchiving={isArchiving}
+          statusIsDecorative={sidebarActivityChips}
         />
 
         <View style={styles.projectTitleGroup}>
