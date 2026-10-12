@@ -7,7 +7,7 @@ import { AgentList } from "@/components/agent-list";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useAgentHistory } from "@/hooks/use-agent-history";
-import { selectPreviousAgents } from "@/hooks/previous-agents";
+import { resolveClosedAgentDialogState, selectPreviousAgents } from "@/hooks/previous-agents";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useSessionStore } from "@/stores/session-store";
 import { collectAllTabs, useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
@@ -41,12 +41,15 @@ export function ReopenClosedAgentDialog({
     workspaceKey ? state.layoutByWorkspace[workspaceKey] : undefined,
   );
   const history = useAgentHistory({ serverId, workspaceId, search, enabled: supported });
-  const { agents: historyAgents, hasMore, isError, isLoadingMore, loadMore, refreshAll } = history;
+  const { agents: historyAgents, hasMore, isLoadingMore, loadMore, refreshAll } = history;
   const agents = useMemo(
     () => selectPreviousAgents(historyAgents, layout ? collectAllTabs(layout.root) : []),
     [historyAgents, layout],
   );
-  const scanningOpenPages = agents.length === 0 && hasMore && !isError;
+  const { failed, scanningOpenPages, showLoading } = resolveClosedAgentDialogState({
+    closedAgentCount: agents.length,
+    history,
+  });
   useEffect(() => {
     if (scanningOpenPages && !isLoadingMore) loadMore();
   }, [scanningOpenPages, isLoadingMore, loadMore]);
@@ -71,25 +74,24 @@ export function ReopenClosedAgentDialog({
     () =>
       hasMore ? (
         <View style={styles.footer}>
-          <Button variant="ghost" onPress={loadMore} disabled={isLoadingMore}>
-            {isLoadingMore ? t("common.loading") : t("sessions.actions.loadMore")}
+          <Button variant="ghost" onPress={loadMore} disabled={isLoadingMore || failed}>
+            {isLoadingMore && !failed ? t("common.loading") : t("sessions.actions.loadMore")}
           </Button>
         </View>
       ) : null,
-    [hasMore, isLoadingMore, loadMore, t],
+    [hasMore, isLoadingMore, failed, loadMore, t],
   );
 
-  const failed = isError || history.hostErrors.length > 0;
   let content;
-  if (!supported) {
+  if (!supported && !failed) {
     content = (
       <View style={styles.state}>
         <Text style={styles.hint}>{t("sessions.workspaceHistoryUpdateRequired")}</Text>
       </View>
     );
-  } else if (history.isInitialLoad || scanningOpenPages) {
+  } else if (showLoading) {
     content = (
-      <View style={styles.state}>
+      <View style={styles.state} testID="reopen-closed-agent-loading">
         <ThemedLoadingSpinner color="" uniProps={mutedSpinnerColor} />
       </View>
     );
@@ -97,7 +99,7 @@ export function ReopenClosedAgentDialog({
     content = (
       <>
         {failed ? (
-          <View style={styles.state}>
+          <View style={styles.state} testID="reopen-closed-agent-error">
             <Text style={styles.hint}>{t("sessions.hostLoadFailed", { host: serverId })}</Text>
             <Button variant="ghost" onPress={refresh}>
               {t("common.actions.retry")}

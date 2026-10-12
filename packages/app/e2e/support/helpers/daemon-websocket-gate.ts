@@ -657,6 +657,12 @@ export async function installDaemonWebSocketGate(page: Page) {
         resolveHeldClientRequest = resolve;
       });
     },
+    /** Forget a request from a disconnected socket without replaying it on recovery. */
+    discardHeldClientRequest(): void {
+      heldClientRequest = null;
+      heldClientRequestType = null;
+      resolveHeldClientRequest = null;
+    },
     releaseHeldClientRequest(): void {
       if (!heldClientRequest) throw new Error("No held client request to release");
       heldClientRequest.server.send(heldClientRequest.message);
