@@ -1,3 +1,5 @@
+import { HoverRevealActions } from "@/components/sidebar/hover-reveal-actions";
+import { StatusRing } from "@/components/status-ring";
 import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-badge";
 import { getStatusBucketLabel } from "@/hooks/sidebar-status-view-model";
 import { filterSidebarProjects, sortSidebarProjectsByName } from "./sidebar/sidebar-arrangement";
@@ -408,6 +410,10 @@ const prBadgeStyles = StyleSheet.create((theme) => ({
   },
 }));
 
+const PROJECT_ACTION_SIZE = 24;
+const PROJECT_ACTION_GAP = 2;
+const PROJECT_ACTION_OPTICAL_OFFSET = 6;
+
 function ProjectRowTrailingActions({
   projectViewKey,
   displayName,
@@ -434,32 +440,43 @@ function ProjectRowTrailingActions({
   removeProjectStatus: "idle" | "pending" | "success";
 }) {
   const actionsVisible = isHovered || platformIsNative || isMobileBreakpoint;
+  const controlCount = Number(Boolean(worktreeTarget)) + Number(Boolean(onRemoveProject));
+  const actionsWidth =
+    controlCount * PROJECT_ACTION_SIZE +
+    Math.max(0, controlCount - 1) * PROJECT_ACTION_GAP -
+    PROJECT_ACTION_OPTICAL_OFFSET;
   return (
-    <View style={styles.projectTrailingActions}>
-      {worktreeTarget ? (
-        <NewWorktreeButton
-          displayName={displayName}
-          onPress={onBeginWorkspaceSetup}
-          visible={actionsVisible}
-          showShortcutHint={isProjectActive}
-          testID={`sidebar-project-new-worktree-${projectViewKey}`}
-        />
-      ) : null}
-      {onRemoveProject ? (
-        <View
-          style={!actionsVisible && styles.projectKebabButtonHidden}
-          pointerEvents={actionsVisible ? "auto" : "none"}
-        >
-          <ProjectKebabMenu
-            projectViewKey={projectViewKey}
-            settingsTarget={settingsTarget}
-            projectPath={projectPath}
-            onRemoveProject={onRemoveProject}
-            removeProjectStatus={removeProjectStatus}
+    <HoverRevealActions
+      visible={actionsVisible}
+      width={Math.max(0, actionsWidth)}
+      height={PROJECT_ACTION_SIZE}
+    >
+      <View style={styles.projectTrailingActions}>
+        {worktreeTarget ? (
+          <NewWorktreeButton
+            displayName={displayName}
+            onPress={onBeginWorkspaceSetup}
+            visible={actionsVisible}
+            showShortcutHint={isProjectActive}
+            testID={`sidebar-project-new-worktree-${projectViewKey}`}
           />
-        </View>
-      ) : null}
-    </View>
+        ) : null}
+        {onRemoveProject ? (
+          <View
+            style={!actionsVisible && styles.projectKebabButtonHidden}
+            pointerEvents={actionsVisible ? "auto" : "none"}
+          >
+            <ProjectKebabMenu
+              projectViewKey={projectViewKey}
+              settingsTarget={settingsTarget}
+              projectPath={projectPath}
+              onRemoveProject={onRemoveProject}
+              removeProjectStatus={removeProjectStatus}
+            />
+          </View>
+        ) : null}
+      </View>
+    </HoverRevealActions>
   );
 }
 
@@ -865,6 +882,14 @@ function ProjectActivityChip({
   projectViewKey: string;
 }) {
   const { t } = useTranslation();
+  const leading = useMemo(() => {
+    if (bucket !== "running") return undefined;
+    return (
+      <View testID={`sidebar-project-working-spinner-${projectViewKey}`}>
+        <StatusRing />
+      </View>
+    );
+  }, [bucket, projectViewKey]);
   if (!bucket) return null;
   let variant: StatusBadgeVariant = "muted";
   if (bucket === "failed") variant = "error";
@@ -877,7 +902,7 @@ function ProjectActivityChip({
   }
   return (
     <View style={styles.projectStatusChip} testID={`sidebar-project-status-${projectViewKey}`}>
-      <StatusBadge label={label} size="xs" variant={variant} />
+      <StatusBadge label={label} size="xs" variant={variant} leading={leading} />
     </View>
   );
 }
@@ -982,7 +1007,7 @@ function ProjectHeaderRow({
         <ProjectLeadingVisual
           displayName={displayName}
           iconDataUri={iconDataUri}
-          statusBucket={statusBucket}
+          statusBucket={statusBucket === "running" ? null : statusBucket}
           projectViewKey={project.viewKey}
           backdrop={getSidebarRowBackdrop({
             isDragging,
@@ -2816,15 +2841,15 @@ const styles = StyleSheet.create((theme) => ({
   projectTrailingActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: PROJECT_ACTION_GAP,
     flexShrink: 0,
     // MoreVertical paints only around the center of its 14px SVG. Keep the 24px controls,
     // but pull their painted edge through the unused view-box space onto the row rail.
-    marginRight: -6,
+    marginRight: -PROJECT_ACTION_OPTICAL_OFFSET,
   },
   projectKebabButton: {
-    width: 24,
-    height: 24,
+    width: PROJECT_ACTION_SIZE,
+    height: PROJECT_ACTION_SIZE,
     borderRadius: theme.borderRadius.md,
     alignItems: "center",
     justifyContent: "center",
@@ -2837,8 +2862,8 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.surface2,
   },
   projectTrailingControlSlot: {
-    width: 24,
-    height: 24,
+    width: PROJECT_ACTION_SIZE,
+    height: PROJECT_ACTION_SIZE,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
