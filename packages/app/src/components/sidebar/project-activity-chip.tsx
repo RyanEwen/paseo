@@ -41,7 +41,7 @@ export function ProjectActivityChip({
     label = t("sidebar.statusBucket.workingCount", { count: workingWorkspaceCount });
   }
   return (
-    <View style={styles.projectStatusChip} testID={testID}>
+    <View role="status" accessibilityLabel={label} style={styles.projectStatusChip} testID={testID}>
       <StatusBadge label={label} size="xs" variant={variant} leading={leading} />
     </View>
   );
