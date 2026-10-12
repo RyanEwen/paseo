@@ -293,6 +293,11 @@ export const ja: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "閉じたエージェントを再度開く",
+    previousEmpty: "このワークスペースに以前のエージェントはありません",
+    workspaceHistoryUpdateRequired:
+      "以前のワークスペースエージェントを表示するには、このホストを更新してください。",
+
     title: "履歴",
     empty: "セッションがまだありません",
     noMatches: "一致するセッションはありません",

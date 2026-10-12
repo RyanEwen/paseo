@@ -293,6 +293,11 @@ export const fr: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "Rouvrir un agent fermé",
+    previousEmpty: "Aucun agent précédent dans cet espace de travail",
+    workspaceHistoryUpdateRequired:
+      "Mettez cet hôte à jour pour voir les agents précédents de cet espace de travail.",
+
     title: "Historique",
     empty: "Aucune session pour l’instant",
     noMatches: "Aucune session correspondante",

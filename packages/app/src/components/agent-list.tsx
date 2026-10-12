@@ -26,6 +26,8 @@ import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-bad
 import { findHighlightRanges } from "@/components/ui/highlighted-text-segments";
 
 interface AgentListProps {
+  /** Use stacked rows in bounded surfaces whose width cannot fit History columns. */
+  rowLayout?: "auto" | "stacked";
   agents: AggregatedAgent[];
   showCheckoutInfo?: boolean;
   isRefreshing?: boolean;
@@ -345,13 +347,15 @@ export function AgentList({
   listFooterComponent,
   showAttentionIndicator = true,
   showHostColumn = false,
+  rowLayout = "auto",
   search,
 }: AgentListProps) {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [actionAgent, setActionAgent] = useState<AggregatedAgent | null>(null);
-  const isMobile = useIsCompactFormFactor();
+  const isCompact = useIsCompactFormFactor();
+  const isMobile = isCompact || rowLayout === "stacked";
   const { archiveAgent } = useArchiveAgent();
 
   const actionClient = useSessionStore((state) =>

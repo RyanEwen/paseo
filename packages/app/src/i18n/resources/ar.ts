@@ -288,6 +288,10 @@ export const ar: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "إعادة فتح وكيل مغلق",
+    previousEmpty: "لا يوجد وكلاء سابقون في مساحة العمل هذه",
+    workspaceHistoryUpdateRequired: "حدّث هذا المضيف لعرض وكلاء مساحة العمل السابقين.",
+
     title: "السجل",
     empty: "لا توجد جلسات بعد",
     noMatches: "لا توجد جلسات مطابقة",
