@@ -4,7 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
 
+// Keep bridge discovery on the existing repository; renamed metadata may expose new asset URLs.
 const REPOSITORY = "RyanEwen/paseo";
+const RELEASE_REPOSITORIES = [REPOSITORY, "RyanEwen/paseo-plus-plus"];
 const ReleaseSchema = z.object({
   tag_name: z.string(),
   draft: z.boolean(),
@@ -34,9 +36,11 @@ export function selectForkPreview(value: unknown) {
   if (!packageAsset || !checksumAsset)
     throw new Error(`Fork preview has no daemon package for ${process.platform}/${process.arch}`);
   for (const asset of [packageAsset, checksumAsset]) {
-    const expected = `https://github.com/${REPOSITORY}/releases/download/${release.tag_name}/${asset.name}`;
-    if (asset.browser_download_url !== expected)
-      throw new Error("Unexpected fork release asset URL");
+    const canonicalAssetUrl = RELEASE_REPOSITORIES.some((repository) => {
+      const expected = `https://github.com/${repository}/releases/download/${release.tag_name}/${asset.name}`;
+      return asset.browser_download_url === expected;
+    });
+    if (!canonicalAssetUrl) throw new Error("Unexpected fork release asset URL");
   }
   return { filename, packageAsset, checksumAsset };
 }

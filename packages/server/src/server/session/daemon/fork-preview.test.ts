@@ -74,3 +74,129 @@ test("downloads the selected fork bytes, verifies them, and removes the temporar
   }
   expect(existsSync(download.file)).toBe(false);
 });
+
+function renamedRelease() {
+  const preview = release(12);
+  for (const asset of preview.assets) {
+    asset.browser_download_url = asset.browser_download_url.replace(
+      "RyanEwen/paseo/",
+      "RyanEwen/paseo-plus-plus/",
+    );
+  }
+  return preview;
+}
+
+describe("daemon repository rename bridge", () => {
+  test("accepts canonical assets from the renamed repository", () => {
+    const preview = renamedRelease();
+    expect(selectForkPreview([preview])).toEqual({
+      filename: preview.assets[0].name,
+      packageAsset: preview.assets[0],
+      checksumAsset: preview.assets[1],
+    });
+  });
+
+  test.each([
+    ["RyanEwen", "paseo-plus-plus-extra"],
+    ["AnotherOwner", "paseo-plus-plus"],
+    ["getpaseo", "paseo"],
+  ])("rejects an unapproved repository %s/%s", (owner, repository) => {
+    const preview = renamedRelease();
+    preview.assets[0].browser_download_url = preview.assets[0].browser_download_url.replace(
+      "RyanEwen/paseo-plus-plus/",
+      `${owner}/${repository}/`,
+    );
+    expect(() => selectForkPreview([preview])).toThrow("Unexpected fork release asset URL");
+  });
+
+  test.each(["?download=1", "#fragment", "/extra"])("rejects asset URL suffix %s", (suffix) => {
+    const preview = renamedRelease();
+    preview.assets[0].browser_download_url += suffix;
+    expect(() => selectForkPreview([preview])).toThrow("Unexpected fork release asset URL");
+  });
+
+  test("rejects a different tag, filename, escaped path, protocol, or port", () => {
+    const preview = renamedRelease();
+    const url = preview.assets[0].browser_download_url;
+    const replacements = [
+      url.replace("preview.12", "preview.13"),
+      url.replace(preview.assets[0].name, "other.tgz"),
+      url.replace("/paseo-daemon-", "/%70aseo-daemon-"),
+      url.replace("https:", "http:"),
+      url.replace("github.com/", "github.com:443/"),
+    ];
+    for (const replacement of replacements) {
+      preview.assets[0].browser_download_url = replacement;
+      expect(() => selectForkPreview([preview])).toThrow("Unexpected fork release asset URL");
+    }
+  });
+
+  test.each(["../daemon.tgz", "daemon..tgz", ".tgz", "daemon%20.tgz"])(
+    "refuses a malformed daemon package name %s",
+    (name) => {
+      const preview = renamedRelease();
+      preview.assets[0] = {
+        name,
+        browser_download_url: `https://github.com/RyanEwen/paseo-plus-plus/releases/download/${preview.tag_name}/${name}`,
+      };
+      expect(() => selectForkPreview([preview])).toThrow("Fork preview has no daemon package");
+    },
+  );
+
+  test("discovers through the old API and downloads only the renamed package and checksum", async () => {
+    const preview = renamedRelease();
+    const filename = preview.assets[0].name;
+    const bytes = Buffer.from("verified renamed daemon");
+    const calls: string[] = [];
+    const metadataUrl = "https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100&page=1";
+    const download = await downloadForkPreview({
+      async request(url) {
+        calls.push(url);
+        if (url === metadataUrl) {
+          const response = Response.json([preview]);
+          Object.defineProperties(response, {
+            url: {
+              value: "https://api.github.com/repositories/123456/releases?per_page=100&page=1",
+            },
+            redirected: { value: true },
+          });
+          return response;
+        }
+        if (url === preview.assets[1].browser_download_url) {
+          return new Response(`${createHash("sha256").update(bytes).digest("hex")}  ${filename}\n`);
+        }
+        if (url === preview.assets[0].browser_download_url) return new Response(bytes);
+        throw new Error(`Unexpected test request: ${url}`);
+      },
+    });
+    try {
+      expect(await readFile(download.file)).toEqual(bytes);
+      expect(calls).toEqual([
+        metadataUrl,
+        preview.assets[1].browser_download_url,
+        preview.assets[0].browser_download_url,
+      ]);
+    } finally {
+      await download.cleanup();
+    }
+    expect(existsSync(download.file)).toBe(false);
+  });
+
+  test("still rejects tampered bytes from a renamed canonical asset", async () => {
+    const preview = renamedRelease();
+    const filename = preview.assets[0].name;
+    const digest = createHash("sha256").update("approved bytes").digest("hex");
+    await expect(
+      downloadForkPreview({
+        async request(url) {
+          if (url.startsWith("https://api.github.com/repos/RyanEwen/paseo/"))
+            return Response.json([preview]);
+          if (url === preview.assets[1].browser_download_url)
+            return new Response(`${digest}  ${filename}\n`);
+          if (url === preview.assets[0].browser_download_url) return new Response("tampered bytes");
+          throw new Error(`Unexpected test request: ${url}`);
+        },
+      }),
+    ).rejects.toThrow("checksum mismatch");
+  });
+});
