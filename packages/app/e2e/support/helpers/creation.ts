@@ -1,3 +1,4 @@
+import { originalUserMessages, originalTimelineRows } from "./timeline-pagination";
 import type { WorkspaceCreateRequest } from "@getpaseo/protocol/messages";
 import { expect, type Page } from "@playwright/test";
 import { daemonWsRoutePattern } from "./daemon-port";
@@ -166,12 +167,12 @@ export async function createCreationScenario(page: Page) {
     },
     async expectPromptVisible(prompt?: string) {
       // Inactive agent tabs retain their timeline DOM beside the visible draft.
-      const rows = page.getByTestId("user-message").filter({ visible: true });
-      await expect(prompt ? rows.filter({ hasText: prompt }) : rows.first()).toBeVisible();
+      const rows = originalUserMessages(page).filter({ visible: true });
+      await expect(prompt ? rows.filter({ hasText: prompt }) : rows).toBeVisible();
     },
     async expectWorkspaceReadyBeforeAgentCompletion() {
       await expect(page).toHaveURL(/\/workspace\//);
-      await expect(page.getByTestId("user-message").first()).toBeVisible();
+      await expect(originalUserMessages(page)).toBeVisible();
       await expect(
         page
           .locator('[data-testid^="workspace-tab-draft_"][aria-selected="true"]')
@@ -185,7 +186,7 @@ export async function createCreationScenario(page: Page) {
     async expectCreatedAgentError() {
       await requests.settled();
       await expect(
-        page
+        originalTimelineRows(page)
           .getByTestId("assistant-message")
           .filter({ hasText: "[System Error] Requested mock prompt rejection", visible: true }),
       ).toBeVisible();
@@ -201,9 +202,8 @@ export async function createCreationScenario(page: Page) {
       await expect(page.getByTestId("turn-working-indicator")).toHaveCount(0);
     },
     async expectPromptBeforeError(prompt: string) {
-      const messages = page
-        .getByTestId("user-message")
-        .or(page.getByTestId("assistant-message"))
+      const messages = originalUserMessages(page)
+        .or(originalTimelineRows(page).getByTestId("assistant-message"))
         .filter({ visible: true });
       await expect(messages).toHaveCount(2);
       await expect(messages.nth(0)).toContainText(prompt);
@@ -217,7 +217,7 @@ export async function createCreationScenario(page: Page) {
     },
     async expectAssistantReply() {
       await expect(
-        page
+        originalTimelineRows(page)
           .getByTestId("assistant-message")
           .filter({ visible: true, hasNotText: "[System Error]" })
           .first(),
@@ -319,7 +319,7 @@ export function createPromptRetryScenario(
         .toBeGreaterThan(0);
       expect(gate.getClientRequests("agent.create.request").at(-1)).toEqual(firstMessage);
       expect(gate.getClientRequestCount("send_agent_message_request")).toBe(0);
-      await expect(page.getByTestId("user-message").filter({ visible: true })).toHaveCount(1);
+      await expect(originalUserMessages(page).filter({ visible: true })).toHaveCount(1);
     },
   };
 }
