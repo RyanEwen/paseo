@@ -1,3 +1,4 @@
+import { SYNC_APP_SETTING_KEYS } from "@getpaseo/protocol/app-settings";
 import { DEFAULT_PASEO_PLUS_PLUS_PREFERENCES } from "@/paseo-plus-plus/preferences";
 import { describe, expect, it } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
@@ -1320,4 +1321,10 @@ describe("content max width", () => {
     expect((await load(10)).contentMaxWidth).toBe(600);
     expect((await load("wide")).contentMaxWidth).toBeNull();
   });
+});
+
+it("includes every app preference in the daemon sync scope and excludes desktop settings", () => {
+  expect([...SYNC_APP_SETTING_KEYS].sort()).toEqual(Object.keys(DEFAULT_CLIENT_SETTINGS).sort());
+  expect(SYNC_APP_SETTING_KEYS).not.toContain("manageBuiltInDaemon");
+  expect(SYNC_APP_SETTING_KEYS).not.toContain("releaseChannel");
 });

@@ -1,7 +1,9 @@
+import { setSettingsHostSelected, setSettingsEditingBlocked } from "@/settings-sync/save-handler";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { StateStorage } from "zustand/middleware";
 import {
   createSidebarViewStorage,
+  subscribeSidebarPreferenceEdits,
   hasActiveSidebarLabelFilter,
   migrateSidebarViewState,
   SIDEBAR_UNLABELLED_LABEL_KEY,
@@ -31,6 +33,8 @@ function createMemoryStorage(entries: Record<string, string | null>): MemoryStor
 
 describe("sidebar view store", () => {
   beforeEach(() => {
+    setSettingsHostSelected(false);
+    setSettingsEditingBlocked(false);
     useSidebarViewStore.setState({
       showBackground: false,
       groupMode: "project",
@@ -455,4 +459,36 @@ describe("sidebar view store", () => {
     );
     expect(storage.reads).toEqual(["sidebar-view"]);
   });
+});
+
+it("only emits intentional general preferences, never projection or local identity filters", () => {
+  const changes: unknown[] = [];
+  const stop = subscribeSidebarPreferenceEdits((next) => changes.push(next.groupMode));
+  try {
+    useSidebarViewStore.setState({ groupMode: "status" });
+    useSidebarViewStore.getState().toggleHostFilter("hostA");
+    useSidebarViewStore.getState().toggleProjectFilter("projectA");
+    useSidebarViewStore.getState().reconcileLabelFilter([]);
+    expect(changes).toEqual([]);
+    useSidebarViewStore.getState().setGroupMode("project");
+    expect(changes).toEqual(["project"]);
+    setSettingsEditingBlocked(true);
+    useSidebarViewStore.getState().setGroupMode("status");
+    expect(changes).toEqual(["project"]);
+    expect(useSidebarViewStore.getState().groupMode).toBe("project");
+  } finally {
+    stop();
+    setSettingsEditingBlocked(false);
+  }
+});
+
+it("retains synced label choices when another client's available labels differ", () => {
+  setSettingsHostSelected(true);
+  try {
+    useSidebarViewStore.setState({ labelFilter: { labels: ["remote-label"] } });
+    useSidebarViewStore.getState().reconcileLabelFilter(["local-label"]);
+    expect(useSidebarViewStore.getState().labelFilter.labels).toEqual(["remote-label"]);
+  } finally {
+    setSettingsHostSelected(false);
+  }
 });

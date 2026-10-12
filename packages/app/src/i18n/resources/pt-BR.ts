@@ -2,6 +2,40 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ptBR: TranslationResources = {
+  settingsSync: {
+    title: "Sincronização de configurações",
+    hint: "Sincronize as preferências e a visibilidade da barra lateral por um host escolhido. Filtros de host/projeto, ordem dos espaços e grupos recolhidos continuam locais. A troca carrega as configurações antes de editá-las.",
+    host: "Host de configurações",
+    deviceOnly: "Somente este dispositivo",
+    unavailableHost: "Host selecionado indisponível",
+    status: "Status",
+    publish: "Usar configurações deste dispositivo",
+    publishHint:
+      "Este host não tem configurações salvas. A publicação copia suas preferências atuais para ele.",
+    useHost: "Usar configurações do host",
+    keepDevice: "Publicar minhas alterações",
+    keepDeviceHint:
+      "Substitua explicitamente as preferências em conflito em {{host}} pelas suas alterações pendentes. As outras preferências são preservadas.",
+    restore: "Restaurar configurações do dispositivo",
+    restoreHint:
+      "Pare a sincronização e restaure as preferências salvas antes de escolher este host.",
+    conflictHint:
+      "Estas preferências mudaram em outro cliente. Use as configurações de {{host}} para descartar apenas suas alterações pendentes.",
+    retryHint:
+      "Reconecte e leia as configurações novamente. As alterações pendentes permanecem no host original.",
+    states: {
+      loading: "Carregando configuração",
+      local: "Preferências salvas neste dispositivo",
+      reading: "Aguardando configurações do host selecionado",
+      ready: "Conectado. Alterações pendentes: {{count}}",
+      offline: "Offline. Alterações pendentes: {{count}}",
+      empty: "Nenhuma configuração publicada neste host",
+      unsupported: "Atualize este host para sincronizar configurações",
+      error: "Não foi possível sincronizar. Suas alterações pendentes foram preservadas.",
+      conflict: "As alterações em conflito precisam da sua escolha",
+      readonly: "Esta conexão pode ler configurações, mas não alterá-las",
+    },
+  },
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Salvar",

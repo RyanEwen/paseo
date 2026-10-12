@@ -2,6 +2,40 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
+  settingsSync: {
+    title: "Synchronisation des paramètres",
+    hint: "Synchronisez les préférences et la visibilité des éléments de la barre latérale avec un hôte choisi. Les filtres d’hôte/projet, l’ordre des espaces et les groupes repliés restent locaux. Changer d’hôte charge ses paramètres avant toute modification.",
+    host: "Hôte des paramètres",
+    deviceOnly: "Cet appareil uniquement",
+    unavailableHost: "Hôte sélectionné indisponible",
+    status: "État",
+    publish: "Utiliser les paramètres de cet appareil",
+    publishHint:
+      "Cet hôte n’a aucun paramètre enregistré. La publication y copie vos préférences actuelles.",
+    useHost: "Utiliser les paramètres de l’hôte",
+    keepDevice: "Publier mes modifications",
+    keepDeviceHint:
+      "Remplacez explicitement les préférences en conflit sur {{host}} par vos modifications en attente. Les autres préférences sont conservées.",
+    restore: "Restaurer les paramètres de l’appareil",
+    restoreHint:
+      "Arrêtez la synchronisation et restaurez les préférences enregistrées avant de choisir cet hôte.",
+    conflictHint:
+      "Ces préférences ont changé sur un autre client. Utilisez les paramètres de {{host}} pour abandonner uniquement ses modifications en attente.",
+    retryHint:
+      "Reconnectez-vous et relisez les paramètres. Les modifications en attente restent liées à leur hôte d’origine.",
+    states: {
+      loading: "Chargement de la configuration",
+      local: "Préférences enregistrées sur cet appareil",
+      reading: "En attente des paramètres de l’hôte sélectionné",
+      ready: "Connecté. Modifications en attente : {{count}}",
+      offline: "Hors ligne. Modifications en attente : {{count}}",
+      empty: "Aucun paramètre publié sur cet hôte",
+      unsupported: "Mettez cet hôte à jour pour synchroniser les paramètres",
+      error: "Synchronisation impossible. Vos modifications en attente sont conservées.",
+      conflict: "Les modifications en conflit nécessitent votre choix",
+      readonly: "Cette connexion peut lire les paramètres, mais pas les modifier",
+    },
+  },
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Enregistrer",

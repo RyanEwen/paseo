@@ -1,3 +1,5 @@
+import { AppSettingsSession } from "./app-settings/session.js";
+import { AppSettingsStore } from "./app-settings/index.js";
 import { AgentDirectory } from "./agent/directory.js";
 import { searchTimeline } from "./agent/chat-search/index.js";
 import type { BrowserToolsBroker } from "./browser-tools/broker.js";
@@ -478,6 +480,7 @@ export interface SessionOptions {
   workspaceGitService: WorkspaceGitService;
   workspaceAutoName: WorkspaceAutoName;
   daemonConfigStore: DaemonConfigStore;
+  appSettingsStore?: AppSettingsStore;
   pluginRuntime?: {
     before: import("./plugins/lifecycle/index.js").PluginLifecycle["before"];
     emit: import("./plugins/lifecycle/index.js").PluginLifecycle["emit"];
@@ -737,6 +740,7 @@ export class Session {
   private readonly workspaceProvisioning: WorkspaceProvisioningService;
   private readonly workspaceRecovery: WorkspaceRecoveryService;
   private readonly daemonConfigStore: DaemonConfigStore;
+  private readonly appSettingsSession: AppSettingsSession;
   private readonly pushNotifications: PushNotifications;
   private readonly pluginRuntime: SessionOptions["pluginRuntime"];
   private readonly orchestrationSkills: SessionOptions["orchestrationSkills"];
@@ -1078,6 +1082,12 @@ export class Session {
         })
       : null;
     this.daemonConfigStore = daemonConfigStore;
+    this.appSettingsSession = new AppSettingsSession(
+      (message) => this.emit(message),
+      this.delivery,
+      paseoHome,
+      options.appSettingsStore,
+    );
     this.terminalManager = terminalManager;
     this.terminalController = new TerminalSessionController({
       terminalManager,
@@ -2328,7 +2338,7 @@ export class Session {
       this.dispatchHubExecutionMessage(msg) ??
       this.dispatchCreationMessage(msg, source) ??
       this.dispatchAgentLifecycleMessage(msg) ??
-      this.dispatchAgentConfigMessage(msg) ??
+      this.dispatchSettingsAndAgentConfigMessage(msg) ??
       this.dispatchCheckoutMessage(msg) ??
       this.dispatchWorkspaceLifecycleMessage(msg) ??
       this.dispatchWorkspaceFileMessage(msg, source) ??
@@ -2788,6 +2798,12 @@ export class Session {
       default:
         return undefined;
     }
+  }
+
+  private dispatchSettingsAndAgentConfigMessage(
+    msg: SessionInboundMessage,
+  ): Promise<void> | undefined {
+    return this.appSettingsSession.dispatch(msg) ?? this.dispatchAgentConfigMessage(msg);
   }
 
   private dispatchAgentConfigMessage(msg: SessionInboundMessage): Promise<void> | undefined {

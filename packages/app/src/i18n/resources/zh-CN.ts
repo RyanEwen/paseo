@@ -2,6 +2,35 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  settingsSync: {
+    title: "设置同步",
+    hint: "通过所选主机同步应用偏好和侧边栏项目可见性。主机/项目筛选、工作区顺序和折叠分组保留在本地。切换后先加载设置，再允许编辑。",
+    host: "设置主机",
+    deviceOnly: "仅此设备",
+    unavailableHost: "所选主机不可用",
+    status: "状态",
+    publish: "使用此设备的设置",
+    publishHint: "此主机尚无已保存的应用设置。发布会将当前偏好复制到主机。",
+    useHost: "使用主机设置",
+    keepDevice: "发布我的更改",
+    keepDeviceHint: "将 {{host}} 上冲突的偏好明确替换为你的待处理更改。其他偏好保持不变。",
+    restore: "恢复设备设置",
+    restoreHint: "停止同步并恢复选择此主机前保存的偏好。",
+    conflictHint: "这些偏好已在另一个客户端更改。使用 {{host}} 的设置，仅放弃该主机的待处理更改。",
+    retryHint: "重新连接并读取设置。待处理更改始终属于原主机。",
+    states: {
+      loading: "正在加载同步配置",
+      local: "偏好保存在此设备",
+      reading: "等待加载所选主机",
+      ready: "已连接。待处理更改：{{count}}",
+      offline: "离线。待处理更改：{{count}}",
+      empty: "此主机尚未发布设置",
+      unsupported: "更新此主机以同步应用设置",
+      error: "无法同步设置。待处理更改已保留。",
+      conflict: "请选择如何处理冲突",
+      readonly: "此连接可读取设置，但不能修改",
+    },
+  },
   paseoPlusPlus: {
     workspaceLimit: {
       save: "保存",

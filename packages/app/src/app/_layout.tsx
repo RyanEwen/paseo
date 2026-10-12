@@ -1,3 +1,4 @@
+import { SettingsSyncBootstrap } from "@/settings-sync/bootstrap";
 import { AndroidUpdateCalloutSource } from "@/app-updates/callout-source";
 import "@/styles/unistyles";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -938,6 +939,7 @@ function RuntimeProviders({ children }: { children: ReactNode }) {
   return (
     <HostRuntimeBootstrapProvider>
       <PushNotificationRouter />
+      <SettingsSyncBootstrap />
       <SidebarCalloutProvider>
         <ProvidersWrapper>{children}</ProvidersWrapper>
       </SidebarCalloutProvider>

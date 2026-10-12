@@ -36,7 +36,7 @@ export function useUsageHostId(): string | null {
 
 /**
  * The host the Usage modal shows, and the hosts to pick from. A pick
- * is saved on the device, so the sidebar Usage row and later visits show the same host.
+ * is saved in app preferences, so the sidebar Usage row and later visits show the same host.
  */
 export function useUsageHostSelection(): {
   serverId: string | null;

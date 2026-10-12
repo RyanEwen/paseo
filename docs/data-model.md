@@ -34,14 +34,27 @@ Paseo uses **file-based JSON persistence** instead of a traditional database. Al
 
 All server-side stores live under `$PASEO_HOME` (defaults to `~/.paseo`).
 
-## Client feature preferences
+## App preferences
 
-Paseo++ opt-outs live in the existing client AppSettings storage, not the daemon. Each
-installation chooses independently. Missing or malformed feature choices enable the feature;
-only an explicit saved `false` disables it. Disabling changes the feature's presentation or
-automatic work without deleting its saved configuration or user data. Keep fork fixes,
-installation identity and verification outside these opt-outs. The canonical preference
-schema lives in `packages/app/src/paseo-plus-plus/preferences.ts`.
+Each daemon owns an independent `app-settings.json`. Each client can select one settings host,
+independently of its active workspace. Selection reads the destination before enabling edits.
+An empty host requires the explicit **Use this device settings** action; selecting it never
+publishes the preferences already on the device.
+
+App preferences and general sidebar grouping, sorting, visibility and label filtering can sync.
+Connection credentials, desktop daemon controls, the Usage report host selection, host/project filters, custom order, collapsed
+groups, workspace layouts, navigation and drafts stay local. Project and workspace pins retain
+their existing daemon registry authority.
+
+The client stores its settings-host selection, pre-adoption backups and pending edits locally.
+Pending edits belong permanently to their original host. Reconnect reads before sending touched
+preference leaves. Concurrent edits to the same leaf require an explicit conflict choice;
+unrelated leaves can merge. Unknown stored preferences survive edits from older clients.
+
+Paseo++ missing or malformed feature choices enable the feature; only an explicit saved `false`
+disables it. Disabling changes presentation or automatic work without deleting saved configuration
+or user data. Keep fork fixes, installation identity and verification outside these opt-outs.
+The canonical preference schema lives in `packages/app/src/paseo-plus-plus/preferences.ts`.
 
 ## Store Surface Rules
 
@@ -54,6 +67,7 @@ Store APIs own persistence atomicity and should not make services coordinate raw
 ```
 $PASEO_HOME/
 ├── config.json                          # Daemon configuration
+├── app-settings.json                    # Optional shared app preferences and leaf revisions
 ├── server-id                            # Stable daemon identifier (plain text, "srv_<base64url>")
 ├── daemon-keypair.json                  # E2EE keypair for relay (mode 0600)
 ├── paseo.pid                            # Daemon PID lock file

@@ -2,6 +2,38 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  settingsSync: {
+    title: "設定の同期",
+    hint: "選択したホストでアプリ設定とサイドバー項目の表示を同期します。ホスト・プロジェクトの絞り込み、ワークスペースの順序、折りたたみは端末に保存します。切り替え後は設定を読み込んでから編集できます。",
+    host: "設定ホスト",
+    deviceOnly: "この端末のみ",
+    unavailableHost: "選択したホストを利用できません",
+    status: "状態",
+    publish: "この端末の設定を使用",
+    publishHint:
+      "このホストには保存済みの設定がありません。公開すると現在の設定がホストにコピーされます。",
+    useHost: "ホストの設定を使用",
+    keepDevice: "自分の変更を公開",
+    keepDeviceHint:
+      "{{host}} で競合する設定を保留中の変更で明示的に上書きします。その他の設定は保持されます。",
+    restore: "端末の設定を復元",
+    restoreHint: "同期を停止し、このホストを選択する前に保存した設定を復元します。",
+    conflictHint:
+      "これらの設定は別のクライアントで変更されました。{{host}} の設定を使用すると、このホストの保留中の変更だけを破棄します。",
+    retryHint: "再接続して設定を読み直してください。保留中の変更は元のホストに保持されます。",
+    states: {
+      loading: "同期設定を読み込み中",
+      local: "設定はこの端末に保存されます",
+      reading: "選択したホストの読み込みを待機中",
+      ready: "接続済み。保留中の変更: {{count}}",
+      offline: "オフライン。保留中の変更: {{count}}",
+      empty: "このホストに公開済みの設定はありません",
+      unsupported: "設定を同期するにはこのホストを更新してください",
+      error: "設定を同期できませんでした。保留中の変更は保持されています。",
+      conflict: "競合する変更の扱いを選択してください",
+      readonly: "この接続では設定を読み込めますが変更できません",
+    },
+  },
   paseoPlusPlus: {
     workspaceLimit: {
       save: "保存",
