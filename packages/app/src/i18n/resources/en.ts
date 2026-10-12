@@ -284,6 +284,10 @@ export const en = {
     },
   },
   sessions: {
+    previousTitle: "Reopen closed agent",
+    previousEmpty: "No closed agents in this workspace",
+    workspaceHistoryUpdateRequired: "Update this host to view previous workspace agents.",
+
     title: "History",
     empty: "No sessions yet",
     noMatches: "No sessions match",

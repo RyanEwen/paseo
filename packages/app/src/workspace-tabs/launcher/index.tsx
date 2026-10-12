@@ -3,12 +3,14 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useState,
   type ComponentType,
   type ReactNode,
 } from "react";
+import { ReopenClosedAgentDialog } from "@/components/reopen-closed-agent-dialog";
 import { useRouter, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Globe, SquarePen, SquareTerminal } from "lucide-react-native";
+import { Globe, History, SquarePen, SquareTerminal } from "lucide-react-native";
 import invariant from "tiny-invariant";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
 import { resolvePluginIcon } from "@/plugins/icons";
@@ -38,6 +40,8 @@ export type WorkspaceTabLaunchDestination =
   | { kind: "replace"; tabId: string };
 
 export interface NewTabLauncher {
+  serverId: string;
+  workspaceId: string;
   showChanges: boolean;
   showPullRequest: boolean;
   showBrowser: boolean;
@@ -65,8 +69,11 @@ export interface WorkspaceTabLaunchGroup {
 
 const EMPTY_PANE_PANEL_KINDS: readonly WorkspaceTabTarget["kind"][] = [];
 
-const NewTabLauncherContext = createContext<NewTabLauncher | null>(null);
+const NewTabLauncherContext = createContext<
+  (NewTabLauncher & { reopenClosedAgent: () => void }) | null
+>(null);
 
+/** Own launcher actions and their workspace-scoped reopen dialog together. */
 export function NewTabLauncherProvider({
   value,
   children,
@@ -74,7 +81,22 @@ export function NewTabLauncherProvider({
   value: NewTabLauncher;
   children: ReactNode;
 }) {
-  return <NewTabLauncherContext.Provider value={value}>{children}</NewTabLauncherContext.Provider>;
+  const [reopenVisible, setReopenVisible] = useState(false);
+  const reopenClosedAgent = useCallback(() => setReopenVisible(true), []);
+  const closeReopenDialog = useCallback(() => setReopenVisible(false), []);
+  const context = useMemo(() => ({ ...value, reopenClosedAgent }), [value, reopenClosedAgent]);
+  return (
+    <NewTabLauncherContext.Provider value={context}>
+      {children}
+      {reopenVisible ? (
+        <ReopenClosedAgentDialog
+          serverId={value.serverId}
+          workspaceId={value.workspaceId}
+          onClose={closeReopenDialog}
+        />
+      ) : null}
+    </NewTabLauncherContext.Provider>
+  );
 }
 
 const BUILT_IN_SELECTIONS = {
@@ -197,6 +219,17 @@ export function useWorkspaceTabLaunchCatalog(input: {
       const item = builtIns[id];
       return item.hidden || !panelSupportsHost(item.panelKind, host) ? [] : [item];
     });
+
+    if (!isExplorerMenu) {
+      tabItems.splice(1, 0, {
+        id: "reopen-closed-agent",
+        label: t("sessions.previousTitle"),
+        Icon: History,
+        disabled: false,
+        panelKind: "agent",
+        launch: launcher.reopenClosedAgent,
+      });
+    }
 
     const pluginItems: WorkspaceTabLaunchItem[] = [];
     for (const plugin of plugins) {

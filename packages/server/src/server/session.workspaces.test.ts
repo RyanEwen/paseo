@@ -2938,12 +2938,14 @@ test("fetch_agent_history_request pages archived historical rows separately", as
       }),
       archivedAt: "2026-03-02T12:00:00.000Z",
     },
+    makeAgent({ id: "other-workspace", cwd: historyCwd, workspaceId: "ws-other", status: "idle" }),
   ];
 
   await session.handleMessage({
     type: "fetch_agent_history_request",
     requestId: "req-history",
-    page: { limit: 25 },
+    workspaceId: "ws-history",
+    page: { limit: 1 },
   });
 
   expect(emitted).toEqual([

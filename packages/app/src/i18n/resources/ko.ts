@@ -288,6 +288,10 @@ export const ko: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "닫힌 에이전트 다시 열기",
+    previousEmpty: "이 작업 공간에는 이전 에이전트가 없습니다",
+    workspaceHistoryUpdateRequired: "이전 작업 공간 에이전트를 보려면 이 호스트를 업데이트하세요.",
+
     title: "기록",
     empty: "아직 세션이 없습니다",
     noMatches: "일치하는 세션이 없습니다",

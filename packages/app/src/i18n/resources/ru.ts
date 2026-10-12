@@ -292,6 +292,11 @@ export const ru: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "Открыть закрытого агента",
+    previousEmpty: "В этом рабочем пространстве нет предыдущих агентов",
+    workspaceHistoryUpdateRequired:
+      "Обновите этот хост, чтобы просмотреть предыдущих агентов рабочего пространства.",
+
     title: "История",
     empty: "Сессий пока нет",
     noMatches: "Подходящих сессий не найдено",

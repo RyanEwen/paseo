@@ -10,6 +10,8 @@ import {
   archiveAgentFromSessions,
   clickSessionRow,
   createIdleAgent,
+  createMockIdleAgent,
+  closeWorkspaceAgentTab,
   expectArchivedAgentFocused,
   expectSessionRowArchived,
   expectSessionRowVisible,
@@ -49,6 +51,120 @@ test.describe("Archive tab reconciliation", () => {
     await client?.removeProject(projectId).catch(() => undefined);
     await client?.close().catch(() => undefined);
     await tempRepo?.cleanup();
+  });
+
+  for (const width of [1440, 390]) {
+    test(`Reopen closed agent opens archived history with explicit Unarchive at ${width}px`, async ({
+      page,
+    }, testInfo) => {
+      const archived = await createMockIdleAgent(client, {
+        cwd: tempRepo.path,
+        workspaceId,
+        title: `previous-archived-${randomUUID().slice(0, 8)}`,
+      });
+      const surviving = await createMockIdleAgent(client, {
+        cwd: tempRepo.path,
+        workspaceId,
+        title: `previous-open-${randomUUID().slice(0, 8)}`,
+      });
+      await resetSeededPageState(page);
+      await openWorkspaceWithAgents(page, [archived, surviving]);
+      await archiveAgentFromDaemon(client, archived.id);
+      await expectWorkspaceTabHidden(page, archived.id);
+      await page.setViewportSize({ width, height: 900 });
+      const trigger = width < 600 ? "workspace-header-menu-trigger" : "workspace-new-tab-button";
+      const triggerButton = page.getByTestId(trigger).filter({ visible: true }).first();
+      const previousItem = page.getByTestId("workspace-new-tab-menu-reopen-closed-agent");
+      if (width < 600) {
+        await triggerButton.click();
+        await previousItem.click();
+      } else {
+        await triggerButton.focus();
+        await triggerButton.press("Enter");
+        await previousItem.press("Enter");
+      }
+      const menuId = width < 600 ? "workspace-header-menu" : "workspace-new-tab-menu";
+      await expect(page.getByTestId(menuId).filter({ visible: true })).toHaveCount(0);
+      if (width < 600) {
+        await expect(
+          page.getByText("Workspace actions", { exact: true }).filter({ visible: true }),
+        ).toHaveCount(0);
+      }
+      await expect(
+        page.getByText("Reopen closed agent", { exact: true }).filter({ visible: true }).first(),
+      ).toBeVisible();
+      await expect(
+        page.getByTestId("reopen-closed-agent-dialog").filter({ visible: true }).first(),
+      ).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`/workspace/${workspaceId}`));
+      if (width === 1440) {
+        await page.keyboard.press("Escape");
+        await expect(page.getByTestId("reopen-closed-agent-dialog-content")).toHaveCount(0);
+        await triggerButton.press("Enter");
+        await previousItem.press("Enter");
+      }
+      await expect(page.getByTestId("reopen-closed-agent-dialog-content")).toBeVisible();
+      await expectSessionRowArchived(page, archived.title);
+      const dialogTitle = page
+        .getByTestId("reopen-closed-agent-dialog-content")
+        .getByTestId(`agent-row-title-${getServerId()}-${archived.id}`);
+      const titleFits = await dialogTitle.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      );
+      expect(titleFits).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath("previous-agents.png") });
+      await expect(
+        page
+          .getByTestId("reopen-closed-agent-dialog-content")
+          .getByRole("button")
+          .filter({ hasText: surviving.title }),
+      ).toHaveCount(0);
+      await clickSessionRow(page, archived.title);
+      await expect(page.getByTestId("reopen-closed-agent-dialog-content")).toHaveCount(0);
+      await expect(
+        page.getByText("This agent is archived").filter({ visible: true }).first(),
+      ).toBeVisible();
+      expect(await fetchAgentArchivedAt(client, archived.id)).not.toBeNull();
+      await page.getByRole("button", { name: "Unarchive", exact: true }).click();
+      await expect.poll(() => fetchAgentArchivedAt(client, archived.id)).toBeNull();
+      await expect(page.getByText("This agent is archived").filter({ visible: true })).toHaveCount(
+        0,
+      );
+    });
+  }
+
+  test("Reopen closed agent opens a hidden live subagent without creating or archiving a session", async ({
+    page,
+  }) => {
+    const parent = await createMockIdleAgent(client, {
+      cwd: tempRepo.path,
+      workspaceId,
+      title: "Previous agents parent",
+    });
+    const title = `previous-subagent-${randomUUID().slice(0, 8)}`;
+    const child = await client.createAgent({
+      provider: "mock",
+      model: "e2e-fast-stream",
+      modeId: "load-test",
+      cwd: tempRepo.path,
+      workspaceId,
+      title,
+      labels: { "paseo.parent-agent-id": parent.id },
+    });
+    await client.waitForAgentUpsert(child.id, (agent) => agent.status === "idle");
+    await resetSeededPageState(page);
+    await openWorkspaceWithAgents(page, [
+      parent,
+      { id: child.id, title, cwd: tempRepo.path, workspaceId },
+    ]);
+    await closeWorkspaceAgentTab(page, child.id);
+    expect(await fetchAgentArchivedAt(client, child.id)).toBeNull();
+    await page.getByTestId("workspace-new-tab-button").filter({ visible: true }).first().click();
+    await page.getByTestId("workspace-new-tab-menu-reopen-closed-agent").click();
+    await expectSessionRowVisible(page, title);
+    await clickSessionRow(page, title);
+    await expectAgentTabActive(page, child.id);
+    expect(await fetchAgentArchivedAt(client, child.id)).toBeNull();
   });
 
   test("non-UI archive prunes the archived tab across open pages and reload", async ({ page }) => {

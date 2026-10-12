@@ -292,6 +292,11 @@ export const ptBR: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "Reabrir agente fechado",
+    previousEmpty: "Não há agentes anteriores neste espaço de trabalho",
+    workspaceHistoryUpdateRequired:
+      "Atualize este host para ver os agentes anteriores do espaço de trabalho.",
+
     title: "Histórico de agentes",
     empty: "Nenhuma sessão ainda",
     noMatches: "Nenhuma sessão corresponde",

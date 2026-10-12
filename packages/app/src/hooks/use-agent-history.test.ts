@@ -1,10 +1,11 @@
+import { selectPreviousAgents } from "./previous-agents";
 import { beforeAll, describe, expect, it } from "vitest";
 import type {
   DaemonClient,
   FetchAgentHistoryEntry,
   FetchAgentHistoryOptions,
 } from "@getpaseo/client/internal/daemon-client";
-import type { AgentHistoryClient, AgentHistoryHost } from "./use-agent-history";
+import type { AgentHistoryClient, AgentHistoryHost } from "./agent-history-fetch";
 import { allAgentHistoryQueryKey } from "./agent-history-query-key";
 
 (
@@ -13,14 +14,14 @@ import { allAgentHistoryQueryKey } from "./agent-history-query-key";
   }
 ).__DEV__ = false;
 
-type UseAgentHistoryModule = typeof import("./use-agent-history");
+type UseAgentHistoryModule = typeof import("./agent-history-fetch");
 
 let fetchAgentHistoryBatch: UseAgentHistoryModule["fetchAgentHistoryBatch"];
 let fetchAgentHistoryPage: UseAgentHistoryModule["fetchAgentHistoryPage"];
 let collectAgentHistoryHostErrors: UseAgentHistoryModule["collectAgentHistoryHostErrors"];
 
 beforeAll(async () => {
-  const module = await import("./use-agent-history");
+  const module = await import("./agent-history-fetch");
   fetchAgentHistoryBatch = module.fetchAgentHistoryBatch;
   fetchAgentHistoryPage = module.fetchAgentHistoryPage;
   collectAgentHistoryHostErrors = module.collectAgentHistoryHostErrors;
@@ -644,4 +645,45 @@ describe("fetchAgentHistoryPage", () => {
       }),
     ).rejects.toThrow("No connected hosts could load agent history");
   });
+});
+
+it("scopes every history page by workspace identity before pagination", async () => {
+  const client = createClient([historyPayload({ entries: [], hasMore: true, nextCursor: "next" })]);
+  await fetchAgentHistoryBatch({
+    hosts: [{ serverId: "host-a", serverLabel: "A", client }],
+    cursorByServerId: null,
+    workspaceId: "workspace-a",
+  });
+  await fetchAgentHistoryBatch({
+    hosts: [{ serverId: "host-a", serverLabel: "A", client }],
+    cursorByServerId: { "host-a": "next" },
+    workspaceId: "workspace-a",
+  });
+  expect(client.calls.map((call) => call.workspaceId)).toEqual(["workspace-a", "workspace-a"]);
+  expect(client.calls[1].page?.cursor).toBe("next");
+});
+
+it("lists hidden live agents and archived conversations once without confusing runtime status with tabs", async () => {
+  const entries = ["open", "hidden", "archived"].map((id) =>
+    historyEntry({
+      id,
+      cwd: "/shared",
+      updatedAt: "2026-10-11T12:00:00Z",
+      archivedAt: id === "archived" ? "2026-10-11T12:01:00Z" : null,
+    }),
+  );
+  entries[1].agent.status = "running";
+  entries[1].agent.labels = { "paseo.parent-agent-id": "parent" };
+  const page = await fetchAgentHistoryPage({
+    client: createClient([historyPayload({ entries })]),
+    serverId: "host",
+    cursor: null,
+  });
+  const previous = selectPreviousAgents(
+    [...page.agents, ...page.agents],
+    [{ tabId: "tab", createdAt: 0, target: { kind: "agent", agentId: "open" } }],
+  );
+  expect(previous.map((agent) => agent.id)).toEqual(["hidden", "archived"]);
+  expect(previous[0].status).toBe("running");
+  expect(previous[0].labels["paseo.parent-agent-id"]).toBe("parent");
 });
