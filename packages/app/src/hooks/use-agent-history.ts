@@ -34,6 +34,9 @@ export function useAgentHistory(options: {
   search?: string;
   workspaceId?: string;
 }): AgentHistoryResult {
+  "use no memo";
+  // Host selection reads a mutable external store. Preserve its explicit version
+  // dependency, which React Compiler otherwise removes as an unused read.
   const { t } = useTranslation();
   const daemons = useHosts();
   const runtime = getHostRuntimeStore();
