@@ -2,10 +2,21 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import { projectEquivalenceViewKey } from "../support/helpers/project-view-key";
+import { seedMockAgentWorkspace } from "../support/helpers/mock-agent";
+import {
+  seedSidebarMotionPreferences,
+  startSidebarMotionProbe,
+  stopSidebarMotionProbe,
+  expectSidebarMotionPaused,
+  resumeSidebarMotion,
+} from "../support/helpers/sidebar-motion";
 import { getServerId } from "../support/helpers/server-id";
 import { seedWorkspace } from "../support/helpers/seed-client";
 import {
   openSidebarDisplayPage,
+  openMobileAgentSidebar,
+  closeMobileAgentSidebar,
+  expectMobileAgentSidebarHidden,
   selectSidebarStatusGrouping,
   closeSidebarDisplayPreferences,
 } from "../support/helpers/sidebar";
@@ -28,14 +39,12 @@ async function pressProjectRow(rows: Locator) {
 }
 
 async function pressWorkspaceRow(rows: Locator) {
-  const solidScrimStop = rows
-    .nth(0)
-    .getByTestId("sidebar-workspace-trailing-scrim")
-    .locator("stop")
-    .nth(1);
-  const hoverScrimColor = await solidScrimStop.getAttribute("stop-color");
+  const row = rows.nth(0);
+  const hoveredBackground = await row.evaluate((node) => getComputedStyle(node).backgroundColor);
   await rows.page().mouse.down();
-  await expect.poll(() => solidScrimStop.getAttribute("stop-color")).not.toBe(hoverScrimColor);
+  await expect
+    .poll(() => row.evaluate((node) => getComputedStyle(node).backgroundColor))
+    .not.toBe(hoveredBackground);
 }
 
 async function quickDragFirstRowAfterSecond(
@@ -52,10 +61,11 @@ async function quickDragFirstRowAfterSecond(
   const target = { x: targetBox.x + targetBox.width / 2, y: targetBox.y + targetBox.height / 2 };
 
   await page.mouse.move(source.x, source.y);
-  const trailingScrim = rows.nth(0).getByTestId("sidebar-workspace-trailing-scrim");
   await pressRow(rows);
   await page.mouse.move(source.x, source.y + 7);
-  await expect(trailingScrim).toHaveCount(0);
+  await expect
+    .poll(() => rows.nth(0).evaluate((node) => getComputedStyle(node).borderTopWidth))
+    .toBe("1px");
   await page.mouse.move(target.x, target.y, { steps: 4 });
   await page.mouse.up();
 
@@ -316,3 +326,547 @@ test("status sorting puts the newest matching workspace first in project groupin
     await seeded.cleanup();
   }
 });
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+]) {
+  test(`status moves keep row identity, focus and rename drafts at ${viewport.width}px`, async ({
+    page,
+  }, testInfo) => {
+    const subject = await seedMockAgentWorkspace({
+      repoPrefix: "sidebar-motion-subject-",
+      title: "Subject",
+      initialPrompt: "Finish.",
+    });
+    const other = await seedMockAgentWorkspace({
+      repoPrefix: "sidebar-motion-other-",
+      title: "Other",
+      initialPrompt: "Finish.",
+    });
+    try {
+      await subject.client.waitForFinish(subject.agentId, 20_000);
+      await other.client.waitForFinish(other.agentId, 20_000);
+      await subject.client.clearWorkspaceAttention(subject.workspaceId);
+      await other.client.clearWorkspaceAttention(other.workspaceId);
+      await page.setViewportSize(viewport);
+      await seedSidebarMotionPreferences({ page, enabled: true });
+      await gotoAppShell(page);
+      if (viewport.width < 600) await openMobileAgentSidebar(page);
+      const key = `${getServerId()}:${subject.workspaceId}`;
+      const rowTestId = `sidebar-workspace-row-${key}`;
+      const row = page.getByTestId(rowTestId);
+      await expect(row).toBeVisible({ timeout: 30_000 });
+      await row.focus();
+      await page.screenshot({ path: testInfo.outputPath("motion-before.png") });
+      await startSidebarMotionProbe({ page, rowTestId, freeze: true });
+      await subject.client.markWorkspaceUnread(subject.workspaceId);
+      await expectSidebarMotionPaused(page);
+      await page.screenshot({ path: testInfo.outputPath("motion-middle.png") });
+      await expect(row).toBeFocused();
+      await resumeSidebarMotion(page);
+      await expect
+        .poll(async () =>
+          row.evaluate(
+            (node) => node.closest("[data-position-transition]")?.getAnimations().length ?? 0,
+          ),
+        )
+        .toBe(0);
+      await page.screenshot({ path: testInfo.outputPath("motion-after.png") });
+      const frames = await stopSidebarMotionProbe(page);
+      expect(frames.every((frame) => frame.connected && frame.sameNode)).toBe(true);
+      expect(frames.some((frame) => frame.duration === 100)).toBe(true);
+      expect(new Set(frames.map((frame) => Math.round(frame.top))).size).toBeGreaterThan(2);
+      await testInfo.attach("motion-frames.json", {
+        body: JSON.stringify(frames),
+        contentType: "application/json",
+      });
+
+      await row.hover();
+      await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+      await page.getByTestId(`sidebar-workspace-menu-rename-${key}`).click();
+      const input = page.getByTestId(`sidebar-workspace-rename-modal-${key}-input`);
+      await input.fill("Unsaved rename survives movement");
+      await subject.client.clearWorkspaceAttention(subject.workspaceId);
+      await expect(
+        page.getByTestId("sidebar-status-group-rows-done").getByTestId(rowTestId),
+      ).toBeVisible();
+      await expect(input).toHaveValue("Unsaved rename survives movement");
+      await expect(input).toBeFocused();
+      await page.getByRole("button", { name: "Cancel", exact: true }).click();
+      if (viewport.width < 600) {
+        await closeMobileAgentSidebar(page);
+        await expectMobileAgentSidebarHidden(page);
+        await subject.client.markWorkspaceUnread(subject.workspaceId);
+        await expect(row.getByTestId("workspace-status-indicator-attention")).toHaveCount(1);
+        await startSidebarMotionProbe({ page, rowTestId });
+        await openMobileAgentSidebar(page);
+        await expect(row).toBeInViewport();
+        const revealedFrames = await stopSidebarMotionProbe(page);
+        expect(revealedFrames.every((frame) => frame.duration === null && frame.sameNode)).toBe(
+          true,
+        );
+        await page.screenshot({ path: testInfo.outputPath("hidden-status-reveal.png") });
+      } else {
+        await page.keyboard.press("Control+b");
+        await expect(row).not.toBeVisible();
+        await expect
+          .poll(() =>
+            row.evaluate((node) => {
+              for (let ancestor = node.parentElement; ancestor; ancestor = ancestor.parentElement) {
+                if (getComputedStyle(ancestor).display === "none") return true;
+              }
+              return false;
+            }),
+          )
+          .toBe(true);
+        await subject.client.markWorkspaceUnread(subject.workspaceId);
+        await expect(row.getByTestId("workspace-status-indicator-attention")).toHaveCount(1);
+        await startSidebarMotionProbe({ page, rowTestId });
+        await page.keyboard.press("Control+b");
+        await expect(row).toBeVisible();
+        const revealedFrames = await stopSidebarMotionProbe(page);
+        expect(revealedFrames.every((frame) => frame.duration === null && frame.sameNode)).toBe(
+          true,
+        );
+        await page.screenshot({ path: testInfo.outputPath("desktop-hidden-status-reveal.png") });
+      }
+    } finally {
+      await subject.cleanup();
+      await other.cleanup();
+    }
+  });
+}
+
+for (const mode of ["off", "reduced"] as const) {
+  test(`status moves instantly with motion ${mode} and retains the setting after reload`, async ({
+    page,
+  }) => {
+    const subject = await seedMockAgentWorkspace({
+      repoPrefix: "sidebar-motion-instant-",
+      title: "Subject",
+      initialPrompt: "Finish.",
+    });
+    try {
+      await subject.client.waitForFinish(subject.agentId, 20_000);
+      await subject.client.clearWorkspaceAttention(subject.workspaceId);
+      await seedSidebarMotionPreferences({ page, enabled: true });
+      await page.emulateMedia({ reducedMotion: mode === "reduced" ? "reduce" : "no-preference" });
+      await gotoAppShell(page);
+      if (mode === "off") {
+        await page.goto("/settings/paseo-plus-plus");
+        const toggle = page.getByRole("switch", { name: "Animate workspace moves", exact: true });
+        await expect(toggle).toBeChecked();
+        await toggle.click();
+        await expect(toggle).not.toBeChecked();
+        await gotoAppShell(page);
+      }
+      const rowTestId = `sidebar-workspace-row-${getServerId()}:${subject.workspaceId}`;
+      await expect(page.getByTestId(rowTestId)).toBeVisible({ timeout: 30_000 });
+      for (const reload of [false, true]) {
+        if (reload) {
+          await page.reload();
+          await expect(page.getByTestId(rowTestId)).toBeVisible({ timeout: 30_000 });
+        }
+        await startSidebarMotionProbe({ page, rowTestId });
+        await subject.client.markWorkspaceUnread(subject.workspaceId);
+        await expect(
+          page.getByTestId("sidebar-status-group-rows-attention").getByTestId(rowTestId),
+        ).toBeVisible();
+        const frames = await stopSidebarMotionProbe(page);
+        expect(frames.every((frame) => frame.duration === null && frame.sameNode)).toBe(true);
+        await subject.client.clearWorkspaceAttention(subject.workspaceId);
+        await expect(
+          page.getByTestId("sidebar-status-group-rows-done").getByTestId(rowTestId),
+        ).toBeVisible();
+      }
+    } finally {
+      await subject.cleanup();
+    }
+  });
+}
+
+test("rapid status reversal starts from the interrupted painted position", async ({ page }) => {
+  const subject = await seedMockAgentWorkspace({
+    repoPrefix: "sidebar-motion-interrupt-",
+    title: "Subject",
+    initialPrompt: "Finish.",
+  });
+  const other = await seedMockAgentWorkspace({
+    repoPrefix: "sidebar-motion-interrupt-other-",
+    title: "Other",
+    initialPrompt: "Finish.",
+  });
+  try {
+    await subject.client.waitForFinish(subject.agentId, 20_000);
+    await other.client.waitForFinish(other.agentId, 20_000);
+    await subject.client.clearWorkspaceAttention(subject.workspaceId);
+    await other.client.clearWorkspaceAttention(other.workspaceId);
+    await seedSidebarMotionPreferences({ page, enabled: true });
+    await gotoAppShell(page);
+    const rowTestId = `sidebar-workspace-row-${getServerId()}:${subject.workspaceId}`;
+    const row = page.getByTestId(rowTestId);
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    await startSidebarMotionProbe({ page, rowTestId, freeze: true });
+    await subject.client.markWorkspaceUnread(subject.workspaceId);
+    await expectSidebarMotionPaused(page);
+    const interruptedTop = (await row.boundingBox())!.y;
+    await subject.client.clearWorkspaceAttention(subject.workspaceId);
+    await expect(
+      page.getByTestId("sidebar-status-group-rows-done").getByTestId(rowTestId),
+    ).toBeVisible();
+    await expect
+      .poll(async () =>
+        row.evaluate(
+          (node) => node.closest("[data-position-transition]")?.getAnimations().length ?? 0,
+        ),
+      )
+      .toBe(0);
+    const frames = await stopSidebarMotionProbe(page);
+    const firstReturn = frames.find(
+      (frame, index) =>
+        index > 0 &&
+        frame.group === "sidebar-status-group-rows-done" &&
+        frames
+          .slice(0, index)
+          .some((prior) => prior.group === "sidebar-status-group-rows-attention"),
+    );
+    expect(firstReturn).toBeDefined();
+    expect(Math.abs(firstReturn!.top - interruptedTop)).toBeLessThan(12);
+    expect(frames.every((frame) => frame.sameNode && frame.connected)).toBe(true);
+
+    // The newly completed subject is first in Done. Changing only its bucket
+    // keeps the same layout position and must not create artificial movement.
+    const stationaryTop = (await row.boundingBox())!.y;
+    await startSidebarMotionProbe({ page, rowTestId });
+    await subject.client.markWorkspaceUnread(subject.workspaceId);
+    await expect(
+      page.getByTestId("sidebar-status-group-rows-attention").getByTestId(rowTestId),
+    ).toBeVisible();
+    const stationaryFrames = await stopSidebarMotionProbe(page);
+    expect(stationaryFrames.length).toBeGreaterThan(0);
+    expect(
+      stationaryFrames.every(
+        (frame) =>
+          frame.duration === null &&
+          frame.sameNode &&
+          frame.connected &&
+          Math.abs(frame.top - stationaryTop) < 1,
+      ),
+    ).toBe(true);
+    await subject.client.clearWorkspaceAttention(subject.workspaceId);
+
+    // Completing the other workspace puts it ahead of the subject. The next
+    // bucket change now has real displacement for live reduced-motion cancellation.
+    await other.client.markWorkspaceUnread(other.workspaceId);
+    await other.client.clearWorkspaceAttention(other.workspaceId);
+    const doneRows = page
+      .getByTestId("sidebar-status-group-rows-done")
+      .locator('[data-testid^="sidebar-workspace-row-"]');
+    await expect
+      .poll(() => rowTestIds(doneRows))
+      .toEqual([`sidebar-workspace-row-${getServerId()}:${other.workspaceId}`, rowTestId]);
+    await expect
+      .poll(() =>
+        row.evaluate(
+          (node) => node.closest("[data-position-transition]")?.getAnimations().length ?? 0,
+        ),
+      )
+      .toBe(0);
+    await startSidebarMotionProbe({ page, rowTestId, freeze: true });
+    await subject.client.markWorkspaceUnread(subject.workspaceId);
+    await expectSidebarMotionPaused(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect
+      .poll(async () =>
+        row.evaluate(
+          (node) => node.closest("[data-position-transition]")?.getAnimations().length ?? 0,
+        ),
+      )
+      .toBe(0);
+    const reducedFrames = await stopSidebarMotionProbe(page);
+    expect(reducedFrames.every((frame) => frame.sameNode && frame.connected)).toBe(true);
+  } finally {
+    await subject.cleanup();
+    await other.cleanup();
+  }
+});
+
+test("collapsed destinations preserve drafts, collapse choices and conditional row focus", async ({
+  page,
+}) => {
+  const subject = await seedMockAgentWorkspace({
+    repoPrefix: "sidebar-motion-hidden-",
+    title: "Subject",
+    initialPrompt: "Finish.",
+  });
+  const other = await seedMockAgentWorkspace({
+    repoPrefix: "sidebar-motion-hidden-other-",
+    title: "Other",
+    initialPrompt: "Finish.",
+  });
+  try {
+    await subject.client.waitForFinish(subject.agentId, 20_000);
+    await other.client.waitForFinish(other.agentId, 20_000);
+    await subject.client.clearWorkspaceAttention(subject.workspaceId);
+    await other.client.clearWorkspaceAttention(other.workspaceId);
+    await other.client.markWorkspaceUnread(other.workspaceId);
+    await seedSidebarMotionPreferences({ page, enabled: true });
+    await gotoAppShell(page);
+    const key = `${getServerId()}:${subject.workspaceId}`;
+    const row = page.getByTestId(`sidebar-workspace-row-${key}`);
+    const header = page.getByTestId("sidebar-status-group-attention");
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    await header.click();
+    const collapsedBefore = await page.evaluate(() =>
+      localStorage.getItem("sidebar-collapsed-sections"),
+    );
+    await row.hover();
+    await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+    await page.getByTestId(`sidebar-workspace-menu-rename-${key}`).click();
+    const input = page.getByTestId(`sidebar-workspace-rename-modal-${key}-input`);
+    await input.fill("Keep this hidden-row draft");
+    await subject.client.markWorkspaceUnread(subject.workspaceId);
+    await expect(row).toHaveCount(0);
+    await expect(input).toHaveValue("Keep this hidden-row draft");
+    await expect(input).toBeFocused();
+    expect(await page.evaluate(() => localStorage.getItem("sidebar-collapsed-sections"))).toBe(
+      collapsedBefore,
+    );
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await subject.client.clearWorkspaceAttention(subject.workspaceId);
+    await expect(row).toBeVisible();
+    await row.focus();
+    await subject.client.markWorkspaceUnread(subject.workspaceId);
+    await expect(row).toHaveCount(0);
+    await expect(header).toBeFocused();
+    expect(await page.evaluate(() => localStorage.getItem("sidebar-collapsed-sections"))).toBe(
+      collapsedBefore,
+    );
+    const collapsedKeys = await page.evaluate(() => {
+      const stored = localStorage.getItem("sidebar-collapsed-sections");
+      return stored ? JSON.parse(stored).state.collapsedWorkspaceGroupKeys : [];
+    });
+    expect(collapsedKeys).toContain("attention");
+    await expect(page.getByTestId("sidebar-status-group-rows-attention")).toHaveCount(0);
+  } finally {
+    await subject.cleanup();
+    await other.cleanup();
+  }
+});
+
+test("project and child status moves count ancestor motion once, including a later child move", async ({
+  page,
+}, testInfo) => {
+  const subject = await seedWorkspace({ repoPrefix: "sidebar-nested-motion-subject-" });
+  const other = await seedWorkspace({ repoPrefix: "sidebar-nested-motion-other-" });
+  async function finishedAgent(workspaceId: string, cwd: string, client: typeof subject.client) {
+    const agent = await client.createAgent({
+      provider: "mock",
+      cwd,
+      workspaceId,
+      modeId: "load-test",
+      model: "e2e-fast-stream",
+      initialPrompt: "Finish.",
+    });
+    await client.waitForFinish(agent.id, 20_000);
+    await client.clearWorkspaceAttention(workspaceId);
+  }
+  try {
+    await finishedAgent(subject.workspaceId, subject.repoPath, subject.client);
+    const sibling = await subject.client.createWorkspace({
+      source: { kind: "directory", path: subject.repoPath, projectId: subject.projectId },
+      title: "Sibling",
+    });
+    if (!sibling.workspace) throw new Error(sibling.error ?? "No sibling workspace");
+    await finishedAgent(sibling.workspace.id, subject.repoPath, subject.client);
+    await finishedAgent(other.workspaceId, other.repoPath, other.client);
+    await seedSidebarMotionPreferences({ page, enabled: true, groupMode: "project" });
+    await gotoAppShell(page);
+    const subjectProjectId = `sidebar-project-row-${subject.projectKey}`;
+    const otherProjectId = `sidebar-project-row-${other.projectKey}`;
+    const projects = page.locator(
+      `[data-testid="${subjectProjectId}"], [data-testid="${otherProjectId}"]`,
+    );
+    await expect(projects).toHaveCount(2);
+    if ((await rowTestIds(projects))[0] === subjectProjectId)
+      await quickDragFirstRowAfterSecond(projects, pressProjectRow);
+    await openSidebarDisplayPage(page, "sidebar-display-sorting");
+    await page.getByTestId("sidebar-sorting-status").click();
+    await closeSidebarDisplayPreferences(page);
+    const rowTestId = `sidebar-workspace-row-${getServerId()}:${subject.workspaceId}`;
+    const siblingTestId = `sidebar-workspace-row-${getServerId()}:${sibling.workspace.id}`;
+    const row = page.getByTestId(rowTestId);
+    await expect(row).toBeVisible();
+    const before = (await row.boundingBox())!.y;
+    await page.screenshot({ path: testInfo.outputPath("nested-motion-before.png") });
+    await startSidebarMotionProbe({ page, rowTestId, freeze: true });
+    await subject.client.markWorkspaceUnread(subject.workspaceId);
+    await expectSidebarMotionPaused(page);
+    await page.screenshot({ path: testInfo.outputPath("nested-motion-middle.png") });
+    await resumeSidebarMotion(page);
+    await expect
+      .poll(async () =>
+        row.evaluate(
+          (node) => node.closest("[data-position-transition]")?.getAnimations().length ?? 0,
+        ),
+      )
+      .toBe(0);
+    await expect.poll(() => rowTestIds(projects)).toEqual([subjectProjectId, otherProjectId]);
+    const after = (await row.boundingBox())!.y;
+    await page.screenshot({ path: testInfo.outputPath("nested-motion-after.png") });
+    const frames = await stopSidebarMotionProbe(page);
+    expect(after).toBeLessThan(before - 10);
+    expect(Math.min(...frames.map((frame) => frame.top))).toBeGreaterThanOrEqual(after - 2);
+    expect(Math.max(...frames.map((frame) => frame.top))).toBeLessThanOrEqual(before + 2);
+    expect(frames.every((frame) => frame.sameNode && frame.connected)).toBe(true);
+    await testInfo.attach("nested-motion-frames.json", {
+      body: JSON.stringify(frames),
+      contentType: "application/json",
+    });
+
+    await other.client.markWorkspaceUnread(other.workspaceId);
+    await expect.poll(() => rowTestIds(projects)).toEqual([otherProjectId, subjectProjectId]);
+    await expect
+      .poll(async () =>
+        page
+          .getByTestId(subjectProjectId)
+          .evaluate(
+            (node) => node.closest("[data-position-transition]")?.getAnimations().length ?? 0,
+          ),
+      )
+      .toBe(0);
+    const beforeChildMove = (await row.boundingBox())!.y;
+    await startSidebarMotionProbe({ page, rowTestId });
+    await subject.client.markWorkspaceUnread(sibling.workspace.id);
+    await expect
+      .poll(() =>
+        rowTestIds(page.locator(`[data-testid="${rowTestId}"], [data-testid="${siblingTestId}"]`)),
+      )
+      .toEqual([siblingTestId, rowTestId]);
+    await expect
+      .poll(async () =>
+        row.evaluate(
+          (node) => node.closest("[data-position-transition]")?.getAnimations().length ?? 0,
+        ),
+      )
+      .toBe(0);
+    const afterChildMove = (await row.boundingBox())!.y;
+    const childFrames = await stopSidebarMotionProbe(page);
+    expect(afterChildMove).toBeGreaterThan(beforeChildMove + 10);
+    expect(Math.min(...childFrames.map((frame) => frame.top))).toBeGreaterThanOrEqual(
+      beforeChildMove - 2,
+    );
+    expect(Math.max(...childFrames.map((frame) => frame.top))).toBeLessThanOrEqual(
+      afterChildMove + 2,
+    );
+  } finally {
+    await subject.cleanup();
+    await other.cleanup();
+  }
+});
+
+for (const destination of ["collapsed", "limit"] as const) {
+  test(`a header clipped above the sidebar scrollport cannot receive focus for a ${destination} destination`, async ({
+    page,
+  }, testInfo) => {
+    const subject = await seedMockAgentWorkspace({
+      repoPrefix: "sidebar-clipped-focus-subject-",
+      title: "Subject",
+      initialPrompt: "Finish.",
+    });
+    const other = await seedMockAgentWorkspace({
+      repoPrefix: "sidebar-clipped-focus-other-",
+      title: "Other",
+      initialPrompt: "Finish.",
+    });
+    try {
+      await subject.client.waitForFinish(subject.agentId, 20_000);
+      await other.client.waitForFinish(other.agentId, 20_000);
+      await subject.client.setWorkspaceTitle(subject.workspaceId, "Zeta");
+      await other.client.setWorkspaceTitle(other.workspaceId, "Alpha");
+      await subject.client.clearWorkspaceAttention(subject.workspaceId);
+      await other.client.clearWorkspaceAttention(other.workspaceId);
+      for (let index = 0; index < 21; index++) {
+        const workspace = await other.client.createWorkspace({
+          source: { kind: "directory", path: other.cwd },
+          title: `Alpha ${index}`,
+        });
+        if (!workspace.workspace)
+          throw new Error(workspace.error ?? "Could not seed sidebar scroll range");
+      }
+      if (destination === "collapsed") await other.client.markWorkspaceUnread(other.workspaceId);
+      else await subject.client.markWorkspaceUnread(subject.workspaceId);
+      await seedSidebarMotionPreferences({
+        page,
+        enabled: true,
+        workspaceSortMode: destination === "limit" ? "name" : "status",
+      });
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await gotoAppShell(page);
+      const row = page.getByTestId(`sidebar-workspace-row-${getServerId()}:${subject.workspaceId}`);
+      const bucket = destination === "collapsed" ? "attention" : "done";
+      const header = page.getByTestId(`sidebar-status-group-${bucket}`);
+      if (destination === "collapsed") {
+        // Blank workspaces deliberately fill the initial limit. Reveal the source
+        // during setup without changing the collapsed destination on status moves.
+        await page.getByTestId("sidebar-status-group-show-more-done").click();
+      }
+      await expect(row).toBeVisible({ timeout: 30_000 });
+      if (destination === "collapsed") await header.click();
+      const collapseBefore = await page.evaluate(() =>
+        localStorage.getItem("sidebar-collapsed-sections"),
+      );
+      await row.focus();
+      await header.evaluate((element) => {
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+          const overflow = getComputedStyle(parent).overflowY;
+          if (overflow !== "auto" && overflow !== "scroll") continue;
+          const headerBounds = element.getBoundingClientRect();
+          const scrollBounds = parent.getBoundingClientRect();
+          parent.scrollTop += headerBounds.bottom - scrollBounds.top + 1;
+          return;
+        }
+        throw new Error("No sidebar scrollport");
+      });
+      const clipping = await header.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+          const overflow = getComputedStyle(parent).overflowY;
+          if (overflow === "auto" || overflow === "scroll")
+            return {
+              top: bounds.top,
+              bottom: bounds.bottom,
+              scrollTop: parent.getBoundingClientRect().top,
+            };
+        }
+        throw new Error("No sidebar scrollport");
+      });
+      expect(clipping.top).toBeGreaterThan(0);
+      expect(clipping.bottom).toBeLessThan(clipping.scrollTop);
+      await expect(row).toBeFocused();
+      await page.screenshot({ path: testInfo.outputPath(`${destination}-header-clipped.png`) });
+      if (destination === "collapsed")
+        await subject.client.markWorkspaceUnread(subject.workspaceId);
+      else await subject.client.clearWorkspaceAttention(subject.workspaceId);
+      await expect(row).toHaveCount(0);
+      await expect(header).not.toBeFocused();
+      expect(await page.evaluate(() => localStorage.getItem("sidebar-collapsed-sections"))).toBe(
+        collapseBefore,
+      );
+      if (destination === "limit") {
+        await expect(
+          page
+            .getByTestId("sidebar-status-group-rows-done")
+            .locator('[data-testid^="sidebar-workspace-row-"]'),
+        ).toHaveCount(20);
+        await expect(page.getByTestId("sidebar-status-group-show-more-done")).toContainText(
+          "Show more",
+        );
+      }
+    } finally {
+      await subject.cleanup();
+      await other.cleanup();
+    }
+  });
+}

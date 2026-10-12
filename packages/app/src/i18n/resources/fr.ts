@@ -2,6 +2,115 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
+  paseoPlusPlus: {
+    loadFailed: "Impossible de charger les préférences. Réessayez avant de modifier les fonctions.",
+    saving: "Enregistrement...",
+    title: "Paseo++",
+    optional: "Fonctions facultatives",
+    optionalHint:
+      "Ces choix concernent cette installation. La désactivation conserve les données et préférences.",
+    preferences: "Préférences existantes",
+    preferencesHint: "Utilisez les contrôles existants pour ces ajouts",
+    configure: "Configurer",
+    fixes: "Correctifs et éléments essentiels",
+    fixesHint: "Ces améliorations restent actives",
+    additions: "Autres ajouts",
+    additionsHint: "Ces fonctions restent disponibles",
+    saveFailed: "Échec de l’enregistrement. Réessayez.",
+    features: {
+      sidebarProjectSelector: {
+        label: "Sélecteur de projet dans la barre latérale",
+        hint: "Choisissez un projet dans l’en-tête des espaces; la désactivation rétablit le filtre Projet",
+      },
+      stickyUserPrompts: {
+        label: "Garder les messages en vue",
+        hint: "Affiche le message courant au-dessus du chat avec développement et navigation",
+      },
+      previousAgents: {
+        label: "Agents précédents",
+        hint: "Rouvre les conversations fermées ou archivées depuis le menu + de l’espace de travail",
+      },
+      sidebarActivityChips: {
+        label: "Indicateurs d’activité des projets",
+        hint: "Affiche l’activité et le nombre d’espaces de travail actifs",
+      },
+      sidebarProjectEmphasis: {
+        label: "Noms de projets en gras",
+        hint: "Met en évidence les titres des projets dans la barre latérale",
+      },
+      sidebarBulkActions: {
+        label: "Tout développer et réduire",
+        hint: "Affiche les commandes pour tous les groupes visibles",
+      },
+      projectPinning: {
+        label: "Épingler dans les projets",
+        hint: "Place les espaces choisis en premier. Les épingles conservées reviennent à la réactivation.",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "Animer les déplacements",
+        hint: "Anime brièvement les changements de position dans la barre latérale",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Vérifications Android automatiques",
+        hint: "Recherche les versions de prévisualisation au démarrage et à la reprise. La vérification et l’installation manuelles restent disponibles.",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "Affichage de la barre latérale",
+        hint: "Utilisez Affichage dans la barre latérale de l’espace pour les filtres, groupes, tri, noms de projet/branche, activité et totaux des modifications",
+      },
+      updates: {
+        label: "Mises à jour de prévisualisation",
+        hint: "Les versions de bureau et Android compatibles peuvent vérifier et installer les mises à jour depuis À propos. Android demande votre autorisation.",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Liens Paseo++",
+        hint: "Ouvrez le dépôt du fork et les notes publiées. Les actions de signalement, soutien et Discord d’origine sont retirées.",
+      },
+      backgroundBrowser: {
+        label: "Automatisation en arrière-plan",
+        hint: "Les agents de bureau utilisent les onglets même si le panneau est masqué ou la fenêtre réduite",
+      },
+      notifications: {
+        label: "Cibles des notifications",
+        hint: "Ouvre le bon espace de travail et chat, même après un redémarrage",
+      },
+      reading: {
+        label: "Lecture plus stable",
+        hint: "Le redimensionnement des images conserve le texte visible sur ordinateur et web; le chargement des messages et de l’historique se rétablit",
+      },
+      mobile: {
+        label: "Navigation mobile",
+        hint: "Cibles tactiles plus grandes, retour Android plus sûr et notifications de développement séparées",
+      },
+      pickers: {
+        label: "Sélecteurs et état des espaces",
+        hint: "Ordre de configuration clair, infobulles complètes, tri récent et groupes réduits conservés",
+      },
+      identity: {
+        label: "Installations indépendantes",
+        hint: "Identités, paramètres et mises à jour Paseo++ séparés; téléchargements Android vérifiés",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Hôtes SSH Android",
+        hint: "Importez des clés, vérifiez les empreintes et stockez les identifiants chiffrés pour une connexion directe",
+      },
+      worktrees: {
+        label: "Choix de branches et worktrees",
+        hint: "Créez ou adoptez des worktrees avec des noms explicites sur les hôtes compatibles; la reprise conserve le travail",
+      },
+      video: {
+        label: "Vidéo des extensions Android",
+        hint: "Les extensions compatibles lisent des vidéos encodées avec récupération du décodeur. Une extension fournissant la vidéo est nécessaire.",
+      },
+    },
+  },
+
   androidUpdates: {
     title: "Mise à jour de l’application",
     idle: "Rechercher de nouvelles préversions du fork.",
@@ -1200,6 +1309,15 @@ export const fr: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      workspaces: "Espaces de travail",
+      all: "Tous",
+      allWorkspaces: "Tous les espaces",
+      projectWorkspaces: "Espaces de {{project}}",
+      multipleWorkspaces_one: "Espaces de {{count}} projet",
+      multipleWorkspaces_other: "Espaces de {{count}} projets",
+      title: "Projets",
+    },
     statusGroupAccessibility: "Groupe {{label}}",
     statusBucket: {
       workingCount: "{{count}} en cours",

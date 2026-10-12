@@ -17,8 +17,10 @@ export async function warmMetro(port) {
     if (scriptUrl.origin !== origin) continue;
     const response = await fetch(scriptUrl, { signal: AbortSignal.timeout(120_000) });
     if (!response.ok) {
+      // Metro reports the missing module and origin in the HTTP body, not its progress log.
+      const errorBody = (await response.text()).slice(0, 4000);
       throw new Error(
-        `Metro bundle warmup failed for ${scriptUrl.pathname}: HTTP ${response.status}`,
+        `Metro bundle warmup failed for ${scriptUrl.pathname}: HTTP ${response.status}\n${errorBody}`,
       );
     }
     await response.arrayBuffer();

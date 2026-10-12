@@ -1,3 +1,4 @@
+import { buildSettingsSectionRoute } from "@/utils/host-routes";
 import { expect, test } from "../support/fixtures";
 import { openAddProjectFlow, addProjectFlow } from "../support/helpers/add-project-flow";
 import { installUsageReportsFixture } from "../support/helpers/usage-reports";
@@ -35,7 +36,7 @@ test("Explorer settings persist automatic sidebar opening and single-file Change
   page,
 }) => {
   await gotoAppShell(page);
-  await openSidebarNavSettings(page);
+  await page.goto(buildSettingsSectionRoute("paseo-plus-plus"));
   const autoOpen = page.getByRole("switch", {
     name: "Open sidebar for new workspaces",
     exact: true,

@@ -1,3 +1,4 @@
+import { DEFAULT_PASEO_PLUS_PLUS_PREFERENCES } from "@/paseo-plus-plus/preferences";
 import { describe, expect, it } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import {
@@ -45,6 +46,94 @@ function makeDeps(
 }
 
 describe("loadAppSettingsFromStorage", () => {
+  it.each(Object.keys(DEFAULT_PASEO_PLUS_PLUS_PREFERENCES))(
+    "normalizes missing or malformed %s to on while retaining an explicit off",
+    async (feature) => {
+      for (const value of [undefined, null, "false", 0, false]) {
+        const deps = makeDeps({
+          storage: createInMemoryKeyValueStorage({
+            [APP_SETTINGS_KEY]: JSON.stringify({ paseoPlusPlus: { [feature]: value } }),
+          }),
+        });
+        const settings = await loadAppSettingsFromStorage(deps);
+        expect(settings.paseoPlusPlus[feature]).toBe(value !== false);
+      }
+    },
+  );
+
+  it("keeps effective fork choices unchanged when persistence fails", async () => {
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    const current = await loadAppSettingsFromStorage(deps);
+    queryClient.setQueryData(APP_SETTINGS_QUERY_KEY, current);
+    deps.storage.setItem = async () => {
+      throw new Error("storage unavailable");
+    };
+    await expect(
+      saveAppSettings({
+        queryClient,
+        deps,
+        updates: (settings) => ({
+          paseoPlusPlus: { ...settings.paseoPlusPlus, previousAgents: false },
+        }),
+      }),
+    ).rejects.toThrow("storage unavailable");
+    expect(queryClient.getQueryData(APP_SETTINGS_QUERY_KEY)).toEqual(current);
+  });
+
+  it("defaults fork opt-outs independently and retains unknown future choices", async () => {
+    const defaults = await loadAppSettingsFromStorage(makeDeps());
+    expect(defaults.paseoPlusPlus).toEqual({
+      stickyUserPrompts: true,
+      previousAgents: true,
+      sidebarProjectSelector: true,
+      sidebarActivityChips: true,
+      sidebarProjectEmphasis: true,
+      sidebarBulkActions: true,
+      projectPinning: true,
+      sidebarWorkspaceTransitions: true,
+      androidAutomaticUpdateChecks: true,
+    });
+    const deps = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify({
+          paseoPlusPlus: {
+            previousAgents: false,
+            sidebarBulkActions: "invalid",
+            futureFeature: false,
+          },
+        }),
+      }),
+    });
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.paseoPlusPlus.previousAgents).toBe(false);
+    expect(restored.paseoPlusPlus.sidebarBulkActions).toBe(true);
+    expect(restored.paseoPlusPlus.stickyUserPrompts).toBe(true);
+    expect(restored.paseoPlusPlus.futureFeature).toBe(false);
+    await saveAppSettings({ queryClient: new QueryClient(), deps, updates: { language: "fr" } });
+    expect((await loadAppSettingsFromStorage(deps)).paseoPlusPlus.futureFeature).toBe(false);
+  });
+
+  it("persists independent fork choices without clearing existing preferences", async () => {
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    await saveAppSettings({ queryClient, deps, updates: { explorerDiffScope: "single" } });
+    for (const previousAgents of [false, true]) {
+      await saveAppSettings({
+        queryClient,
+        deps,
+        updates: (current) => ({
+          paseoPlusPlus: { ...current.paseoPlusPlus, previousAgents, stickyUserPrompts: false },
+        }),
+      });
+      const restored = await loadAppSettingsFromStorage(deps);
+      expect(restored.paseoPlusPlus.previousAgents).toBe(previousAgents);
+      expect(restored.paseoPlusPlus.stickyUserPrompts).toBe(false);
+      expect(restored.paseoPlusPlus.projectPinning).toBe(true);
+      expect(restored.explorerDiffScope).toBe("single");
+    }
+  });
+
   it.each(["diff", "timestamp", "both", "none"] as const)(
     "preserves saved sidebar trailing mode %s",
     async (mode) => {
@@ -587,6 +676,43 @@ describe("loadAppSettingsFromStorage", () => {
 });
 
 describe("saveAppSettings", () => {
+  it("serializes cold concurrent fork changes and recovers after a failed write", async () => {
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    const setItem = deps.storage.setItem;
+    let failOnce = true;
+    deps.storage.setItem = async (key, value) => {
+      if (failOnce) {
+        failOnce = false;
+        throw new Error("storage unavailable");
+      }
+      await setItem(key, value);
+    };
+    const results = await Promise.allSettled([
+      saveAppSettings({
+        queryClient,
+        deps,
+        updates: (current) => ({
+          paseoPlusPlus: { ...current.paseoPlusPlus, previousAgents: false },
+        }),
+      }),
+      saveAppSettings({
+        queryClient,
+        deps,
+        updates: (current) => ({
+          paseoPlusPlus: { ...current.paseoPlusPlus, stickyUserPrompts: false },
+        }),
+      }),
+      saveAppSettings({ queryClient, deps, updates: { language: "fr" } }),
+    ]);
+    expect(results.map((result) => result.status)).toEqual(["rejected", "fulfilled", "fulfilled"]);
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.paseoPlusPlus.previousAgents).toBe(true);
+    expect(restored.paseoPlusPlus.stickyUserPrompts).toBe(false);
+    expect(restored.language).toBe("fr");
+    expect(queryClient.getQueryData(APP_SETTINGS_QUERY_KEY)).toEqual(restored);
+  });
+
   it("applies consecutive functional updates to the latest cached settings", async () => {
     const deps = makeDeps();
     const queryClient = new QueryClient();

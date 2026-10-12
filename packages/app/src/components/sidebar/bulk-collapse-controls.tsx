@@ -1,3 +1,4 @@
+import { useAppSettings } from "@/hooks/use-settings";
 import { useTranslation } from "react-i18next";
 import { ChevronsUpDown, ChevronsDownUp } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -16,8 +17,10 @@ function controlStyle(state: PressableStateCallbackType & { hovered?: boolean })
 
 /** Desktop Workspaces header controls; compact layouts expose these actions in Display. */
 export function SidebarBulkCollapseControls() {
+  const { settings } = useAppSettings();
   const { t } = useTranslation();
   const { expandAll, collapseAll } = useSidebarBulkCollapse();
+  if (!settings.paseoPlusPlus.sidebarBulkActions) return null;
   return (
     <>
       <Tooltip delayDuration={300}>

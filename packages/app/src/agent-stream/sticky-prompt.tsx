@@ -61,26 +61,27 @@ export const StickyPrompt = forwardRef<StickyPromptHandle, Props>(function Stick
   const disclosureState = useMemo(() => ({ expanded }), [expanded]);
   const size = compact ? "md" : "sm";
   return (
-    <PromptNavigationContext.Provider value={controls}>
+    <PromptNavigationContext.Provider value={input.enabled === false ? null : controls}>
       <View style={styles.timeline} testID="sticky-prompt-timeline">
         {children}
         <View style={styles.overlay} pointerEvents="box-none">
           <View style={contentStyle} pointerEvents="box-none">
-            {message && navigation.stickyVisible ? (
-              <PromptMessageSurface
-                navigation={navigation}
-                message={message}
-                serverId={serverId}
-                client={client}
-                expanded={expanded}
-                disclosureState={disclosureState}
-                toggleExpanded={toggleExpanded}
-                expandedScrollStyle={expandedScrollStyle}
-                size={size}
-              />
-            ) : (
-              <PromptDiscoverySurface navigation={navigation} />
-            )}
+            {input.enabled !== false &&
+              (message && navigation.stickyVisible ? (
+                <PromptMessageSurface
+                  navigation={navigation}
+                  message={message}
+                  serverId={serverId}
+                  client={client}
+                  expanded={expanded}
+                  disclosureState={disclosureState}
+                  toggleExpanded={toggleExpanded}
+                  expandedScrollStyle={expandedScrollStyle}
+                  size={size}
+                />
+              ) : (
+                <PromptDiscoverySurface navigation={navigation} />
+              ))}
           </View>
         </View>
       </View>

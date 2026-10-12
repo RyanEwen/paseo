@@ -20,12 +20,14 @@ export function useDragReorderState<T>({
   keyExtractor,
   onDragEnd,
   onDragBegin,
+  getDragGroupKey,
   disabled = false,
 }: {
   data: T[];
   keyExtractor: (item: T, index: number) => string;
   onDragEnd?: (items: T[]) => void;
   onDragBegin?: () => void;
+  getDragGroupKey?: (item: T) => string | null;
   disabled?: boolean;
 }): DragReorderState<T> {
   const [state, dispatch] = useReducer(dragStateReducer<T>, undefined, dragStateInitial<T>);
@@ -55,10 +57,11 @@ export function useDragReorderState<T>({
         activeId: String(active.id),
         overId: over ? String(over.id) : null,
         keyExtractor,
+        getDragGroupKey,
       });
       if (reordered) onDragEnd?.(reordered);
     },
-    [data, disabled, keyExtractor, onDragEnd, state.dragItems],
+    [data, disabled, getDragGroupKey, keyExtractor, onDragEnd, state.dragItems],
   );
 
   return {

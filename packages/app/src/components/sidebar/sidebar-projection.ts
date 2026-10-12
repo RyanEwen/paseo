@@ -48,6 +48,7 @@ export interface SidebarProjectionInput {
   projectNamesByViewKey: Map<string, string>;
   groupMode: SidebarGroupMode;
   workspaceSortMode: SidebarWorkspaceSortMode;
+  projectPinningEnabled: boolean;
   workspaceTitleSource: WorkspaceTitleSource;
   statusWorkspaceOrder: string[];
   pinnedCollapsed: boolean;
@@ -156,6 +157,9 @@ function arrangeProjectPinnedWorkspaces(
   input: SidebarProjectionInput,
   workspaces: SidebarProjectEntry["workspaces"],
 ): SidebarProjectEntry["workspaces"] {
+  // Disabling the client feature changes presentation only; persisted pins remain intact.
+  if (!input.projectPinningEnabled) return workspaces;
+
   const pins = workspaces.filter(
     (workspace) => input.workspaceEntriesByKey.get(workspace.workspaceKey)?.projectPinnedAt != null,
   );

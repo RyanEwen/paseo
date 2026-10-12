@@ -19,6 +19,7 @@ interface SavedSettingsHostInput {
 }
 
 const SECTION_LABELS = {
+  "paseo-plus-plus": "Paseo++",
   general: "General",
   chat: "Chat",
   appearance: "Appearance",

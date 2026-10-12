@@ -83,6 +83,7 @@ function projectionInput(options?: {
       pinnedAtByKey: { [pinned.placement.workspaceKey]: "2026-07-12T12:00:00.000Z" },
     },
     pinnedWorkspaceOrder: [],
+    projectPinningEnabled: true,
     workspaceSortMode: options?.groupMode === "status" ? ("status" as const) : ("custom" as const),
     workspaceTitleSource: "title" as const,
     statusWorkspaceOrder: [],
@@ -571,6 +572,42 @@ describe("bulk collapse targets", () => {
           groupEmptyProjects: false,
         }).workspaceGroupKeys,
       ).toEqual(groupMode === "status" ? ["needs_input"] : []);
+    },
+  );
+});
+
+describe("optional project pinning", () => {
+  it.each(["custom", "name", "status"] as const)(
+    "off preserves visible rows and stored pins under %s sorting",
+    (mode) => {
+      const input = projectionInput();
+      const projectPin = makeWorkspace("zzz", "done");
+      const ordinary = makeWorkspace("aaa", "needs_input");
+      projectPin.entry.projectPinnedAt = "2026-10-12T12:00:00.000Z";
+      input.projects[0]!.workspaces.push(ordinary.placement, projectPin.placement);
+      input.workspaceEntriesByKey.set(ordinary.entry.workspaceKey, ordinary.entry);
+      input.workspaceEntriesByKey.set(projectPin.entry.workspaceKey, projectPin.entry);
+      const savedRows = [...input.projects[0]!.workspaces];
+      const savedPins = [projectPin.placement.workspaceKey];
+      const base = { ...input, workspaceSortMode: mode, pinnedWorkspaceOrder: savedPins };
+      const off = buildSidebarProjection({ ...base, projectPinningEnabled: false });
+      const on = buildSidebarProjection(base);
+      expect(off.pinnedGroups.pinnedChats.map((row) => row.workspaceKey)).toEqual(["srv:pinned"]);
+      expect(
+        off.pinnedGroups.unpinnedProjects[0]!.workspaces.map((row) => row.workspaceKey),
+      ).toContain("srv:zzz");
+      expect(off.pinnedGroups.unpinnedProjects[0]!.workspaces[0]!.workspaceKey).not.toBe("srv:zzz");
+      expect(on.pinnedGroups.unpinnedProjects[0]!.workspaces[0]!.workspaceKey).toBe("srv:zzz");
+      expect(projectPin.entry.projectPinnedAt).toBe("2026-10-12T12:00:00.000Z");
+      expect(input.projects[0]!.workspaces).toEqual(savedRows);
+      expect(savedPins).toEqual(["srv:zzz"]);
+      const statusOn = buildSidebarProjection({ ...base, groupMode: "status" });
+      const statusOff = buildSidebarProjection({
+        ...base,
+        groupMode: "status",
+        projectPinningEnabled: false,
+      });
+      expect(statusOff.workspaceGroups).toEqual(statusOn.workspaceGroups);
     },
   );
 });

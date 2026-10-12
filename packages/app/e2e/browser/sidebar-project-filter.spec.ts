@@ -15,6 +15,13 @@ import {
   toggleProjectFilter,
 } from "../support/helpers/sidebar";
 
+/** Read the durable allowlist, including keys for currently unavailable projects. */
+async function readStoredProjectFilters(page: Page): Promise<string[]> {
+  return page.evaluate(
+    () => JSON.parse(localStorage.getItem("sidebar-view") ?? "{}").state.projectFilters,
+  );
+}
+
 /** Pick a display option through the same menu on desktop and compact layouts. */
 async function selectDisplayOption(page: Page, section: string, option: string): Promise<void> {
   await openSidebarDisplayPage(page, `sidebar-display-${section}`);
@@ -32,6 +39,20 @@ async function expectStatusOnRight(row: Locator, state: string): Promise<void> {
 
 test.describe("Sidebar project filter", () => {
   test.describe.configure({ timeout: 180_000 });
+  // This suite owns the legacy Display filter. The selector has its own coverage below.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const key = "@paseo:app-settings";
+      const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          ...settings,
+          paseoPlusPlus: { ...settings.paseoPlusPlus, sidebarProjectSelector: false },
+        }),
+      );
+    });
+  });
 
   test("filters independently of grouping and keeps empty projects reachable in status mode", async ({
     page,
@@ -469,4 +490,130 @@ test("project working count includes pinned workspaces", async ({ page }, testIn
   } finally {
     await workspace.cleanup();
   }
+});
+
+test.describe("Sidebar project selector", () => {
+  test.describe.configure({ timeout: 180_000 });
+
+  for (const compact of [false, true]) {
+    test(`preserves multi-selection and filters pinned workspaces on ${compact ? "compact" : "desktop"}`, async ({
+      page,
+    }, testInfo) => {
+      const alpha = await seedWorkspace({ repoPrefix: "selector-alpha-", title: "Alpha work" });
+      const beta = await seedWorkspace({ repoPrefix: "selector-beta-", title: "Beta work" });
+      const serverId = getServerId();
+      const alphaRow = page.getByTestId(`sidebar-workspace-row-${serverId}:${alpha.workspaceId}`);
+      const betaRow = page.getByTestId(`sidebar-workspace-row-${serverId}:${beta.workspaceId}`);
+      const trigger = page.getByTestId("sidebar-project-selector");
+      const surface = page.getByTestId(
+        compact ? "sidebar-project-selector-content-content" : "sidebar-project-selector-content",
+      );
+      try {
+        if (compact) await page.setViewportSize({ width: 390, height: 844 });
+        await gotoAppShell(page);
+        if (compact) await openMobileAgentSidebar(page);
+        await expect(trigger).toHaveText("All Workspaces");
+        await pinWorkspaceFromSidebar(page, beta.workspaceId);
+        await trigger.click();
+        await page.getByTestId(`sidebar-project-selector-${alpha.projectKey}`).click();
+        await expect(surface).toBeVisible();
+        await expect(alphaRow).toBeVisible();
+        await expect(betaRow).toHaveCount(0);
+        await expect(trigger).toContainText("Workspaces");
+        // The catalog stays complete after selecting one project.
+        await expect(page.getByTestId(`sidebar-project-selector-${beta.projectKey}`)).toBeVisible();
+        await page.getByTestId(`sidebar-project-selector-${beta.projectKey}`).click();
+        await expect(trigger).toHaveText("2 Projects’ Workspaces");
+        await expect(betaRow).toBeVisible();
+        if (compact) {
+          await page
+            .getByRole("button", { name: "Bottom sheet backdrop" })
+            .first()
+            .click({ position: { x: 12, y: 12 } });
+        } else {
+          await page.keyboard.press("Escape");
+          await expect(trigger).toBeFocused();
+        }
+        await expect(surface).toHaveCount(0);
+        await page.reload();
+        if (compact) await openMobileAgentSidebar(page);
+        await expect(trigger).toHaveText("2 Projects’ Workspaces");
+        await page.getByTestId("sidebar-display-preferences-menu").click();
+        await expect(page.getByTestId("sidebar-display-project-filter")).toHaveCount(0);
+        await expect(page.getByTestId("sidebar-display-show")).toBeVisible();
+        if (compact) {
+          await page
+            .getByRole("button", { name: "Bottom sheet backdrop" })
+            .first()
+            .click({ position: { x: 12, y: 12 } });
+        } else {
+          await closeSidebarDisplayPreferences(page);
+        }
+        await selectSidebarStatusGrouping(page);
+        await expect(alphaRow).toBeVisible();
+        await expect(betaRow).toBeVisible();
+        await trigger.click();
+        await page.getByTestId(`sidebar-project-selector-${beta.projectKey}`).click();
+        await expect(betaRow).toHaveCount(0);
+        await page.getByTestId("sidebar-project-selector-all").click();
+        await expect(trigger).toHaveText("All Workspaces");
+        await expect(betaRow).toBeVisible();
+        await page.screenshot({
+          path: testInfo.outputPath(`selector-${compact ? "compact" : "desktop"}.png`),
+        });
+      } finally {
+        await beta.cleanup();
+        await alpha.cleanup();
+      }
+    });
+  }
+
+  test("keeps saved multi-project and offline keys through the feature opt-out", async ({
+    page,
+  }) => {
+    const alpha = await seedWorkspace({ repoPrefix: "selector-saved-alpha-" });
+    const beta = await seedWorkspace({ repoPrefix: "selector-saved-beta-" });
+    const savedFilters = [alpha.projectKey, beta.projectKey, "offline-project"];
+    try {
+      await page.addInitScript((projectFilters) => {
+        if (!localStorage.getItem("sidebar-view")) {
+          localStorage.setItem(
+            "sidebar-view",
+            JSON.stringify({ version: 11, state: { projectFilters } }),
+          );
+        }
+      }, savedFilters);
+      await gotoAppShell(page);
+      const trigger = page.getByTestId("sidebar-project-selector");
+      await expect(trigger).toHaveText("2 Projects’ Workspaces");
+      await expect.poll(() => readStoredProjectFilters(page)).toEqual(savedFilters);
+      await page.evaluate(() => {
+        const key = "@paseo:app-settings";
+        const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            ...settings,
+            paseoPlusPlus: { ...settings.paseoPlusPlus, sidebarProjectSelector: false },
+          }),
+        );
+      });
+      await page.reload();
+      await expect(trigger).toHaveCount(0);
+      await openSidebarProjectFilter(page);
+      await expect(page.getByTestId(`sidebar-project-filter-${alpha.projectKey}`)).toHaveAttribute(
+        "aria-checked",
+        "true",
+      );
+      await expect(page.getByTestId(`sidebar-project-filter-${beta.projectKey}`)).toHaveAttribute(
+        "aria-checked",
+        "true",
+      );
+      await closeSidebarDisplayPreferences(page);
+      await expect.poll(() => readStoredProjectFilters(page)).toEqual(savedFilters);
+    } finally {
+      await beta.cleanup();
+      await alpha.cleanup();
+    }
+  });
 });

@@ -2,6 +2,115 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  paseoPlusPlus: {
+    loadFailed: "保存済みの設定を読み込めません。機能を変更する前に再試行してください。",
+    saving: "保存中...",
+    title: "Paseo++",
+    optional: "任意の機能",
+    optionalHint:
+      "このアプリのインストールに適用されます。無効にしても保存データや設定は保持されます。",
+    preferences: "既存の設定",
+    preferencesHint: "これらの追加機能には既存の設定を使います",
+    configure: "設定する",
+    fixes: "修正とフォークの基本機能",
+    fixesHint: "これらの改善は常に有効です",
+    additions: "その他の追加機能",
+    additionsHint: "これらの操作は引き続き利用できます",
+    saveFailed: "保存できませんでした。もう一度お試しください。",
+    features: {
+      sidebarProjectSelector: {
+        label: "サイドバーのプロジェクト選択",
+        hint: "ワークスペース見出しから選択します。無効にするとプロジェクトフィルターのメニューに戻ります",
+      },
+      stickyUserPrompts: {
+        label: "ユーザーメッセージを表示し続ける",
+        hint: "現在のメッセージをチャット上部に表示し、展開と前後の移動を提供します",
+      },
+      previousAgents: {
+        label: "以前のエージェント",
+        hint: "ワークスペースの + メニューから閉じた会話やアーカイブした会話を開きます",
+      },
+      sidebarActivityChips: {
+        label: "プロジェクトの活動表示",
+        hint: "活動状況と作業中のワークスペース数を表示します",
+      },
+      sidebarProjectEmphasis: {
+        label: "プロジェクト名を太字にする",
+        hint: "サイドバーのプロジェクト見出しを強調します",
+      },
+      sidebarBulkActions: {
+        label: "すべて展開・折りたたみ",
+        hint: "表示中のすべてのグループを操作できます",
+      },
+      projectPinning: {
+        label: "プロジェクト内で固定",
+        hint: "選択したワークスペースを先頭に表示します。再度有効にすると保存済みの固定が戻ります。",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "移動をアニメーション表示",
+        hint: "サイドバーの位置変更を短いアニメーションで表示します",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Android の自動更新確認",
+        hint: "起動時と復帰時にプレビュー版を確認します。手動確認とインストールは引き続き使えます。",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "サイドバーの表示設定",
+        hint: "ワークスペースのサイドバーの表示メニューでフィルター、グループ、並び順、プロジェクトとブランチの表示、活動と変更数を操作します",
+      },
+      updates: {
+        label: "プレビュー版の更新",
+        hint: "デスクトップと対応する Android ビルドではアプリ情報から更新を確認・インストールできます。Android では承認が必要です。",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ のリンク",
+        hint: "フォークのリポジトリと公開リリースノートを開けます。元の課題報告、スポンサー、Discord の操作は削除されています。",
+      },
+      backgroundBrowser: {
+        label: "バックグラウンドのブラウザー操作",
+        hint: "デスクトップのエージェントはパネル非表示やウィンドウ最小化時もタブを操作できます",
+      },
+      notifications: {
+        label: "通知の移動先",
+        hint: "デスクトップ再起動後も対象のワークスペースとチャットを開きます",
+      },
+      reading: {
+        label: "安定した閲覧",
+        hint: "画像サイズ変更時もデスクトップと Web の表示テキストを保持し、メッセージと履歴の読み込みを復旧します",
+      },
+      mobile: {
+        label: "モバイルの操作",
+        hint: "タブ切り替えのタッチ領域拡大、安全な Android の戻る操作、開発通知の分離",
+      },
+      pickers: {
+        label: "ワークスペースの選択と状態",
+        hint: "明確な設定順序、完全な値のツールチップ、新しい状態の優先、折りたたみ設定の保持",
+      },
+      identity: {
+        label: "独立したフォークのインストール",
+        hint: "Paseo++ 専用のアプリとデーモンの識別情報・設定・更新、Android ダウンロードの検証",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android の SSH ホスト",
+        hint: "鍵の読み込み、フィンガープリントの確認、暗号化された認証情報で直接接続します",
+      },
+      worktrees: {
+        label: "ブランチと worktree の選択",
+        hint: "対応ホストで明示的な名前を指定して作成・採用できます。再試行時も既存の作業を保持します",
+      },
+      video: {
+        label: "Android プラグインの動画",
+        hint: "対応プラグインがエンコード動画を再生し、デコーダーを復旧できます。動画を提供するプラグインが必要です。",
+      },
+    },
+  },
+
   androidUpdates: {
     title: "アプリの更新",
     idle: "フォークの新しいプレビューを確認します。",
@@ -1186,6 +1295,15 @@ export const ja: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      workspaces: "ワークスペース",
+      all: "すべて",
+      allWorkspaces: "すべてのワークスペース",
+      projectWorkspaces: "{{project}} のワークスペース",
+      multipleWorkspaces_one: "{{count}} プロジェクトのワークスペース",
+      multipleWorkspaces_other: "{{count}} プロジェクトのワークスペース",
+      title: "プロジェクト",
+    },
     statusGroupAccessibility: "{{label}} グループ",
     statusBucket: {
       workingCount: "{{count}} 件作業中",

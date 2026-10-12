@@ -14,7 +14,6 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { ExplorerSection } from "./explorer-section";
 import { Button } from "@/components/ui/button";
 import { Shortcut } from "@/components/ui/shortcut";
 import { Switch } from "@/components/ui/switch";
@@ -184,7 +183,6 @@ function SidebarItemsCard({ section }: { section: SidebarSection }): ReactElemen
 export function SidebarNavSection(): ReactElement {
   return (
     <>
-      <ExplorerSection />
       <SidebarItemsCard section="header" />
       <SidebarItemsCard section="footer" />
     </>

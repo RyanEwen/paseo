@@ -1,3 +1,4 @@
+import { useAppSettings } from "@/hooks/use-settings";
 import { useSidebarBulkCollapse } from "../use-sidebar-bulk-collapse";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import {
@@ -47,10 +48,9 @@ import { HostStatusDot } from "@/components/host-status-dot";
 import { isWeb } from "@/constants/platform";
 import { useHosts } from "@/runtime/host-runtime";
 import { useSidebarModel } from "@/components/sidebar/sidebar-model";
-import { ProjectIconView } from "@/components/project-icon-view";
+import { SidebarProjectMenuItem } from "../sidebar-project-menu-item";
 import { useProjectIcons } from "@/projects/icons";
 import { resolveSidebarProjectIconTargets } from "@/utils/sidebar-project-row-model";
-import { projectIconPlaceholderLabelFromDisplayName } from "@/utils/project-display-name";
 import type { SidebarProjectEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { Theme } from "@/styles/theme";
 import {
@@ -209,6 +209,7 @@ const TRAILING_LABEL_KEYS: Record<SidebarTrailingChoice, string> = {
 export function SidebarDisplayPreferencesMenu(): ReactElement {
   const { t } = useTranslation();
   const preferences = useSidebarDisplayPreferences();
+  const { settings } = useAppSettings();
   const hosts = useHosts();
   // `allProjects`, never `projects`: the model's `projects` is already filtered, so a picker fed
   // from it would lose the row that undoes the filter as soon as the filter narrowed to one.
@@ -230,7 +231,8 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
 
   const showHostFilter = hosts.length > 1;
   // One project is the whole sidebar, so filtering to it is a no-op with a menu row attached.
-  const showProjectFilter = allProjects.length > 1;
+  const showProjectFilter =
+    !settings.paseoPlusPlus.sidebarProjectSelector && allProjects.length > 1;
   // Nothing to filter by means no row at all. The active-filter half is not redundant: the merged
   // catalog only counts hosts that are online, so a host dropping off would otherwise take away
   // the only way back to a filter that is still hiding workspaces.
@@ -426,7 +428,7 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
           sheetTitle={t("sidebar.display.heading")}
           testID="sidebar-display-preferences-content"
         >
-          {isCompact ? (
+          {isCompact && settings.paseoPlusPlus.sidebarBulkActions ? (
             <>
               <MenuItem onSelect={expandAll} testID="sidebar-expand-all">
                 {t("sidebar.display.expandAll")}
@@ -809,56 +811,18 @@ function ProjectFilterPage({
         {t("sidebar.display.projectFilter.all")}
       </MenuItem>
       {projects.map((project) => (
-        <ProjectFilterItem
+        <SidebarProjectMenuItem
           key={project.viewKey}
           viewKey={project.viewKey}
           label={project.projectName}
           iconDataUri={iconByProjectViewKey.get(project.viewKey) ?? null}
           selected={resolvedProjectFilters.includes(project.viewKey)}
-          onToggle={preferences.toggleProjectFilter}
+          onSelect={preferences.toggleProjectFilter}
+          closeOnSelect={false}
+          testID={`sidebar-project-filter-${project.viewKey}`}
         />
       ))}
     </>
-  );
-}
-
-function ProjectFilterItem({
-  viewKey,
-  label,
-  iconDataUri,
-  selected,
-  onToggle,
-}: {
-  viewKey: string;
-  label: string;
-  iconDataUri: string | null;
-  selected: boolean;
-  onToggle: (viewKey: string) => void;
-}): ReactElement {
-  const handleSelect = useCallback(() => onToggle(viewKey), [viewKey, onToggle]);
-  const leading = useMemo(
-    () => (
-      <ProjectIconView
-        iconDataUri={iconDataUri}
-        initial={projectIconPlaceholderLabelFromDisplayName(label).charAt(0).toUpperCase()}
-        projectViewKey={viewKey}
-        size={OPTION_ICON_SIZE}
-        textStyle={styles.projectIconText}
-      />
-    ),
-    [iconDataUri, label, viewKey],
-  );
-
-  return (
-    <MenuItem
-      selected={selected}
-      leading={leading}
-      closeOnSelect={false}
-      onSelect={handleSelect}
-      testID={`sidebar-project-filter-${viewKey}`}
-    >
-      {label}
-    </MenuItem>
   );
 }
 
@@ -938,10 +902,5 @@ const styles = StyleSheet.create((theme) => ({
   },
   triggerHovered: {
     backgroundColor: theme.colors.surfaceSidebarHover,
-  },
-  // The icon sits in a 14pt menu slot, so the fallback initial is sized down to match rather
-  // than reusing the sidebar row's 16pt figure.
-  projectIconText: {
-    fontSize: 8,
   },
 }));

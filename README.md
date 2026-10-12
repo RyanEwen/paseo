@@ -7,6 +7,8 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
 sender names on agent messages and notifications, recovery after a first prompt fails, and fixes
 for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
+- **Paseo++ settings:** Find optional fork features, existing preferences, fixes, and other
+  additions together in Settings. Turning an optional feature off preserves its saved data.
 - **Fork links:** Open the Paseo++ repository and published release notes from the app. Upstream issue,
   sponsorship, and Discord actions are removed.
 - **Keep user prompts in view:** A compact copy fades into place as its original bubble crosses
@@ -16,14 +18,14 @@ for clipped text on iOS. Paseo++ includes those updates plus these additions:
 - **Reopen closed agents:** Find archived conversations and agents with closed tabs in a dialog from
   the workspace + menu. Open the same conversation, then choose Unarchive when you want to resume it.
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including
-  project names, workspace names, status, and custom ordering. Show agent activity and code-change
+  project names, workspace names, status, and custom ordering. Choose projects directly from the
+  Workspaces heading, including multiple projects at once. Show agent activity and code-change
   totals together. Pin a workspace at the top of its project or the whole sidebar. Status sorting
   puts the newest workspaces first within each status. Scan project activity chips and expand or
-  collapse all visible sidebar groups.
-  Workspace statuses slide aside for row actions, and hover details grow to fit branch and worktree names.
-- **Chrome extensions in the desktop browser:** Install and manage extensions, use toolbar
-  popups and extension context menus, and open extension windows. Compatibility depends on the
-  Chrome APIs an extension uses.
+  collapse all visible sidebar groups. Workspaces move quickly into their new positions when
+  status sorting changes; turn this motion off in Paseo++ settings.
+  Project and branch labels start visible unless you chose to hide them. Workspace statuses
+  slide aside for row actions, and hover details grow to fit branch and worktree names.
 - **Browser automation in the background:** Agents can continue interacting with desktop browser
   tabs while the pane is hidden, the app is unfocused, or its window is minimized.
 - **SSH hosts on Android:** Connect to a remote daemon with an imported private key and optional

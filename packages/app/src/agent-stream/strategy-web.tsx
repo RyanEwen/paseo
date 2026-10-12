@@ -722,9 +722,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     const viewport = scrollContainer.getBoundingClientRect();
     const visibleUsers: string[] = [];
     const userHandoffs: PromptHandoff[] = [];
-    for (const bubble of contentNode.querySelectorAll<HTMLElement>(
-      '[data-testid="user-message"]',
-    )) {
+    for (const bubble of props.trackPromptHandoff === false
+      ? []
+      : contentNode.querySelectorAll<HTMLElement>('[data-testid="user-message"]')) {
       const bounds = bubble.getBoundingClientRect();
       const id = bubble.closest<HTMLElement>("[data-message-id]")?.dataset.messageId;
       if (id && bounds.bottom > viewport.top && bounds.top < viewport.bottom) {
