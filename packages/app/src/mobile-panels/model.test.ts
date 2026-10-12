@@ -5,6 +5,7 @@ import {
   createMobilePanelMotionState,
   getMobilePanelFrame,
   isMobilePanelActive,
+  isMobilePanelAtRest,
   isMobilePanelGestureCurrent,
   transitionMobilePanel,
   type MobilePanelCommit,
@@ -276,5 +277,23 @@ describe("mobile panel ownership", () => {
       rightBackdropOpacity: 0.25,
       rightTranslateX: 600,
     });
+  });
+});
+
+describe("panel rest required for notification acknowledgement", () => {
+  it("rejects a gesture even at the old center anchor", () => {
+    const state = createMobilePanelMotionState({ target: "agent", revision: 0 });
+    const moving = transitionMobilePanel(state, { type: "gesture.begin", origin: "agent" }).state;
+    expect(isMobilePanelAtRest({ state: moving, panel: "agent", position: 0 })).toBe(false);
+    expect(isMobilePanelAtRest({ state, panel: "agent", position: -0.5 })).toBe(false);
+    expect(isMobilePanelAtRest({ state, panel: "agent", position: 0 })).toBe(true);
+  });
+  it("rejects a sidebar command before the sidebar reaches its anchor", () => {
+    const state = createMobilePanelMotionState({ target: "agent", revision: 0 });
+    const moving = transitionMobilePanel(state, {
+      type: "command",
+      selection: { target: "agent-list", revision: 1 },
+    }).state;
+    expect(isMobilePanelAtRest({ state: moving, panel: "agent", position: 0 })).toBe(false);
   });
 });

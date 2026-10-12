@@ -1,3 +1,4 @@
+import type { AgentDeepLinkTarget } from "@getpaseo/protocol/agent-deep-link";
 import { Platform } from "react-native";
 import { getElectronHost } from "@/desktop/electron/host";
 import type { BrowserKeyboardPolicy } from "@/desktop/browser/shortcuts";
@@ -54,6 +55,10 @@ export interface DesktopDialogBridge {
 }
 
 export interface DesktopNotificationBridge {
+  setViewedAgent?: (input: {
+    target: AgentDeepLinkTarget | null;
+    revision: number;
+  }) => Promise<void>;
   isSupported?: () => Promise<boolean>;
   sendNotification?: (
     payload: string | { title: string; body?: string; data?: Record<string, unknown> },
