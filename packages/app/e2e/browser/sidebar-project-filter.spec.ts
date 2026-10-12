@@ -236,9 +236,9 @@ test("project chips stay visible through bulk collapse and reload", async ({ pag
       (element) => getComputedStyle(element).backgroundColor,
     );
     await page.mouse.move(0, 0);
-    await expect(projectRow).toHaveCSS("background-color", workspaceHoverColor);
+    await expect(projectRow).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     await projectRow.hover();
-    await expect(projectRow).not.toHaveCSS("background-color", workspaceHoverColor);
+    await expect(projectRow).toHaveCSS("background-color", workspaceHoverColor);
     await page.screenshot({ path: testInfo.outputPath("sidebar-project-hover.png") });
     await page.mouse.move(0, 0);
 

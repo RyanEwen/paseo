@@ -15,20 +15,14 @@ export function getSidebarRowBackdrop({
   isPressed = false,
   selected = false,
   isHovered = false,
-  rowKind = "workspace",
 }: {
   isDragging?: boolean;
   isPressed?: boolean;
   selected?: boolean;
   isHovered?: boolean;
-  /** Project headers keep the hover surface at rest and use selection color on hover. */
-  rowKind?: "workspace" | "project";
 }): SidebarSurfaceBackdrop {
   if (isDragging || isPressed) return "surface2";
   if (selected) return "surfaceSidebarSelected";
-  if (rowKind === "project") {
-    return isHovered ? "surfaceSidebarSelected" : "surfaceSidebarHover";
-  }
   if (isHovered) return "surfaceSidebarHover";
   return "surfaceSidebar";
 }
