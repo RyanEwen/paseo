@@ -3,9 +3,10 @@ import { execFileSync } from "node:child_process";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { type Locator, type Page } from "@playwright/test";
-import { buildHostWorkspaceRoute, buildSettingsSectionRoute } from "../../src/utils/host-routes";
+import { buildHostWorkspaceRoute, buildDefaultSettingsRoute } from "../../src/utils/host-routes";
 import { test, expect } from "../support/fixtures";
 import { daemonWsRoutePattern } from "../support/helpers/daemon-port";
+import { expectAppRoute } from "../support/helpers/route-assertions";
 import { getServerId } from "../support/helpers/server-id";
 import { connectSeedClient } from "../support/helpers/seed-client";
 import { createTempGitRepo } from "../support/helpers/workspace";
@@ -1899,7 +1900,7 @@ async function changeCodeTypographyFromSettings(
   typography: { fontSize: number; fontFamily: string },
 ): Promise<void> {
   await page.getByTestId("sidebar-settings").click();
-  await expect(page).toHaveURL(new RegExp(`${buildSettingsSectionRoute("general")}|/settings$`));
+  await expectAppRoute(page, buildDefaultSettingsRoute());
   await page.getByRole("button", { name: "Appearance" }).click();
   await page.getByLabel("Code font family").fill(typography.fontFamily);
   await page.getByLabel("Code font family").press("Enter");
