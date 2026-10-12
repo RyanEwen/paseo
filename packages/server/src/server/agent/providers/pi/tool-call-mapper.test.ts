@@ -1,8 +1,18 @@
+import { describeToolActivity } from "@getpaseo/protocol/tool-call-activity";
 import { describe, expect, test } from "vitest";
 
 import { mapToolDetail, parseToolArgs, parseToolResult } from "./tool-call-mapper.js";
 
 describe("Pi tool call mapper", () => {
+  test.each([
+    ["read", { path: "a.ts" }, "read"],
+    ["edit", { path: "a.ts", old_string: "x", new_string: "y" }, "edit"],
+    ["write", { path: "a.ts", content: "x" }, "write"],
+    ["grep", { pattern: "needle" }, "search"],
+  ] as const)("exposes %s activity through canonical details", (name, input, kind) => {
+    const detail = mapToolDetail(parseToolArgs(name, input), null);
+    expect(describeToolActivity({ detail })[0]?.kind).toBe(kind);
+  });
   test("maps bash args and result to shell detail", () => {
     const toolCall = parseToolArgs("bash", { command: "echo hello" });
     const result = parseToolResult({ output: "hello\n", exitCode: 0 });

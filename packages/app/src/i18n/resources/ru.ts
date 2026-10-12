@@ -17,6 +17,11 @@ export const ru: TranslationResources = {
     additionsHint: "Эти операции остаются доступными",
     saveFailed: "Не удалось сохранить. Попробуйте ещё раз.",
     features: {
+      descriptiveToolCalls: {
+        label: "Понятная активность инструментов",
+        hint: "Описывает известные операции, сохраняя точные команды и вывод в деталях. Отключите для возврата классических подписей.",
+      },
+
       sidebarProjectSelector: {
         label: "Выбор проекта в боковой панели",
         hint: "Выбирайте проект в заголовке областей; отключение возвращает меню фильтра проектов",
@@ -2176,6 +2181,69 @@ export const ru: TranslationResources = {
     subAgentActivity: "Активность субагента",
     input: "Входные данные",
     output: "Выходные данные",
+  },
+  toolActivity: {
+    files: { intent: "Изменить файлы", running: "Изменение файлов", completed: "Файлы изменены" },
+    read: {
+      intent: "Прочитать файлы",
+      running: "Чтение файлов",
+      completed: "Файлы прочитаны",
+    },
+    edit: {
+      intent: "Изменить файлы",
+      running: "Изменение файлов",
+      completed: "Файлы изменены",
+    },
+    write: {
+      intent: "Записать файлы",
+      running: "Запись файлов",
+      completed: "Файлы записаны",
+    },
+    create: {
+      intent: "Создать файлы",
+      running: "Создание файлов",
+      completed: "Файлы созданы",
+    },
+    delete: {
+      intent: "Удалить файлы",
+      running: "Удаление файлов",
+      completed: "Файлы удалены",
+    },
+    search: {
+      intent: "Поиск",
+      running: "Поиск выполняется",
+      completed: "Поиск выполнен",
+    },
+    list: {
+      intent: "Получить список файлов",
+      running: "Получение списка файлов",
+      completed: "Список файлов получен",
+    },
+    command: {
+      intent: "Выполнить команду",
+      running: "Выполнение команды",
+      completed: "Команда выполнена",
+    },
+    script: {
+      intent: "Выполнить скрипт",
+      running: "Выполнение скрипта",
+      completed: "Скрипт выполнен",
+    },
+    activity: {
+      intent: "Выполнить операции",
+      running: "Выполнение операций",
+      completed: "Операции выполнены",
+    },
+    failed: "Ошибка: {{action}}",
+    canceled: "Отменено: {{action}}",
+    counts: {
+      editedFiles: { one: "Операций с файлами: {{count}}", other: "Операций с файлами: {{count}}" },
+      commands: { one: "Команд: {{count}}", other: "Команд: {{count}}" },
+      readFiles: { one: "Чтений файлов: {{count}}", other: "Чтений файлов: {{count}}" },
+      searches: { one: "Поисков: {{count}}", other: "Поисков: {{count}}" },
+      otherTools: { one: "Других операций: {{count}}", other: "Других операций: {{count}}" },
+      paseoCalls: { one: "Вызовов Paseo: {{count}}", other: "Вызовов Paseo: {{count}}" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

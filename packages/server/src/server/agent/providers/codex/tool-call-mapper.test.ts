@@ -8,6 +8,80 @@ function expectMapped<T>(item: T | null): T {
 }
 
 describe("codex tool-call mapper", () => {
+  it("preserves source command actions without changing exact command/output", () => {
+    const commandActions = [
+      { type: "read", command: "cat a.ts", name: "a.ts", path: "/work/a.ts" },
+      { type: "search", command: "rg needle", query: "needle", path: null },
+      { type: "listFiles", command: "ls src", path: "src" },
+      { type: "unknown", command: "custom-script" },
+    ];
+    const item = expectMapped(
+      mapCodexToolCallFromThreadItem({
+        type: "commandExecution",
+        id: "actions",
+        status: "completed",
+        command: "cat a.ts; rg needle; ls src; custom-script",
+        cwd: "/work",
+        aggregatedOutput: "exact output",
+        exitCode: 0,
+        commandActions,
+      }),
+    );
+    expect(item.metadata?.commandActions).toEqual(commandActions);
+    expect(item.detail).toMatchObject({
+      type: "shell",
+      command: "cat a.ts; rg needle; ls src; custom-script",
+      output: "exact output",
+      cwd: "/work",
+    });
+  });
+
+  it.each([null, [], [{ type: "read", path: 42 }], [{ type: "future", command: "x" }]])(
+    "ignores malformed/future action batches %j",
+    (commandActions) => {
+      const item = expectMapped(
+        mapCodexToolCallFromThreadItem({
+          type: "commandExecution",
+          id: "bad-actions",
+          command: "custom-script",
+          status: "failed",
+          exitCode: 1,
+          commandActions,
+        }),
+      );
+      expect(item.metadata).toBeUndefined();
+      expect(item.status).toBe("failed");
+      expect(item.detail).toMatchObject({ type: "shell", command: "custom-script" });
+    },
+  );
+
+  it.each(["completed", "failed", "inProgress", "canceled"])(
+    "preserves all structured file change kinds for %s",
+    (status) => {
+      const item = expectMapped(
+        mapCodexToolCallFromThreadItem(
+          {
+            type: "fileChange",
+            id: "files",
+            status,
+            changes: [
+              { path: "a.ts", kind: { type: "add" }, diff: "+a" },
+              { path: "b.ts", kind: { type: "update", move_path: null }, diff: "-b\n+c" },
+              { path: "c.ts", kind: { type: "delete" }, diff: "-c" },
+              { path: "d.ts", kind: { type: "future" }, diff: "x" },
+            ],
+          },
+          { cwd: "/work" },
+        ),
+      );
+      expect(item.metadata?.fileChanges).toEqual([
+        { path: "a.ts", kind: "add", diff: "+a" },
+        { path: "b.ts", kind: "update", diff: "-b\n+c" },
+        { path: "c.ts", kind: "delete", diff: "-c" },
+        { path: "d.ts", kind: "unknown", diff: "x" },
+      ]);
+    },
+  );
   it("maps commandExecution start into running canonical call", () => {
     const item = expectMapped(
       mapCodexToolCallFromThreadItem({

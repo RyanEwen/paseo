@@ -1,0 +1,246 @@
+import { test, expect } from "../support/fixtures";
+import type { Page } from "@playwright/test";
+import type { ToolCallTimelineItem } from "@getpaseo/protocol/agent-types";
+import { buildToolActivityScene, ACTIVITY_READ_COMMAND, ACTIVITY_READ_OUTPUT, ACTIVITY_OPAQUE_COMMAND } from "../support/helpers/tool-activity";
+import { daemonWsRoutePattern } from "../support/helpers/daemon-port";
+import { expectComposerVisible } from "../support/helpers/composer";
+import { seedMockAgentWorkspace, openAgentRoute } from "../support/helpers/mock-agent";
+import { buildSeededHost, buildCreateAgentPreferences } from "../support/helpers/daemon-registry";
+import { writeFile, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import path from "node:path";
+type WebSocketMessage = string | Buffer;
+
+const COMPACT_VIEWPORT = { width: 390, height: 520 };
+
+function parseSessionMessage(message: WebSocketMessage): Record<string, unknown> | null {
+  const raw = typeof message === "string" ? message : message.toString("utf8");
+  try {
+    const envelope = JSON.parse(raw) as { type?: unknown; message?: unknown };
+    return envelope.type === "session" && envelope.message && typeof envelope.message === "object"
+      ? (envelope.message as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Identify this agent's stream without holding health or other subscription replies. */
+function isAgentStreamFor(message: WebSocketMessage, agentId: string): boolean {
+  const session = parseSessionMessage(message);
+  const payload = session?.payload as Record<string, unknown> | undefined;
+  return session?.type === "agent_stream" && payload?.agentId === agentId;
+}
+
+function getToolCallStatus(
+  message: WebSocketMessage,
+  agentId: string,
+): { callId: string; status: string } | null {
+  const sessionMessage = parseSessionMessage(message);
+  if (sessionMessage?.type !== "agent_stream") {
+    return null;
+  }
+  const payload = sessionMessage.payload as Record<string, unknown> | undefined;
+  if (payload?.agentId !== agentId) {
+    return null;
+  }
+  const event = payload.event as Record<string, unknown> | undefined;
+  const item = event?.item as Record<string, unknown> | undefined;
+  return event?.type === "timeline" &&
+    item?.type === "tool_call" &&
+    typeof item.callId === "string" &&
+    typeof item.status === "string"
+    ? { callId: item.callId, status: item.status }
+    : null;
+}
+
+function cloneToolCallWithId(
+  message: WebSocketMessage,
+  callId: string,
+  sequenceOffset: number,
+  replacement?: ToolCallTimelineItem,
+): string {
+  const raw = typeof message === "string" ? message : message.toString("utf8");
+  const envelope = JSON.parse(raw) as {
+    message?: {
+      payload?: { seq?: number; event?: { item?: { callId?: string } | ToolCallTimelineItem } };
+    };
+  };
+  const payload = envelope.message?.payload;
+  const item = payload?.event?.item;
+  if (!payload || !item?.callId || typeof payload.seq !== "number") {
+    throw new Error("Expected a tool-call session message");
+  }
+  if (replacement && payload.event) {
+    payload.event.item = { ...replacement, callId };
+  } else {
+    item.callId = callId;
+  }
+  payload.seq += sequenceOffset;
+  return JSON.stringify(envelope);
+}
+
+function shiftTimelineSequence(
+  message: WebSocketMessage,
+  sequenceOffset: number,
+): WebSocketMessage {
+  if (sequenceOffset === 0) {
+    return message;
+  }
+  const raw = typeof message === "string" ? message : message.toString("utf8");
+  try {
+    const envelope = JSON.parse(raw) as { message?: { payload?: { seq?: number } } };
+    const payload = envelope.message?.payload;
+    if (typeof payload?.seq !== "number") {
+      return message;
+    }
+    payload.seq += sequenceOffset;
+    return JSON.stringify(envelope);
+  } catch {
+    return message;
+  }
+}
+
+async function holdStreamAfterFirstCompletedToolCall(
+  page: Page,
+  agentId: string,
+  scene?: ToolCallTimelineItem[],
+) {
+  let firstCallId: string | null = null;
+  let firstCompletedMessage: WebSocketMessage | null = null;
+  let isHolding = false;
+  let sequenceOffset = 0;
+  const heldMessages: WebSocketMessage[] = [];
+  let sendToPage: ((message: WebSocketMessage) => void) | null = null;
+  let resolveFirstCompleted!: () => void;
+  const firstCompleted = new Promise<void>((resolve) => {
+    resolveFirstCompleted = resolve;
+  });
+
+  await page.routeWebSocket(daemonWsRoutePattern(), (ws) => {
+    const server = ws.connectToServer();
+    sendToPage = (message) => ws.send(message);
+    ws.onMessage((message) => server.send(message));
+    server.onMessage((message) => {
+      if (isHolding) {
+        // Semantic scenes freeze this agent's subsequent stream, while health
+        // replies and unrelated subscriptions continue through the real socket.
+        if (scene && !isAgentStreamFor(message, agentId)) {
+          ws.send(message);
+          return;
+        }
+        heldMessages.push(message);
+        return;
+      }
+
+      const toolCall = getToolCallStatus(message, agentId);
+      firstCallId ??= toolCall?.callId ?? null;
+      const isFirstCompleted = toolCall?.callId === firstCallId && toolCall?.status === "completed";
+      const forwarded =
+        firstCallId !== null && isFirstCompleted && scene?.[0]
+          ? cloneToolCallWithId(message, firstCallId, 0, scene[0])
+          : message;
+      ws.send(shiftTimelineSequence(forwarded, sequenceOffset));
+      if (toolCall?.callId === firstCallId && toolCall.status === "completed") {
+        firstCompletedMessage = message;
+        isHolding = true;
+        resolveFirstCompleted();
+      }
+    });
+  });
+
+  return {
+    waitForFirstCompleted: () => firstCompleted,
+    release(extraCompletedCalls = 0) {
+      if (scene) extraCompletedCalls = scene.length - 1;
+      isHolding = Boolean(scene);
+      if (extraCompletedCalls > 0 && (!firstCallId || !firstCompletedMessage)) {
+        throw new Error("Expected the first completed tool call before release");
+      }
+      for (let index = 0; index < extraCompletedCalls; index += 1) {
+        sendToPage?.(
+          cloneToolCallWithId(
+            firstCompletedMessage as WebSocketMessage,
+            `${firstCallId}:${index}`,
+            index + 1,
+            scene?.[index + 1],
+          ),
+        );
+      }
+      sequenceOffset = extraCompletedCalls;
+      if (scene) return;
+      for (const message of heldMessages.splice(0)) {
+        sendToPage?.(shiftTimelineSequence(message, sequenceOffset));
+      }
+    },
+  };
+}
+
+
+test("supplemental durable capture scene", async ({ browser }) => {
+  test.setTimeout(240_000);
+  const output = process.env.READABLE_CAPTURE_OUTPUT!;
+  if (process.env.READABLE_CAPTURE_APPROVED !== "1") throw new Error("Capture grant required");
+  const captures: unknown[] = [];
+  for (const compact of [false, true]) for (const enabled of [true, false]) {
+    const viewport = compact ? { width: 390, height: 844 } : { width: 1280, height: 900 };
+    const mode = `${compact ? "compact" : "desktop"}-${enabled ? "on" : "off"}`;
+    const context = await browser.newContext({viewport, hasTouch:compact, baseURL:`http://localhost:${process.env.E2E_METRO_PORT}`});
+    const page = await context.newPage();
+    page.on("console", message => console.log(`[${mode}:console:${message.type()}] ${message.text()}`));
+    page.on("pageerror", e => console.error(`[${mode}] ${e.message}`));
+    await page.route(/:(6767|6768|8082)\b/, r => r.abort());
+    await page.routeWebSocket(/:(6767|6768|8082)\b/, ws => ws.close());
+    const daemon=buildSeededHost({serverId:process.env.E2E_SERVER_ID!,endpoint:`127.0.0.1:${process.env.E2E_DAEMON_PORT}`,nowIso:new Date().toISOString()});
+    await page.addInitScript(({daemon, preferences, enabled})=>{
+      localStorage.setItem("@paseo:e2e","1");
+      localStorage.setItem("@paseo:e2e-seed-nonce","readable-capture");
+      localStorage.setItem("@paseo:daemon-registry",JSON.stringify([daemon]));
+      localStorage.removeItem("@paseo:settings");
+      localStorage.setItem("@paseo:create-agent-preferences",JSON.stringify(preferences));
+      localStorage.setItem("@paseo:app-settings",JSON.stringify(enabled?{toolCallDetailLevel:"overview"}:{toolCallDetailLevel:"overview",paseoPlusPlus:{descriptiveToolCalls:false}}));
+    },{daemon,preferences:buildCreateAgentPreferences(),enabled});
+    const agent = await seedMockAgentWorkspace({repoPrefix:"readable-capture-",title:"Readable tool activity",model:"ten-second-stream"});
+    try {
+      const scene=buildToolActivityScene(agent.cwd);
+      await writeFile(path.join(output,`${mode}-dataset.json`),JSON.stringify(scene,null,2));
+      const gate=await holdStreamAfterFirstCompletedToolCall(page,agent.agentId,scene);
+      console.log(`SCENE ${mode} opening ${agent.agentId}`);
+      await openAgentRoute(page,agent);
+      console.log(`SCENE ${mode} route settled`);
+      await expectComposerVisible(page);
+      await agent.client.sendAgentMessage(agent.agentId,"Show readable provider operations.");
+      await gate.waitForFirstCompleted(); gate.release();
+      const group=page.getByTestId("tool-call-group").first();
+      await expect(group).toContainText(enabled?"5 file operations":"Edited 3 files");
+      await group.getByRole("button").first().focus();
+      await group.getByRole("button").first().press("Enter");
+      const root=compact?page.getByTestId("tool-call-group-sheet"):group;
+      const badges=root.getByTestId("tool-call-badge");
+      await expect(badges).toHaveCount(scene.length);
+      async function capture(name:string, detail?: ReturnType<Page["getByTestId"]>) {
+        if(detail) await detail.scrollIntoViewIfNeeded();
+        const file=path.join(output,`${mode}-${name}.png`);
+        await page.screenshot({path:file,fullPage:true});
+        const bytes=await readFile(file);
+        captures.push({mode,name,path:file,sha256:createHash("sha256").update(bytes).digest("hex"),viewport,url:page.url(),detailsText:detail?await detail.innerText():await root.innerText()});
+        await writeFile(path.join(output,"capture-manifest.json"),JSON.stringify({sourceManifest:process.env.READABLE_SOURCE_MANIFEST,captures},null,2));
+        console.log(`CAPTURE ${mode} ${name} ${file}`);
+      }
+      await capture("labels");
+      for(const [index,name,strings] of [[0,"read",[ACTIVITY_READ_COMMAND,ACTIVITY_READ_OUTPUT]],[4,"files",["created-file-exact-diff","updated-file-exact-diff","deleted-file-exact-diff"]],[6,"opaque",[ACTIVITY_OPAQUE_COMMAND,"opaque script output"]]] as const){
+        const badge=badges.nth(index);
+        await badge.getByRole("button").first().click();
+        const details=compact?page.getByTestId("tool-call-sheet"):badge;
+        for(const text of strings) await expect(details).toContainText(text);
+        await capture(name,details);
+        if(compact)await page.getByTestId("tool-call-sheet-close").click();
+        else await badge.getByRole("button").first().click();
+      }
+    } catch(error) {
+      await page.screenshot({path:path.join(output,`${mode}-diagnostic-failure.png`),fullPage:true}).catch(()=>{});
+      console.log(`SCENE FAILURE ${mode} ${await page.locator("body").innerText().catch(()=>"")}`);
+      throw error;
+    } finally {await context.close();await agent.cleanup();}
+  }
+});

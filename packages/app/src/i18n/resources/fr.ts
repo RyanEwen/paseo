@@ -18,6 +18,11 @@ export const fr: TranslationResources = {
     additionsHint: "Ces fonctions restent disponibles",
     saveFailed: "Échec de l’enregistrement. Réessayez.",
     features: {
+      descriptiveToolCalls: {
+        label: "Activité des outils lisible",
+        hint: "Décrit les opérations connues et conserve les commandes et sorties exactes dans les détails. Désactivez pour rétablir les libellés classiques.",
+      },
+
       sidebarProjectSelector: {
         label: "Sélecteur de projet dans la barre latérale",
         hint: "Choisissez un projet dans l’en-tête des espaces; la désactivation rétablit le filtre Projet",
@@ -2189,6 +2194,76 @@ export const fr: TranslationResources = {
     subAgentActivity: "Activité du sous-agent",
     input: "Entrée",
     output: "Sortie",
+  },
+  toolActivity: {
+    files: {
+      intent: "Changer les fichiers",
+      running: "Changement des fichiers",
+      completed: "Fichiers changés",
+    },
+    read: {
+      intent: "Lire les fichiers",
+      running: "Lecture des fichiers",
+      completed: "Fichiers lus",
+    },
+    edit: {
+      intent: "Modifier les fichiers",
+      running: "Modification des fichiers",
+      completed: "Fichiers modifiés",
+    },
+    write: {
+      intent: "Écrire les fichiers",
+      running: "Écriture des fichiers",
+      completed: "Fichiers écrits",
+    },
+    create: {
+      intent: "Créer les fichiers",
+      running: "Création des fichiers",
+      completed: "Fichiers créés",
+    },
+    delete: {
+      intent: "Supprimer les fichiers",
+      running: "Suppression des fichiers",
+      completed: "Fichiers supprimés",
+    },
+    search: {
+      intent: "Rechercher",
+      running: "Recherche en cours",
+      completed: "Recherche effectuée",
+    },
+    list: {
+      intent: "Lister les fichiers",
+      running: "Liste des fichiers en cours",
+      completed: "Fichiers listés",
+    },
+    command: {
+      intent: "Exécuter une commande",
+      running: "Commande en cours",
+      completed: "Commande exécutée",
+    },
+    script: {
+      intent: "Exécuter un script",
+      running: "Script en cours",
+      completed: "Script exécuté",
+    },
+    activity: {
+      intent: "Exécuter des opérations",
+      running: "Opérations en cours",
+      completed: "Opérations exécutées",
+    },
+    failed: "Échec : {{action}}",
+    canceled: "Annulé : {{action}}",
+    counts: {
+      editedFiles: {
+        one: "{{count}} opération sur les fichiers",
+        other: "{{count}} opérations sur les fichiers",
+      },
+      commands: { one: "{{count}} commande", other: "{{count}} commandes" },
+      readFiles: { one: "{{count}} lecture de fichier", other: "{{count}} lectures de fichiers" },
+      searches: { one: "{{count}} recherche", other: "{{count}} recherches" },
+      otherTools: { one: "{{count}} autre opération", other: "{{count}} autres opérations" },
+      paseoCalls: { one: "{{count}} appel Paseo", other: "{{count}} appels Paseo" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

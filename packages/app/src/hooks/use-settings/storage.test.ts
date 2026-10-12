@@ -84,6 +84,7 @@ describe("loadAppSettingsFromStorage", () => {
   it("defaults fork opt-outs independently and retains unknown future choices", async () => {
     const defaults = await loadAppSettingsFromStorage(makeDeps());
     expect(defaults.paseoPlusPlus).toEqual({
+      descriptiveToolCalls: true,
       stickyUserPrompts: true,
       previousAgents: true,
       sidebarProjectSelector: true,

@@ -1,3 +1,10 @@
+import type { ToolCallTimelineItem } from "@getpaseo/protocol/agent-types";
+import {
+  buildToolActivityScene,
+  ACTIVITY_READ_COMMAND,
+  ACTIVITY_READ_OUTPUT,
+  ACTIVITY_OPAQUE_COMMAND,
+} from "../support/helpers/tool-activity";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { expectComposerVisible } from "../support/helpers/composer";
@@ -18,6 +25,13 @@ function parseSessionMessage(message: WebSocketMessage): Record<string, unknown>
   } catch {
     return null;
   }
+}
+
+/** Identify this agent's stream without holding health or other subscription replies. */
+function isAgentStreamFor(message: WebSocketMessage, agentId: string): boolean {
+  const session = parseSessionMessage(message);
+  const payload = session?.payload as Record<string, unknown> | undefined;
+  return session?.type === "agent_stream" && payload?.agentId === agentId;
 }
 
 function getToolCallStatus(
@@ -46,17 +60,24 @@ function cloneToolCallWithId(
   message: WebSocketMessage,
   callId: string,
   sequenceOffset: number,
+  replacement?: ToolCallTimelineItem,
 ): string {
   const raw = typeof message === "string" ? message : message.toString("utf8");
   const envelope = JSON.parse(raw) as {
-    message?: { payload?: { seq?: number; event?: { item?: { callId?: string } } } };
+    message?: {
+      payload?: { seq?: number; event?: { item?: { callId?: string } | ToolCallTimelineItem } };
+    };
   };
   const payload = envelope.message?.payload;
   const item = payload?.event?.item;
   if (!payload || !item?.callId || typeof payload.seq !== "number") {
     throw new Error("Expected a tool-call session message");
   }
-  item.callId = callId;
+  if (replacement && payload.event) {
+    payload.event.item = { ...replacement, callId };
+  } else {
+    item.callId = callId;
+  }
   payload.seq += sequenceOffset;
   return JSON.stringify(envelope);
 }
@@ -82,7 +103,11 @@ function shiftTimelineSequence(
   }
 }
 
-async function holdStreamAfterFirstCompletedToolCall(page: Page, agentId: string) {
+async function holdStreamAfterFirstCompletedToolCall(
+  page: Page,
+  agentId: string,
+  scene?: ToolCallTimelineItem[],
+) {
   let firstCallId: string | null = null;
   let firstCompletedMessage: WebSocketMessage | null = null;
   let isHolding = false;
@@ -100,13 +125,24 @@ async function holdStreamAfterFirstCompletedToolCall(page: Page, agentId: string
     ws.onMessage((message) => server.send(message));
     server.onMessage((message) => {
       if (isHolding) {
+        // Semantic scenes freeze this agent's subsequent stream, while health
+        // replies and unrelated subscriptions continue through the real socket.
+        if (scene && !isAgentStreamFor(message, agentId)) {
+          ws.send(message);
+          return;
+        }
         heldMessages.push(message);
         return;
       }
 
-      ws.send(shiftTimelineSequence(message, sequenceOffset));
       const toolCall = getToolCallStatus(message, agentId);
       firstCallId ??= toolCall?.callId ?? null;
+      const isFirstCompleted = toolCall?.callId === firstCallId && toolCall?.status === "completed";
+      const forwarded =
+        firstCallId !== null && isFirstCompleted && scene?.[0]
+          ? cloneToolCallWithId(message, firstCallId, 0, scene[0])
+          : message;
+      ws.send(shiftTimelineSequence(forwarded, sequenceOffset));
       if (toolCall?.callId === firstCallId && toolCall.status === "completed") {
         firstCompletedMessage = message;
         isHolding = true;
@@ -118,7 +154,8 @@ async function holdStreamAfterFirstCompletedToolCall(page: Page, agentId: string
   return {
     waitForFirstCompleted: () => firstCompleted,
     release(extraCompletedCalls = 0) {
-      isHolding = false;
+      if (scene) extraCompletedCalls = scene.length - 1;
+      isHolding = Boolean(scene);
       if (extraCompletedCalls > 0 && (!firstCallId || !firstCompletedMessage)) {
         throw new Error("Expected the first completed tool call before release");
       }
@@ -128,10 +165,12 @@ async function holdStreamAfterFirstCompletedToolCall(page: Page, agentId: string
             firstCompletedMessage as WebSocketMessage,
             `${firstCallId}:${index}`,
             index + 1,
+            scene?.[index + 1],
           ),
         );
       }
       sequenceOffset = extraCompletedCalls;
+      if (scene) return;
       for (const message of heldMessages.splice(0)) {
         sendToPage?.(shiftTimelineSequence(message, sequenceOffset));
       }
@@ -278,3 +317,95 @@ test("keeps overview tool calls inline on desktop", async ({ page }) => {
     await agent.cleanup();
   }
 });
+
+for (const compact of [false, true]) {
+  test.describe(`readable activity ${compact ? "compact" : "desktop"}`, () => {
+    test.use({
+      viewport: compact ? { width: 390, height: 844 } : { width: 1280, height: 900 },
+      hasTouch: compact,
+    });
+    for (const enabled of [true, false]) {
+      test(`preserves provider details with readable labels ${enabled ? "On by default" : "Off"}`, async ({
+        page,
+      }, testInfo) => {
+        test.setTimeout(120_000);
+        await page.addInitScript((descriptive) => {
+          const settings = descriptive
+            ? { toolCallDetailLevel: "overview" }
+            : { toolCallDetailLevel: "overview", paseoPlusPlus: { descriptiveToolCalls: false } };
+          localStorage.setItem("@paseo:app-settings", JSON.stringify(settings));
+        }, enabled);
+        const agent = await seedMockAgentWorkspace({
+          repoPrefix: "readable-tool-activity-",
+          title: "Readable tool activity",
+          model: "ten-second-stream",
+        });
+        try {
+          const scene = buildToolActivityScene(agent.cwd);
+          const gate = await holdStreamAfterFirstCompletedToolCall(page, agent.agentId, scene);
+          await openOverviewAgent(page, agent);
+          await agent.client.sendAgentMessage(agent.agentId, "Show readable provider operations.");
+          await gate.waitForFirstCompleted();
+          gate.release();
+          const group = page.getByTestId("tool-call-group").first();
+          await expect(group).toContainText(enabled ? "5 file operations" : "Edited 3 files");
+          await expect(group).toContainText(enabled ? "1 file read" : "ran 3 commands");
+          const groupButton = group.getByRole("button").first();
+          await groupButton.focus();
+          await expect(groupButton).toBeFocused();
+          await groupButton.press("Enter");
+          const root = compact ? page.getByTestId("tool-call-group-sheet") : group;
+          await expect(root).toBeVisible();
+          const badges = root.getByTestId("tool-call-badge");
+          await expect(badges).toHaveCount(scene.length);
+          const read = badges.nth(0);
+          await expect(read).toContainText(enabled ? "Read" : "Shell");
+          await expect(read).toContainText(
+            enabled ? "src/notifications.ts" : ACTIVITY_READ_COMMAND,
+          );
+          await expect(badges.nth(1)).toContainText(enabled ? "Failed: Edit" : "Edit");
+          await expect(badges.nth(2)).toContainText(enabled ? "Canceled: Write" : "Write");
+          await expect(badges.nth(3)).toContainText(enabled ? "Searched" : "Search");
+          await expect(badges.nth(4)).toContainText(enabled ? "Changed files" : "Edit");
+          await expect(badges.nth(5)).toContainText(enabled ? "Running script" : "Shell");
+          await expect(badges.nth(6)).toContainText(enabled ? "Failed: Run command" : "Shell");
+          await testInfo.attach("readable-activity-provider-scene", {
+            body: JSON.stringify(scene, null, 2),
+            contentType: "application/json",
+          });
+          await testInfo.attach("readable-activity-labels", {
+            body: await page.screenshot(),
+            contentType: "image/png",
+          });
+          await read.getByRole("button").first().click();
+          const details = compact ? page.getByTestId("tool-call-sheet") : read;
+          await expect(details).toContainText(ACTIVITY_READ_COMMAND);
+          await expect(details).toContainText(ACTIVITY_READ_OUTPUT);
+          if (compact) await page.getByTestId("tool-call-sheet-close").click();
+          else await read.getByRole("button").first().click();
+          await badges.nth(4).getByRole("button").first().click();
+          const patchDetails = compact ? page.getByTestId("tool-call-sheet") : badges.nth(4);
+          for (const diff of [
+            "created-file-exact-diff",
+            "updated-file-exact-diff",
+            "deleted-file-exact-diff",
+          ]) {
+            await expect(patchDetails).toContainText(diff);
+          }
+          await testInfo.attach("readable-activity-multi-file-details", {
+            body: await page.screenshot(),
+            contentType: "image/png",
+          });
+          if (compact) await page.getByTestId("tool-call-sheet-close").click();
+          else await badges.nth(4).getByRole("button").first().click();
+          await badges.nth(6).getByRole("button").first().click();
+          const opaqueDetails = compact ? page.getByTestId("tool-call-sheet") : badges.nth(6);
+          await expect(opaqueDetails).toContainText(ACTIVITY_OPAQUE_COMMAND);
+          await expect(opaqueDetails).toContainText("opaque script output");
+        } finally {
+          await agent.cleanup();
+        }
+      });
+    }
+  });
+}

@@ -18,6 +18,11 @@ export const ja: TranslationResources = {
     additionsHint: "これらの操作は引き続き利用できます",
     saveFailed: "保存できませんでした。もう一度お試しください。",
     features: {
+      descriptiveToolCalls: {
+        label: "わかりやすいツール操作",
+        hint: "既知の操作を説明し、正確なコマンドと出力は詳細に保持します。無効にすると従来のラベルに戻ります。",
+      },
+
       sidebarProjectSelector: {
         label: "サイドバーのプロジェクト選択",
         hint: "ワークスペース見出しから選択します。無効にするとプロジェクトフィルターのメニューに戻ります",
@@ -2164,6 +2169,73 @@ export const ja: TranslationResources = {
     subAgentActivity: "サブエージェントアクティビティ",
     input: "入力",
     output: "出力",
+  },
+  toolActivity: {
+    files: {
+      intent: "ファイルを変更",
+      running: "ファイルを変更中",
+      completed: "ファイルを変更しました",
+    },
+    read: {
+      intent: "ファイルを読む",
+      running: "ファイルを読み取り中",
+      completed: "ファイルを読み取りました",
+    },
+    edit: {
+      intent: "ファイルを編集",
+      running: "ファイルを編集中",
+      completed: "ファイルを編集しました",
+    },
+    write: {
+      intent: "ファイルを書き込む",
+      running: "ファイルを書き込み中",
+      completed: "ファイルを書き込みました",
+    },
+    create: {
+      intent: "ファイルを作成",
+      running: "ファイルを作成中",
+      completed: "ファイルを作成しました",
+    },
+    delete: {
+      intent: "ファイルを削除",
+      running: "ファイルを削除中",
+      completed: "ファイルを削除しました",
+    },
+    search: {
+      intent: "検索",
+      running: "検索中",
+      completed: "検索しました",
+    },
+    list: {
+      intent: "ファイルを一覧表示",
+      running: "ファイルを一覧表示中",
+      completed: "ファイルを一覧表示しました",
+    },
+    command: {
+      intent: "コマンドを実行",
+      running: "コマンドを実行中",
+      completed: "コマンドを実行しました",
+    },
+    script: {
+      intent: "スクリプトを実行",
+      running: "スクリプトを実行中",
+      completed: "スクリプトを実行しました",
+    },
+    activity: {
+      intent: "操作を実行",
+      running: "操作を実行中",
+      completed: "操作を実行しました",
+    },
+    failed: "失敗: {{action}}",
+    canceled: "キャンセル: {{action}}",
+    counts: {
+      editedFiles: { one: "ファイル操作 {{count}} 件", other: "ファイル操作 {{count}} 件" },
+      commands: { one: "コマンド {{count}} 件", other: "コマンド {{count}} 件" },
+      readFiles: { one: "ファイル読み取り {{count}} 件", other: "ファイル読み取り {{count}} 件" },
+      searches: { one: "検索 {{count}} 件", other: "検索 {{count}} 件" },
+      otherTools: { one: "その他の操作 {{count}} 件", other: "その他の操作 {{count}} 件" },
+      paseoCalls: { one: "Paseo 呼び出し {{count}} 件", other: "Paseo 呼び出し {{count}} 件" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

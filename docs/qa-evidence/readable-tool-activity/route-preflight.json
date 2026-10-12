@@ -1,0 +1,26 @@
+{
+  "metroPort": 40997,
+  "checks": [
+    {
+      "marker": "./_layout.tsx",
+      "present": true
+    },
+    {
+      "marker": "./open-project.tsx",
+      "present": true
+    },
+    {
+      "marker": "SidebarProjectSelector",
+      "present": true
+    },
+    {
+      "marker": "descriptiveToolCalls",
+      "present": true
+    },
+    {
+      "marker": "toolActivity",
+      "present": true
+    }
+  ],
+  "bytes": 49353095
+}

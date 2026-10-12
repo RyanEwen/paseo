@@ -19,6 +19,11 @@ export const ptBR: TranslationResources = {
     additionsHint: "Estas funções continuam disponíveis",
     saveFailed: "Não foi possível salvar. Tente novamente.",
     features: {
+      descriptiveToolCalls: {
+        label: "Atividade de ferramentas legível",
+        hint: "Descreve operações conhecidas e mantém comandos e saídas exatos nos detalhes. Desative para restaurar os rótulos clássicos.",
+      },
+
       sidebarProjectSelector: {
         label: "Seletor de projeto na barra lateral",
         hint: "Escolha um projeto no título dos espaços; desativar restaura o filtro Projeto",
@@ -2178,6 +2183,76 @@ export const ptBR: TranslationResources = {
     subAgentActivity: "Atividade do subagente",
     input: "Entrada",
     output: "Saída",
+  },
+  toolActivity: {
+    files: {
+      intent: "Alterar arquivos",
+      running: "Alterando arquivos",
+      completed: "Arquivos alterados",
+    },
+    read: {
+      intent: "Ler arquivos",
+      running: "Lendo arquivos",
+      completed: "Arquivos lidos",
+    },
+    edit: {
+      intent: "Editar arquivos",
+      running: "Editando arquivos",
+      completed: "Arquivos editados",
+    },
+    write: {
+      intent: "Escrever arquivos",
+      running: "Escrevendo arquivos",
+      completed: "Arquivos escritos",
+    },
+    create: {
+      intent: "Criar arquivos",
+      running: "Criando arquivos",
+      completed: "Arquivos criados",
+    },
+    delete: {
+      intent: "Excluir arquivos",
+      running: "Excluindo arquivos",
+      completed: "Arquivos excluídos",
+    },
+    search: {
+      intent: "Pesquisar",
+      running: "Pesquisando",
+      completed: "Pesquisa realizada",
+    },
+    list: {
+      intent: "Listar arquivos",
+      running: "Listando arquivos",
+      completed: "Arquivos listados",
+    },
+    command: {
+      intent: "Executar comando",
+      running: "Executando comando",
+      completed: "Comando executado",
+    },
+    script: {
+      intent: "Executar script",
+      running: "Executando script",
+      completed: "Script executado",
+    },
+    activity: {
+      intent: "Executar operações",
+      running: "Executando operações",
+      completed: "Operações executadas",
+    },
+    failed: "Falhou: {{action}}",
+    canceled: "Cancelado: {{action}}",
+    counts: {
+      editedFiles: {
+        one: "{{count}} operação de arquivos",
+        other: "{{count}} operações de arquivos",
+      },
+      commands: { one: "{{count}} comando", other: "{{count}} comandos" },
+      readFiles: { one: "{{count}} leitura de arquivo", other: "{{count}} leituras de arquivos" },
+      searches: { one: "{{count}} pesquisa", other: "{{count}} pesquisas" },
+      otherTools: { one: "{{count}} outra operação", other: "{{count}} outras operações" },
+      paseoCalls: { one: "{{count}} chamada ao Paseo", other: "{{count}} chamadas ao Paseo" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

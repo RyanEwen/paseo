@@ -18,6 +18,11 @@ export const ar: TranslationResources = {
     additionsHint: "تبقى هذه العمليات متاحة",
     saveFailed: "تعذر الحفظ. حاول مرة أخرى.",
     features: {
+      descriptiveToolCalls: {
+        label: "نشاط أدوات واضح",
+        hint: "يصف العمليات المعروفة ويحفظ الأوامر والمخرجات الدقيقة في التفاصيل. أوقفه لاستعادة التسميات السابقة.",
+      },
+
       sidebarProjectSelector: {
         label: "اختيار المشروع في الشريط الجانبي",
         hint: "اختر مشروعًا من عنوان المساحات؛ يعيد الإيقاف قائمة مرشح المشروع",
@@ -2142,6 +2147,69 @@ export const ar: TranslationResources = {
     subAgentActivity: "نشاط الوكيل الفرعي",
     input: "مدخل",
     output: "الإخراج",
+  },
+  toolActivity: {
+    files: { intent: "تغيير الملفات", running: "جارٍ تغيير الملفات", completed: "تم تغيير الملفات" },
+    read: {
+      intent: "قراءة الملفات",
+      running: "جارٍ قراءة الملفات",
+      completed: "تمت قراءة الملفات",
+    },
+    edit: {
+      intent: "تعديل الملفات",
+      running: "جارٍ تعديل الملفات",
+      completed: "تم تعديل الملفات",
+    },
+    write: {
+      intent: "كتابة الملفات",
+      running: "جارٍ كتابة الملفات",
+      completed: "تمت كتابة الملفات",
+    },
+    create: {
+      intent: "إنشاء الملفات",
+      running: "جارٍ إنشاء الملفات",
+      completed: "تم إنشاء الملفات",
+    },
+    delete: {
+      intent: "حذف الملفات",
+      running: "جارٍ حذف الملفات",
+      completed: "تم حذف الملفات",
+    },
+    search: {
+      intent: "بحث",
+      running: "جارٍ البحث",
+      completed: "تم البحث",
+    },
+    list: {
+      intent: "عرض الملفات",
+      running: "جارٍ عرض الملفات",
+      completed: "تم عرض الملفات",
+    },
+    command: {
+      intent: "تشغيل أمر",
+      running: "جارٍ تشغيل الأمر",
+      completed: "تم تشغيل الأمر",
+    },
+    script: {
+      intent: "تشغيل نص برمجي",
+      running: "جارٍ تشغيل النص البرمجي",
+      completed: "تم تشغيل النص البرمجي",
+    },
+    activity: {
+      intent: "تنفيذ العمليات",
+      running: "جارٍ تنفيذ العمليات",
+      completed: "تم تنفيذ العمليات",
+    },
+    failed: "فشل: {{action}}",
+    canceled: "أُلغي: {{action}}",
+    counts: {
+      editedFiles: { one: "عمليات الملفات: {{count}}", other: "عمليات الملفات: {{count}}" },
+      commands: { one: "الأوامر: {{count}}", other: "الأوامر: {{count}}" },
+      readFiles: { one: "قراءات الملفات: {{count}}", other: "قراءات الملفات: {{count}}" },
+      searches: { one: "عمليات البحث: {{count}}", other: "عمليات البحث: {{count}}" },
+      otherTools: { one: "العمليات الأخرى: {{count}}", other: "العمليات الأخرى: {{count}}" },
+      paseoCalls: { one: "استدعاءات Paseo: {{count}}", other: "استدعاءات Paseo: {{count}}" },
+    },
   },
   toolCallGroup: {
     editedFiles: {

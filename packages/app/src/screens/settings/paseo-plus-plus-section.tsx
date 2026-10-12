@@ -21,6 +21,7 @@ import { buildSettingsSectionRoute } from "@/utils/host-routes";
 import type { PaseoPlusPlusFeature } from "@/paseo-plus-plus/preferences";
 
 const OPTIONAL_FEATURES: readonly PaseoPlusPlusFeature[] = [
+  "descriptiveToolCalls",
   "stickyUserPrompts",
   "previousAgents",
   "sidebarProjectSelector",

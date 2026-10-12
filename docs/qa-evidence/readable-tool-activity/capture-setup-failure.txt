@@ -1,0 +1,76 @@
+[metro] Starting project at /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/source/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:33471
+[metro] Logs for your project will appear below.
+[metro] Web packages/app/index.ts ▓▓▓▓▓░░░░░░░░░░░ 33.0% (267/465)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓░░░░░░░░░░ 38.1% (421/696)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓░░░░░░░░░ 43.9% ( 577/2864)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓░░░░░░░░░ 43.9% ( 649/3048)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓░░░░░░░░░ 43.9% ( 853/3325)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓░░░░░░░░ 50.4% (2378/3349)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (2887/3551)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (3038/3729)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (3138/3820)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 70.6% (3400/4047)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 72.2% (3578/4223)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 75.9% (3800/4361)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 81.6% (4154/4609)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 82.9% (4229/4646)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 85.2% (4345/4708)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.0% (4551/4823)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 91.9% (4676/4898)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 93.0% (4844/5033)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 93.0% (4885/5072)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 93.8% (5040/5228)
+[metro] Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+[metro]   npx update-browserslist-db@latest
+[metro]   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.4% (5215/5367)
+[metro] Web Bundled 95005ms packages/app/index.ts (5501 modules)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (5501/5501)
+[metro] Web Bundled 344ms packages/app/index.ts (1 module)
+[e2e] Metro warmed on port 33471
+
+Running 1 test using 1 worker
+
+(node:41058) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41058) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 42653, home: /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/homes/worker-0
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 622ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 256ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (86 modules)
+[e2e] Worker 0 daemon stopped
+  ✘  1 e2e/browser/supplemental-capture.spec.ts:179:5 › supplemental durable capture scene (1.1m)
+[e2e] Metro stopped
+
+
+  1) e2e/browser/supplemental-capture.spec.ts:179:5 › supplemental durable capture scene ───────────
+
+    TimeoutError: page.waitForURL: Timeout 60000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation until "commit"
+      navigated to "http://127.0.0.1:33471/h/srv_e2e_worker_0/workspace/wks_7f798897c891f87f?open=agent%3Abb9339f9-5dc6-4698-8f6d-77a8917b5367"
+      navigated to "http://127.0.0.1:33471/h/srv_e2e_worker_0/workspace/wks_7f798897c891f87f?open=agent%3Abb9339f9-5dc6-4698-8f6d-77a8917b5367"
+    ============================================================
+
+       at ../support/helpers/mock-agent.ts:95
+
+      93 | ): Promise<void> {
+      94 |   await page.goto(buildAgentRoute(input.workspaceId, input.agentId), { waitUntil: "commit" });
+    > 95 |   await page.waitForURL(
+         |              ^
+      96 |     (url) => url.pathname.includes("/workspace/") && !url.searchParams.has("open"),
+      97 |     { timeout: 60_000, waitUntil: "commit" },
+      98 |   );
+        at openAgentRoute (/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/source/packages/app/e2e/support/helpers/mock-agent.ts:95:14)
+        at /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/source/packages/app/e2e/browser/supplemental-capture.spec.ts:205:7
+
+  1 failed
+    e2e/browser/supplemental-capture.spec.ts:179:5 › supplemental durable capture scene ────────────

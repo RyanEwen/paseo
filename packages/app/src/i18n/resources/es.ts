@@ -18,6 +18,11 @@ export const es: TranslationResources = {
     additionsHint: "Estas funciones siguen disponibles",
     saveFailed: "No se pudo guardar. Vuelve a intentarlo.",
     features: {
+      descriptiveToolCalls: {
+        label: "Actividad de herramientas legible",
+        hint: "Describe operaciones conocidas y conserva comandos y resultados exactos en los detalles. Desactiva para restaurar las etiquetas clásicas.",
+      },
+
       sidebarProjectSelector: {
         label: "Selector de proyecto en la barra lateral",
         hint: "Elige un proyecto desde el encabezado; al desactivarlo vuelve el filtro Proyecto",
@@ -2192,6 +2197,76 @@ export const es: TranslationResources = {
     subAgentActivity: "Actividad de subagente",
     input: "Aporte",
     output: "Producción",
+  },
+  toolActivity: {
+    files: {
+      intent: "Cambiar archivos",
+      running: "Cambiando archivos",
+      completed: "Archivos cambiados",
+    },
+    read: {
+      intent: "Leer archivos",
+      running: "Leyendo archivos",
+      completed: "Archivos leídos",
+    },
+    edit: {
+      intent: "Editar archivos",
+      running: "Editando archivos",
+      completed: "Archivos editados",
+    },
+    write: {
+      intent: "Escribir archivos",
+      running: "Escribiendo archivos",
+      completed: "Archivos escritos",
+    },
+    create: {
+      intent: "Crear archivos",
+      running: "Creando archivos",
+      completed: "Archivos creados",
+    },
+    delete: {
+      intent: "Eliminar archivos",
+      running: "Eliminando archivos",
+      completed: "Archivos eliminados",
+    },
+    search: {
+      intent: "Buscar",
+      running: "Buscando",
+      completed: "Búsqueda realizada",
+    },
+    list: {
+      intent: "Listar archivos",
+      running: "Listando archivos",
+      completed: "Archivos listados",
+    },
+    command: {
+      intent: "Ejecutar comando",
+      running: "Ejecutando comando",
+      completed: "Comando ejecutado",
+    },
+    script: {
+      intent: "Ejecutar script",
+      running: "Ejecutando script",
+      completed: "Script ejecutado",
+    },
+    activity: {
+      intent: "Ejecutar operaciones",
+      running: "Ejecutando operaciones",
+      completed: "Operaciones ejecutadas",
+    },
+    failed: "Falló: {{action}}",
+    canceled: "Cancelado: {{action}}",
+    counts: {
+      editedFiles: {
+        one: "{{count}} operación de archivos",
+        other: "{{count}} operaciones de archivos",
+      },
+      commands: { one: "{{count}} comando", other: "{{count}} comandos" },
+      readFiles: { one: "{{count}} lectura de archivo", other: "{{count}} lecturas de archivos" },
+      searches: { one: "{{count}} búsqueda", other: "{{count}} búsquedas" },
+      otherTools: { one: "{{count}} otra operación", other: "{{count}} otras operaciones" },
+      paseoCalls: { one: "{{count}} llamada a Paseo", other: "{{count}} llamadas a Paseo" },
+    },
   },
   toolCallGroup: {
     editedFiles: {
