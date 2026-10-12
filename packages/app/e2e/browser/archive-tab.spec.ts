@@ -50,6 +50,16 @@ async function expectReopenFailure(page: Page): Promise<void> {
   ).toBeVisible();
 }
 
+/** Wait for the dialog to observe the recovered host and enable history fetching. */
+async function restoreReopenHost(
+  page: Page,
+  gate: Awaited<ReturnType<typeof installDaemonWebSocketGate>>,
+): Promise<void> {
+  gate.restore();
+  await expect(page.getByTestId("reopen-closed-agent-search")).toBeVisible({ timeout: 30_000 });
+  await expectReconnectingToastGone(page);
+}
+
 test.describe("Archive tab reconciliation", () => {
   let client: Awaited<ReturnType<typeof connectSeedClient>>;
   let tempRepo: { path: string; cleanup: () => Promise<void> };
@@ -219,23 +229,13 @@ test.describe("Archive tab reconciliation", () => {
     await openReopenDialog(page);
     await expectReopenFailure(page);
     gate.discardHeldClientRequest();
-    gate.restore();
-    await expectReconnectingToastGone(page);
-    await page
-      .getByTestId("reopen-closed-agent-error")
-      .getByRole("button", { name: "Retry", exact: true })
-      .click();
+    await restoreReopenHost(page, gate);
     await expectSessionRowArchived(page, archived.title);
     await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
     await gate.drop();
     await expectReopenFailure(page);
     await expectSessionRowArchived(page, archived.title);
-    gate.restore();
-    await expectReconnectingToastGone(page);
-    await page
-      .getByTestId("reopen-closed-agent-error")
-      .getByRole("button", { name: "Retry", exact: true })
-      .click();
+    await restoreReopenHost(page, gate);
     await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
     await expectSessionRowArchived(page, archived.title);
   });
@@ -262,12 +262,7 @@ test.describe("Archive tab reconciliation", () => {
     await openReopenDialog(page);
     await expectReopenFailure(page);
     expect(gate.getClientRequestCount("fetch_agent_history_request")).toBe(0);
-    gate.restore();
-    await expectReconnectingToastGone(page);
-    await page
-      .getByTestId("reopen-closed-agent-error")
-      .getByRole("button", { name: "Retry", exact: true })
-      .click();
+    await restoreReopenHost(page, gate);
     await expectSessionRowArchived(page, archived.title);
     await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
   });
@@ -315,12 +310,7 @@ test.describe("Archive tab reconciliation", () => {
     await expectReopenFailure(page);
     await expect(page).toHaveURL(new RegExp(`/workspace/${scopedWorkspaceId}`));
     gate.discardHeldClientRequest();
-    gate.restore();
-    await expectReconnectingToastGone(page);
-    await page
-      .getByTestId("reopen-closed-agent-error")
-      .getByRole("button", { name: "Retry", exact: true })
-      .click();
+    await restoreReopenHost(page, gate);
     await expectSessionRowArchived(page, archived.title);
     await expect(page.getByTestId("reopen-closed-agent-error")).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`/workspace/${scopedWorkspaceId}`));

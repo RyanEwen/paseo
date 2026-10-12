@@ -596,7 +596,9 @@ export async function installDaemonWebSocketGate(page: Page) {
       activeSockets.clear();
       await Promise.all(
         sockets.map((ws) =>
-          ws.close({ code: 1008, reason: "Dropped by reconnect test." }).catch(() => undefined),
+          // Playwright forwards this close to a native browser WebSocket. Code 1008
+          // is rejected by WebSocket.close(), leaving the daemon-side socket alive.
+          ws.close({ code: 4000, reason: "Dropped by reconnect test." }).catch(() => undefined),
         ),
       );
     },
