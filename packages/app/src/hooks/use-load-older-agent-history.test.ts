@@ -190,3 +190,31 @@ describe("loadOlderAgentHistory", () => {
     expect(inFlight.values).toEqual([false, true, false]);
   });
 });
+
+it("suppresses a cancelled page's late failure and clears its in-flight flag", async () => {
+  let reject!: (error: Error) => void;
+  const response = new Promise<void>((_resolve, fail) => {
+    reject = fail;
+  });
+  const client = createClient(() => response);
+  const inFlight = createInFlight();
+  const toast = createToast();
+  const logger = createLogger();
+  const controller = new AbortController();
+  const pending = loadOlderAgentHistory("agent", {
+    client,
+    cursor: { epoch: "epoch", startSeq: 1, endSeq: 3 },
+    hasOlder: true,
+    isLoadingOlder: false,
+    setInFlight: inFlight.setInFlight,
+    toast,
+    logger,
+    acceptance: { signal: controller.signal },
+  });
+  controller.abort();
+  reject(new Error("cancelled late failure"));
+  expect(await pending).toBe(false);
+  expect(toast.shown).toEqual([]);
+  expect(logger.warnings).toEqual([]);
+  expect(inFlight.values).toEqual([false, true, false]);
+});

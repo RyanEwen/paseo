@@ -22,6 +22,7 @@ interface PendingPromptJump {
   seq: number;
   fetchSettled: boolean;
   hasScrolled: boolean;
+  scroll: boolean;
 }
 
 export interface UseChatOutlineInput {
@@ -40,7 +41,7 @@ export interface UseChatOutlineInput {
 export interface ChatOutline {
   prompts: ChatOutlinePrompt[];
   activePrompt: ActivePromptSource;
-  jumpToPrompt: (seq: number) => void;
+  jumpToPrompt: (seq: number, options?: { scroll?: boolean }) => void;
   jumpToMessage: (id: string) => void;
   reportReadingPosition: (seq: number | null) => void;
   isJumping: boolean;
@@ -48,6 +49,8 @@ export interface ChatOutline {
   indexReady: boolean;
   indexError: boolean;
   retryIndex: () => void;
+  cancelJump: () => void;
+  reportJumpError: () => void;
 }
 
 export function useChatOutline({
@@ -74,6 +77,8 @@ export function useChatOutline({
   const [pendingJump, setPendingJump] = useState<PendingPromptJump | null>(null);
   const [activePrompt] = useState(createActivePromptPublisher);
   const readingSeqRef = useRef<number | null>(null);
+  const jumpAcceptanceRef = useRef<AbortController | null>(null);
+  const jumpFrameRef = useRef<number | null>(null);
   const nextJumpRequestIdRef = useRef(0);
   const nextIndexRequestIdRef = useRef(0);
   const loadedItems = useMemo(() => [...tail, ...(head ?? NO_STREAM_ITEMS)], [head, tail]);
@@ -141,14 +146,25 @@ export function useChatOutline({
     publishActivePrompt();
   });
 
-  useEffect(() => {
+  /** Invalidate only this navigation intent, including its page acceptance and delayed scroll. */
+  const cancelJump = useStableEvent(() => {
     nextJumpRequestIdRef.current += 1;
+    jumpAcceptanceRef.current?.abort();
+    jumpAcceptanceRef.current = null;
+    if (jumpFrameRef.current !== null) cancelAnimationFrame(jumpFrameRef.current);
+    jumpFrameRef.current = null;
+    viewportRef.current?.cancelMessageScroll?.();
     setPendingJump(null);
     setJumpError(false);
+  });
+
+  useEffect(() => {
+    cancelJump();
     setIndexError(false);
     readingSeqRef.current = null;
     activePrompt.publish(null);
-  }, [activePrompt, agentId, serverId, timelineEpoch]);
+    return cancelJump;
+  }, [activePrompt, cancelJump, agentId, serverId, timelineEpoch]);
 
   // The transcript reports its reading position long before the index arrives, and a reader
   // who never scrolls would otherwise sit on an unmarked rail.
@@ -157,21 +173,23 @@ export function useChatOutline({
   }, [prompts, publishActivePrompt]);
 
   useEffect(() => {
-    if (pendingJump === null || pendingJump.owner !== ownerKey) return;
+    if (
+      pendingJump === null ||
+      pendingJump.owner !== ownerKey ||
+      pendingJump.requestId !== nextJumpRequestIdRef.current
+    )
+      return;
     const target = loadedItems.find((item) => item.timelineCursor?.seq === pendingJump.seq);
     if (target) {
       if (pendingJump.hasScrolled) {
-        if (pendingJump.fetchSettled) {
-          setJumpError(true);
-          setPendingJump(null);
-        }
+        if (pendingJump.fetchSettled) setPendingJump(null);
         return;
       }
-      if (visibleMessageIds?.has(target.id) === false) {
+      if (pendingJump.scroll && visibleMessageIds?.has(target.id) === false) {
         revealLoadedMessage?.(target.id);
         return;
       }
-      viewportRef.current?.scrollToMessage?.(target.id);
+      if (pendingJump.scroll) viewportRef.current?.scrollToMessage?.(target.id);
       setPendingJump((current) => {
         if (current?.requestId !== pendingJump.requestId) return current;
         return { ...current, hasScrolled: true };
@@ -185,13 +203,12 @@ export function useChatOutline({
   }, [loadedItems, ownerKey, pendingJump, revealLoadedMessage, viewportRef, visibleMessageIds]);
 
   const jumpToPrompt = useCallback(
-    (seq: number) => {
-      nextJumpRequestIdRef.current += 1;
-      setJumpError(false);
-      setPendingJump(null);
+    (seq: number, options?: { scroll?: boolean }) => {
+      const scroll = options?.scroll !== false;
+      cancelJump();
       const loaded = loadedItems.find((item) => item.timelineCursor?.seq === seq);
       if (loaded) {
-        if (revealLoadedMessage?.(loaded.id)) {
+        if (scroll && revealLoadedMessage?.(loaded.id)) {
           const requestId = nextJumpRequestIdRef.current;
           setPendingJump({
             owner: ownerKey,
@@ -199,20 +216,35 @@ export function useChatOutline({
             seq,
             fetchSettled: true,
             hasScrolled: false,
+            scroll,
           });
           return;
         }
-        viewportRef.current?.scrollToMessage?.(loaded.id);
+        if (scroll) viewportRef.current?.scrollToMessage?.(loaded.id);
         return;
       }
       if (!index) return;
       const requestId = nextJumpRequestIdRef.current;
-      setPendingJump({ owner: ownerKey, requestId, seq, fetchSettled: false, hasScrolled: false });
+      const acceptance = new AbortController();
+      jumpAcceptanceRef.current = acceptance;
+      setPendingJump({
+        owner: ownerKey,
+        requestId,
+        seq,
+        fetchSettled: false,
+        hasScrolled: false,
+        scroll,
+      });
       void getHostRuntimeStore()
-        .fetchAgentTimeline(serverId, agentId, planTimelinePromptJump({ epoch: index.epoch, seq }))
+        .fetchAgentTimeline(
+          serverId,
+          agentId,
+          planTimelinePromptJump({ epoch: index.epoch, seq }),
+          { signal: acceptance.signal },
+        )
         .catch((error: unknown) => {
-          console.warn("Failed to load a Chat outline window", error);
           if (requestId === nextJumpRequestIdRef.current) {
+            console.warn("Failed to load a Chat outline window", error);
             setJumpError(true);
             onJumpError();
           }
@@ -226,6 +258,7 @@ export function useChatOutline({
     },
     [
       agentId,
+      cancelJump,
       index,
       loadedItems,
       onJumpError,
@@ -243,12 +276,24 @@ export function useChatOutline({
       jumpToPrompt(item.timelineCursor.seq);
       return;
     }
+    cancelJump();
+    const requestId = nextJumpRequestIdRef.current;
     revealLoadedMessage?.(id);
-    requestAnimationFrame(() => viewportRef.current?.scrollToMessage?.(id));
+    jumpFrameRef.current = requestAnimationFrame(() => {
+      jumpFrameRef.current = null;
+      if (requestId === nextJumpRequestIdRef.current) viewportRef.current?.scrollToMessage?.(id);
+    });
+  });
+
+  const reportJumpError = useStableEvent(() => {
+    setJumpError(true);
+    onJumpError();
   });
 
   return {
+    reportJumpError,
     jumpToMessage,
+    cancelJump,
     prompts,
     activePrompt,
     jumpToPrompt,

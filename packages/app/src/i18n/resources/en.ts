@@ -237,6 +237,10 @@ export const en = {
     },
   },
   stickyPrompt: {
+    none: "No user messages in this chat.",
+    cancelled: "Loading cancelled.",
+    moreHistory: "More history is available. Retry to continue looking.",
+
     latest: "Latest user message",
     selected: "User message",
     expand: "Expand user message",

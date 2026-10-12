@@ -245,6 +245,10 @@ export const fr: TranslationResources = {
     },
   },
   stickyPrompt: {
+    none: "Aucun message utilisateur dans cette conversation.",
+    cancelled: "Chargement annulé.",
+    moreHistory: "Un historique plus ancien est disponible. Réessayez pour continuer la recherche.",
+
     latest: "Dernier message utilisateur",
     selected: "Message utilisateur",
     expand: "Développer le message utilisateur",

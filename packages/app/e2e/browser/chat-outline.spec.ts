@@ -1,6 +1,8 @@
+import type { Page } from "@playwright/test";
+import { seedMockAgentWorkspace } from "../support/helpers/mock-agent";
 import { expect, test } from "../support/fixtures";
 import { expectNearBottom } from "../support/helpers/agent-bottom-anchor";
-import { fillComposerDraft, expectComposerDraft } from "../support/helpers/composer";
+import { fillComposerDraft, expectComposerDraft, submitMessage } from "../support/helpers/composer";
 import { installDaemonWebSocketGate } from "../support/helpers/daemon-websocket-gate";
 import { trackPromptJumpRequests } from "../support/helpers/agent-timeline-gate";
 import {
@@ -38,6 +40,7 @@ import {
   scrollThroughOlderHistoryPages,
   scrollTimelineToNewestLoadedEdge,
   seedLongMockAgentTimeline,
+  scrollTimelinePastPrompt,
   type LongTimelineAgent,
 } from "../support/helpers/timeline-pagination";
 
@@ -303,18 +306,38 @@ for (const viewport of [
       const sticky = page.getByTestId("sticky-user-message");
       const previous = sticky.getByTestId("sticky-user-message-previous");
       const next = sticky.getByTestId("sticky-user-message-next");
-      await expect(sticky).toContainText(agent.newestPrompt);
-      await expect(next).toBeDisabled();
+      await expectTimelinePromptVisible(page, agent.newestPrompt);
+      await expect(sticky).toHaveCount(0);
+      const newestBubble = page
+        .getByTestId("agent-chat-scroll")
+        .getByTestId("user-message")
+        .filter({ hasText: agent.newestPrompt });
+      await expect(newestBubble.getByTestId("user-message-next")).toBeDisabled();
       for (let index = agent.prompts.length - 2; index >= 0; index -= 1) {
-        await expect(previous).toBeEnabled();
-        await previous.click();
-        await expect(sticky).toContainText(agent.prompts[index]);
+        const original = page
+          .getByTestId("agent-chat-scroll")
+          .getByTestId("user-message")
+          .filter({ hasText: agent.prompts[index + 1]! });
+        if (await sticky.count()) await previous.click();
+        else await original.getByTestId("user-message-previous").click();
+        const target = page
+          .getByTestId("agent-chat-scroll")
+          .getByTestId("user-message")
+          .filter({ hasText: agent.prompts[index]! });
+        await expect(target).toBeInViewport();
+        await expect(sticky).toHaveCount(0);
+        // The newest turns cannot always align at the top because the viewport clamps.
+        // Older turns leave enough later content to scroll their original bubble offscreen.
+        if (index < agent.prompts.length - 8) {
+          await expectTimelinePromptLandedBelowTop(page, agent.prompts[index]!);
+          await scrollTimelinePastPrompt(page, agent.prompts[index]!);
+        }
       }
       await expect(previous).toBeDisabled();
-      await expectTimelinePromptVisible(page, agent.oldestPrompt);
       await next.click();
-      await expect(sticky).toContainText(agent.prompts[1]);
-      const longPrompt = `Long sticky prompt\n${"  Preserve this line and whitespace.\n".repeat(60)}END OF STICKY PROMPT`;
+      await expectTimelinePromptLandedBelowTop(page, agent.prompts[1]!);
+      await scrollTimelinePastPrompt(page, agent.prompts[1]!);
+      const longPrompt = `Long sticky prompt\n${"  Preserve this line and whitespace.\n".repeat(60)}END OF STICKY PROMPT: emit 85 assistant messages before synthetic user message`;
       await agent.client.sendAgentMessage(agent.agentId, longPrompt);
       await agent.client.waitForFinish(agent.agentId, 15_000);
       await expect(sticky).toContainText(agent.prompts[1]);
@@ -346,7 +369,9 @@ for (const viewport of [
       await expect
         .poll(() =>
           sticky.evaluate((element) => {
-            const paneHeight = element.parentElement!.getBoundingClientRect().height;
+            const paneHeight = element
+              .closest('[data-testid="sticky-prompt-timeline"]')!
+              .getBoundingClientRect().height;
             return element.getBoundingClientRect().height / paneHeight;
           }),
         )
@@ -371,19 +396,173 @@ test("sticky user message exposes index loading and a retryable failure", async 
     gate.holdNextServerMessage("agent.timeline.list_prompts.response");
     await openAgentTimeline(page, agent);
     const sticky = page.getByTestId("sticky-user-message");
-    await expect(sticky).toContainText(agent.newestPrompt);
     await gate.waitForHeldServerMessage("agent.timeline.list_prompts.response");
-    await expect(
-      sticky.getByRole("button", { name: "Previous user message", exact: true }),
-    ).toBeDisabled();
+    await expect(sticky.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
     gate.releaseHeldServerMessage("agent.timeline.list_prompts.response");
     await expect(sticky.getByRole("alert")).toHaveText("Could not load user messages.");
     gate.allowPromptIndexResponses();
     await sticky.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(sticky.getByRole("alert")).toHaveCount(0);
-    await sticky.getByRole("button", { name: "Previous user message", exact: true }).click();
-    await expect(sticky).toContainText(agent.oldestPrompt);
+    await expect(sticky).toHaveCount(0);
+    await page
+      .getByTestId("agent-chat-scroll")
+      .getByTestId("user-message")
+      .filter({ hasText: agent.newestPrompt })
+      .getByTestId("user-message-previous")
+      .click();
+    await expect(
+      page
+        .getByTestId("agent-chat-scroll")
+        .getByTestId("user-message")
+        .filter({ hasText: agent.oldestPrompt }),
+    ).toBeInViewport();
   } finally {
     await agent.cleanup();
   }
 });
+
+/** Observe delivery at the client, beyond the server gate's held-arrival acknowledgement. */
+async function observeDeliveredTimelinePages(page: Page) {
+  await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
+    const state = window as unknown as { stickyTimelineResponses: number };
+    state.stickyTimelineResponses = 0;
+    window.WebSocket = class extends NativeWebSocket {
+      constructor(url: string | URL, protocols?: string | string[]) {
+        super(url, protocols);
+        this.addEventListener("message", (event) => {
+          try {
+            const envelope = JSON.parse(event.data);
+            if ((envelope.message ?? envelope).type === "fetch_agent_timeline_response")
+              state.stickyTimelineResponses += 1;
+          } catch {
+            /* Binary transport frames are unrelated. */
+          }
+        });
+      }
+    };
+  });
+  return {
+    count: () =>
+      page.evaluate(
+        () => (window as unknown as { stickyTimelineResponses: number }).stickyTimelineResponses,
+      ),
+    async waitFor(count: number) {
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              (window as unknown as { stickyTimelineResponses: number }).stickyTimelineResponses,
+          ),
+        )
+        .toBeGreaterThanOrEqual(count);
+    },
+  };
+}
+
+test("sticky cancelled older window stays at latest after bottom", async ({ page }) => {
+  test.setTimeout(120_000);
+  const agent = await seedLongMockAgentTimeline({ turns: 30 });
+  const gate = await installDaemonWebSocketGate(page);
+  const delivered = await observeDeliveredTimelinePages(page);
+  try {
+    await page.setViewportSize(WIDE_VIEWPORT);
+    await openAgentTimeline(page, agent);
+    await expectChatOutlinePrompts(page, 30);
+    await chatOutlineRail(page).getByRole("tab").nth(22).click();
+    await expectTimelinePromptLandedBelowTop(page, agent.prompts[22]!);
+    gate.holdNextServerMessage("fetch_agent_timeline_response");
+    await chatOutlineRail(page).getByRole("tab").first().click();
+    await gate.waitForHeldServerMessage("fetch_agent_timeline_response");
+    await page.getByTestId("scroll-to-bottom-button").click();
+    await expectNearBottom(page);
+    const before = await delivered.count();
+    gate.releaseHeldServerMessage("fetch_agent_timeline_response");
+    await delivered.waitFor(before + 1);
+    await expectNearBottom(page);
+    await expectTimelinePromptVisible(page, agent.newestPrompt);
+    await expect(page.getByTestId("sticky-user-message")).toHaveCount(0);
+  } finally {
+    await agent.cleanup();
+  }
+});
+
+test("sticky composer submission cancels a held older window", async ({ page }) => {
+  test.setTimeout(180_000);
+  const agent = await seedLongMockAgentTimeline({ turns: 30 });
+  const gate = await installDaemonWebSocketGate(page);
+  const delivered = await observeDeliveredTimelinePages(page);
+  try {
+    await page.setViewportSize(WIDE_VIEWPORT);
+    await openAgentTimeline(page, agent);
+    await expectChatOutlinePrompts(page, 30);
+    await chatOutlineRail(page).getByRole("tab").nth(22).click();
+    await expectTimelinePromptLandedBelowTop(page, agent.prompts[22]!);
+    gate.holdNextServerMessage("fetch_agent_timeline_response");
+    await chatOutlineRail(page).getByRole("tab").first().click();
+    await gate.waitForHeldServerMessage("fetch_agent_timeline_response");
+    const sent = "Composer returns to latest: emit 1 coalesced agent stream updates";
+    await submitMessage(page, sent);
+    await expectNearBottom(page);
+    const before = await delivered.count();
+    gate.releaseHeldServerMessage("fetch_agent_timeline_response");
+    await delivered.waitFor(before + 1);
+    await agent.client.waitForFinish(agent.agentId, 15_000);
+    await expectNearBottom(page);
+    await expectTimelinePromptVisible(page, sent);
+    await expect(page.getByTestId("sticky-user-message").getByRole("alert")).toHaveCount(0);
+  } finally {
+    await agent.cleanup();
+  }
+});
+
+for (const indexed of [true, false]) {
+  test(`sticky initial assistant-only pages expose loading, failure and retry (indexed: ${indexed})`, async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const agent = await seedMockAgentWorkspace({
+      repoPrefix: "sticky-discovery-",
+      title: "Sticky discovery",
+    });
+    const gate = await installDaemonWebSocketGate(page);
+    const prompt = "emit 85 assistant messages before synthetic user message";
+    try {
+      await agent.client.sendAgentMessage(agent.agentId, prompt);
+      await agent.client.waitForFinish(agent.agentId, 15_000);
+      if (indexed) gate.failPromptIndexResponses(agent.agentId);
+      else {
+        gate.stripPromptIndex();
+        gate.failTimelineResponses(agent.agentId, "before");
+      }
+      gate.holdNextServerMessage(
+        indexed ? "agent.timeline.list_prompts.response" : "fetch_agent_timeline_response",
+      );
+      await page.setViewportSize(WIDE_VIEWPORT);
+      await openAgentTimeline(page, agent);
+      // Indexed discovery holds the index. Index-free discovery must allow bootstrap
+      // before holding/failing the older page, so its first held tail is released here.
+      await gate.waitForHeldServerMessage(
+        indexed ? "agent.timeline.list_prompts.response" : "fetch_agent_timeline_response",
+      );
+      if (!indexed) gate.releaseHeldServerMessage("fetch_agent_timeline_response");
+      const sticky = page.getByTestId("sticky-user-message");
+      if (indexed) {
+        await expect(sticky.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+        gate.releaseHeldServerMessage("agent.timeline.list_prompts.response");
+      }
+      await expect(sticky.getByRole("alert")).toHaveText("Could not load user messages.");
+      gate.allowPromptIndexResponses();
+      gate.allowTimelineResponses();
+      await sticky.getByRole("button", { name: "Retry", exact: true }).click();
+      await expect(sticky).toContainText(prompt);
+      await expect(sticky.getByRole("alert")).toHaveCount(0);
+      await expectNearBottom(page);
+      await page.screenshot({
+        path: `../../docs/qa-evidence/sticky-user-message/discovery-${indexed ? "indexed" : "pagination"}.png`,
+      });
+    } finally {
+      await agent.cleanup();
+    }
+  });
+}

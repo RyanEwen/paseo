@@ -7,8 +7,9 @@ Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental 
 sender names on agent messages and notifications, recovery after a first prompt fails, and fixes
 for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
-- **Keep user prompts in view:** A compact prompt stays at the top of chat. Expand it to read
-  the full message and attachments, and use the arrows to revisit earlier or later prompts.
+- **Keep user prompts in view:** A prompt stays at the top after its original bubble scrolls
+  out of view. Scrolling updates the prompt you are reading, and arrows move smoothly between
+  user messages. Expand the compact copy to read the full message and attachments.
 - **Reopen closed agents:** Find archived conversations and agents with closed tabs in a dialog from
   the workspace + menu. Open the same conversation, then choose Unarchive when you want to resume it.
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including

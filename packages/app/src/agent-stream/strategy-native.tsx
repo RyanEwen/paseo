@@ -1,12 +1,4 @@
-import {
-  Fragment,
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -16,11 +8,18 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type ViewStyle,
+  type ViewToken,
 } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { withUnistyles } from "react-native-unistyles";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { StreamItem } from "@/types/stream";
 import type { Theme } from "@/styles/theme";
+import {
+  resolveNativeReadingPosition,
+  resolveNativeLivePromptOffset,
+} from "./native-reading-position";
+import { createNativePromptJumpController } from "./native-prompt-jump";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { useKeyboardStreamInset } from "@/keyboard/shift";
 import { useRevisedHistoryRows } from "./history-row-revision";
@@ -71,12 +70,12 @@ function MeasuredLiveRow({
   children,
 }: {
   id: string;
-  onMeasure: (id: string, offset: number) => void;
+  onMeasure: (id: string, offset: number, height: number) => void;
   children: React.ReactNode;
 }) {
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
-      onMeasure(id, event.nativeEvent.layout.y);
+      onMeasure(id, event.nativeEvent.layout.y, event.nativeEvent.layout.height);
     },
     [id, onMeasure],
   );
@@ -110,10 +109,14 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     strategy,
   } = props;
   const { renderHistoryMountedRow, renderLiveHeadRow, renderLiveAuxiliary } = renderers;
+  const reducedMotion = useReducedMotion();
   const flatListRef = useRef<FlatList<StreamItem>>(null);
-  const promptJumpIdRef = useRef<string | null>(null);
-  const promptJumpRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveHeaderHeightRef = useRef<number | null>(null);
   const livePromptOffsetsRef = useRef(new Map<string, number>());
+  const liveGeometryRef = useRef(new Map<string, { y: number; height: number }>());
+  const visibleHistoryRef = useRef<ViewToken<StreamItem>[]>([]);
+  const navigatingPromptRef = useRef(false);
+  const promptSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const streamViewportMetricsRef = useRef({
     containerKey: "native-virtualized",
@@ -355,33 +358,101 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     bottomAnchorController.prepareForStickyContentChange();
   }, [bottomAnchorController, historyRows, segments.liveHead]);
 
-  const cancelPromptJump = useCallback(() => {
-    promptJumpIdRef.current = null;
-    if (promptJumpRetryRef.current !== null) {
-      clearTimeout(promptJumpRetryRef.current);
-      promptJumpRetryRef.current = null;
-    }
-  }, []);
+  const findHistoryPromptIndex = useStableEvent((id: string) =>
+    historyItems.findIndex((item) => item.id === id),
+  );
+  const reportPromptFailure = useStableEvent(() => props.onMessageNavigationError?.());
+  const promptJumpController = useMemo(
+    () =>
+      createNativePromptJumpController({
+        viewport: {
+          findHistoryIndex: findHistoryPromptIndex,
+          findLiveOffset: (id) => {
+            const y = livePromptOffsetsRef.current.get(id);
+            const header = liveHeaderHeightRef.current;
+            if (y === undefined || header === null) return undefined;
+            return resolveNativeLivePromptOffset(
+              header,
+              streamViewportMetricsRef.current.viewportHeight,
+              y,
+            );
+          },
+          getLiveHeaderHeight: () => liveHeaderHeightRef.current,
+          scrollToIndex: (index) =>
+            flatListRef.current?.scrollToIndex({
+              index,
+              animated: !reducedMotion,
+              viewPosition: 1,
+            }),
+          scrollToOffset: (offset, animated) =>
+            flatListRef.current?.scrollToOffset({ offset, animated: animated && !reducedMotion }),
+        },
+        scheduleRetry: (callback) => {
+          const timer = setTimeout(callback, 100);
+          return () => clearTimeout(timer);
+        },
+        now: () => performance.now(),
+        onFailure: reportPromptFailure,
+      }),
+    [findHistoryPromptIndex, reportPromptFailure, reducedMotion],
+  );
+  const reportReadingPosition = useStableEvent(() => {
+    const metrics = streamViewportMetricsRef.current;
+    const { rowId, visibleUserIds } = resolveNativeReadingPosition({
+      visibleHistory: visibleHistoryRef.current,
+      liveHead: segments.liveHead,
+      liveGeometry: liveGeometryRef.current,
+      headerHeight: liveHeaderHeightRef.current,
+      viewportHeight: metrics.viewportHeight,
+      offsetY: metrics.offsetY,
+    });
+    props.onReadingPositionChange?.({
+      rowId,
+      visibleUserIds,
+      navigating: navigatingPromptRef.current,
+      following: bottomAnchorController.mode === "sticky-bottom",
+      manual: isUserScrollActiveRef.current,
+    });
+  });
+  const finishPromptAnimation = useStableEvent(() => {
+    if (promptSettleTimerRef.current !== null) clearTimeout(promptSettleTimerRef.current);
+    promptSettleTimerRef.current = null;
+    navigatingPromptRef.current = false;
+    reportReadingPosition();
+  });
+  const schedulePromptSettle = useStableEvent((delay: number) => {
+    if (promptSettleTimerRef.current !== null) clearTimeout(promptSettleTimerRef.current);
+    promptSettleTimerRef.current = setTimeout(() => {
+      if (promptJumpController.isActive()) schedulePromptSettle(120);
+      else finishPromptAnimation();
+    }, delay);
+  });
+  const cancelPromptJump = useStableEvent(() => {
+    promptJumpController.cancel();
+    finishPromptAnimation();
+  });
+  const handleViewableItemsChanged = useStableEvent(
+    ({ viewableItems }: { viewableItems: ViewToken<StreamItem>[] }) => {
+      visibleHistoryRef.current = viewableItems;
+      reportReadingPosition();
+    },
+  );
+  const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 0 }), []);
 
-  /** Scroll by identity after the mounted window has exposed the target row. */
+  /** Detach once for a new intent; controller retries preserve the same target and budget. */
   const scrollToPrompt = useStableEvent((messageId: string) => {
-    cancelPromptJump();
     bottomAnchorController.detachByUser();
-    promptJumpIdRef.current = messageId;
-    const index = historyItems.findIndex((item) => item.id === messageId);
-    if (index >= 0) {
-      flatListRef.current?.scrollToIndex({ index, animated: false, viewPosition: 1 });
-      return;
-    }
-    const offset = livePromptOffsetsRef.current.get(messageId);
-    if (offset !== undefined) {
-      flatListRef.current?.scrollToOffset({ offset, animated: false });
-    }
+    navigatingPromptRef.current = true;
+    promptJumpController.start(messageId);
+    schedulePromptSettle(450);
   });
 
   useEffect(() => {
     cancelPromptJump();
     livePromptOffsetsRef.current.clear();
+    liveGeometryRef.current.clear();
+    visibleHistoryRef.current = [];
+    liveHeaderHeightRef.current = null;
     return cancelPromptJump;
   }, [agentId, cancelPromptJump]);
 
@@ -395,6 +466,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
         });
       },
       scrollToMessage: scrollToPrompt,
+      cancelMessageScroll: cancelPromptJump,
       prepareForViewportChange: () => {
         bottomAnchorController.prepareForStickyViewportChange();
         markNativeViewportSettling();
@@ -444,6 +516,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       contentMeasuredForKey: "native-virtualized",
     };
 
+    reportReadingPosition();
+    if (navigatingPromptRef.current) schedulePromptSettle(120);
     const nearBottom = isScrollEventNearBottom(event);
     onNearBottomChange(nearBottom);
 
@@ -468,6 +542,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     cancelPromptJump();
     clearPendingUserScrollEnd();
     isUserScrollActiveRef.current = true;
+    reportReadingPosition();
     scrollKeyboardDismiss.onScrollBeginDrag(event);
     bottomAnchorController.beginUserScroll();
     const rearmed = rearmHistoryStartPagination(historyStartPaginationStateRef.current);
@@ -569,17 +644,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     scheduleHistoryStartSettle,
   ]);
 
-  const handleScrollToIndexFailed = useStableEvent(
-    ({ averageItemLength, index }: { averageItemLength: number; index: number }) => {
-      // Variable-height rows must be mounted before FlatList can address them exactly.
-      flatListRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
-      if (promptJumpRetryRef.current !== null) clearTimeout(promptJumpRetryRef.current);
-      promptJumpRetryRef.current = setTimeout(() => {
-        const id = promptJumpIdRef.current;
-        if (id) scrollToPrompt(id);
-      }, 100);
-    },
-  );
+  const handleScrollToIndexFailed = promptJumpController.handleIndexFailure;
 
   const renderItem = useStableEvent(
     ({ item, index }: ListRenderItemInfo<StreamItem>): ReactElement | null => {
@@ -588,16 +653,25 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     },
   );
 
-  const recordLivePromptOffset = useStableEvent((id: string, offset: number) => {
+  const recordLivePromptOffset = useStableEvent((id: string, offset: number, height: number) => {
     livePromptOffsetsRef.current.set(id, offset);
+    liveGeometryRef.current.set(id, { y: offset, height });
+    reportReadingPosition();
   });
   useEffect(() => {
     const liveIds = new Set(segments.liveHead.map((item) => item.id));
     for (const id of livePromptOffsetsRef.current.keys()) {
-      if (!liveIds.has(id)) livePromptOffsetsRef.current.delete(id);
+      if (!liveIds.has(id)) {
+        livePromptOffsetsRef.current.delete(id);
+        liveGeometryRef.current.delete(id);
+      }
     }
   }, [segments.liveHead]);
 
+  const recordLiveHeaderHeight = useStableEvent((event: LayoutChangeEvent) => {
+    liveHeaderHeightRef.current = event.nativeEvent.layout.height;
+    reportReadingPosition();
+  });
   const liveHeaderContent = useMemo(() => {
     // Stable render events read the latest expansion state; this revision makes
     // the memo invoke them again when that state changes.
@@ -617,10 +691,10 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       return (listEmptyComponent ?? null) as ReactElement | null;
     }
     return (
-      <Fragment>
+      <View onLayout={recordLiveHeaderHeight}>
         {liveHeadRows}
         {liveAuxiliary}
-      </Fragment>
+      </View>
     );
   }, [
     boundary,
@@ -630,6 +704,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     renderLiveHeadRow,
     segments.liveHead,
     recordLivePromptOffset,
+    recordLiveHeaderHeight,
   ]);
 
   const historyFooterContent = useMemo(() => {
@@ -671,6 +746,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       onContentSizeChange={handleContentSizeChange}
       maintainVisibleContentPosition={maintainVisibleContentPosition}
       onScrollToIndexFailed={handleScrollToIndexFailed}
+      onViewableItemsChanged={handleViewableItemsChanged}
+      viewabilityConfig={viewabilityConfig}
       initialNumToRender={12}
       windowSize={10}
       removeClippedSubviews={false}

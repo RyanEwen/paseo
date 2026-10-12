@@ -66,14 +66,30 @@ is exhausted.
 ## Prompt navigation
 
 The Chat outline and sticky user-message surface share the viewed timeline's prompt index and
-window loading. Keep navigation inside that owner: a prompt may be indexed without belonging to
-the loaded window, and a loaded row may still sit outside the mounted presentation window.
-Child transcripts use their own history pagination rather than the parent agent's index.
+window loading. Keep scrolling inside that owner: an indexed prompt may sit outside the loaded
+window, and a loaded row may sit outside the mounted presentation window. Resolve presentation
+rows to authoritative timeline positions before selecting prompts; Markdown blocks and plugin
+cards do not share the canonical row IDs. Child transcripts use their own history pagination.
 
-Reviewing an earlier prompt keeps the sticky selection stable during incoming messages. Returning
-to the latest prompt, sending from the composer, or pressing Jump to bottom resumes following
-new user messages. Retained panes
-keep their own selection; a new session or timeline epoch starts at the latest prompt.
+Keep the original user bubble in the transcript. Its compact copy appears after the bubble leaves
+the viewport, within the same content rail. The copy overlays the viewport so its visibility does
+not shift the reading position. Manual scrolling selects the prompt for the response at the
+reading edge. Arrow navigation retains its selected prompt through the smooth scroll, including
+landings clamped by the end of the conversation. Bottom-following intent starts at the latest
+prompt and resumes when you send or use Jump to bottom. Incoming messages do not move an older
+reading selection. Retained panes keep their own selection; session and epoch changes isolate it.
+
+A content-only read can recover the indexed prompt for an already-visible response without
+applying a transcript window. Index-free history may begin with several pages containing no user
+prompt. Discovery must use the pagination owner, check cursor progress, and stop with usable
+feedback on exhaustion, failure, cancellation, or its work budget. An explicit retry can continue
+past the budget.
+
+Cancel obsolete navigation at the window-acceptance boundary as well as the scroll boundary.
+Returning to bottom, sending, or starting manual reading must invalidate delayed page application,
+errors, and animation callbacks without cancelling unrelated shared reads or weakening epoch and
+request fences. Native index recovery must include the measured live-header extent in its estimate
+and retain a bounded progress budget across retries.
 
 ## Durable item anchors
 

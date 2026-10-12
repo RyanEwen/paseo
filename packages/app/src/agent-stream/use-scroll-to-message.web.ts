@@ -1,6 +1,7 @@
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { Virtualizer } from "@tanstack/react-virtual";
+import { useStableEvent } from "@/hooks/use-stable-event";
 import type { StreamItem } from "@/types/stream";
 import { getStreamItemMessageId } from "./presentation";
 import { createPromptJumpSettleController, PROMPT_JUMP_TOP_INSET_PX } from "./prompt-jump-settle";
@@ -14,6 +15,8 @@ interface UseScrollToMessageInput {
   cancelPendingStickToBottom: () => void;
   setFollowOutput: (value: boolean) => boolean;
   onNearBottomChange: (value: boolean) => void;
+  onSettled: () => void;
+  onStarted: () => void;
 }
 
 const SCROLL_AFFECTING_KEYS = new Set([
@@ -34,9 +37,26 @@ export function useScrollToMessage({
   cancelPendingStickToBottom,
   setFollowOutput,
   onNearBottomChange,
+  onSettled,
+  onStarted,
 }: UseScrollToMessageInput) {
   const occurrenceRef = useRef<ScrollToMessageOccurrence | undefined>(undefined);
   const removeAbortListener = useRef<(() => void) | null>(null);
+  const settled = useStableEvent(onSettled);
+  const started = useStableEvent(onStarted);
+  const estimateTargetTop = useStableEvent((messageId: string): number | null => {
+    const container = scrollContainerRef.current;
+    const index = historyVirtualized.findIndex(
+      (item) => getStreamItemMessageId(item) === messageId,
+    );
+    const offset = index >= 0 ? rowVirtualizer.getOffsetForIndex(index, "start")?.[0] : undefined;
+    return container && offset !== undefined
+      ? container.getBoundingClientRect().top +
+          offset -
+          container.scrollTop +
+          PROMPT_JUMP_TOP_INSET_PX
+      : null;
+  });
   const settleController = useMemo(
     () =>
       createPromptJumpSettleController({
@@ -50,7 +70,7 @@ export function useScrollToMessage({
             const target = scrollContainerRef.current?.querySelector<HTMLElement>(
               `[data-message-id="${CSS.escape(messageId)}"]`,
             );
-            return target ? target.getBoundingClientRect().top : null;
+            return target ? target.getBoundingClientRect().top : estimateTargetTop(messageId);
           },
           getContainerTop() {
             return scrollContainerRef.current?.getBoundingClientRect().top ?? 0;
@@ -85,8 +105,9 @@ export function useScrollToMessage({
         },
         requestFrame: (callback) => window.requestAnimationFrame(callback),
         cancelFrame: (frameId) => window.cancelAnimationFrame(frameId),
+        onFinished: settled,
       }),
-    [scrollContainerRef],
+    [scrollContainerRef, estimateTargetTop, settled],
   );
 
   useEffect(
@@ -115,42 +136,32 @@ export function useScrollToMessage({
       cancelPendingStickToBottom();
       setFollowOutput(false);
 
-      const mounted = container.querySelector<HTMLElement>(
-        `[data-message-id="${CSS.escape(messageId)}"]`,
-      );
-      if (mounted) {
-        const delta =
-          mounted.getBoundingClientRect().top -
-          container.getBoundingClientRect().top -
-          PROMPT_JUMP_TOP_INSET_PX;
-        container.scrollTop += delta;
-        settleController.start(messageId);
-        onNearBottomChange(false);
-        return;
-      }
-
-      const index = historyVirtualized.findIndex(
-        (item) => getStreamItemMessageId(item) === messageId,
-      );
-      if (index >= 0) {
-        rowVirtualizer.scrollToIndex(index, { align: "start" });
-        settleController.start(messageId);
-        onNearBottomChange(false);
-      }
+      started();
+      settleController.start(messageId, {
+        smooth: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      });
+      onNearBottomChange(false);
     },
     [
       active,
       cancelPendingStickToBottom,
-      historyVirtualized,
       onNearBottomChange,
-      rowVirtualizer,
       scrollContainerRef,
       settleController,
       setFollowOutput,
+      started,
     ],
   );
 
+  const cancelScrollToMessage = useCallback(() => {
+    removeAbortListener.current?.();
+    removeAbortListener.current = null;
+    occurrenceRef.current = undefined;
+    settleController.cancel();
+  }, [settleController]);
+
   return {
+    cancelScrollToMessage,
     isJumpSettling: settleController.isActive,
     scrollToMessage,
   };

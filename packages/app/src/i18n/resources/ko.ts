@@ -241,6 +241,10 @@ export const ko: TranslationResources = {
     },
   },
   stickyPrompt: {
+    none: "이 채팅에는 사용자 메시지가 없습니다.",
+    cancelled: "불러오기가 취소되었습니다.",
+    moreHistory: "이전 기록이 더 있습니다. 다시 시도하여 계속 찾아보세요.",
+
     latest: "최근 사용자 메시지",
     selected: "사용자 메시지",
     expand: "사용자 메시지 펼치기",

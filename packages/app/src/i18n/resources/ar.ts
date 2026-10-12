@@ -242,6 +242,10 @@ export const ar: TranslationResources = {
     },
   },
   stickyPrompt: {
+    none: "لا توجد رسائل للمستخدم في هذه المحادثة.",
+    cancelled: "تم إلغاء التحميل.",
+    moreHistory: "يتوفر المزيد من السجل. أعد المحاولة لمتابعة البحث.",
+
     latest: "أحدث رسالة للمستخدم",
     selected: "رسالة المستخدم",
     expand: "توسيع رسالة المستخدم",

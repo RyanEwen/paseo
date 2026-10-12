@@ -1,3 +1,4 @@
+import type { PromptReadingPosition } from "./prompt-reading-position";
 import type { AssistantImageContext } from "@/utils/assistant-image-metadata";
 import type { ComponentType, ReactElement, ReactNode, RefObject } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
@@ -54,6 +55,8 @@ export interface ScrollToMessageOccurrence {
 export interface StreamViewportHandle {
   scrollToBottom: (reason?: BottomAnchorLocalRequest["reason"]) => void;
   prepareForViewportChange: () => void;
+  /** Cancel only message navigation, leaving bottom anchoring and delivery intact. */
+  cancelMessageScroll?: () => void;
   scrollToMessage?: (messageId: string, occurrence?: ScrollToMessageOccurrence) => void;
 }
 
@@ -82,9 +85,9 @@ export interface StreamRenderInput {
   routeBottomAnchorRequest: BottomAnchorRouteRequest | null;
   isAuthoritativeHistoryReady: boolean;
   onNearBottomChange: (value: boolean) => void;
-  // The history row under the top of the viewport, for surfaces that mark where the reader
-  // is in the transcript. Only the web viewport measures it today.
-  onReadingPositionChange?: (rowId: string | null) => void;
+  onMessageNavigationError?: () => void;
+  // Viewport reading ownership and original user bubbles that still intersect it.
+  onReadingPositionChange?: (position: PromptReadingPosition) => void;
   onNearHistoryStart: () => boolean | Promise<boolean>;
   isLoadingOlderHistory: boolean;
   hasOlderHistory: boolean;
