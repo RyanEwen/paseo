@@ -1328,7 +1328,9 @@ export const ar: TranslationResources = {
         copyPath: "نسخ المسار",
         copyBranchName: "انسخ اسم الفرع",
         rename: "إعادة تسمية مساحة العمل",
-        pin: "تثبيت في الأعلى",
+        pin: "تثبيت أعلى الشريط الجانبي",
+        pinInProject: "تثبيت داخل المشروع",
+        unpinInProject: "إلغاء التثبيت داخل المشروع",
         unpin: "إلغاء التثبيت",
         archive: "أرشيف",
         archiveWorkspace: "أرشفة مساحة العمل",
@@ -1349,6 +1351,7 @@ export const ar: TranslationResources = {
         invalidBranchName: "اسم الفرع غير صالح",
       },
       toasts: {
+        updateHostToPinInProject: "حدّث هذا المضيف لتثبيت مساحات العمل داخل مشروع.",
         workspacePathUnavailable: "مسار Workspace غير متوفر",
         pathCopied: "تم نسخ المسار",
         branchNameCopied: "تم نسخ اسم الفرع",

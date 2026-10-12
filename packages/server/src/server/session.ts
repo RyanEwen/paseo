@@ -2945,7 +2945,12 @@ export class Session {
       case "workspace.title.set.request":
         return this.handleWorkspaceTitleSetRequest(msg.workspaceId, msg.title, msg.requestId);
       case "workspace.pin.set.request":
-        return this.handleWorkspacePinSetRequest(msg.workspaceId, msg.pinned, msg.requestId);
+        return this.handleWorkspacePinSetRequest(
+          msg.workspaceId,
+          msg.pinned,
+          msg.requestId,
+          msg.scope,
+        );
       default:
         return undefined;
     }
@@ -3784,6 +3789,7 @@ export class Session {
     workspaceId: string,
     pinned: boolean,
     requestId: string,
+    scope: "global" | "project" = "global",
   ): Promise<void> {
     const logContext = { workspaceId, pinned, requestId };
     this.sessionLogger.info(logContext, "session: workspace.pin.set.request");
@@ -3799,14 +3805,16 @@ export class Session {
       const updatedAt = new Date().toISOString();
       const updated = await this.workspaceRegistry.update(workspaceId, (existing) => ({
         ...existing,
-        pinnedAt: nextPinnedAt,
+        // One registry update switches scope without exposing a double-pinned state.
+        pinnedAt: scope === "global" ? nextPinnedAt : null,
+        projectPinnedAt: scope === "project" ? nextPinnedAt : null,
         updatedAt,
       }));
       if (!updated) {
         emitResponse(false, null, "Workspace not found");
         return;
       }
-      emitResponse(true, nextPinnedAt, null);
+      emitResponse(true, updated.pinnedAt, null);
       await this.emitWorkspaceUpdatesForWorkspaceIds([workspaceId]);
     } catch (error) {
       this.sessionLogger.error(
@@ -5618,6 +5626,7 @@ export class Session {
       name: resolveWorkspaceDisplayName(workspace),
       title: workspace.title,
       pinnedAt: workspace.pinnedAt,
+      projectPinnedAt: workspace.projectPinnedAt ?? null,
       ...(workspace.labels && workspace.labels.length > 0 ? { labels: workspace.labels } : {}),
       background: workspace.background,
       archivingAt: null,
@@ -5712,6 +5721,7 @@ export class Session {
       }),
       title: result.workspace.title,
       pinnedAt: result.workspace.pinnedAt,
+      projectPinnedAt: result.workspace.projectPinnedAt ?? null,
       ...(result.workspace.labels && result.workspace.labels.length > 0
         ? { labels: result.workspace.labels }
         : {}),

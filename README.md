@@ -11,8 +11,9 @@ for clipped text on iOS. Paseo++ includes those updates plus these additions:
   the workspace + menu. Open the same conversation, then choose Unarchive when you want to resume it.
 - **More sidebar control:** Choose filtering, grouping, and sorting independently, including
   project names, workspace names, status, and custom ordering. Show agent activity and code-change
-  totals together. Status sorting puts the newest workspaces first within each status. Scan project
-  activity chips and expand or collapse all visible sidebar groups.
+  totals together. Pin a workspace at the top of its project or the whole sidebar. Status sorting
+  puts the newest workspaces first within each status. Scan project activity chips and expand or
+  collapse all visible sidebar groups.
 - **Chrome extensions in the desktop browser:** Install and manage extensions, use toolbar
   popups and extension context menus, and open extension windows. Compatibility depends on the
   Chrome APIs an extension uses.

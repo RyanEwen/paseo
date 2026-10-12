@@ -1347,7 +1347,9 @@ export const ru: TranslationResources = {
         copyPath: "Копировать путь",
         copyBranchName: "Скопировать имя ветки",
         rename: "Переименовать рабочее пространство",
-        pin: "Закрепить вверху",
+        pin: "Закрепить вверху боковой панели",
+        pinInProject: "Закрепить в проекте",
+        unpinInProject: "Открепить в проекте",
         unpin: "Открепить",
         archive: "Архивировать",
         archiveWorkspace: "Архивировать рабочее пространство",
@@ -1368,6 +1370,8 @@ export const ru: TranslationResources = {
         invalidBranchName: "Недопустимое имя ветки",
       },
       toasts: {
+        updateHostToPinInProject:
+          "Обновите этот хост, чтобы закреплять рабочие пространства в проекте.",
         workspacePathUnavailable: "Путь к рабочему пространству недоступен",
         pathCopied: "Путь скопирован",
         branchNameCopied: "Имя ветки скопировано",

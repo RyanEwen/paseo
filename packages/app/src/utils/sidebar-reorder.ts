@@ -18,3 +18,31 @@ export function hasVisibleOrderChanged(input: {
   }
   return input.reorderedVisibleKeys.some((key, index) => currentVisible[index] !== key);
 }
+
+/**
+ * Separate project pin drags from ordinary ordering. Return no ordinary update when only pins
+ * moved, preserving both the selected sort mode and hidden siblings' saved positions.
+ */
+export function resolveProjectWorkspaceReorder(input: {
+  currentVisibleKeys: string[];
+  reorderedVisibleKeys: string[];
+  projectPinnedKeys: ReadonlySet<string>;
+  storedWorkspaceOrder: string[];
+}): { projectPinKeys: string[]; workspaceOrder: string[] | null } {
+  const ordinaryKeys = input.reorderedVisibleKeys.filter(
+    (key) => !input.projectPinnedKeys.has(key),
+  );
+  const ordinaryOrderChanged = hasVisibleOrderChanged({
+    currentOrder: input.currentVisibleKeys.filter((key) => !input.projectPinnedKeys.has(key)),
+    reorderedVisibleKeys: ordinaryKeys,
+  });
+  return {
+    projectPinKeys: input.reorderedVisibleKeys.filter((key) => input.projectPinnedKeys.has(key)),
+    workspaceOrder: ordinaryOrderChanged
+      ? mergeWithRemainder({
+          currentOrder: input.storedWorkspaceOrder,
+          reorderedVisibleKeys: ordinaryKeys,
+        })
+      : null,
+  };
+}

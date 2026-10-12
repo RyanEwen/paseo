@@ -1316,7 +1316,9 @@ export const zhCN: TranslationResources = {
         copyPath: "复制路径",
         copyBranchName: "复制分支名称",
         rename: "重命名 workspace",
-        pin: "置顶",
+        pin: "固定到侧边栏顶部",
+        pinInProject: "在项目中固定",
+        unpinInProject: "取消项目内固定",
         unpin: "取消置顶",
         archive: "归档",
         archiveWorkspace: "归档工作区",
@@ -1336,6 +1338,7 @@ export const zhCN: TranslationResources = {
         invalidBranchName: "无效的分支名称",
       },
       toasts: {
+        updateHostToPinInProject: "请更新此主机以在项目中固定工作区。",
         workspacePathUnavailable: "Workspace 路径不可用",
         pathCopied: "路径已复制",
         branchNameCopied: "分支名称已复制",

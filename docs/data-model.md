@@ -506,6 +506,12 @@ Array of workspace records. A workspace is a specific working directory within a
 
 > **Opaque-ID invariant:** `workspaceId` is opaque identity, never a filesystem path. Filesystem and git operations take `cwd`/`workspaceDirectory` only — never the id. A compatibility-only first-materialization bootstrap still groups pre-registry agent records by path and Git remote so existing installs retain their legacy records. That grouping never runs against a live registry, and its keys are not runtime project or workspace identity.
 
+Workspace pin scope is host-owned and exclusive: global pins use `pinnedAt`; project pins use
+optional `projectPinnedAt`. Missing project pin timestamps mean unpinned in that scope. Archive and
+restore retain the pin choice. Project pins take priority over workspace sorting only in Project
+grouping; Status grouping retains its status ordering. Manual pin order remains a client preference,
+shared with the existing global pin ordering and keyed by host plus workspace identity.
+
 ### Workspace label catalog
 
 **Path:** `$PASEO_HOME/projects/workspace-labels.json`

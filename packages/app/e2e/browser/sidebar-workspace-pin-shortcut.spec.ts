@@ -7,7 +7,7 @@ import {
 } from "../support/helpers/new-workspace";
 import { seedWorkspace, type SeededWorkspace } from "../support/helpers/seed-client";
 import { getServerId } from "../support/helpers/server-id";
-import { selectSidebarStatusGrouping } from "../support/helpers/sidebar";
+import { openWorkspaceContextMenu, selectSidebarStatusGrouping } from "../support/helpers/sidebar";
 
 // The pin shortcut used to be registered by the sidebar row itself, so it silently did nothing
 // whenever the row was unmounted — a collapsed project section being the common case. It now
@@ -92,7 +92,7 @@ interface PinRpcGate {
 // where it started.
 async function installPinRpcGate(
   page: Page,
-  options: { rejectFirst?: number } = {},
+  options: { rejectFirst?: number; projectPinsUnsupported?: boolean } = {},
 ): Promise<PinRpcGate> {
   const rejectFirst = options.rejectFirst ?? 0;
   let sent = 0;
@@ -135,6 +135,26 @@ async function installPinRpcGate(
 
     server.onMessage((message) => {
       try {
+        if (options.projectPinsUnsupported) {
+          const envelope = JSON.parse(message.toString()) as {
+            type: string;
+            message?: {
+              type?: string;
+              payload?: { status?: string; features?: Record<string, boolean> };
+            };
+          };
+          // Keep a real connected host, but advertise the capability shape of an older daemon.
+          const status = envelope.message;
+          if (
+            envelope.type === "session" &&
+            status?.type === "status" &&
+            status.payload?.status === "server_info"
+          ) {
+            if (status.payload.features) delete status.payload.features.projectWorkspacePinning;
+            ws.send(JSON.stringify(envelope));
+            return;
+          }
+        }
         ws.send(message);
       } catch {
         // client socket already closed
@@ -275,4 +295,112 @@ test.describe("Pin workspace shortcut", () => {
       await workspace.cleanup();
     }
   });
+});
+
+test("project pin menu persists, syncs, and switches exclusively with global pins", async ({
+  page,
+}, testInfo) => {
+  const workspace = await seedWorkspace({ repoPrefix: "project-pin-menu-", title: "Project pin" });
+  try {
+    const sibling = await workspace.client.createWorkspace({
+      source: { kind: "directory", path: workspace.repoPath, projectId: workspace.projectId },
+      title: "Ordinary sibling",
+    });
+    expect(sibling.workspace).toBeTruthy();
+    await gotoAppShell(page);
+    await openWorkspace(page, workspace.workspaceId);
+    const key = `${getServerId()}:${workspace.workspaceId}`;
+    await openWorkspaceContextMenu(page, workspace.workspaceId);
+    await expect(page.getByTestId(`sidebar-workspace-menu-pin-${key}`)).toHaveText(
+      "Pin to sidebar top",
+    );
+    await page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`).click();
+    const readPin = async () =>
+      (await workspace.client.fetchWorkspaces()).entries.find(
+        (entry) => entry.id === workspace.workspaceId,
+      );
+    await expect.poll(async () => (await readPin())?.projectPinnedAt).toBeTruthy();
+    expect((await readPin())?.pinnedAt).toBeNull();
+    await expect(pinnedSection(page)).toHaveCount(0);
+    await expect(workspaceRow(page, workspace.workspaceId)).toHaveCount(1);
+    const ids = await page
+      .locator('[data-testid^="sidebar-workspace-row-"]')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-testid")));
+    expect(ids.indexOf(`sidebar-workspace-row-${key}`)).toBeLessThan(
+      ids.indexOf(`sidebar-workspace-row-${getServerId()}:${sibling.workspace!.id}`),
+    );
+    await page.screenshot({ path: testInfo.outputPath("project-pin-desktop.png") });
+    await page.reload();
+    await expect(workspaceRow(page, workspace.workspaceId)).toBeVisible({ timeout: 30_000 });
+    await openWorkspaceContextMenu(page, workspace.workspaceId);
+    await expect(page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`)).toHaveText(
+      "Unpin in project",
+    );
+    await page.screenshot({ path: testInfo.outputPath("project-pin-menu.png") });
+    await page.getByTestId(`sidebar-workspace-menu-pin-${key}`).click();
+    await expect(pinnedSection(page)).toBeVisible();
+    await expect.poll(async () => (await readPin())?.projectPinnedAt).toBeNull();
+    await openWorkspaceContextMenu(page, workspace.workspaceId);
+    await page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`).click();
+    await expect(pinnedSection(page)).toHaveCount(0);
+    await switchToStatusGrouping(page);
+    await expect(workspaceRow(page, workspace.workspaceId)).toHaveCount(1);
+    expect((await readPin())?.projectPinnedAt).toBeTruthy();
+    await openWorkspaceContextMenu(page, workspace.workspaceId);
+    await page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`).click();
+    await expect.poll(async () => (await readPin())?.projectPinnedAt).toBeNull();
+  } finally {
+    await workspace.cleanup();
+  }
+});
+
+test("project pin rejection leaves the action retryable without changing global pin state", async ({
+  page,
+}) => {
+  const workspace = await seedWorkspace({ repoPrefix: "project-pin-failure-" });
+  try {
+    const gate = await installPinRpcGate(page, { rejectFirst: 1 });
+    await gotoAppShell(page);
+    await openWorkspace(page, workspace.workspaceId);
+    const key = `${getServerId()}:${workspace.workspaceId}`;
+    await openWorkspaceContextMenu(page, workspace.workspaceId);
+    await page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`).click();
+    await expect(page.getByTestId("app-toast-message")).toContainText(PIN_REJECTION_MESSAGE);
+    await expect(pinnedSection(page)).toHaveCount(0);
+    await openWorkspaceContextMenu(page, workspace.workspaceId);
+    await page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`).click();
+    await expect
+      .poll(
+        async () =>
+          (await workspace.client.fetchWorkspaces()).entries.find(
+            (entry) => entry.id === workspace.workspaceId,
+          )?.projectPinnedAt,
+      )
+      .toBeTruthy();
+    expect(gate.sentCount()).toBe(2);
+    await expect(pinnedSection(page)).toHaveCount(0);
+  } finally {
+    await workspace.cleanup();
+  }
+});
+
+test("project pin asks for a host update when its capability is absent", async ({ page }) => {
+  const workspace = await seedWorkspace({ repoPrefix: "project-pin-old-host-" });
+  try {
+    const gate = await installPinRpcGate(page, { projectPinsUnsupported: true });
+    await gotoAppShell(page);
+    await openWorkspace(page, workspace.workspaceId);
+    const key = `${getServerId()}:${workspace.workspaceId}`;
+    await openWorkspaceContextMenu(page, workspace.workspaceId);
+    await page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`).click();
+    await expect(page.getByTestId("app-toast-message")).toContainText(
+      "Update this host to pin workspaces in a project.",
+    );
+    expect(gate.sentCount()).toBe(0);
+    await page.keyboard.press(PIN_SHORTCUT);
+    await expect(pinnedSection(page)).toBeVisible();
+    expect(gate.sentCount()).toBe(1);
+  } finally {
+    await workspace.cleanup();
+  }
 });

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { hasVisibleOrderChanged, mergeWithRemainder } from "./sidebar-reorder";
+import {
+  hasVisibleOrderChanged,
+  mergeWithRemainder,
+  resolveProjectWorkspaceReorder,
+} from "./sidebar-reorder";
 
 describe("hasVisibleOrderChanged", () => {
   it("returns false when visible order is unchanged", () => {
@@ -48,5 +52,37 @@ describe("mergeWithRemainder", () => {
         reorderedVisibleKeys: [],
       }),
     ).toEqual(["stale", "hidden"]);
+  });
+});
+
+describe("project pin reordering", () => {
+  const input = {
+    currentVisibleKeys: ["srv:pin1", "srv:pin2", "srv:a", "srv:b"],
+    projectPinnedKeys: new Set(["srv:pin1", "srv:pin2"]),
+    storedWorkspaceOrder: ["srv:a", "srv:hidden", "srv:pin1", "srv:b", "srv:pin2"],
+  };
+  it("does not rewrite saved workspace order when pins move or cross ordinary rows", () => {
+    const result = resolveProjectWorkspaceReorder({
+      ...input,
+      reorderedVisibleKeys: ["srv:pin2", "srv:a", "srv:pin1", "srv:b"],
+    });
+    expect(result).toEqual({ projectPinKeys: ["srv:pin2", "srv:pin1"], workspaceOrder: null });
+  });
+  it("reorders ordinary siblings while retaining hidden and pinned saved keys", () => {
+    const result = resolveProjectWorkspaceReorder({
+      ...input,
+      reorderedVisibleKeys: ["srv:pin2", "srv:pin1", "srv:b", "srv:a"],
+    });
+    expect(result).toEqual({
+      projectPinKeys: ["srv:pin2", "srv:pin1"],
+      workspaceOrder: ["srv:b", "srv:a", "srv:hidden", "srv:pin1", "srv:pin2"],
+    });
+    expect(input.storedWorkspaceOrder).toEqual([
+      "srv:a",
+      "srv:hidden",
+      "srv:pin1",
+      "srv:b",
+      "srv:pin2",
+    ]);
   });
 });

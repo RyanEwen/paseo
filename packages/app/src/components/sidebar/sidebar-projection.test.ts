@@ -436,3 +436,64 @@ describe("buildSidebarProjection", () => {
     ]);
   });
 });
+
+describe("project workspace pins", () => {
+  it.each(["custom", "name", "status"] as const)(
+    "keeps pins inside their project ahead of %s sorted siblings",
+    (mode) => {
+      const input = projectionInput();
+      const ordinary = makeWorkspace("aaa", "needs_input");
+      const pin = makeWorkspace("zzz", "done");
+      pin.entry.projectPinnedAt = "2026-10-11T12:00:00.000Z";
+      input.projects[0]!.workspaces.push(ordinary.placement, pin.placement);
+      input.workspaceEntriesByKey.set(ordinary.entry.workspaceKey, ordinary.entry);
+      input.workspaceEntriesByKey.set(pin.entry.workspaceKey, pin.entry);
+      const before = [...input.projects[0]!.workspaces];
+      const result = buildSidebarProjection({ ...input, workspaceSortMode: mode });
+      expect(result.pinnedGroups.pinnedChats.map((row) => row.workspaceKey)).toEqual([
+        "srv:pinned",
+      ]);
+      expect(result.pinnedGroups.unpinnedProjects[0]!.workspaces[0]!.workspaceKey).toBe("srv:zzz");
+      expect(
+        result.shortcutModel.shortcutTargets.slice(0, 2).map((target) => target.workspaceId),
+      ).toEqual(["pinned", "zzz"]);
+      const collapsed = buildSidebarProjection({
+        ...input,
+        workspaceSortMode: mode,
+        collapsedProjectKeys: new Set(["project"]),
+      });
+      expect(collapsed.shortcutModel.shortcutTargets.map((target) => target.workspaceId)).toEqual([
+        "pinned",
+      ]);
+      expect(
+        filterSidebarProjects(result.pinnedGroups.unpinnedProjects, "unarchived"),
+      ).toHaveLength(1);
+      expect(input.projects[0]!.workspaces).toEqual(before);
+    },
+  );
+
+  it("uses recency and saved pin order without changing status grouping", () => {
+    const input = projectionInput();
+    const older = makeWorkspace("older", "needs_input");
+    const newer = makeWorkspace("newer", "done");
+    older.entry.projectPinnedAt = "2026-10-10T12:00:00.000Z";
+    newer.entry.projectPinnedAt = "2026-10-11T12:00:00.000Z";
+    input.projects[0]!.workspaces.push(older.placement, newer.placement);
+    input.workspaceEntriesByKey.set(older.entry.workspaceKey, older.entry);
+    input.workspaceEntriesByKey.set(newer.entry.workspaceKey, newer.entry);
+    const rows = (order: string[]) =>
+      buildSidebarProjection({
+        ...input,
+        pinnedWorkspaceOrder: order,
+      }).pinnedGroups.unpinnedProjects[0]!.workspaces.map((row) => row.workspaceKey);
+    expect(rows([]).slice(0, 2)).toEqual(["srv:newer", "srv:older"]);
+    expect(rows(["srv:older", "srv:newer"]).slice(0, 2)).toEqual(["srv:older", "srv:newer"]);
+    const status = buildSidebarProjection({ ...input, groupMode: "status" });
+    expect(status.pinnedGroups.pinnedChats).toHaveLength(1);
+    expect(
+      status.workspaceGroups
+        .flatMap((group) => group.rows)
+        .filter((row) => row.workspaceKey === "srv:newer"),
+    ).toHaveLength(1);
+  });
+});

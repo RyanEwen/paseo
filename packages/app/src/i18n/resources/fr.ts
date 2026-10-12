@@ -1357,7 +1357,9 @@ export const fr: TranslationResources = {
         copyPath: "Copier le chemin",
         copyBranchName: "Copier le nom de la branche",
         rename: "Renommer l’espace de travail",
-        pin: "Épingler en haut",
+        pin: "Épingler en haut de la barre latérale",
+        pinInProject: "Épingler dans le projet",
+        unpinInProject: "Désépingler dans le projet",
         unpin: "Désépingler",
         archive: "Archiver",
         archiveWorkspace: "Archiver l’espace de travail",
@@ -1378,6 +1380,8 @@ export const fr: TranslationResources = {
         invalidBranchName: "Nom de branche invalide",
       },
       toasts: {
+        updateHostToPinInProject:
+          "Mettez cet hôte à jour pour épingler des espaces de travail dans un projet.",
         workspacePathUnavailable: "Chemin de l’espace de travail indisponible",
         pathCopied: "Chemin copié",
         branchNameCopied: "Nom de branche copié",

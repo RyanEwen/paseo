@@ -1355,7 +1355,9 @@ export const ptBR: TranslationResources = {
         copyPath: "Copiar caminho",
         copyBranchName: "Copiar nome da branch",
         rename: "Renomear workspace",
-        pin: "Fixar no topo",
+        pin: "Fixar no topo da barra lateral",
+        pinInProject: "Fixar no projeto",
+        unpinInProject: "Desafixar do projeto",
         unpin: "Desafixar",
         archive: "Arquivar",
         archiveWorkspace: "Arquivar workspace",
@@ -1376,6 +1378,8 @@ export const ptBR: TranslationResources = {
         invalidBranchName: "Nome de branch inválido",
       },
       toasts: {
+        updateHostToPinInProject:
+          "Atualize este host para fixar espaços de trabalho em um projeto.",
         workspacePathUnavailable: "Caminho do workspace indisponível",
         pathCopied: "Caminho copiado",
         branchNameCopied: "Nome da branch copiado",

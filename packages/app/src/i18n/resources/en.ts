@@ -1335,7 +1335,9 @@ export const en = {
         copyPath: "Copy path",
         copyBranchName: "Copy branch name",
         rename: "Rename workspace",
-        pin: "Pin to top",
+        pin: "Pin to sidebar top",
+        pinInProject: "Pin in project",
+        unpinInProject: "Unpin in project",
         unpin: "Unpin",
         archive: "Archive",
         archiveWorkspace: "Archive workspace",
@@ -1356,6 +1358,7 @@ export const en = {
         invalidBranchName: "Invalid branch name",
       },
       toasts: {
+        updateHostToPinInProject: "Update this host to pin workspaces in a project.",
         workspacePathUnavailable: "Workspace path not available",
         pathCopied: "Path copied",
         branchNameCopied: "Branch name copied",

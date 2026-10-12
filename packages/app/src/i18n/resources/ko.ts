@@ -1334,7 +1334,9 @@ export const ko: TranslationResources = {
         copyPath: "경로 복사",
         copyBranchName: "브랜치 이름 복사",
         rename: "워크스페이스 이름 변경",
-        pin: "상단에 고정",
+        pin: "사이드바 맨 위에 고정",
+        pinInProject: "프로젝트에 고정",
+        unpinInProject: "프로젝트 고정 해제",
         unpin: "고정 해제",
         archive: "보관",
         archiveWorkspace: "워크스페이스 보관",
@@ -1355,6 +1357,7 @@ export const ko: TranslationResources = {
         invalidBranchName: "잘못된 브랜치 이름",
       },
       toasts: {
+        updateHostToPinInProject: "프로젝트에 작업 공간을 고정하려면 이 호스트를 업데이트하세요.",
         workspacePathUnavailable: "워크스페이스 경로를 사용할 수 없습니다",
         pathCopied: "경로가 복사되었습니다",
         branchNameCopied: "브랜치 이름이 복사되었습니다",
