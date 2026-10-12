@@ -256,6 +256,14 @@ test("project chips stay visible through bulk collapse and reload", async ({ pag
     await page.getByRole("menuitem", { name: "Mark as unread", exact: true }).click();
     await expect(chip).toHaveText("Ready to review");
     await page.mouse.move(0, 0);
+    const projectBounds = await projectRow.boundingBox();
+    if (!projectBounds) throw new Error("Project row has no rendered bounds");
+    await expect
+      .poll(async () => {
+        const bounds = await chip.boundingBox();
+        return bounds ? bounds.x + bounds.width : null;
+      })
+      .toBeCloseTo(projectBounds.x + projectBounds.width - 8, 0);
     const longNameChip = await chip.boundingBox();
     if (!longNameChip) throw new Error("Project chip has no rendered bounds");
     await workspace.client.renameProject(workspace.projectId, "Short");
@@ -351,10 +359,53 @@ test("project working count includes pinned workspaces", async ({ page }, testIn
       15_000,
     );
     await expect(chip).toHaveText("2 working");
+    await expect(
+      chip.getByTestId(`sidebar-project-working-spinner-${workspace.projectKey}`),
+    ).toBeVisible();
+    const projectRow = page.getByTestId(`sidebar-project-row-${workspace.projectKey}`);
+    await expect(projectRow.getByTestId("project-status-indicator-running")).toHaveCount(0);
+    await page.mouse.move(0, 0);
+    const restingBounds = await chip.boundingBox();
+    if (!restingBounds) throw new Error("Working chip has no rendered bounds");
+    const motionSamples = chip.evaluate(
+      (element) =>
+        new Promise<number[]>((resolve) => {
+          const positions: number[] = [];
+          const startedAt = performance.now();
+          function sample() {
+            positions.push(element.getBoundingClientRect().x);
+            if (performance.now() - startedAt < 600) requestAnimationFrame(sample);
+            else resolve(positions);
+          }
+          requestAnimationFrame(sample);
+        }),
+    );
+    await projectRow.hover();
+    await expect
+      .poll(async () => (await chip.boundingBox())?.x ?? Infinity)
+      .toBeLessThan(restingBounds.x - 20);
+    await expect(
+      page.getByTestId(`sidebar-project-new-worktree-${workspace.projectKey}`),
+    ).toBeVisible();
+    const hoveredBounds = await chip.boundingBox();
+    if (!hoveredBounds) throw new Error("Hovered working chip has no rendered bounds");
+    const positions = await motionSamples;
+    expect(positions.some((x) => x < restingBounds.x - 2 && x > hoveredBounds.x + 2)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("sidebar-working-chip-hovered.png") });
+    await page.mouse.move(0, 0);
+    await expect.poll(async () => (await chip.boundingBox())?.x).toBeCloseTo(restingBounds.x, 0);
+
     await workspace.client.setWorkspacePinned(second.id, true);
     await expect(chip).toHaveText("2 working");
     await page.getByTestId("sidebar-collapse-all").click();
     await expect(chip).toHaveText("2 working");
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(async () => {
+        const bounds = await chip.boundingBox();
+        return bounds ? bounds.x + bounds.width : null;
+      })
+      .toBeCloseTo(restingBounds.x + restingBounds.width, 0);
     await page.screenshot({ path: testInfo.outputPath("sidebar-two-working.png") });
   } finally {
     await workspace.cleanup();
