@@ -1,3 +1,4 @@
+import { SidebarProjectSelector } from "@/components/sidebar/sidebar-project-selector";
 import { SidebarBulkCollapseControls } from "@/components/sidebar/bulk-collapse-controls";
 import { router } from "expo-router";
 import { CircleGauge, FolderPlus, GitBranch, Server, Settings, X } from "lucide-react-native";
@@ -813,7 +814,7 @@ function WorkspacesSectionHeader() {
   const isCompact = useIsCompactFormFactor();
   return (
     <View style={styles.workspacesSectionHeader}>
-      <Text style={styles.workspacesSectionTitle}>Workspaces</Text>
+      <SidebarProjectSelector />
       <View style={styles.workspacesSectionActions}>
         {!isCompact ? <SidebarBulkCollapseControls /> : null}
         <Tooltip delayDuration={300}>
@@ -870,11 +871,6 @@ const styles = StyleSheet.create((theme) => ({
     paddingRight: 4,
     paddingTop: theme.spacing[1],
     paddingBottom: theme.spacing[1],
-  },
-  workspacesSectionTitle: {
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.normal,
   },
   workspacesSectionActions: {
     flexDirection: "row",

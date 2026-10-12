@@ -41,8 +41,11 @@ export interface UseChatOutlineInput {
 export interface ChatOutline {
   prompts: ChatOutlinePrompt[];
   activePrompt: ActivePromptSource;
-  jumpToPrompt: (seq: number, options?: { scroll?: boolean }) => void;
-  jumpToMessage: (id: string) => void;
+  jumpToPrompt: (
+    seq: number,
+    options?: { scroll?: boolean; source?: "sticky" | "outline" },
+  ) => void;
+  jumpToMessage: (id: string, options?: { source?: "sticky" | "outline" }) => void;
   reportReadingPosition: (seq: number | null) => void;
   isJumping: boolean;
   jumpError: boolean;
@@ -50,6 +53,7 @@ export interface ChatOutline {
   indexError: boolean;
   retryIndex: () => void;
   cancelJump: () => void;
+  cancelStickyJump: () => void;
   reportJumpError: () => void;
 }
 
@@ -77,6 +81,7 @@ export function useChatOutline({
   const [pendingJump, setPendingJump] = useState<PendingPromptJump | null>(null);
   const [activePrompt] = useState(createActivePromptPublisher);
   const readingSeqRef = useRef<number | null>(null);
+  const jumpSourceRef = useRef<"sticky" | "outline" | null>(null);
   const jumpAcceptanceRef = useRef<AbortController | null>(null);
   const jumpFrameRef = useRef<number | null>(null);
   const nextJumpRequestIdRef = useRef(0);
@@ -148,6 +153,7 @@ export function useChatOutline({
 
   /** Invalidate only this navigation intent, including its page acceptance and delayed scroll. */
   const cancelJump = useStableEvent(() => {
+    jumpSourceRef.current = null;
     nextJumpRequestIdRef.current += 1;
     jumpAcceptanceRef.current?.abort();
     jumpAcceptanceRef.current = null;
@@ -156,6 +162,11 @@ export function useChatOutline({
     viewportRef.current?.cancelMessageScroll?.();
     setPendingJump(null);
     setJumpError(false);
+  });
+
+  /** A feature opt-out cancels only navigation initiated by that feature. */
+  const cancelStickyJump = useStableEvent(() => {
+    if (jumpSourceRef.current === "sticky") cancelJump();
   });
 
   useEffect(() => {
@@ -203,9 +214,10 @@ export function useChatOutline({
   }, [loadedItems, ownerKey, pendingJump, revealLoadedMessage, viewportRef, visibleMessageIds]);
 
   const jumpToPrompt = useCallback(
-    (seq: number, options?: { scroll?: boolean }) => {
+    (seq: number, options?: { scroll?: boolean; source?: "sticky" | "outline" }) => {
       const scroll = options?.scroll !== false;
       cancelJump();
+      jumpSourceRef.current = options?.source ?? "outline";
       const loaded = loadedItems.find((item) => item.timelineCursor?.seq === seq);
       if (loaded) {
         if (scroll && revealLoadedMessage?.(loaded.id)) {
@@ -270,20 +282,23 @@ export function useChatOutline({
   );
 
   /** Local submissions and child transcript rows do not require a root prompt index. */
-  const jumpToMessage = useStableEvent((id: string) => {
-    const item = loadedItems.find((entry) => entry.id === id);
-    if (item?.timelineCursor) {
-      jumpToPrompt(item.timelineCursor.seq);
-      return;
-    }
-    cancelJump();
-    const requestId = nextJumpRequestIdRef.current;
-    revealLoadedMessage?.(id);
-    jumpFrameRef.current = requestAnimationFrame(() => {
-      jumpFrameRef.current = null;
-      if (requestId === nextJumpRequestIdRef.current) viewportRef.current?.scrollToMessage?.(id);
-    });
-  });
+  const jumpToMessage = useStableEvent(
+    (id: string, options?: { source?: "sticky" | "outline" }) => {
+      const item = loadedItems.find((entry) => entry.id === id);
+      if (item?.timelineCursor) {
+        jumpToPrompt(item.timelineCursor.seq, options);
+        return;
+      }
+      cancelJump();
+      jumpSourceRef.current = options?.source ?? "outline";
+      const requestId = nextJumpRequestIdRef.current;
+      revealLoadedMessage?.(id);
+      jumpFrameRef.current = requestAnimationFrame(() => {
+        jumpFrameRef.current = null;
+        if (requestId === nextJumpRequestIdRef.current) viewportRef.current?.scrollToMessage?.(id);
+      });
+    },
+  );
 
   const reportJumpError = useStableEvent(() => {
     setJumpError(true);
@@ -292,6 +307,7 @@ export function useChatOutline({
 
   return {
     reportJumpError,
+    cancelStickyJump,
     jumpToMessage,
     cancelJump,
     prompts,

@@ -490,6 +490,7 @@ export function resolveKnownHostRoute(input: {
 }
 
 export const SETTINGS_SECTION_SLUGS = [
+  "paseo-plus-plus",
   "general",
   "appearance",
   "sidebar",

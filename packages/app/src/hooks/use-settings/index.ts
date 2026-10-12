@@ -149,6 +149,9 @@ export function useAppSettings(): UseAppSettingsReturn {
     queryFn: () => loadAppSettingsFromStorage(),
     staleTime: Infinity,
     gcTime: Infinity,
+    // Keep failed hydration visible when a settings surface mounts its own observer.
+    // Recovery belongs to explicit invalidation, rather than remounting the loading gate.
+    retryOnMount: false,
   });
 
   const updateSettings = useCallback(

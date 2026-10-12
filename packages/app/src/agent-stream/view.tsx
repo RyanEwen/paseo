@@ -1,3 +1,5 @@
+import { shouldIndexUserPrompts } from "./chat-outline/model";
+import { useAppSettings } from "@/hooks/use-settings";
 import { ChatFind, ChatFindExpansion } from "@/agent-stream/chat-find";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import React, {
@@ -357,6 +359,8 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const { t } = useTranslation();
     const autoExpandReasoning = useSettings((settings) => settings.autoExpandReasoning);
     const toolCallDetailLevel = useSettings((settings) => settings.toolCallDetailLevel);
+    const { settings: appSettings } = useAppSettings();
+    const stickyEnabled = appSettings.paseoPlusPlus.stickyUserPrompts;
     const chatOutlineEnabled = useSettings((settings) => settings.chatOutlineEnabled);
     const contentMaxWidth = useSettings(resolveContentMaxWidth);
     const viewportRef = useRef<StreamViewportHandle | null>(null);
@@ -631,13 +635,16 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       timelineEpoch,
       tail: effectiveStreamItems,
       head: effectiveStreamHead,
-      enabled: canIndexPrompts,
+      enabled: shouldIndexUserPrompts(canIndexPrompts, chatOutlineEnabled, stickyEnabled),
       viewportRef,
       onJumpError: handleTimelineHistoryLoadError,
       visibleMessageIds,
       revealLoadedMessage: revealLoadedHistory,
     });
 
+    const jumpToStickyMessage = useStableEvent((id: string) =>
+      chatOutline.jumpToMessage(id, { source: "sticky" }),
+    );
     const stickyPromptRef = useRef<StickyPromptHandle>(null);
     const promptReading = useMemo(createPromptReadingPublisher, [
       resolvedServerId,
@@ -1158,6 +1165,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
           <AssistantSelectionCopySurface style={stylesheet.container} onLayout={measureChatHeight}>
             <StickyPrompt
               key={`${resolvedServerId}:${agentId}:${timelineEpoch}`}
+              enabled={stickyEnabled}
               items={findItems}
               epoch={timelineEpoch}
               outline={chatOutline}
@@ -1166,7 +1174,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               loadingOlder={remoteIsLoadingOlder}
               progressKey={remoteProgressKey}
               loadOlder={loadRemoteOlder}
-              jumpToLoaded={chatOutline.jumpToMessage}
+              jumpToLoaded={jumpToStickyMessage}
               serverId={resolvedServerId}
               client={client}
               ref={stickyPromptRef}
@@ -1189,6 +1197,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
                   isAuthoritativeHistoryReady,
                   onNearBottomChange: setIsNearBottom,
                   onMessageNavigationError: chatOutline.reportJumpError,
+                  trackPromptHandoff: stickyEnabled,
                   onReadingPositionChange: handleReadingPositionChange,
                   onNearHistoryStart: loadOlder,
                   isLoadingOlderHistory: isLoadingOlder,

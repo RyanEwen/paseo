@@ -87,6 +87,7 @@ export interface StreamRenderInput {
   onNearBottomChange: (value: boolean) => void;
   onMessageNavigationError?: () => void;
   // Viewport reading ownership and original user bubbles that still intersect it.
+  trackPromptHandoff?: boolean;
   onReadingPositionChange?: (position: PromptReadingPosition) => void;
   onNearHistoryStart: () => boolean | Promise<boolean>;
   isLoadingOlderHistory: boolean;

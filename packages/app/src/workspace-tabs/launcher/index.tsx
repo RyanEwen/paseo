@@ -2,7 +2,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type ReactNode,
@@ -12,6 +14,7 @@ import { useRouter, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Globe, History, SquarePen, SquareTerminal } from "lucide-react-native";
 import invariant from "tiny-invariant";
+import { useAppSettings } from "@/hooks/use-settings";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
 import { resolvePluginIcon } from "@/plugins/icons";
 import { useInstalledPlugins } from "@/plugins/registry";
@@ -70,7 +73,7 @@ export interface WorkspaceTabLaunchGroup {
 const EMPTY_PANE_PANEL_KINDS: readonly WorkspaceTabTarget["kind"][] = [];
 
 const NewTabLauncherContext = createContext<
-  (NewTabLauncher & { reopenClosedAgent: () => void }) | null
+  (NewTabLauncher & { previousAgentsEnabled: boolean; reopenClosedAgent: () => void }) | null
 >(null);
 
 /** Own launcher actions and their workspace-scoped reopen dialog together. */
@@ -81,14 +84,27 @@ export function NewTabLauncherProvider({
   value: NewTabLauncher;
   children: ReactNode;
 }) {
+  const { settings } = useAppSettings();
+  const previousAgentsEnabled = settings.paseoPlusPlus.previousAgents;
   const [reopenVisible, setReopenVisible] = useState(false);
-  const reopenClosedAgent = useCallback(() => setReopenVisible(true), []);
+  const previousAgentsEnabledRef = useRef(previousAgentsEnabled);
+  // Disable dismisses this transient surface without changing sessions or cached history.
+  useEffect(() => {
+    previousAgentsEnabledRef.current = previousAgentsEnabled;
+    if (!previousAgentsEnabled) setReopenVisible(false);
+  }, [previousAgentsEnabled]);
+  const reopenClosedAgent = useCallback(() => {
+    if (previousAgentsEnabledRef.current) setReopenVisible(true);
+  }, []);
   const closeReopenDialog = useCallback(() => setReopenVisible(false), []);
-  const context = useMemo(() => ({ ...value, reopenClosedAgent }), [value, reopenClosedAgent]);
+  const context = useMemo(
+    () => ({ ...value, previousAgentsEnabled, reopenClosedAgent }),
+    [value, previousAgentsEnabled, reopenClosedAgent],
+  );
   return (
     <NewTabLauncherContext.Provider value={context}>
       {children}
-      {reopenVisible ? (
+      {previousAgentsEnabled && reopenVisible ? (
         <ReopenClosedAgentDialog
           serverId={value.serverId}
           workspaceId={value.workspaceId}
@@ -220,7 +236,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
       return item.hidden || !panelSupportsHost(item.panelKind, host) ? [] : [item];
     });
 
-    if (!isExplorerMenu) {
+    if (!isExplorerMenu && launcher.previousAgentsEnabled) {
       tabItems.splice(1, 0, {
         id: "reopen-closed-agent",
         label: t("sessions.previousTitle"),

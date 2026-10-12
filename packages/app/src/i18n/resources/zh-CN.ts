@@ -2,6 +2,114 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  paseoPlusPlus: {
+    loadFailed: "无法加载已保存的偏好。更改功能前请重试。",
+    saving: "正在保存...",
+    title: "Paseo++",
+    optional: "可选功能",
+    optionalHint: "选择仅用于此应用安装。关闭功能会保留已保存的数据和偏好。",
+    preferences: "现有偏好",
+    preferencesHint: "使用现有控件管理这些新增功能",
+    configure: "配置",
+    fixes: "修复和分支基本功能",
+    fixesHint: "这些改进始终启用",
+    additions: "其他新增功能",
+    additionsHint: "这些工作流程仍然可用",
+    saveFailed: "无法保存。请重试。",
+    features: {
+      sidebarProjectSelector: {
+        label: "侧边栏项目选择器",
+        hint: "从工作区标题选择项目；关闭后恢复项目过滤菜单",
+      },
+      stickyUserPrompts: {
+        label: "保持用户消息可见",
+        hint: "将当前消息固定在聊天上方，支持展开和前后导航",
+      },
+      previousAgents: {
+        label: "历史智能体",
+        hint: "从工作区 + 菜单重新打开已关闭或归档的对话",
+      },
+      sidebarActivityChips: {
+        label: "项目活动标记",
+        hint: "显示项目活动和正在工作的工作区数量",
+      },
+      sidebarProjectEmphasis: {
+        label: "加粗项目名称",
+        hint: "突出显示侧边栏中的项目标题",
+      },
+      sidebarBulkActions: {
+        label: "全部展开和折叠",
+        hint: "显示所有可见侧边栏分组的控件",
+      },
+      projectPinning: {
+        label: "在项目内置顶工作区",
+        hint: "优先显示选定工作区。重新启用时会恢复已保存的置顶。",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "工作区移动动画",
+        hint: "侧边栏工作区位置变化时使用快速过渡",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "自动检查 Android 更新",
+        hint: "启动和恢复时检查预览版本。手动检查和安装仍可使用。",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "侧边栏显示选项",
+        hint: "使用工作区侧边栏的显示菜单管理过滤、分组、排序、项目和分支标签、活动及代码变更统计",
+      },
+      updates: {
+        label: "预览版更新",
+        hint: "桌面版和支持的 Android 构建可从关于页面检查和安装更新。Android 安装需要您的批准。",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ 链接",
+        hint: "打开分支仓库和已发布的发行说明。已移除上游问题、赞助和 Discord 操作。",
+      },
+      backgroundBrowser: {
+        label: "后台浏览器自动化",
+        hint: "即使面板隐藏、应用失焦或窗口最小化，桌面智能体仍可使用标签页",
+      },
+      notifications: {
+        label: "通知目标",
+        hint: "通知打开所属工作区和聊天，桌面重启后仍然有效",
+      },
+      reading: {
+        label: "稳定阅读",
+        hint: "图像缩放时保持桌面和网页中的可见文本位置，并恢复消息及历史加载",
+      },
+      mobile: {
+        label: "移动导航",
+        hint: "更大的标签切换触控区域、更安全的 Android 返回行为及独立的开发通知",
+      },
+      pickers: {
+        label: "工作区选择器和状态",
+        hint: "清晰的设置顺序、完整值提示、按状态更新排序和保留侧边栏折叠选择",
+      },
+      identity: {
+        label: "独立的分支安装",
+        hint: "独立的 Paseo++ 应用和守护进程身份、设置及更新；验证 Android 下载",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android SSH 主机",
+        hint: "导入密钥、验证指纹并保存加密凭据，以便从 Android 直接连接",
+      },
+      worktrees: {
+        label: "分支和 worktree 选择",
+        hint: "在支持的主机上用明确名称创建或采用 worktree；重试保留现有工作",
+      },
+      video: {
+        label: "Android 插件视频",
+        hint: "兼容插件可播放编码视频并恢复解码器。需要提供视频的插件。",
+      },
+    },
+  },
+
   androidUpdates: {
     title: "应用更新",
     idle: "检查此分支的新预览版本。",
@@ -1162,6 +1270,15 @@ export const zhCN: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      workspaces: "工作区",
+      all: "全部",
+      allWorkspaces: "所有工作区",
+      projectWorkspaces: "{{project}} 工作区",
+      multipleWorkspaces_one: "{{count}} 个项目的工作区",
+      multipleWorkspaces_other: "{{count}} 个项目的工作区",
+      title: "项目",
+    },
     statusGroupAccessibility: "{{label}} 分组",
     statusBucket: {
       workingCount: "{{count}} 个正在工作",

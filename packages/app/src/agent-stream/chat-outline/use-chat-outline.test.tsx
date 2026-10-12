@@ -10,7 +10,7 @@ import { usePromptNavigationControls } from "../use-prompt-navigation-controls";
 import { useStickyPrompt } from "../use-sticky-prompt";
 import type { StreamItem } from "@/types/stream";
 import type { ChatOutline } from "./use-chat-outline";
-import { createActivePromptPublisher } from "./model";
+import { shouldIndexUserPrompts, createActivePromptPublisher } from "./model";
 import { useChatOutline } from "./use-chat-outline";
 
 const runtime = vi.hoisted(() => ({
@@ -441,6 +441,7 @@ function stickyOutline(prompts = [1, 2, 3]): ChatOutline {
     indexError: false,
     retryIndex: vi.fn(),
     cancelJump: vi.fn(),
+    cancelStickyJump: vi.fn(),
     reportJumpError: vi.fn(),
   };
 }
@@ -493,7 +494,7 @@ describe("sticky user prompt navigation", () => {
     const input = stickyInput([newest]);
     const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
     act(() => result.current.previous());
-    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(2, { scroll: true });
+    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(2, { scroll: true, source: "sticky" });
     expect(result.current.busy).toBe(true);
     expect(result.current.message).toEqual(newest);
     rerender({ ...input, outline: { ...input.outline, jumpError: true } });
@@ -761,7 +762,7 @@ describe("initial prompt discovery", () => {
     const outline = stickyOutline([1]);
     const input = stickyInput([assistant], outline);
     const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
-    expect(outline.jumpToPrompt).toHaveBeenCalledWith(1, { scroll: false });
+    expect(outline.jumpToPrompt).toHaveBeenCalledWith(1, { scroll: false, source: "sticky" });
     rerender({ ...input, outline: { ...outline, jumpError: true } });
     await waitFor(() => expect(result.current.error).toBe(true));
     rerender(input);
@@ -991,6 +992,123 @@ it("keeps original prompt controls stable during assistant streaming and updates
   });
   expect(result.current).not.toBe(initial);
   expect(result.current.targetIds).toEqual(["first", "next"]);
+});
+
+describe("sticky optional feature", () => {
+  it("indexes only for a supported enabled consumer", () => {
+    expect(shouldIndexUserPrompts(true, false, false)).toBe(false);
+    expect(shouldIndexUserPrompts(true, true, false)).toBe(true);
+    expect(shouldIndexUserPrompts(true, false, true)).toBe(true);
+    expect(shouldIndexUserPrompts(false, true, true)).toBe(false);
+  });
+  it("does no discovery or navigation while disabled and restarts when enabled", async () => {
+    const input = { ...stickyInput([], stickyOutline([])), indexed: false, enabled: false };
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    act(() => {
+      result.current.retry();
+      result.current.previous();
+      result.current.reviewReading();
+      result.current.followLatest();
+    });
+    expect(input.loadOlder).not.toHaveBeenCalled();
+    expect(input.outline.jumpToPrompt).not.toHaveBeenCalled();
+    expect(input.outline.cancelJump).not.toHaveBeenCalled();
+    expect(result.current.stickyVisible).toBe(false);
+    rerender({ ...input, enabled: true });
+    await waitFor(() => expect(input.loadOlder).toHaveBeenCalledTimes(1));
+  });
+  it("invalidates held discovery without applying it or fetching again", async () => {
+    const page = deferred<boolean>();
+    const loadOlder = vi.fn((_acceptance?: { signal: AbortSignal }) => page.promise);
+    const input = {
+      ...stickyInput([], stickyOutline([])),
+      indexed: false,
+      loadOlder,
+      enabled: true,
+    };
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    const acceptance = loadOlder.mock.calls[0]![0]!;
+    rerender({ ...input, enabled: false });
+    expect(acceptance.signal.aborted).toBe(true);
+    expect(input.outline.cancelStickyJump).toHaveBeenCalledTimes(1);
+    expect(input.outline.cancelJump).not.toHaveBeenCalled();
+    await act(async () => page.resolve(true));
+    expect(result.current.stickyVisible).toBe(false);
+    expect(loadOlder).toHaveBeenCalledTimes(1);
+  });
+  it("does not read missing content when disabled", async () => {
+    const user = stickyUser("latest", 3);
+    const answer = {
+      kind: "assistant_message",
+      id: "old-answer",
+      text: "answer",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch-1", seq: 2 },
+    } as const;
+    const reading = createPromptReadingPublisher();
+    reading.publish(answer.id, [], false, false, true, 2);
+    const fetchPrompt = vi.fn(() => deferred<ReturnType<typeof stickyUser>>().promise);
+    const input = {
+      ...stickyInput([answer, user], stickyOutline([1, 3])),
+      enabled: false,
+      reading,
+      fetchPrompt,
+    };
+    const { result } = renderHook(useStickyPrompt, { initialProps: input });
+    expect(fetchPrompt).not.toHaveBeenCalled();
+    expect(result.current.stickyVisible).toBe(false);
+  });
+  it("cancels late content reads on opt-out and preserves loaded data", async () => {
+    const user = { ...stickyUser("latest", 3), attachments: [{ id: "file" }] } as ReturnType<
+      typeof stickyUser
+    >;
+    const answer = {
+      kind: "assistant_message",
+      id: "old-answer",
+      text: "answer",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch-1", seq: 2 },
+    } as const;
+    const reading = createPromptReadingPublisher();
+    reading.publish(answer.id, [], false, false, true, 2);
+    const page = deferred<ReturnType<typeof stickyUser>>();
+    const fetchPrompt = vi.fn(() => page.promise);
+    const input = {
+      ...stickyInput([answer, user], stickyOutline([1, 3])),
+      enabled: true,
+      reading,
+      fetchPrompt,
+    };
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    expect(fetchPrompt).toHaveBeenCalledTimes(1);
+    rerender({ ...input, enabled: false });
+    await act(async () => page.resolve(stickyUser("old", 1)));
+    expect(result.current.stickyVisible).toBe(false);
+    expect(result.current.message).toBe(user);
+    expect(result.current.message?.attachments).toBe(user.attachments);
+    act(() => reading.publish(user.id, [user.id], false, true));
+    rerender({ ...input, enabled: true });
+    expect(result.current.message).toBe(user);
+    expect(fetchPrompt).toHaveBeenCalledTimes(1);
+  });
+  it("cancels sticky window acceptance without cancelling an outline-owned jump", async () => {
+    const fixture = cancelledJumpFixture();
+    await waitFor(() => expect(fixture.result.current.indexReady).toBe(true));
+    act(() => fixture.result.current.jumpToPrompt(1, { source: "sticky" }));
+    const stickyAcceptance = runtime.fetchAgentTimeline.mock.calls.at(-1)![3] as {
+      signal: AbortSignal;
+    };
+    act(() => fixture.result.current.cancelStickyJump!());
+    expect(stickyAcceptance.signal.aborted).toBe(true);
+    act(() => fixture.result.current.jumpToPrompt(1));
+    const outlineAcceptance = runtime.fetchAgentTimeline.mock.calls.at(-1)![3] as {
+      signal: AbortSignal;
+    };
+    act(() => fixture.result.current.cancelStickyJump!());
+    expect(outlineAcceptance.signal.aborted).toBe(false);
+    expect(fixture.result.current.isJumping).toBe(true);
+    await act(async () => fixture.page.resolve());
+  });
 });
 
 it("lets a newer original cover an older sticky copy before replacing it", () => {

@@ -6,15 +6,24 @@ import {
 } from "./row-items";
 
 describe("parseSidebarRowItems", () => {
-  it("shows operational metadata but hides identity badges by default", () => {
+  it("shows project and branch alongside operational metadata by default", () => {
     expect(DEFAULT_SIDEBAR_ROW_ITEMS).toEqual({
-      branch: false,
-      project: false,
+      branch: true,
+      project: true,
       host: true,
       changeRequest: true,
       services: true,
       labels: true,
     });
+  });
+
+  it.each([
+    { project: false, branch: false },
+    { project: false, branch: true },
+    { project: true, branch: false },
+    { project: true, branch: true },
+  ])("preserves explicit identity choices %j", (stored) => {
+    expect(parseSidebarRowItems(stored)).toEqual({ ...DEFAULT_SIDEBAR_ROW_ITEMS, ...stored });
   });
 
   it("applies stored overrides", () => {

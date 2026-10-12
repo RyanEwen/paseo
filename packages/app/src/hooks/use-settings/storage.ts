@@ -1,3 +1,8 @@
+import {
+  DEFAULT_PASEO_PLUS_PLUS_PREFERENCES,
+  PaseoPlusPlusPreferencesSchema,
+  type PaseoPlusPlusPreferences,
+} from "@/paseo-plus-plus/preferences";
 import { isSyntaxThemeId, type SyntaxThemeId } from "@getpaseo/highlight";
 import type { ActiveTurnBehavior } from "@getpaseo/protocol/messages";
 import type { QueryClient } from "@tanstack/react-query";
@@ -74,6 +79,8 @@ export const MIN_CONTENT_MAX_WIDTH = 600;
 export const MAX_CONTENT_MAX_WIDTH = 4000;
 
 export interface AppSettings {
+  /** Optional fork features, local to this app installation. */
+  paseoPlusPlus: PaseoPlusPlusPreferences;
   theme: ThemePreference;
   /** Which contributed theme `theme: "plugin"` selects. */
   pluginThemeId: string | null;
@@ -143,6 +150,7 @@ export interface Settings extends AppSettings {
 }
 
 export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
+  paseoPlusPlus: DEFAULT_PASEO_PLUS_PLUS_PREFERENCES,
   theme: DEFAULT_THEME_PREFERENCE,
   pluginThemeId: null,
   language: "system",
@@ -223,6 +231,7 @@ const DEFAULT_STORED_APP_SETTINGS = {
 
 const StoredAppSettingsSchema = z
   .looseObject({
+    paseoPlusPlus: PaseoPlusPlusPreferencesSchema,
     theme: ThemePreferenceSchema.catch(DEFAULT_THEME_PREFERENCE),
     pluginThemeId: z.string().nullable().catch(null),
     language: z
@@ -366,24 +375,49 @@ export interface SettingsDeps {
   desktop: DesktopSettingsBridge;
 }
 
-export async function saveAppSettings(input: {
+interface SaveAppSettingsInput {
   queryClient: QueryClient;
   updates: AppSettingsUpdate;
   deps: SettingsDeps;
-}): Promise<void> {
+}
+
+const pendingSaves = new WeakMap<QueryClient, Promise<void>>();
+
+/** Serialize read-modify-write operations and publish only successfully persisted settings. */
+export async function saveAppSettings(input: SaveAppSettingsInput): Promise<void> {
+  const previous = pendingSaves.get(input.queryClient);
+  let release = () => {};
+  const slot = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  pendingSaves.set(input.queryClient, slot);
+
+  try {
+    await previous;
+    await persistSettingsUpdate(input);
+  } finally {
+    // A failed save releases the queue too; later writes use the last durable settings.
+    release();
+    if (pendingSaves.get(input.queryClient) === slot) pendingSaves.delete(input.queryClient);
+  }
+}
+
+/** Read the latest settings after obtaining the queue slot, then commit one functional patch. */
+async function persistSettingsUpdate(input: SaveAppSettingsInput): Promise<void> {
   const storedCurrent =
     input.queryClient.getQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY) ??
     (await loadAppSettingsFromStorage(input.deps));
   const current = normalizeAppSettings(storedCurrent);
   const updates = typeof input.updates === "function" ? input.updates(current) : input.updates;
   const next = { ...current, ...updates };
-  input.queryClient.setQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY, next);
   await writeAppSettings(
     input.deps.storage,
     (await readSettingsObject(input.deps.storage, APP_SETTINGS_KEY)) ??
       StoredAppSettingsSchema.parse({}),
     next,
   );
+  // Publish only durable choices so a failed write cannot silently enable a feature.
+  input.queryClient.setQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY, next);
 }
 
 export async function loadAppSettingsFromStorage(deps: SettingsDeps): Promise<AppSettings> {

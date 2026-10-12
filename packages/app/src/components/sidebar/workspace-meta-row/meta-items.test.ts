@@ -35,9 +35,15 @@ function select(overrides: Partial<Parameters<typeof selectMetaRowItems>[0]> = {
 const kinds = (items: ReturnType<typeof selectMetaRowItems>) => items.map((item) => item.kind);
 
 describe("selectMetaRowItems", () => {
-  it("puts the enabled project badge before the branch badge", () => {
-    const visible = { ...DEFAULT_SIDEBAR_ROW_ITEMS, branch: true, project: true };
-    expect(kinds(select({ visible }))).toEqual([
+  it("shows project before branch by default", () => {
+    expect(select().slice(0, 2)).toEqual([
+      { kind: "project", name: "Paseo" },
+      { kind: "branch", name: "feature/sidebar-badges" },
+    ]);
+  });
+
+  it("reads identity, then the change, then its state, then what is running, then labels", () => {
+    expect(kinds(select())).toEqual([
       "project",
       "branch",
       "host",
@@ -46,10 +52,6 @@ describe("selectMetaRowItems", () => {
       "services",
       "labels",
     ]);
-  });
-
-  it("reads identity, then the change, then its state, then what is running, then labels", () => {
-    expect(kinds(select())).toEqual(["host", "changeRequest", "checks", "services", "labels"]);
   });
 
   it("omits what the workspace does not have", () => {
@@ -87,9 +89,11 @@ describe("selectMetaRowItems", () => {
   });
 
   it.each([
-    ["changeRequest", ["host", "checks", "services", "labels"]],
-    ["services", ["host", "changeRequest", "checks", "labels"]],
-    ["labels", ["host", "changeRequest", "checks", "services"]],
+    ["project", ["branch", "host", "changeRequest", "checks", "services", "labels"]],
+    ["branch", ["project", "host", "changeRequest", "checks", "services", "labels"]],
+    ["changeRequest", ["project", "branch", "host", "checks", "services", "labels"]],
+    ["services", ["project", "branch", "host", "changeRequest", "checks", "labels"]],
+    ["labels", ["project", "branch", "host", "changeRequest", "checks", "services"]],
   ] as const)("drops %s and only %s when it is switched off", (item, expected) => {
     expect(kinds(select({ visible: { ...DEFAULT_SIDEBAR_ROW_ITEMS, [item]: false } }))).toEqual(
       expected,
@@ -98,6 +102,8 @@ describe("selectMetaRowItems", () => {
 
   it("drops checks and only checks when they are hidden", () => {
     expect(kinds(select({ checksDisplay: "none" }))).toEqual([
+      "project",
+      "branch",
       "host",
       "changeRequest",
       "services",
@@ -109,7 +115,7 @@ describe("selectMetaRowItems", () => {
     // Each control answers for itself. A checks setting that drew nothing because a different
     // switch was off would be lying about its own state.
     const items = select({ visible: { ...DEFAULT_SIDEBAR_ROW_ITEMS, changeRequest: false } });
-    expect(kinds(items)).toEqual(["host", "checks", "services", "labels"]);
+    expect(kinds(items)).toEqual(["project", "branch", "host", "checks", "services", "labels"]);
   });
 
   it("draws nothing for checks when both are off", () => {
@@ -117,7 +123,7 @@ describe("selectMetaRowItems", () => {
       visible: { ...DEFAULT_SIDEBAR_ROW_ITEMS, changeRequest: false },
       checksDisplay: "none",
     });
-    expect(kinds(items)).toEqual(["host", "services", "labels"]);
+    expect(kinds(items)).toEqual(["project", "branch", "host", "services", "labels"]);
   });
 
   it("carries the resolved check summary rather than the raw hint", () => {
@@ -140,6 +146,13 @@ describe("selectMetaRowItems", () => {
 
   it("keeps a change request whose forge reports no checks", () => {
     const items = select({ prHint: { ...PR_HINT, checksStatus: undefined } });
-    expect(kinds(items)).toEqual(["host", "changeRequest", "services", "labels"]);
+    expect(kinds(items)).toEqual([
+      "project",
+      "branch",
+      "host",
+      "changeRequest",
+      "services",
+      "labels",
+    ]);
   });
 });

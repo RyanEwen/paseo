@@ -490,6 +490,11 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     [reportReadingPosition],
   );
   const samplePromptHandoff = useStableEvent(() => {
+    if (props.trackPromptHandoff === false) {
+      handoffSampler.cancel();
+      measuredHandoff.current.clear();
+      return;
+    }
     const ids = visibleHistoryRef.current
       .filter((token) => token.isViewable && token.item.kind === "user_message")
       .toSorted((a, b) => (b.index ?? 0) - (a.index ?? 0))
@@ -504,7 +509,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     measuredHandoff.current.clear();
     handoffSampler.cancel();
     return () => handoffSampler.cancel();
-  }, [agentId, handoffSampler]);
+  }, [agentId, handoffSampler, props.trackPromptHandoff]);
   const finishPromptAnimation = useStableEvent(() => {
     if (promptSettleTimerRef.current !== null) clearTimeout(promptSettleTimerRef.current);
     promptSettleTimerRef.current = null;

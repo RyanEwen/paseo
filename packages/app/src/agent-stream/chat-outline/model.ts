@@ -83,3 +83,12 @@ export function createActivePromptPublisher(): ActivePromptPublisher {
     },
   };
 }
+
+/** Share the prompt index between enabled consumers; a sticky opt-out leaves the rail usable. */
+export function shouldIndexUserPrompts(
+  supported: boolean,
+  outlineEnabled: boolean,
+  stickyEnabled: boolean,
+): boolean {
+  return supported && (outlineEnabled || stickyEnabled);
+}

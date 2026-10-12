@@ -86,3 +86,18 @@ describe("project pin reordering", () => {
     ]);
   });
 });
+
+it("treats saved project pins as ordinary rows when project pinning is disabled", () => {
+  const storedWorkspaceOrder = ["srv:ordinary", "srv:pin", "srv:hidden"];
+  const result = resolveProjectWorkspaceReorder({
+    currentVisibleKeys: ["srv:ordinary", "srv:pin"],
+    reorderedVisibleKeys: ["srv:pin", "srv:ordinary"],
+    projectPinnedKeys: new Set(),
+    storedWorkspaceOrder,
+  });
+  expect(result).toEqual({
+    projectPinKeys: [],
+    workspaceOrder: ["srv:pin", "srv:ordinary", "srv:hidden"],
+  });
+  expect(storedWorkspaceOrder).toEqual(["srv:ordinary", "srv:pin", "srv:hidden"]);
+});

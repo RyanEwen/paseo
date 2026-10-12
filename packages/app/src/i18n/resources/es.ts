@@ -2,6 +2,115 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
+  paseoPlusPlus: {
+    loadFailed: "No se pudieron cargar las preferencias. Reintenta antes de cambiar funciones.",
+    saving: "Guardando...",
+    title: "Paseo++",
+    optional: "Funciones opcionales",
+    optionalHint:
+      "Estos ajustes se aplican a esta instalación. Desactivarlos conserva los datos y preferencias.",
+    preferences: "Preferencias existentes",
+    preferencesHint: "Usa los controles existentes para estas mejoras",
+    configure: "Configurar",
+    fixes: "Correcciones y elementos esenciales",
+    fixesHint: "Estas mejoras siguen activas",
+    additions: "Otras mejoras",
+    additionsHint: "Estas funciones siguen disponibles",
+    saveFailed: "No se pudo guardar. Vuelve a intentarlo.",
+    features: {
+      sidebarProjectSelector: {
+        label: "Selector de proyecto en la barra lateral",
+        hint: "Elige un proyecto desde el encabezado; al desactivarlo vuelve el filtro Proyecto",
+      },
+      stickyUserPrompts: {
+        label: "Mantener mensajes visibles",
+        hint: "Muestra el mensaje actual sobre el chat, con expansión y navegación anterior/siguiente",
+      },
+      previousAgents: {
+        label: "Agentes anteriores",
+        hint: "Reabre conversaciones cerradas o archivadas desde el menú + del espacio de trabajo",
+      },
+      sidebarActivityChips: {
+        label: "Indicadores de actividad de proyectos",
+        hint: "Muestra la actividad y el número de espacios trabajando",
+      },
+      sidebarProjectEmphasis: {
+        label: "Nombres de proyectos en negrita",
+        hint: "Destaca los encabezados en la barra lateral",
+      },
+      sidebarBulkActions: {
+        label: "Expandir y contraer todo",
+        hint: "Muestra controles para todos los grupos visibles",
+      },
+      projectPinning: {
+        label: "Fijar espacios dentro de proyectos",
+        hint: "Coloca primero los espacios elegidos. Las fijaciones guardadas vuelven al reactivar.",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "Animar movimientos",
+        hint: "Usa transiciones rápidas cuando cambian las posiciones en la barra lateral",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Comprobaciones automáticas de Android",
+        hint: "Busca versiones preliminares al iniciar y reanudar. La comprobación e instalación manual siguen disponibles.",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "Opciones de la barra lateral",
+        hint: "Usa Vista en la barra lateral del espacio para filtros, grupos, orden, etiquetas de proyecto/rama, actividad y totales de cambios",
+      },
+      updates: {
+        label: "Actualizaciones preliminares",
+        hint: "Las versiones de escritorio y Android compatibles pueden comprobar e instalar actualizaciones desde Acerca de. Android requiere tu aprobación.",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Enlaces de Paseo++",
+        hint: "Abre el repositorio del fork y las notas publicadas. Se eliminan las acciones de incidencias, patrocinio y Discord originales.",
+      },
+      backgroundBrowser: {
+        label: "Automatización en segundo plano",
+        hint: "Los agentes de escritorio usan pestañas aunque el panel esté oculto o la ventana minimizada",
+      },
+      notifications: {
+        label: "Destinos de notificaciones",
+        hint: "Abre el espacio y chat correctos, incluso tras reiniciar el escritorio",
+      },
+      reading: {
+        label: "Lectura estable",
+        hint: "Cambiar el tamaño de imágenes conserva el texto visible en escritorio y web; la carga de mensajes e historial se recupera",
+      },
+      mobile: {
+        label: "Navegación móvil",
+        hint: "Botones táctiles más grandes, regreso seguro en Android y notificaciones de desarrollo separadas",
+      },
+      pickers: {
+        label: "Selectores y estado de espacios",
+        hint: "Orden claro, ayudas con valores completos, estados recientes y grupos contraídos conservados",
+      },
+      identity: {
+        label: "Instalaciones independientes",
+        hint: "Identidades, ajustes y actualizaciones propios de Paseo++; descargas Android verificadas",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Hosts SSH de Android",
+        hint: "Importa claves, verifica huellas y guarda credenciales cifradas para conectar directamente",
+      },
+      worktrees: {
+        label: "Ramas y worktrees",
+        hint: "Crea o adopta worktrees con nombres explícitos en hosts compatibles; reintentar conserva el trabajo",
+      },
+      video: {
+        label: "Vídeo de plugins Android",
+        hint: "Los plugins compatibles reproducen vídeo codificado con recuperación del decodificador. Se requiere un plugin que proporcione vídeo.",
+      },
+    },
+  },
+
   androidUpdates: {
     title: "Actualización de la aplicación",
     idle: "Busca nuevas versiones preliminares del fork.",
@@ -1209,6 +1318,15 @@ export const es: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      workspaces: "Espacios de trabajo",
+      all: "Todos",
+      allWorkspaces: "Todos los espacios",
+      projectWorkspaces: "Espacios de {{project}}",
+      multipleWorkspaces_one: "Espacios de {{count}} proyecto",
+      multipleWorkspaces_other: "Espacios de {{count}} proyectos",
+      title: "Proyectos",
+    },
     statusGroupAccessibility: "Grupo {{label}}",
     statusBucket: {
       workingCount: "{{count}} trabajando",

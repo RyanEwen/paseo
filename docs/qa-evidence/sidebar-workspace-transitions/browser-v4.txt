@@ -1,0 +1,203 @@
+
+> @getpaseo/app@0.11.2 test:e2e
+> playwright test --project=browser e2e/browser/sidebar-reorder.spec.ts --workers=1 --grep projects, workspaces|workspace sorting restores|status sorting puts|rapid status reversal|collapsed destinations|for a collapsed destination
+
+[metro] Starting project at /tmp/sidebar-transition-validation-v4/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:37201
+[metro] Logs for your project will appear below.
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 87.8% (4480/4780)
+[metro] Web Bundled 5073ms packages/app/index.ts (5496 modules)
+[e2e] Metro warmed on port 37201
+
+Running 7 tests using 1 worker
+
+(node:1574618) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1574618) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 38873, home: /tmp/paseo-e2e-worker-0-NrOwgx
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 414ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 221ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (35 modules)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  1 [browser] › e2e/browser/sidebar-reorder.spec.ts:75:5 › projects, workspaces, and pinned chats reorder with an immediate mouse drag (10.0s)
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 711ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 22ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 306ms packages/app/index.ts (1 module)
+[metro] Web Bundled 21ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  2 [browser] › e2e/browser/sidebar-reorder.spec.ts:281:5 › workspace sorting restores custom drag order in project grouping (14.8s)
+[metro] Web Bundled 371ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 9ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 293ms packages/app/index.ts (1 module)
+[metro] Web Bundled 49ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  3 [browser] › e2e/browser/sidebar-reorder.spec.ts:290:5 › workspace sorting restores custom drag order in status grouping (14.7s)
+[metro] Web Bundled 345ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 12ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 300ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 50ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  4 [browser] › e2e/browser/sidebar-reorder.spec.ts:300:5 › status sorting puts the newest matching workspace first in project grouping (16.3s)
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 287ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 29ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[e2e] Worker 0 daemon stopped
+  ✘  5 [browser] › e2e/browser/sidebar-reorder.spec.ts:489:5 › rapid status reversal starts from the interrupted painted position (19.1s)
+(node:1580644) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1580644) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 1 daemon started on port 36901, home: /tmp/paseo-e2e-worker-1-ur9fWK
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 333ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 15ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[e2e] Worker 1 daemon stopped
+  ✘  6 [browser] › e2e/browser/sidebar-reorder.spec.ts:556:5 › collapsed destinations preserve drafts, collapse choices and conditional row focus (21.3s)
+(node:1583014) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1583014) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 2 daemon started on port 41725, home: /tmp/paseo-e2e-worker-2-wwyhcY
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 349ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 26ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  7 [browser] › e2e/browser/sidebar-reorder.spec.ts:726:7 › a header clipped above the sidebar scrollport cannot receive focus for a collapsed destination (27.1s)
+[e2e] Worker 2 daemon stopped
+[e2e] Metro stopped
+
+
+  1) [browser] › e2e/browser/sidebar-reorder.spec.ts:489:5 › rapid status reversal starts from the interrupted painted position
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32mtrue[39m
+    Received: [31mfalse[39m
+
+    Call Log:
+    - Timeout 10000ms exceeded while waiting on the predicate
+
+       at ../support/helpers/sidebar-motion.ts:116
+
+      114 |
+      115 | export async function expectSidebarMotionPaused(page: Page) {
+    > 116 |   await expect
+          |   ^
+      117 |     .poll(() => page.evaluate(() => (window as MotionWindow).__sidebarMotionProbe?.paused))
+      118 |     .toBe(true);
+      119 | }
+        at expectSidebarMotionPaused (/tmp/sidebar-transition-validation-v4/packages/app/e2e/support/helpers/sidebar-motion.ts:116:3)
+        at /tmp/sidebar-transition-validation-v4/packages/app/e2e/browser/sidebar-reorder.spec.ts:539:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/sidebar-reorder-rapid-stat-4a1d9-nterrupted-painted-position-browser/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: browser-console (text/plain) ────────────────────────────────────────────────────
+    [console:info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+    [console:log] Running application "main" with appParams:
+     {rootTag: #root, hydrate: undefined}
+    Development-level warnings: ON.
+    Performance optimizations: OFF.
+    [co...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/sidebar-reorder-rapid-stat-4a1d9-nterrupted-painted-position-browser/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/sidebar-reorder-rapid-stat-4a1d9-nterrupted-painted-position-browser/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/sidebar-reorder-rapid-stat-4a1d9-nterrupted-painted-position-browser/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/sidebar-reorder-rapid-stat-4a1d9-nterrupted-painted-position-browser/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [browser] › e2e/browser/sidebar-reorder.spec.ts:556:5 › collapsed destinations preserve drafts, collapse choices and conditional row focus
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveAttribute[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  getByTestId('sidebar-status-group-attention')
+    Expected: [32m"false"[39m
+    Received: [31m""[39m
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toHaveAttribute" with timeout 10000ms[22m
+    [2m  - waiting for getByTestId('sidebar-status-group-attention')[22m
+    [2m    14 × locator resolved to <div tabindex="0" aria-label="Ready to review group" data-testid="sidebar-status-group-attention" class="css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_125iw6v3q8g ">…</div>[22m
+    [2m       - unexpected value "null"[22m
+
+
+      605 |       collapsedBefore,
+      606 |     );
+    > 607 |     await expect(header).toHaveAttribute("aria-expanded", "false");
+          |                          ^
+      608 |   } finally {
+      609 |     await subject.cleanup();
+      610 |     await other.cleanup();
+        at /tmp/sidebar-transition-validation-v4/packages/app/e2e/browser/sidebar-reorder.spec.ts:607:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/sidebar-reorder-collapsed--84c71-s-and-conditional-row-focus-browser/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: browser-console (text/plain) ────────────────────────────────────────────────────
+    [console:info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+    [console:log] Running application "main" with appParams:
+     {rootTag: #root, hydrate: undefined}
+    Development-level warnings: ON.
+    Performance optimizations: OFF.
+    [co...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/sidebar-reorder-collapsed--84c71-s-and-conditional-row-focus-browser/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/sidebar-reorder-collapsed--84c71-s-and-conditional-row-focus-browser/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/sidebar-reorder-collapsed--84c71-s-and-conditional-row-focus-browser/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/sidebar-reorder-collapsed--84c71-s-and-conditional-row-focus-browser/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [browser] › e2e/browser/sidebar-reorder.spec.ts:489:5 › rapid status reversal starts from the interrupted painted position
+    [browser] › e2e/browser/sidebar-reorder.spec.ts:556:5 › collapsed destinations preserve drafts, collapse choices and conditional row focus
+  5 passed (2.8m)
+npm error Lifecycle script `test:e2e` failed with error:
+npm error code 1
+npm error path /tmp/sidebar-transition-validation-v4/packages/app
+npm error workspace @getpaseo/app@0.11.2
+npm error location /tmp/sidebar-transition-validation-v4/packages/app
+npm error command failed
+npm error command sh -c playwright test --project=browser e2e/browser/sidebar-reorder.spec.ts --workers=1 --grep 'projects, workspaces|workspace sorting restores|status sorting puts|rapid status reversal|collapsed destinations|for a collapsed destination'

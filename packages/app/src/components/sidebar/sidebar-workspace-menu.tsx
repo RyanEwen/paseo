@@ -150,6 +150,7 @@ function SidebarWorkspaceMenuItems({
   onToggleProjectPin,
   openInFileManagerPath,
 }: SidebarWorkspaceMenuItemsProps & { surface: MenuSurface }): ReactNode {
+  const { settings } = useAppSettings();
   const { t } = useTranslation();
   const archiveTrailing = useMemo(
     () => (archiveShortcutKeys ? <Shortcut chord={archiveShortcutKeys} /> : null),
@@ -212,7 +213,7 @@ function SidebarWorkspaceMenuItems({
           Mark as unread
         </WorkspaceMenuItem>
       ) : null}
-      {onToggleProjectPin ? (
+      {settings.paseoPlusPlus.projectPinning && onToggleProjectPin ? (
         <WorkspaceMenuItem
           surface={surface}
           testID={`sidebar-workspace-menu-project-pin-${workspaceKey}`}

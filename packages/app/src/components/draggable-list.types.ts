@@ -25,6 +25,10 @@ export interface DraggableListProps<T> {
   keyExtractor: (item: T, index: number) => string;
   renderItem: (info: DraggableRenderItemInfo<T>) => ReactElement;
   onDragEnd: (data: T[]) => void;
+  /** Optional drag boundary. Null entries are fixed headers or footers. */
+  getDragGroupKey?: (item: T) => string | null;
+  /** Animate automatic position changes. Zero disables motion without remounting cells. */
+  positionTransitionDuration?: number;
   style?: StyleProp<ViewStyle>;
   /** Outer container style (useful for nested, non-scrolling lists). */
   containerStyle?: StyleProp<ViewStyle>;

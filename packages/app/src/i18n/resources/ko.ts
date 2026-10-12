@@ -2,6 +2,114 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  paseoPlusPlus: {
+    loadFailed: "저장된 설정을 불러오지 못했습니다. 기능 변경 전에 다시 시도하세요.",
+    saving: "저장 중...",
+    title: "Paseo++",
+    optional: "선택 기능",
+    optionalHint: "이 앱 설치에 적용됩니다. 꺼도 저장된 데이터와 설정은 유지됩니다.",
+    preferences: "기존 설정",
+    preferencesHint: "이 추가 기능은 기존 설정에서 조정합니다",
+    configure: "설정",
+    fixes: "수정 사항과 포크 기본 기능",
+    fixesHint: "이 개선 사항은 항상 활성화됩니다",
+    additions: "기타 추가 기능",
+    additionsHint: "이 작업은 계속 사용할 수 있습니다",
+    saveFailed: "저장하지 못했습니다. 다시 시도하세요.",
+    features: {
+      sidebarProjectSelector: {
+        label: "사이드바 프로젝트 선택",
+        hint: "워크스페이스 제목에서 프로젝트를 선택합니다. 끄면 프로젝트 필터 메뉴가 복원됩니다",
+      },
+      stickyUserPrompts: {
+        label: "사용자 메시지 계속 표시",
+        hint: "현재 메시지를 채팅 위에 표시하고 펼치기와 이전/다음 이동을 제공합니다",
+      },
+      previousAgents: {
+        label: "이전 에이전트",
+        hint: "워크스페이스 + 메뉴에서 닫히거나 보관된 대화를 다시 엽니다",
+      },
+      sidebarActivityChips: {
+        label: "프로젝트 활동 표시",
+        hint: "활동과 작업 중인 워크스페이스 수를 표시합니다",
+      },
+      sidebarProjectEmphasis: {
+        label: "프로젝트 이름 굵게",
+        hint: "사이드바의 프로젝트 제목을 강조합니다",
+      },
+      sidebarBulkActions: {
+        label: "모두 펼치기 및 접기",
+        hint: "보이는 모든 그룹의 제어를 표시합니다",
+      },
+      projectPinning: {
+        label: "프로젝트 안에 고정",
+        hint: "선택한 워크스페이스를 먼저 표시합니다. 다시 켜면 저장된 고정이 복원됩니다.",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "이동 애니메이션",
+        hint: "사이드바 위치 변경에 빠른 전환을 사용합니다",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Android 자동 업데이트 확인",
+        hint: "시작 및 복귀 시 미리보기 버전을 확인합니다. 수동 확인과 설치는 계속 가능합니다.",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "사이드바 표시 옵션",
+        hint: "워크스페이스 사이드바의 표시 메뉴에서 필터, 그룹, 정렬, 프로젝트/브랜치 표시, 활동 및 변경 합계를 관리합니다",
+      },
+      updates: {
+        label: "미리보기 업데이트",
+        hint: "데스크톱과 지원되는 Android 빌드는 정보에서 업데이트를 확인하고 설치할 수 있습니다. Android 설치는 승인이 필요합니다.",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ 링크",
+        hint: "포크 저장소와 게시된 릴리스 노트를 엽니다. 원본의 이슈, 후원 및 Discord 작업은 제거되었습니다.",
+      },
+      backgroundBrowser: {
+        label: "백그라운드 브라우저 자동화",
+        hint: "데스크톱 에이전트는 패널이 숨겨지거나 창이 최소화되어도 탭을 사용합니다",
+      },
+      notifications: {
+        label: "알림 대상",
+        hint: "데스크톱 재시작 후에도 해당 워크스페이스와 채팅을 엽니다",
+      },
+      reading: {
+        label: "안정적인 읽기",
+        hint: "이미지 크기 변경 시 데스크톱과 웹의 보이는 텍스트를 유지하고 메시지와 기록 로딩을 복구합니다",
+      },
+      mobile: {
+        label: "모바일 탐색",
+        hint: "더 큰 터치 영역, 안전한 Android 뒤로 가기 및 개발 알림 분리",
+      },
+      pickers: {
+        label: "워크스페이스 선택과 상태",
+        hint: "명확한 설정 순서, 전체 값 도움말, 최신 상태 정렬 및 접기 설정 유지",
+      },
+      identity: {
+        label: "독립된 포크 설치",
+        hint: "별도의 Paseo++ 앱과 데몬 ID, 설정 및 업데이트; Android 다운로드 검증",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android SSH 호스트",
+        hint: "키를 가져오고 지문을 확인하며 암호화된 자격 증명으로 직접 연결합니다",
+      },
+      worktrees: {
+        label: "브랜치와 worktree 선택",
+        hint: "지원하는 호스트에서 이름을 지정해 생성하거나 사용합니다. 재시도 시 기존 작업을 유지합니다",
+      },
+      video: {
+        label: "Android 플러그인 비디오",
+        hint: "호환 플러그인이 인코딩된 비디오를 재생하고 디코더를 복구합니다. 비디오를 제공하는 플러그인이 필요합니다.",
+      },
+    },
+  },
+
   androidUpdates: {
     title: "앱 업데이트",
     idle: "포크의 새 프리뷰를 확인합니다.",
@@ -1178,6 +1286,15 @@ export const ko: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      workspaces: "워크스페이스",
+      all: "모두",
+      allWorkspaces: "모든 워크스페이스",
+      projectWorkspaces: "{{project}} 워크스페이스",
+      multipleWorkspaces_one: "{{count}}개 프로젝트의 워크스페이스",
+      multipleWorkspaces_other: "{{count}}개 프로젝트의 워크스페이스",
+      title: "프로젝트",
+    },
     statusGroupAccessibility: "{{label}} 그룹",
     statusBucket: {
       workingCount: "{{count}}개 작업 중",

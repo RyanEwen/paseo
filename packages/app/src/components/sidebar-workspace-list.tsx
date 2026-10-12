@@ -1,3 +1,4 @@
+import { useAppSettings } from "@/hooks/use-settings";
 import { HoverRevealActions } from "@/components/sidebar/hover-reveal-actions";
 import { StatusRing } from "@/components/status-ring";
 import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-badge";
@@ -142,6 +143,7 @@ import {
   resolveSidebarProjectLocalPath,
   type SidebarProjectHostTarget,
   type SidebarProjectIconTarget,
+  resolveSidebarProjectLeadingStatus,
 } from "@/utils/sidebar-project-row-model";
 import { redirectIfArchivingActiveWorkspace } from "@/utils/sidebar-workspace-archive-redirect";
 import { openExternalUrl } from "@/utils/open-external-url";
@@ -161,6 +163,10 @@ import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { useHostBadges } from "@/hosts/use-host-badges";
 import { useSidebarRowItems } from "@/components/sidebar/display-preferences/model";
+import {
+  SidebarPositionTransitions,
+  useSidebarPositionTransitionDuration,
+} from "./sidebar/position-transitions";
 import { PullRequestStateIcon } from "@/git/pull-request-state-icon";
 
 const workspaceKeyExtractor = (workspace: SidebarWorkspacePlacement) => workspace.workspaceKey;
@@ -935,6 +941,8 @@ function ProjectHeaderRow({
   removeProjectStatus = "idle",
   dragHandleProps,
 }: ProjectHeaderRowProps) {
+  const { settings } = useAppSettings();
+  const { sidebarActivityChips, sidebarProjectEmphasis } = settings.paseoPlusPlus;
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -1012,7 +1020,11 @@ function ProjectHeaderRow({
         <ProjectLeadingVisual
           displayName={displayName}
           iconDataUri={iconDataUri}
-          statusBucket={statusBucket === "running" ? null : statusBucket}
+          statusBucket={resolveSidebarProjectLeadingStatus(
+            statusBucket,
+            sidebarActivityChips,
+            chevron === "expand",
+          )}
           projectViewKey={project.viewKey}
           backdrop={getSidebarRowBackdrop({
             isDragging,
@@ -1026,14 +1038,19 @@ function ProjectHeaderRow({
         />
 
         <View style={styles.projectTitleGroup}>
-          <Text style={styles.projectTitle} numberOfLines={1}>
+          <Text
+            style={[styles.projectTitle, !sidebarProjectEmphasis && styles.projectTitleNormal]}
+            numberOfLines={1}
+          >
             {displayName}
           </Text>
-          <ProjectActivityChip
-            bucket={statusBucket}
-            workingWorkspaceCount={workingWorkspaceCount}
-            projectViewKey={project.viewKey}
-          />
+          {sidebarActivityChips ? (
+            <ProjectActivityChip
+              bucket={statusBucket}
+              workingWorkspaceCount={workingWorkspaceCount}
+              projectViewKey={project.viewKey}
+            />
+          ) : null}
         </View>
       </View>
       <ProjectRowTrailingActions
@@ -1682,6 +1699,7 @@ function ProjectBlock({
   supportsPinningByServerId: ReadonlyMap<string, boolean>;
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
 }) {
+  const positionTransitionDuration = useSidebarPositionTransitionDuration();
   const {
     visibleItems: visibleWorkspaces,
     expanded: workspacesExpanded,
@@ -1838,6 +1856,7 @@ function ProjectBlock({
         <>
           <DraggableList
             testID={`sidebar-workspace-list-${project.viewKey}`}
+            positionTransitionDuration={positionTransitionDuration}
             data={visibleWorkspaces}
             keyExtractor={workspaceKeyExtractor}
             renderItem={renderWorkspace}
@@ -2162,7 +2181,7 @@ export function SidebarWorkspaceList({
       />
     );
 
-  return content;
+  return <SidebarPositionTransitions>{content}</SidebarPositionTransitions>;
 }
 
 /**
@@ -2282,6 +2301,7 @@ function ProjectModeList({
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspacePlacement[]) => void;
 }) {
+  const positionTransitionDuration = useSidebarPositionTransitionDuration();
   const projectServerIds = useMemo(
     () => [...new Set(projects.flatMap((project) => project.hosts.map((host) => host.serverId)))],
     [projects],
@@ -2307,6 +2327,8 @@ function ProjectModeList({
       ),
     [projects, workspaceEntriesByKey, hostStatuses],
   );
+  const { settings } = useAppSettings();
+  const projectPinningEnabled = settings.paseoPlusPlus.projectPinning;
   const hasActiveHostFilter = useSidebarViewStore((state) => state.hostFilters.length > 0);
   const [creatingWorkspaceIds, setCreatingWorkspaceIds] = useState<Set<string>>(() => new Set());
   const creatingWorkspaceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -2432,6 +2454,7 @@ function ProjectModeList({
         reorderedWorkspaces
           .filter(
             (workspace) =>
+              projectPinningEnabled &&
               workspaceEntriesByKey.get(workspace.workspaceKey)?.projectPinnedAt != null,
           )
           .map((workspace) => workspace.workspaceKey),
@@ -2458,6 +2481,7 @@ function ProjectModeList({
       unpinnedProjects,
       workspaceEntriesByKey,
       onPinnedWorkspaceReorder,
+      projectPinningEnabled,
     ],
   );
 
@@ -2609,6 +2633,7 @@ function ProjectModeList({
     ) : (
       <DraggableList
         testID="sidebar-project-list"
+        positionTransitionDuration={positionTransitionDuration}
         data={unpinnedProjects}
         keyExtractor={projectViewKeyExtractor}
         renderItem={renderProject}
@@ -2831,6 +2856,9 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: theme.fontWeight.bold,
     minWidth: 0,
     flex: 1,
+  },
+  projectTitleNormal: {
+    fontWeight: theme.fontWeight.normal,
   },
   projectActionButton: {
     flexDirection: "row",

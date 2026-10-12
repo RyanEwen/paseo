@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useLayoutEffect, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { TimelinePageAcceptance } from "@/timeline/fetch-viewed-timeline-page";
 import { EMPTY_PROMPT_READING_SOURCE, type PromptReadingSource } from "./prompt-reading-position";
@@ -26,6 +26,7 @@ import {
 } from "./sticky-prompt-model";
 
 interface Input {
+  enabled?: boolean;
   reading?: PromptReadingSource;
   fetchPrompt?: (seq: number) => Promise<UserPrompt>;
   items: StreamItem[];
@@ -42,6 +43,7 @@ interface Input {
 /** Own the sticky selection while the existing timeline owner loads and scrolls prompts. */
 export function useStickyPrompt(input: Input) {
   const {
+    enabled = true,
     items,
     epoch,
     outline,
@@ -52,7 +54,9 @@ export function useStickyPrompt(input: Input) {
     loadOlder,
     jumpToLoaded,
   } = input;
-  const readingSource = input.reading ?? EMPTY_PROMPT_READING_SOURCE;
+  const readingSource = enabled
+    ? (input.reading ?? EMPTY_PROMPT_READING_SOURCE)
+    : EMPTY_PROMPT_READING_SOURCE;
   const reading = useSyncExternalStore(
     readingSource.subscribe,
     readingSource.getSnapshot,
@@ -100,7 +104,7 @@ export function useStickyPrompt(input: Input) {
   );
   const readingContent = useReadingPrompt({
     knownPrompts,
-    seq: missingReadingSeq,
+    seq: enabled ? missingReadingSeq : undefined,
     fetchPrompt: input.fetchPrompt,
   });
   const readingItem = readingTarget?.item ?? readingContent.item;
@@ -114,6 +118,7 @@ export function useStickyPrompt(input: Input) {
   const position = message ? findPromptTarget(targets, message) : -1;
   useEffect(() => {
     if (
+      !enabled ||
       (!reading.manual && !reading.following) ||
       reading.navigating ||
       pending ||
@@ -123,6 +128,7 @@ export function useStickyPrompt(input: Input) {
       return;
     setSelected(readingTarget?.key === targets.at(-1)?.key ? null : readingItem);
   }, [
+    enabled,
     reading.manual,
     reading.following,
     reading.navigating,
@@ -136,13 +142,9 @@ export function useStickyPrompt(input: Input) {
   const previous = targets[position - 1];
   const discoveringPrevious = pending === "previous";
   const discovery = usePromptDiscovery({
-    enabled: shouldDiscoverPrompt(
-      discoveringPrevious,
-      indexed,
-      message,
-      cancelled,
-      discoverReading,
-    ),
+    enabled:
+      enabled &&
+      shouldDiscoverPrompt(discoveringPrevious, indexed, message, cancelled, discoverReading),
     reached: hasDiscoveredPrompt(
       discoveringPrevious,
       previous,
@@ -157,6 +159,7 @@ export function useStickyPrompt(input: Input) {
   });
 
   const selectTarget = useStableEvent((target: PromptTarget, scroll: boolean = true) => {
+    if (!enabled) return;
     setError(false);
     retryTarget.current = { target, scroll };
     if (target.item) {
@@ -165,12 +168,12 @@ export function useStickyPrompt(input: Input) {
       if (scroll) jumpToLoaded(target.item.id);
     } else if (target.seq !== undefined) {
       setPending(target);
-      outline.jumpToPrompt(target.seq, { scroll });
+      outline.jumpToPrompt(target.seq, { scroll, source: "sticky" });
     }
   });
 
   useEffect(() => {
-    if (!pending || pending === "previous") return;
+    if (!enabled || !pending || pending === "previous") return;
     const loaded = targets.find((target) => target.key === pending.key);
     if (loaded?.item) {
       setSelected(loaded.key === targets.at(-1)?.key ? null : loaded.item);
@@ -179,11 +182,12 @@ export function useStickyPrompt(input: Input) {
       setError(true);
       setPending(null);
     }
-  }, [outline.jumpError, pending, targets]);
+  }, [enabled, outline.jumpError, pending, targets]);
 
   useEffect(() => {
     const newest = targets.at(-1);
     if (
+      enabled &&
       indexed &&
       !selectedMessage &&
       newest &&
@@ -194,6 +198,7 @@ export function useStickyPrompt(input: Input) {
     )
       selectTarget(newest, false);
   }, [
+    enabled,
     cancelled,
     error,
     indexed,
@@ -205,14 +210,14 @@ export function useStickyPrompt(input: Input) {
   ]);
 
   useEffect(() => {
-    if (!discoveringPrevious) return;
+    if (!enabled || !discoveringPrevious) return;
     if (previous) selectTarget(previous);
     else if (["error", "limited", "exhausted", "cancelled"].includes(discovery.status))
       setPending(null);
-  }, [discoveringPrevious, discovery.status, previous, selectTarget]);
+  }, [enabled, discoveringPrevious, discovery.status, previous, selectTarget]);
 
   const navigate = useStableEvent((direction: -1 | 1) => {
-    if (!message) return;
+    if (!enabled || !message) return;
     discovery.restart();
     retryTarget.current = null;
     setCancelled(false);
@@ -225,6 +230,7 @@ export function useStickyPrompt(input: Input) {
   });
 
   const cancel = useStableEvent(() => {
+    if (!enabled) return;
     outline.cancelJump();
     readingContent.cancel();
     retryTarget.current = null;
@@ -234,6 +240,7 @@ export function useStickyPrompt(input: Input) {
     setCancelled(true);
   });
   const reviewReading = useStableEvent(() => {
+    if (!enabled) return;
     outline.cancelJump();
     readingContent.cancel();
     discovery.restart();
@@ -243,10 +250,12 @@ export function useStickyPrompt(input: Input) {
     setCancelled(false);
   });
   const followLatest = useStableEvent(() => {
+    if (!enabled) return;
     cancel();
     setSelected(null);
   });
   const retry = useStableEvent(() => {
+    if (!enabled) return;
     if (readingContent.error) {
       readingContent.retry();
       return;
@@ -274,6 +283,7 @@ export function useStickyPrompt(input: Input) {
   const previousAction = useStableEvent(() => navigate(-1));
   const nextAction = useStableEvent(() => navigate(1));
   const activate = useStableEvent((id: string, direction: -1 | 1) => {
+    if (!enabled) return;
     const current = targets.findIndex((target) => target.item?.id === id);
     const item = targets[current]?.item;
     if (!item) return;
@@ -285,6 +295,28 @@ export function useStickyPrompt(input: Input) {
     if (target) selectTarget(target);
     else if (direction === -1 && hasOlder) setPending("previous");
   });
+  const cancelStickyJump = outline.cancelStickyJump;
+  const cancelReading = readingContent.cancel;
+  const cancelDiscovery = discovery.cancel;
+  const restartDiscovery = discovery.restart;
+
+  // Opt-out preserves the mounted timeline and draft. Invalidate only this feature's
+  // page acceptance, content completion and navigation before passive effects can run.
+  useLayoutEffect(() => {
+    if (enabled) {
+      restartDiscovery();
+      setCancelled(false);
+      return;
+    }
+    cancelStickyJump();
+    cancelReading();
+    cancelDiscovery();
+    retryTarget.current = null;
+    setPending(null);
+    setSelected(null);
+    setError(false);
+    setCancelled(true);
+  }, [enabled, cancelStickyJump, cancelReading, cancelDiscovery, restartDiscovery]);
   const stickyProgress = resolveStickyPromptProgress(message, reading);
   return {
     message,
@@ -293,7 +325,8 @@ export function useStickyPrompt(input: Input) {
     targets,
     previousKnownBoundary: indexed ? outline.indexReady : !hasOlder,
     activate,
-    stickyVisible: isStickyPromptVisible(message, readingTarget, reading.rowId, stickyProgress),
+    stickyVisible:
+      enabled && isStickyPromptVisible(message, readingTarget, reading.rowId, stickyProgress),
     discoveryStatus: discovery.status,
     cancelled,
     busy: isPromptNavigationBusy({

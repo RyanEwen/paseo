@@ -60,7 +60,7 @@ export function SidebarModelProvider({
   const { t } = useTranslation();
   const list = useSidebarWorkspacesList({ enabled: active });
   const {
-    settings: { workspaceTitleSource },
+    settings: { workspaceTitleSource, paseoPlusPlus },
   } = useAppSettings();
   const workspaceSortMode = useSidebarViewStore((state) => state.workspaceSortMode);
   const statusWorkspaceOrder = useSidebarOrderStore((state) => state.statusWorkspaceOrder);
@@ -184,6 +184,7 @@ export function SidebarModelProvider({
       groupMode,
       workspaceSortMode,
       workspaceTitleSource,
+      projectPinningEnabled: paseoPlusPlus.projectPinning,
       statusWorkspaceOrder,
       pinnedCollapsed,
       collapsedProjectKeys,
@@ -196,6 +197,7 @@ export function SidebarModelProvider({
       groupMode,
       workspaceSortMode,
       workspaceTitleSource,
+      paseoPlusPlus.projectPinning,
       statusWorkspaceOrder,
       list.projectNamesByViewKey,
       filteredProjects,

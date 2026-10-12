@@ -1,4 +1,113 @@
 export const en = {
+  paseoPlusPlus: {
+    loadFailed: "Unable to load saved preferences. Retry before changing features.",
+    saving: "Saving...",
+    title: "Paseo++",
+    optional: "Optional features",
+    optionalHint:
+      "Choices apply to this app installation. Turning a feature off preserves its saved data and preferences.",
+    preferences: "Existing preferences",
+    preferencesHint: "Use the existing controls for these fork additions",
+    configure: "Configure",
+    fixes: "Fixes and fork essentials",
+    fixesHint: "These improvements stay enabled",
+    additions: "Other additions",
+    additionsHint: "These workflows remain available",
+    saveFailed: "Unable to save. Try again.",
+    features: {
+      sidebarProjectSelector: {
+        label: "Project selector in sidebar",
+        hint: "Choose a project from the workspace heading; turning this off restores the Project filter menu",
+      },
+      stickyUserPrompts: {
+        label: "Keep user prompts in view",
+        hint: "Keep the current prompt above the chat, with expansion and previous/next navigation",
+      },
+      previousAgents: {
+        label: "Previous agents",
+        hint: "Reopen closed or archived conversations from the workspace + menu",
+      },
+      sidebarActivityChips: {
+        label: "Project activity chips",
+        hint: "Show project activity and working workspace counts",
+      },
+      sidebarProjectEmphasis: {
+        label: "Bold project names",
+        hint: "Emphasize project headings in the sidebar",
+      },
+      sidebarBulkActions: {
+        label: "Expand and collapse all",
+        hint: "Show controls for all visible sidebar groups",
+      },
+      projectPinning: {
+        label: "Pin workspaces within projects",
+        hint: "Keep selected workspaces first in their project. Saved pins return when re-enabled.",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "Animate workspace moves",
+        hint: "Use quick transitions when sidebar workspace positions change",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Automatic Android update checks",
+        hint: "Check for previews on startup and resume. Manual check and installation remain available.",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "Sidebar display options",
+        hint: "Use Display in the workspace sidebar for filtering, grouping, sorting, project/branch labels, activity and code-change totals",
+      },
+      updates: {
+        label: "Preview updates",
+        hint: "Desktop and supported Android builds can check and install updates from About. Android installation requires your approval.",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ links",
+        hint: "Open the fork repository and published release notes. Upstream issue, sponsorship and Discord actions are removed.",
+      },
+      backgroundBrowser: {
+        label: "Background browser automation",
+        hint: "Desktop agents can use tabs with a hidden pane, unfocused app or minimized window",
+      },
+      notifications: {
+        label: "Notification targets",
+        hint: "Notifications open the owning workspace and chat, including after desktop restarts",
+      },
+      reading: {
+        label: "Steadier reading",
+        hint: "Image resizing preserves visible text on desktop and web; prompt and history loading recover correctly",
+      },
+      mobile: {
+        label: "Mobile navigation",
+        hint: "Larger tab-switcher touch targets, safer Android Back behavior and separate development notifications",
+      },
+      pickers: {
+        label: "Workspace pickers and status",
+        hint: "Clearer setup order, full-value tooltips, status recency and preserved sidebar collapse choices",
+      },
+      identity: {
+        label: "Independent fork installations",
+        hint: "Separate Paseo++ app and daemon identities, settings and updates; verified Android downloads",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android SSH hosts",
+        hint: "Import keys, verify fingerprints and save encrypted credentials to connect directly from Android",
+      },
+      worktrees: {
+        label: "Branch and worktree choices",
+        hint: "Create or adopt worktrees with explicit branch and folder names on hosts that support these choices; retry keeps existing work",
+      },
+      video: {
+        label: "Android plugin video",
+        hint: "Compatible plugins can play encoded video on Android with decoder recovery. A video-providing plugin is required.",
+      },
+    },
+  },
+
   androidUpdates: {
     title: "App update",
     idle: "Check for new fork previews.",
@@ -1179,6 +1288,15 @@ export const en = {
     },
   },
   sidebar: {
+    projectSelector: {
+      workspaces: "Workspaces",
+      all: "All",
+      allWorkspaces: "All Workspaces",
+      projectWorkspaces: "{{project}} Workspaces",
+      multipleWorkspaces_one: "{{count}} Project’s Workspaces",
+      multipleWorkspaces_other: "{{count}} Projects’ Workspaces",
+      title: "Projects",
+    },
     statusGroupAccessibility: "{{label}} group",
     statusBucket: {
       workingCount: "{{count}} working",

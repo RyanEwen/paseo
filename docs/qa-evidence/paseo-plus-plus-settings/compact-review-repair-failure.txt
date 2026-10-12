@@ -1,0 +1,139 @@
+
+> @getpaseo/app@0.11.2 test:e2e
+> playwright test --project=browser e2e/browser/settings-navigation.spec.ts --grep Paseo\+\+ inventory.*390 --workers=1
+
+[metro] Starting project at /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:34911
+[metro] Logs for your project will appear below.
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (5494/5498)
+[metro] Web Bundled 4604ms packages/app/index.ts (5499 modules)
+[e2e] Metro warmed on port 34911
+
+Running 1 test using 1 worker
+
+(node:1672747) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1672747) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 46351, home: /tmp/paseo-e2e-worker-0-MXEPx9
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 421ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 209ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (86 modules)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 420ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 48ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro] Web Bundled 302ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 32ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 327ms packages/app/index.ts (1 module)
+[metro] Web Bundled 44ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 261ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 24ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro] Web Bundled 329ms packages/app/index.ts (1 module)
+[metro] Web Bundled 22ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 302ms packages/app/index.ts (1 module)
+[metro] Web Bundled 44ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 309ms packages/app/index.ts (1 module)
+[metro] Web Bundled 15ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 358ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 312ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 14ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro] Web Bundled 269ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 28ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 273ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 24ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro] Web Bundled 302ms packages/app/index.ts (1 module)
+[metro] Web Bundled 42ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 287ms packages/app/index.ts (1 module)
+[metro] Web Bundled 22ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 308ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 26ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro] Web Bundled 282ms packages/app/index.ts (1 module)
+[metro] Web Bundled 18ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[e2e] Worker 0 daemon stopped
+  ✘  1 [browser] › e2e/browser/settings-navigation.spec.ts:273:7 › Paseo++ inventory and reversible opt-outs at 390px (1.8m)
+[e2e] Metro stopped
+
+
+  1) [browser] › e2e/browser/settings-navigation.spec.ts:273:7 › Paseo++ inventory and reversible opt-outs at 390px
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByTestId('paseo-plus-plus-settings').getByRole('alert')
+    Expected substring: [32m"Unable to load saved preferences"[39m
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 30000ms[22m
+    [2m  - waiting for getByTestId('paseo-plus-plus-settings').getByRole('alert')[22m
+
+
+      464 |       await page.evaluate(() => sessionStorage.setItem("fork-settings-fail-read", "yes"));
+      465 |       await page.goto(buildSettingsSectionRoute("paseo-plus-plus"));
+    > 466 |       await expect(section.getByRole("alert")).toContainText("Unable to load saved preferences", {
+          |                                                ^
+      467 |         timeout: 30_000,
+      468 |       });
+      469 |       for (let index = 0; index < 8; index += 1) await expect(switches.nth(index)).toBeDisabled();
+        at /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/packages/app/e2e/browser/settings-navigation.spec.ts:466:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/settings-navigation-Paseo--631d0-eversible-opt-outs-at-390px-browser/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: browser-console (text/plain) ────────────────────────────────────────────────────
+    [console:info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+    [console:log] Running application "main" with appParams:
+     {rootTag: #root, hydrate: undefined}
+    Development-level warnings: ON.
+    Performance optimizations: OFF.
+    [co...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/settings-navigation-Paseo--631d0-eversible-opt-outs-at-390px-browser/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/settings-navigation-Paseo--631d0-eversible-opt-outs-at-390px-browser/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/settings-navigation-Paseo--631d0-eversible-opt-outs-at-390px-browser/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/settings-navigation-Paseo--631d0-eversible-opt-outs-at-390px-browser/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [browser] › e2e/browser/settings-navigation.spec.ts:273:7 › Paseo++ inventory and reversible opt-outs at 390px
+npm error Lifecycle script `test:e2e` failed with error:
+npm error code 1
+npm error path /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/packages/app
+npm error workspace @getpaseo/app@0.11.2
+npm error location /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/packages/app
+npm error command failed
+npm error command sh -c playwright test --project=browser e2e/browser/settings-navigation.spec.ts --grep 'Paseo\+\+ inventory.*390' --workers=1

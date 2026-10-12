@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { AppState } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useAppSettings } from "@/hooks/use-settings";
 import { useSidebarCallouts } from "@/contexts/sidebar-callout-context";
 import { androidUpdaterNative } from "./native";
 import { useAndroidUpdate } from "./store";
@@ -12,9 +13,13 @@ const checkIntervalMs = 30 * 60 * 1000;
 export function AndroidUpdateCalloutSource() {
   const { t } = useTranslation();
   const callouts = useSidebarCallouts();
+  const { settings, isLoading, error: settingsError } = useAppSettings();
+  const automaticChecksAllowed =
+    !isLoading && settingsError === null && settings.paseoPlusPlus.androidAutomaticUpdateChecks;
   const { status, update, error, check, install } = useAndroidUpdate();
   useEffect(() => {
-    if (!androidUpdaterNative) return;
+    // Wait for persisted opt-outs before scheduling any automatic network request.
+    if (!androidUpdaterNative || !automaticChecksAllowed) return;
     void check(true);
     const timer = setInterval(() => {
       if (AppState.currentState === "active") void check(true);
@@ -26,7 +31,7 @@ export function AndroidUpdateCalloutSource() {
       clearInterval(timer);
       listener.remove();
     };
-  }, [check]);
+  }, [check, automaticChecksAllowed]);
 
   useEffect(() => {
     if (!androidUpdaterNative || (!update && !error) || status === "checking") return;
