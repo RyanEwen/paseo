@@ -14,10 +14,6 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { chromium } from "playwright";
 import { runAppearanceFontSizeRegression } from "./appearance-font-size.electron.mjs";
 import { runSettingsMemoryRegression } from "./settings-memory.electron.mjs";
-import {
-  seedBrowserExtensions,
-  runBrowserExtensionsRegression,
-} from "./browser-extensions.electron.mjs";
 
 import { seedPluginLinks, runPluginLinksRegression } from "./plugin-links.electron.mjs";
 
@@ -694,7 +690,6 @@ async function runRegression({
   typingAgent,
   artifactDir,
   inspectorPort,
-  extensionFixtures,
   withoutPlaywrightObservation,
 }) {
   const failures = [];
@@ -734,12 +729,6 @@ async function runRegression({
   );
   const firstGuest = await readGuest(page, browserId);
   assert(firstGuest, "Original browser guest was not attached to its workspace pane");
-  const extensions = await runBrowserExtensionsRegression({
-    page,
-    fixtures: extensionFixtures,
-    artifactDir,
-    browserId,
-  });
   const visibleWindow = await inspectWindowPresentation(inspectorPort);
   writeJson(path.join(artifactDir, "visible-window.json"), visibleWindow);
   await verifyBackgroundAgentAccess({
@@ -1194,7 +1183,6 @@ async function runRegression({
 
   return {
     browserId,
-    extensions,
     originalWebContentsId: firstGuest.webContentsId,
     finalWebContentsId: parkedGuest.webContentsId,
     viewport: "passed",
@@ -1229,7 +1217,6 @@ async function main() {
   ]);
   const listen = `127.0.0.1:${daemonPort}`;
   seedPaseoHome(paseoHome, listen, workspaceRoot);
-  const extensionFixtures = seedBrowserExtensions(userData);
   const target = await startTargetPage();
   seedPluginLinks(paseoHome, workspaceIds[0], target.url, workspaceIds[1]);
   const remoteHome = path.join(runtimeDir, "remote-home");
@@ -1237,7 +1224,6 @@ async function main() {
   const children = [];
   let browser = null;
   let client = null;
-  let appPage = null;
 
   try {
     // Observe the real Electron shell handoff without launching a user's browser.
@@ -1331,10 +1317,6 @@ async function main() {
       fs.appendFileSync(path.join(artifactDir, "renderer-errors.txt"), `${error.stack}\n`),
     );
     const status = await waitForDesktopStatus(page);
-    // Main-process readiness can precede the cold Metro bundle and renderer bootstrap.
-    await page
-      .getByRole("button", { name: "Settings", exact: true })
-      .waitFor({ state: "visible", timeout: timeoutMs });
 
     const checkPluginLinks = () =>
       runPluginLinksRegression({
@@ -1380,7 +1362,6 @@ async function main() {
       serverId: status.serverId,
       targetUrl: target.url,
       inspectorPort,
-      extensionFixtures,
       // Playwright's session owns a visible-capture lease on the host. A second
       // CDP session cannot release it, so detach the observer for native idle QA.
       withoutPlaywrightObservation: async (task) => {
@@ -1405,15 +1386,6 @@ async function main() {
       `Browser desktop browser E2E passed: WebContents ${report.originalWebContentsId} remained ${report.finalWebContentsId}; viewport, inactive capture, focus continuity, list, snapshot, click, local-page selectors passed.`,
     );
   } catch (error) {
-    if (appPage && !appPage.isClosed()) {
-      await appPage
-        .screenshot({ path: path.join(artifactDir, "failure.png") })
-        .catch(() => undefined);
-      fs.writeFileSync(
-        path.join(artifactDir, "failure.html"),
-        await appPage.content().catch(() => "Renderer closed"),
-      );
-    }
     console.error(`Browser desktop browser E2E failed. Artifacts: ${artifactDir}`);
     console.error(error);
     throw error;

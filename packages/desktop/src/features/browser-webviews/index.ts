@@ -1,10 +1,9 @@
-import { session, webContents as allWebContents, type Session, type WebContents } from "electron";
+import { webContents as allWebContents, type WebContents } from "electron";
 import { PASEO_BROWSER_PROFILE_PARTITION } from "../browser-profile.js";
 import {
   BROWSER_NEW_TAB_REQUEST_EVENT,
   decideBrowserWindowOpenRequest,
   isAllowedBrowserWebviewUrl,
-  isAllowedBrowserFrameNavigation,
   PendingBrowserWindowOpenRequests,
 } from "./window-open.js";
 import { PaseoBrowserWebviewRegistry } from "./registry.js";
@@ -16,7 +15,6 @@ export {
 };
 
 const browserRegistry = new PaseoBrowserWebviewRegistry();
-const preparedGuestIds = new Set<number>();
 
 interface BrowserWebContentsIdentity {
   readonly id: number;
@@ -57,20 +55,11 @@ export function getPaseoBrowserWebviewRegistry(): PaseoBrowserWebviewRegistry {
 
 export function preparePaseoBrowserWebContents(contents: RegisteredBrowserWebContents): void {
   const webContentsId = contents.id;
-  if (contents.hostWebContents && !contents.hostWebContents.isDestroyed()) {
-    preparedGuestIds.add(webContentsId);
-  }
   // Preserve Chromium throttling when the host window is hidden. Browser
   // residency and screenshot capture do not require a lifetime override.
   contents.once("destroyed", () => {
-    preparedGuestIds.delete(webContentsId);
     browserRegistry.unregisterWebContents(webContentsId);
   });
-}
-
-/** A browser API may await identity only for a guest the main process has already accepted. */
-export function isPreparedPaseoBrowserWebContents(contents: BrowserWebContentsIdentity): boolean {
-  return !contents.isDestroyed() && preparedGuestIds.has(contents.id);
 }
 
 export function registerAttachedPaseoBrowser(input: RegisterAttachedBrowserInput): boolean {
@@ -185,36 +174,23 @@ export function getActivePaseoBrowserWebContentsForHostWindow(
   return null;
 }
 
-/** Guard browser navigation; an explicit profile session lets isolated Electron fixtures exercise the same policy. */
-export function registerBrowserWebviewNavigationGuards(
-  contents: WebContents,
-  {
-    profileSession = session.fromPartition(PASEO_BROWSER_PROFILE_PARTITION),
-  }: {
-    profileSession?: Session;
-  } = {},
+function preventUnsafeBrowserWebviewNavigation(
+  event: { preventDefault: () => void },
+  url: string | undefined,
 ): void {
-  const isBrowserProfile = contents.session === profileSession;
-
-  function preventUnsafeNavigation(event: {
-    preventDefault(): void;
-    url: string;
-    isMainFrame: boolean;
-  }): void {
-    // Extension overlays use subframes, including temporary UUID resource URLs.
-    // Chromium still enforces installation and web_accessible_resources access.
-    if (
-      !isAllowedBrowserFrameNavigation({
-        url: event.url,
-        isMainFrame: event.isMainFrame,
-        isBrowserProfile,
-      })
-    ) {
-      event.preventDefault();
-    }
+  if (!isAllowedBrowserWebviewUrl(url)) {
+    event.preventDefault();
   }
+}
 
-  contents.on("will-navigate", preventUnsafeNavigation);
-  contents.on("will-frame-navigate", preventUnsafeNavigation);
-  contents.on("will-redirect", preventUnsafeNavigation);
+export function registerBrowserWebviewNavigationGuards(contents: WebContents): void {
+  contents.on("will-navigate", (event) => {
+    preventUnsafeBrowserWebviewNavigation(event, event.url);
+  });
+  contents.on("will-frame-navigate", (event) => {
+    preventUnsafeBrowserWebviewNavigation(event, event.url);
+  });
+  contents.on("will-redirect", (event) => {
+    preventUnsafeBrowserWebviewNavigation(event, event.url);
+  });
 }

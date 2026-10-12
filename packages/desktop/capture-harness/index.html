@@ -116,7 +116,7 @@
         const webview = createHarnessWebview({ browserId, partition, sourceUrl });
         const attached = new Promise((resolve) => {
           webview.addEventListener(
-            "dom-ready",
+            "did-attach",
             () => resolve({ browserId, webContentsId: webview.getWebContentsId() }),
             { once: true },
           );
