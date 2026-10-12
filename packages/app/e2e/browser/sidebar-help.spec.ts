@@ -4,8 +4,7 @@ import { openSettingsSection } from "../support/helpers/settings";
 import { openWhatsNew, release, serveChangelog } from "../support/helpers/changelog";
 
 const REPOSITORY_DESTINATION = /^https:\/\/github\.com\/RyanEwen\/paseo(?:[/?#]|$)/;
-const CHANGELOG_DESTINATION =
-  /^https:\/\/github\.com\/RyanEwen\/paseo\/blob\/ryan\/preview\/CHANGELOG\.md(?:[?#]|$)/;
+const CHANGELOG_DESTINATION = /^https:\/\/github\.com\/RyanEwen\/paseo\/releases(?:[/?#]|$)/;
 // The name and the version are separate cells of a key/value row, so they meet with no space
 // between them in the row's text content.
 const APP_VERSION = /^Paseo\s*v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -77,7 +76,7 @@ test("opens troubleshooting and support destinations", async ({ page }, testInfo
   });
 });
 
-test("renders the changelog in the app and links the website", async ({ page }) => {
+test("renders fork release notes and links GitHub Releases", async ({ page }) => {
   // A callout, a section name the app has never seen, and a fenced sample whose
   // contents look like a release heading.
   await serveChangelog(page, [
@@ -120,6 +119,35 @@ test("renders the changelog in the app and links the website", async ({ page }) 
 
   await expectExternalPage(page, "changelog-open-website", CHANGELOG_DESTINATION);
   await closeSheet(page, "changelog-sheet");
+});
+
+test("retries unavailable fork notes and excludes unpublished releases", async ({ page }) => {
+  let fail = true;
+  await page.route("https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100", (route) => {
+    if (fail) {
+      return route.fulfill({ status: 403, json: { message: "API rate limit exceeded" } });
+    }
+    return route.fulfill({
+      json: [
+        {
+          tag_name: "v0.11.2-preview.27",
+          draft: false,
+          published_at: "2026-10-09T21:26:07Z",
+          body: "Published Paseo++ notes",
+        },
+        { tag_name: "v0.11.2-preview.28", draft: true, published_at: null, body: "Draft notes" },
+      ],
+    });
+  });
+  await gotoAppShell(page);
+  const sheet = await openWhatsNew(page);
+  await expect(sheet.getByTestId("changelog-error")).toBeVisible();
+  fail = false;
+  await sheet.getByTestId("changelog-retry").click();
+  await expect(sheet.getByText("Published Paseo++ notes")).toBeVisible();
+  await expect(release(sheet, "0.11.2-preview.27")).toBeVisible();
+  await expect(sheet.getByText("Draft notes")).toHaveCount(0);
+  await expect(sheet.getByTestId("changelog-error")).toHaveCount(0);
 });
 
 test("searches keyboard shortcuts from the sidebar help menu", async ({ page }) => {
