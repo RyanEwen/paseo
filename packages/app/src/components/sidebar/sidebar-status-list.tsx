@@ -1,3 +1,4 @@
+import { useAppSettings } from "@/hooks/use-settings";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
 import { mergeWithRemainder, hasVisibleOrderChanged } from "@/utils/sidebar-reorder";
@@ -230,7 +231,7 @@ export function SidebarStatusWorkspaceList({
           <NestableScrollContainer
             style={styles.list}
             contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
             testID="sidebar-status-list-scroll"
           >
             {content}
@@ -239,7 +240,7 @@ export function SidebarStatusWorkspaceList({
           <ScrollView
             style={styles.list}
             contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
             testID="sidebar-status-list-scroll"
           >
             {content}
@@ -275,6 +276,8 @@ function StatusGroupList({
   parentGestureRef?: MutableRefObject<GestureType | undefined>;
   dragGestureHostActive?: boolean;
 }) {
+  const { settings } = useAppSettings();
+  const initialCount = settings.sidebarInitialWorkspaceCount;
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<ReadonlySet<string>>(new Set());
   const positionTransitionDuration = useSidebarPositionTransitionDuration();
   const items = useMemo(
@@ -283,8 +286,9 @@ function StatusGroupList({
         groups,
         collapsedGroupKeys: collapsedWorkspaceGroupKeys,
         expandedGroupKeys,
+        initialCount,
       }),
-    [groups, collapsedWorkspaceGroupKeys, expandedGroupKeys],
+    [groups, collapsedWorkspaceGroupKeys, expandedGroupKeys, initialCount],
   );
 
   const destinationGroupKeys = useMemo(() => {

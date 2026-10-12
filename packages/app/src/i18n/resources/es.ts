@@ -3,6 +3,15 @@ import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
   paseoPlusPlus: {
+    workspaceLimit: {
+      save: "Guardar",
+      title: "Lista de espacios de trabajo",
+      label: "Mostrar inicialmente por grupo",
+      limited: "Limitado",
+      all: "Mostrar todo",
+      count: "Cantidad de espacios de trabajo",
+      invalid: "Introduce un número entero positivo.",
+    },
     examples: {
       annotated: "Las flechas señalan la función.",
       before: "Antes del cambio de estado",

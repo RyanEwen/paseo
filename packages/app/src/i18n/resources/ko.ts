@@ -3,6 +3,15 @@ import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
   paseoPlusPlus: {
+    workspaceLimit: {
+      save: "저장",
+      title: "작업 공간 목록",
+      label: "그룹별 초기 표시",
+      limited: "개수 지정",
+      all: "모두 표시",
+      count: "작업 공간 수",
+      invalid: "양의 정수를 입력하세요.",
+    },
     examples: {
       annotated: "화살표는 해당 기능을 가리킵니다.",
       before: "상태 변경 전",

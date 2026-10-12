@@ -78,6 +78,8 @@ export { DEFAULT_CONTENT_MAX_WIDTH };
 export const MIN_CONTENT_MAX_WIDTH = 600;
 export const MAX_CONTENT_MAX_WIDTH = 4000;
 
+export const DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT = 20;
+
 export interface AppSettings {
   /** Optional fork features, local to this app installation. */
   paseoPlusPlus: PaseoPlusPlusPreferences;
@@ -98,6 +100,8 @@ export interface AppSettings {
   contentMaxWidth: number | null;
   syntaxTheme: SyntaxThemeId; // default "one"
   workspaceTitleSource: WorkspaceTitleSource;
+  /** Initial workspaces per sidebar group; null shows every workspace. */
+  sidebarInitialWorkspaceCount: number | null;
   sidebarWorkspaceTrailing: SidebarWorkspaceTrailing;
   sidebarRowItems: SidebarRowItems;
   sidebarChecksDisplay: SidebarChecksDisplay;
@@ -166,6 +170,7 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   contentMaxWidth: null,
   syntaxTheme: "one",
   workspaceTitleSource: "title",
+  sidebarInitialWorkspaceCount: DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT,
   sidebarWorkspaceTrailing: "timestamp",
   sidebarRowItems: DEFAULT_SIDEBAR_ROW_ITEMS,
   sidebarChecksDisplay: DEFAULT_SIDEBAR_CHECKS_DISPLAY,
@@ -263,6 +268,13 @@ const StoredAppSettingsSchema = z
       .catch(null),
     syntaxTheme: z.string().refine(isSyntaxThemeId).catch("one"),
     workspaceTitleSource: z.enum(["title", "branch"]).catch("title"),
+    sidebarInitialWorkspaceCount: z
+      .number()
+      .int()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER)
+      .nullable()
+      .catch(DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT),
     sidebarWorkspaceTrailing: z.enum(["diff", "timestamp", "both", "none"]).catch("timestamp"),
     sidebarRowItems: SidebarRowItemsSchema,
     sidebarChecksDisplay: z

@@ -1,6 +1,6 @@
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { SidebarWorkspaceGroup } from "./sidebar-labels";
-import { SIDEBAR_INITIAL_VISIBLE_ITEMS } from "./use-limited-sidebar-group";
+import { limitSidebarWorkspaces } from "./workspace-limit";
 
 export type StatusListItem =
   | { kind: "header"; group: SidebarWorkspaceGroup; collapsed: boolean }
@@ -24,10 +24,12 @@ export function buildStatusListItems({
   groups,
   collapsedGroupKeys,
   expandedGroupKeys,
+  initialCount,
 }: {
   groups: SidebarWorkspaceGroup[];
   collapsedGroupKeys: ReadonlySet<string>;
   expandedGroupKeys: ReadonlySet<string>;
+  initialCount: number | null;
 }): StatusListItem[] {
   const result: StatusListItem[] = [];
   for (const group of groups) {
@@ -35,15 +37,19 @@ export function buildStatusListItems({
     result.push({ kind: "header", group, collapsed });
     if (collapsed) continue;
     const expanded = expandedGroupKeys.has(group.key);
-    const visible = expanded ? group.rows : group.rows.slice(0, SIDEBAR_INITIAL_VISIBLE_ITEMS);
-    for (const workspace of visible) {
+    const { visibleItems, canToggle } = limitSidebarWorkspaces({
+      items: group.rows,
+      initialCount,
+      expanded,
+    });
+    for (const workspace of visibleItems) {
       result.push({ kind: "workspace", workspace, groupKey: group.key });
     }
     result.push({
       kind: "footer",
       groupKey: group.key,
       expanded,
-      canToggle: group.rows.length > SIDEBAR_INITIAL_VISIBLE_ITEMS,
+      canToggle,
     });
   }
   return result;

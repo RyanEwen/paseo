@@ -3,6 +3,15 @@ import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
   paseoPlusPlus: {
+    workspaceLimit: {
+      save: "保存",
+      title: "工作区列表",
+      label: "每组初始显示",
+      limited: "限制数量",
+      all: "显示全部",
+      count: "工作区数量",
+      invalid: "请输入正整数。",
+    },
     examples: {
       annotated: "箭头标出对应功能。",
       before: "状态更改前",

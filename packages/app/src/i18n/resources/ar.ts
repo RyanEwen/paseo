@@ -3,6 +3,15 @@ import { pluginSettings } from "./plugin-settings";
 
 export const ar: TranslationResources = {
   paseoPlusPlus: {
+    workspaceLimit: {
+      save: "حفظ",
+      title: "قائمة مساحات العمل",
+      label: "العرض الأولي لكل مجموعة",
+      limited: "محدود",
+      all: "عرض الكل",
+      count: "عدد مساحات العمل",
+      invalid: "أدخل عددًا صحيحًا موجبًا.",
+    },
     examples: {
       annotated: "تشير الأسهم إلى الميزة المعروضة.",
       before: "قبل تغيّر الحالة",
