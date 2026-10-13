@@ -2737,6 +2737,76 @@ describe("processTimelineResponse", () => {
     expect(new Set(assistants.map((item) => item.id)).size).toBe(2);
   });
 
+  it("preserves an uploaded screenshot when a prompt window overlaps its existing message", () => {
+    const image = {
+      id: "phone-screenshot",
+      mimeType: "image/png",
+      storageType: "native-file" as const,
+      storageKey: "/private/phone-screenshot.png",
+      createdAt: 1000,
+    };
+    const attachment = { type: "text" as const, mimeType: "text/plain" as const, text: "context" };
+    const user = createUserMessage({
+      id: "client-prompt",
+      clientMessageId: "client-prompt",
+      messageId: "canonical-prompt",
+      text: "Look at this screenshot",
+      timestamp: new Date(1000),
+      timelineCursor: { epoch: "epoch-1", seq: 80 },
+      images: [image],
+      attachments: [attachment],
+    });
+    const result = processTimelineResponse({
+      ...baseTimelineInput,
+      currentTail: [
+        user,
+        {
+          kind: "assistant_message",
+          id: "old-answer",
+          text: "Old answer",
+          timestamp: new Date(1001),
+          timelineCursor: { epoch: "epoch-1", seq: 81 },
+        },
+        createUserMessage({
+          id: "removed-row",
+          messageId: "removed-row",
+          text: "Not in the replacement window",
+          timestamp: new Date(1002),
+          timelineCursor: { epoch: "epoch-1", seq: 85 },
+        }),
+      ],
+      currentCursor: { epoch: "epoch-1", startSeq: 80, endSeq: 100 },
+      payload: {
+        ...baseTimelineInput.payload,
+        direction: "before",
+        mergeWindow: true,
+        startCursor: { seq: 60 },
+        endCursor: { seq: 90 },
+        entries: [
+          {
+            ...makeTimelineEntry(80, "Look at this screenshot", "user_message"),
+            item: {
+              type: "user_message",
+              text: "Look at this screenshot",
+              messageId: "canonical-prompt",
+              clientMessageId: "client-prompt",
+            },
+          },
+          makeTimelineEntry(81, "A refreshed answer"),
+        ],
+      },
+    });
+    const messages = result.tail.filter((item) => item.kind === "user_message");
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      id: user.id,
+      images: [image],
+      attachments: [attachment],
+      timelineCursor: { epoch: "epoch-1", seq: 80 },
+    });
+    expect(getAssistantTexts(result.tail)).toEqual(["A refreshed answer"]);
+  });
+
   it("retains the current timeline while merging a disjoint prompt-jump window", () => {
     const result = processTimelineResponse({
       ...baseTimelineInput,
