@@ -6,6 +6,7 @@ interface ContextMenuAnchor {
   y: number;
 }
 
+/** Click an actionable row and measure placement from its actual trusted context-menu event. */
 async function openContextMenuAtRowPoint(
   page: Page,
   rowTestID: string,
@@ -16,13 +17,36 @@ async function openContextMenuAtRowPoint(
   const bounds = await row.boundingBox();
   if (!bounds) throw new Error(`Could not measure ${rowTestID}`);
 
-  const anchor = {
-    x: bounds.x + Math.min(60, bounds.width / 2),
-    y: bounds.y + bounds.height / 2,
-  };
-  await page.mouse.click(anchor.x, anchor.y, { button: "right" });
-  await expect(page.getByTestId(menuTestID)).toBeVisible({ timeout: 10_000 });
-  return anchor;
+  const position = { x: Math.min(60, bounds.width / 2), y: bounds.height / 2 };
+  // A restored pin can reorder this row after it becomes visible. Locator actions wait
+  // for stable geometry and hit testing; pre-action global coordinates can become stale.
+  const capture = await row.evaluateHandle((element) => {
+    let anchor: ContextMenuAnchor | null = null;
+    const onContextMenu = (event: Event) => {
+      if (event.isTrusted && event.currentTarget === element && event instanceof MouseEvent) {
+        anchor = { x: event.clientX, y: event.clientY };
+      }
+    };
+    element.addEventListener("contextmenu", onContextMenu, true);
+    return {
+      read: () => anchor,
+      stop: () => element.removeEventListener("contextmenu", onContextMenu, true),
+    };
+  });
+
+  try {
+    await row.click({ button: "right", position });
+    const anchor = await capture.evaluate((observation) => observation.read());
+    if (!anchor) throw new Error(`No trusted context-menu event received by ${rowTestID}`);
+    await expect(page.getByTestId(menuTestID)).toBeVisible({ timeout: 10_000 });
+    return anchor;
+  } finally {
+    try {
+      await capture.evaluate((observation) => observation.stop());
+    } finally {
+      await capture.dispose();
+    }
+  }
 }
 
 async function expectContextMenuAtPointer(
