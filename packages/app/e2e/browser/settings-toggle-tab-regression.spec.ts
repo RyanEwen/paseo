@@ -1,9 +1,15 @@
-import { buildHostAgentDetailRoute, buildHostWorkspaceRoute } from "@/utils/host-routes";
+import {
+  buildDefaultSettingsRoute,
+  buildHostAgentDetailRoute,
+  buildHostWorkspaceRoute,
+} from "@/utils/host-routes";
 import { expect, test } from "../support/fixtures";
 import { createMockIdleAgent, openWorkspaceWithAgents } from "../support/helpers/archive-tab";
 import { waitForTabBar, expectAgentTabActive } from "../support/helpers/launcher";
 import { seedWorkspace } from "../support/helpers/seed-client";
 import { getServerId } from "../support/helpers/server-id";
+import { expectAppRoute } from "../support/helpers/route-assertions";
+import { openSettingsSection } from "../support/helpers/settings";
 
 async function pressSettingsToggleShortcut(page: import("@playwright/test").Page) {
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
@@ -120,7 +126,8 @@ test.describe("Settings toggle tab regression", () => {
       await expectAgentTabActive(page, secondAgent.id);
 
       await pressSettingsToggleShortcut(page);
-      await expect(page).toHaveURL(/\/settings\/general$/);
+      await expectAppRoute(page, buildDefaultSettingsRoute());
+      await openSettingsSection(page, "general");
 
       const defaultSendTrigger = page.getByRole("button", {
         name: "Default send: Steer",
@@ -186,7 +193,7 @@ test.describe("Settings toggle tab regression", () => {
 
       await startComposerFrameCapture(page);
       await pressSettingsToggleShortcut(page);
-      await expect(page).toHaveURL(/\/settings\/general$/);
+      await expectAppRoute(page, buildDefaultSettingsRoute());
       await pressSettingsToggleShortcut(page);
       await expect(page).not.toHaveURL(/\/settings(\/|$)/);
       await expect(input).toHaveValue("Keep this short draft in the composer");

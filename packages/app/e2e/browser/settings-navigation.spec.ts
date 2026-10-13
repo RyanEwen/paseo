@@ -16,6 +16,7 @@ import { resolve } from "node:path";
 import { createMockIdleAgent, openWorkspaceWithAgents } from "../support/helpers/archive-tab";
 import { seedWorkspace } from "../support/helpers/seed-client";
 import { test, expect } from "../support/fixtures";
+import { DEFAULT_PASEO_PLUS_PLUS_PREFERENCES } from "@/paseo-plus-plus/preferences";
 import {
   buildHostWorkspaceRoute,
   buildOpenProjectRoute,
@@ -304,9 +305,18 @@ for (const width of [1440, 390]) {
         exact: true,
       });
       const switches = section.getByTestId("paseo-plus-plus-features").getByRole("switch");
-      await expect(switches).toHaveCount(8);
-      for (let index = 0; index < 8; index += 1) {
-        await expect(switches.nth(index)).toBeChecked();
+      const features = Object.entries(DEFAULT_PASEO_PLUS_PLUS_PREFERENCES).filter(
+        ([feature]) => feature !== "androidAutomaticUpdateChecks",
+      );
+      const featureSwitch = (feature: string) =>
+        section.getByTestId(`paseo-plus-plus-${feature}`).getByRole("switch");
+      await expect(switches).toHaveCount(features.length);
+      await expect(section.getByTestId("paseo-plus-plus-androidAutomaticUpdateChecks")).toHaveCount(
+        0,
+      );
+      for (const [feature, defaultEnabled] of features) {
+        expect(defaultEnabled, `${feature} must default on`).toBe(true);
+        await expect(featureSwitch(feature)).toBeChecked();
       }
       const evidenceDir = resolve("../../docs/qa-evidence/paseo-plus-plus-settings");
       mkdirSync(evidenceDir, { recursive: true });
@@ -314,10 +324,36 @@ for (const width of [1440, 390]) {
       await page.screenshot({ path: resolve(evidenceDir, "settings-1440-fresh-all-on.png") });
       await page.setViewportSize({ width, height: 900 });
       await expect(section).toBeVisible();
-      for (let index = 0; index < 8; index += 1) {
-        await expect(switches.nth(index)).toBeChecked();
-      }
+      for (const [feature] of features) await expect(featureSwitch(feature)).toBeChecked();
       await page.screenshot({ path: resolve(evidenceDir, `settings-${width}-fresh-all-on.png`) });
+      // Audit every canonical web feature, including additions from other feature branches.
+      for (const [feature] of features) {
+        await featureSwitch(feature).click();
+        await expect(featureSwitch(feature)).not.toBeChecked();
+      }
+      await page.reload();
+      await expect(switches).toHaveCount(features.length);
+      for (const [feature] of features) await expect(featureSwitch(feature)).not.toBeChecked();
+      const savedOff = await page.evaluate(() =>
+        JSON.parse(localStorage.getItem("@paseo:app-settings") ?? "null"),
+      );
+      expect(savedOff.paseoPlusPlus).toMatchObject(
+        Object.fromEntries(features.map(([feature]) => [feature, false])),
+      );
+      for (const [feature] of features) {
+        await featureSwitch(feature).click();
+        await expect(featureSwitch(feature)).toBeChecked();
+      }
+      await page.reload();
+      await expect(switches).toHaveCount(features.length);
+      for (const [feature] of features) await expect(featureSwitch(feature)).toBeChecked();
+      const savedOn = await page.evaluate(() =>
+        JSON.parse(localStorage.getItem("@paseo:app-settings") ?? "null"),
+      );
+      expect(savedOn.paseoPlusPlus).toMatchObject(
+        Object.fromEntries(features.map(([feature]) => [feature, true])),
+      );
+      // The existing targeted consumer and save-failure proofs retain their original choices.
       await previous.click();
       await sticky.click();
       await expect(previous).not.toBeChecked();
@@ -482,7 +518,8 @@ for (const width of [1440, 390]) {
       await expect(section.getByRole("alert")).toContainText("Unable to load saved preferences", {
         timeout: 30_000,
       });
-      for (let index = 0; index < 8; index += 1) await expect(switches.nth(index)).toBeDisabled();
+      await expect(switches).toHaveCount(features.length);
+      for (const [feature] of features) await expect(featureSwitch(feature)).toBeDisabled();
       await expect(autoOpen).toBeDisabled();
       await expect(
         section.getByRole("switch", { name: "Automatically switch comparison", exact: true }),

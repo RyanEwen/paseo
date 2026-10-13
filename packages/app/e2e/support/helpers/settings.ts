@@ -3,6 +3,7 @@ import { buildCreateAgentPreferences, buildSeededHost, TEST_HOST_LABEL } from ".
 import { getServerId } from "./server-id";
 import { expectAppRoute } from "./route-assertions";
 import {
+  buildDefaultSettingsRoute,
   buildSettingsHostSectionRoute,
   buildSettingsRoute,
   buildSettingsSectionRoute,
@@ -113,14 +114,18 @@ export async function toggleHostAdvanced(page: Page): Promise<void> {
   await page.getByTestId("direct-host-advanced-toggle").click();
 }
 
+/** Open the default detail through Settings, then use its Back action to reach the compact list. */
 export async function openCompactSettings(page: Page, expectedStartRoute: string): Promise<void> {
   await expectAppRoute(page, expectedStartRoute, { timeout: 15_000 });
   await page.getByRole("button", { name: "Open menu", exact: true }).first().click();
   const settingsButton = page.locator('[data-testid="sidebar-settings"]:visible').first();
   await expect(settingsButton).toBeVisible();
   await settingsButton.click();
-  await expectAppRoute(page, buildSettingsRoute());
-  await expect(page.getByTestId("settings-sidebar")).toBeVisible();
+  await expectAppRoute(page, buildDefaultSettingsRoute());
+  await expect(page.getByTestId("paseo-plus-plus-settings")).toBeVisible();
+  await expectSettingsBackButton(page);
+  await goBackInSettings(page);
+  await expectCompactSettingsList(page);
 }
 
 export async function seedSavedSettingsHosts(
