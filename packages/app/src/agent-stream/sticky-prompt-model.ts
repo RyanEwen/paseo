@@ -96,18 +96,24 @@ export function resolveReadingPromptTarget(
   return user ? targets.find((target) => target.item?.id === user.id) : undefined;
 }
 
-/** Initial latest-prompt discovery belongs to the page owner; manual reads preserve its window. */
+/** Resolve passive indexed content through the cache, including initial latest content. */
 export function getMissingReadingPromptSeq(input: {
   navigating: boolean;
   intentional: boolean;
+  indexed?: boolean;
+  cancelled?: boolean;
   pending: boolean;
   target?: PromptTarget;
   latest?: PromptTarget;
   selected?: UserPrompt;
 }): number | undefined {
-  if (!input.intentional || input.navigating || input.pending || input.target?.item)
+  if (input.navigating || input.pending) return undefined;
+  if (!input.intentional) {
+    if (input.indexed && !input.cancelled && !input.selected && !input.latest?.item)
+      return input.latest?.seq;
     return undefined;
-  if (input.target?.key === input.latest?.key && !input.selected) return undefined;
+  }
+  if (input.target?.item) return undefined;
   return input.target?.seq;
 }
 
