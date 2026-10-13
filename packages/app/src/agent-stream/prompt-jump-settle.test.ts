@@ -20,6 +20,8 @@ interface FakeFrameScheduler {
 }
 
 interface FakeViewport extends PromptJumpSettleViewport {
+  estimateTargetTop(itemId: string): number | null;
+  setEstimatedTargetTop(itemId: string, top: number): void;
   emitUserIntent(): void;
   setTargetTop(itemId: string, top: number | null): void;
   scrollWrites(): number[];
@@ -60,6 +62,7 @@ function createFakeViewport(input?: {
   scrollTop?: number;
 }): FakeViewport {
   const targets = new Map<string, number>();
+  const estimates = new Map<string, number>();
   const requestedTargets: string[] = [];
   const scrollWrites: number[] = [];
   const userIntentListeners = new Set<() => void>();
@@ -70,6 +73,12 @@ function createFakeViewport(input?: {
     findTargetTop(itemId) {
       requestedTargets.push(itemId);
       return targets.get(itemId) ?? null;
+    },
+    estimateTargetTop(itemId) {
+      return estimates.get(itemId) ?? null;
+    },
+    setEstimatedTargetTop(itemId, top) {
+      estimates.set(itemId, top);
     },
     getContainerTop() {
       return 0;
@@ -85,6 +94,7 @@ function createFakeViewport(input?: {
       for (const [itemId, top] of targets) {
         targets.set(itemId, top - appliedDelta);
       }
+      for (const [itemId, top] of estimates) estimates.set(itemId, top - appliedDelta);
       scrollWrites.push(scrollTop);
     },
     subscribeToUserIntent(listener) {
@@ -119,6 +129,88 @@ function createController(viewport: FakeViewport, frames: FakeFrameScheduler) {
 }
 
 describe("prompt jump settle", () => {
+  it("waits for a measured target when an unmounted estimate is already aligned", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setEstimatedTargetTop("target", 8);
+
+    controller.start("target");
+    frames.runNextFrame();
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(true);
+
+    // Mounting exposes the real row fifteen pixels below its virtual estimate.
+    viewport.setTargetTop("target", 23);
+    frames.runNextFrame();
+    expect(viewport.scrollWrites()).toEqual([115]);
+    expect(viewport.findTargetTop("target")).toBe(8);
+    frames.runNextFrame();
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(false);
+  });
+
+  it("requires consecutive measured frames after a target temporarily unmounts", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setTargetTop("target", 8);
+
+    controller.start("target");
+    frames.runNextFrame();
+    viewport.setTargetTop("target", null);
+    frames.runNextFrame();
+    viewport.setTargetTop("target", 8);
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(true);
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(false);
+  });
+
+  it("scrolls toward an estimate without declaring a clamped unmounted target settled", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport({ clientHeight: 100, scrollHeight: 220, scrollTop: 100 });
+    const controller = createController(viewport, frames);
+    viewport.setEstimatedTargetTop("target", 50);
+
+    controller.start("target");
+    frames.runNextFrame();
+    expect(viewport.scrollWrites()).toEqual([120]);
+    expect(controller.isActive()).toBe(true);
+    viewport.setTargetTop("target", 30);
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(false);
+  });
+
+  it("keeps the same frame budget while only an estimate is available", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setEstimatedTargetTop("target", 8);
+
+    controller.start("target");
+    for (let frame = 0; frame < 23; frame += 1) frames.runNextFrame();
+    expect(controller.isActive()).toBe(true);
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(false);
+    expect(frames.pendingFrames()).toBe(0);
+  });
+
+  it("cancels estimated navigation before a later measured target can scroll", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setEstimatedTargetTop("target", 8);
+
+    controller.start("target");
+    frames.runNextFrame();
+    viewport.emitUserIntent();
+    viewport.setTargetTop("target", 23);
+    expect(controller.isActive()).toBe(false);
+    expect(frames.pendingFrames()).toBe(0);
+    expect(viewport.scrollWrites()).toEqual([]);
+  });
+
   it("re-pins the target when geometry shifts between frames", () => {
     const frames = createFakeFrameScheduler();
     const viewport = createFakeViewport();
