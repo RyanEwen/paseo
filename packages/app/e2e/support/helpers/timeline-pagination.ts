@@ -351,7 +351,9 @@ export async function holdOlderHistoryPages(
   const assertReadAccounting = () => {
     const accounting = gate.getReadAccounting();
     expect(accounting.errors).toEqual([]);
-    expect(accounting.allBefore).toBe(accounting.windowBefore + accounting.contentBefore);
+    expect(accounting.allBefore).toBe(
+      accounting.windowBefore + accounting.contentBefore + (accounting.contextBefore ?? 0),
+    );
     expect(accounting.windowBefore).toBe(gate.getRequestCount());
   };
   const settleContentReads = async () => {
@@ -361,6 +363,12 @@ export async function holdOlderHistoryPages(
     await waitForTimelineGeometryToSettle(page);
     const before = await captureContentReadViewport(page);
     if (gate.flushContentReads() === 0) return;
+    // A source probe can lead to several independently released canonical cache pages.
+    for (let used = 1; used < 8 && gate.getReadAccounting().contextChainActive; used += 1) {
+      await expect.poll(() => gate.getReadAccounting().pendingContext).toBe(0);
+      await expect.poll(() => gate.flushContentReads()).toBeGreaterThan(0);
+      assertReadAccounting();
+    }
     // The content becomes visible in its own overlay, while the authoritative page remains held.
     await expect(page.getByTestId("sticky-user-message").filter({ visible: true })).toBeVisible();
     await waitForTimelineGeometryToSettle(page);

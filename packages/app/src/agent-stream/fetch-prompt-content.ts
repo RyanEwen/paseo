@@ -23,6 +23,14 @@ export async function fetchPromptContent(
     (candidate) => candidate.seqEnd === seq && candidate.item.type === "user_message",
   );
   if (!entry) throw new Error("Prompt content is unavailable");
+  return hydratePromptEntry(entry, epoch);
+}
+
+/** Decode canonical prompt content with the transcript renderer, preserving attachments. */
+export function hydratePromptEntry(
+  entry: import("./fetch-reading-prompt-context").ContextEntry,
+  epoch: string,
+): UserPrompt {
   const item = hydrateStreamState(
     [
       {

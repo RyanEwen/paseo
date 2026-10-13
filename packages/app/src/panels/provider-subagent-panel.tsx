@@ -1,3 +1,4 @@
+import { childContextPageReader } from "@/agent-stream/fetch-reading-prompt-context";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -229,6 +230,13 @@ function ProviderSubagentPanel() {
     }),
     [descriptor, parent, serverId, streamId],
   );
+  const readPromptContext = useMemo(
+    () =>
+      client && supported
+        ? childContextPageReader(client, target.parentAgentId, target.subagentId)
+        : undefined,
+    [client, supported, target.parentAgentId, target.subagentId],
+  );
   const historyPagination = useMemo(
     () => ({
       epoch,
@@ -236,8 +244,9 @@ function ProviderSubagentPanel() {
       isLoadingOlder,
       progressKey,
       onLoadOlder: loadOlder,
+      readPromptContext,
     }),
-    [epoch, isLoadingOlder, loadOlder, progressKey, timeline?.hasOlder],
+    [epoch, isLoadingOlder, loadOlder, progressKey, timeline?.hasOlder, readPromptContext],
   );
   const turnPresentation = useMemo<TurnPresentation>(
     () => ({
