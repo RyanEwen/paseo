@@ -65,7 +65,7 @@ export const TextPreview = memo(function TextPreview({
           {...props}
           selectable={false}
           dataSet={undefined}
-          onLayout={undefined}
+          onLayout={overflow.onFullLayout}
           onPress={undefined}
           onLongPress={undefined}
           style={props.style}
