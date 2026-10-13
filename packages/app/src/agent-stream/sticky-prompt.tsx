@@ -1,5 +1,12 @@
 import { PromptPixelOwnerContext } from "./prompt-bubble-geometry";
-import { type ReactNode, forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  forwardRef,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import { View, useWindowDimensions } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useStableEvent } from "@/hooks/use-stable-event";
@@ -36,7 +43,11 @@ export const StickyPrompt = forwardRef<StickyPromptHandle, Props>(function Stick
   });
   const navigation = useStickyPrompt({ ...input, fetchPrompt: readPrompt });
   const controls = usePromptNavigationControls(navigation);
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [disclosure, setDisclosure] = useState({ epoch: input.epoch, key: null as string | null });
+  const expandedKey = disclosure.epoch === input.epoch ? disclosure.key : null;
+  useLayoutEffect(() => {
+    setDisclosure({ epoch: input.epoch, key: null });
+  }, [input.epoch]);
   const compact = useIsCompactFormFactor();
   const { height } = useWindowDimensions();
   useImperativeHandle(
@@ -59,7 +70,10 @@ export const StickyPrompt = forwardRef<StickyPromptHandle, Props>(function Stick
     [availableHeight, compact, height],
   );
   const toggleExpanded = useStableEvent(() =>
-    setExpandedKey(expandedKey === message?.id ? null : (message?.id ?? null)),
+    setDisclosure({
+      epoch: input.epoch,
+      key: expandedKey === message?.id ? null : (message?.id ?? null),
+    }),
   );
   const expanded = expandedKey !== null && expandedKey === message?.id;
   const disclosureState = useMemo(() => ({ expanded }), [expanded]);

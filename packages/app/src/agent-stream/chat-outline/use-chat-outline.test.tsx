@@ -7,6 +7,7 @@ import type { StreamViewportHandle } from "../strategy";
 import { PROMPT_DISCOVERY_PAGE_BUDGET } from "../use-prompt-discovery";
 import { createPromptReadingPublisher } from "../prompt-reading-position";
 import { usePromptNavigationControls } from "../use-prompt-navigation-controls";
+import { useReadingPrompt } from "../use-reading-prompt";
 import { useStickyPrompt } from "../use-sticky-prompt";
 import type { StreamItem } from "@/types/stream";
 import type { ChatOutline } from "./use-chat-outline";
@@ -414,13 +415,17 @@ describe("useChatOutline", () => {
   });
 });
 
-function stickyUser(id: string, seq: number): Extract<StreamItem, { kind: "user_message" }> {
+function stickyUser(
+  id: string,
+  seq: number,
+  epoch = "epoch-1",
+): Extract<StreamItem, { kind: "user_message" }> {
   return {
     kind: "user_message",
     id,
     text: `Prompt ${seq}\n  preserve whitespace`,
     timestamp: new Date(0),
-    timelineCursor: { epoch: "epoch-1", seq },
+    timelineCursor: { epoch, seq },
   };
 }
 
@@ -1232,5 +1237,66 @@ describe("return to the pinned prompt", () => {
     const empty = renderHook(useStickyPrompt, { initialProps: stickyInput([], stickyOutline([])) });
     act(() => empty.result.current.reveal());
     expect(empty.result.current.message).toBeUndefined();
+  });
+});
+
+describe("prompt ownership across authoritative epochs", () => {
+  it("clears an earlier selection and pending jump without scrolling the retained viewport", () => {
+    const input = stickyInput(
+      [stickyUser("one", 1), stickyUser("three", 3)],
+      stickyOutline([0, 1, 3]),
+    );
+    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
+    act(() => result.current.previous());
+    expect(result.current.message?.id).toBe("one");
+    act(() => result.current.previous());
+    expect(result.current.busy).toBe(true);
+    const cancellationCount = vi.mocked(input.outline.cancelStickyJump).mock.calls.length;
+    const latest = { ...stickyUser("three", 3, "epoch-2"), text: "Replacement latest" };
+    rerender({ ...input, epoch: "epoch-2", items: [stickyUser("one", 1, "epoch-2"), latest] });
+    expect(result.current.message).toEqual(latest);
+    expect(result.current.busy).toBe(false);
+    expect(result.current.error).toBe(false);
+    expect(input.outline.cancelStickyJump).toHaveBeenCalledTimes(cancellationCount + 1);
+    expect(input.jumpToLoaded).toHaveBeenCalledTimes(1);
+  });
+
+  it("fences a held old-epoch read while fetching the same sequence in the new epoch", async () => {
+    const old = deferred<ReturnType<typeof stickyUser>>();
+    const fresh = deferred<ReturnType<typeof stickyUser>>();
+    const fetchPrompt = vi.fn().mockReturnValueOnce(old.promise).mockReturnValueOnce(fresh.promise);
+    const input = {
+      seq: 1,
+      epoch: "epoch-1",
+      knownPrompts: [] as ReturnType<typeof stickyUser>[],
+      fetchPrompt,
+    };
+    const { result, rerender } = renderHook(useReadingPrompt, { initialProps: input });
+    rerender({ ...input, epoch: "epoch-2" });
+    expect(fetchPrompt).toHaveBeenCalledTimes(2);
+    await act(async () => old.resolve(stickyUser("same", 1)));
+    expect(result.current.item).toBeUndefined();
+    expect(result.current.loading).toBe(true);
+    const replacement = { ...stickyUser("same", 1, "epoch-2"), text: "Fresh content" };
+    await act(async () => fresh.resolve(replacement));
+    expect(result.current.item).toEqual(replacement);
+    expect(result.current.error).toBe(false);
+  });
+
+  it("does not reuse resolved content when an epoch reuses the same prompt identity", async () => {
+    const old = stickyUser("same", 1);
+    const replacement = { ...stickyUser("same", 1, "epoch-2"), text: "Fresh content" };
+    const fetchPrompt = vi.fn().mockResolvedValueOnce(old).mockResolvedValueOnce(replacement);
+    const input = {
+      seq: 1,
+      epoch: "epoch-1",
+      knownPrompts: [] as ReturnType<typeof stickyUser>[],
+      fetchPrompt,
+    };
+    const { result, rerender } = renderHook(useReadingPrompt, { initialProps: input });
+    await waitFor(() => expect(result.current.item).toEqual(old));
+    rerender({ ...input, epoch: "epoch-2" });
+    await waitFor(() => expect(result.current.item).toEqual(replacement));
+    expect(fetchPrompt).toHaveBeenCalledTimes(2);
   });
 });
