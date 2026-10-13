@@ -81,22 +81,37 @@ const daemonTest = metroTest.extend<
   ],
   projectOwnership: [
     async ({ e2eWorkerClient }, provide, testInfo) => {
+      // Registry inventory includes UI-created projects that have no workspace yet.
       const before = new Set(
-        (await e2eWorkerClient.fetchWorkspaces()).entries.map((workspace) => workspace.projectId),
+        (await e2eWorkerClient.listProjects()).projects.map((project) => project.projectId),
       );
 
       await provide();
 
       const leaked = [
         ...new Set(
-          (await e2eWorkerClient.fetchWorkspaces()).entries.map((workspace) => workspace.projectId),
+          (await e2eWorkerClient.listProjects()).projects.map((project) => project.projectId),
         ),
       ].filter((projectId) => !before.has(projectId));
+      const cleanupErrors: string[] = [];
       for (const projectId of leaked) {
-        await e2eWorkerClient.removeProject(projectId).catch(() => undefined);
+        try {
+          await e2eWorkerClient.removeProject(projectId);
+        } catch (error) {
+          cleanupErrors.push(
+            `${projectId}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
       if (leaked.length > 0) {
-        const message = `Test leaked daemon project records: ${leaked.join(", ")}`;
+        const remaining = (await e2eWorkerClient.listProjects()).projects
+          .map((project) => project.projectId)
+          .filter((projectId) => leaked.includes(projectId));
+        if (remaining.length > 0) {
+          cleanupErrors.push(`Registry still contains: ${remaining.join(", ")}`);
+        }
+        let message = `Test leaked daemon project records: ${leaked.join(", ")}`;
+        if (cleanupErrors.length > 0) message += `; cleanup failed: ${cleanupErrors.join("; ")}`;
         if (testInfo.status === testInfo.expectedStatus) throw new Error(message);
         await testInfo.attach("project-leaks", { body: message, contentType: "text/plain" });
       }
