@@ -765,18 +765,24 @@ describe("initial prompt discovery", () => {
     await waitFor(() => expect(loadOlder).toHaveBeenCalledTimes(PROMPT_DISCOVERY_PAGE_BUDGET + 1));
   });
 
-  it("retries the intended latest indexed window before any prompt is loaded", async () => {
+  it("retries latest indexed content without loading a window before any prompt is loaded", async () => {
     const outline = stickyOutline([1]);
-    const input = stickyInput([assistant], outline);
-    const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
-    expect(outline.jumpToPrompt).toHaveBeenCalledWith(1, { scroll: false, source: "sticky" });
-    rerender({ ...input, outline: { ...outline, jumpError: true } });
+    const latest = stickyUser("latest", 1);
+    const fetchPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce(latest);
+    const input = { ...stickyInput([assistant], outline), fetchPrompt };
+    const { result } = renderHook(useStickyPrompt, { initialProps: input });
     await waitFor(() => expect(result.current.error).toBe(true));
-    rerender(input);
+    expect(fetchPrompt).toHaveBeenCalledWith(1);
+    expect(outline.jumpToPrompt).not.toHaveBeenCalled();
+    expect(input.loadOlder).not.toHaveBeenCalled();
     act(() => result.current.retry());
-    expect(outline.jumpToPrompt).toHaveBeenCalledTimes(2);
-    rerender({ ...input, items: [stickyUser("latest", 1), assistant] });
-    await waitFor(() => expect(result.current.message?.id).toBe("latest"));
+    await waitFor(() => expect(result.current.message).toEqual(latest));
+    expect(fetchPrompt).toHaveBeenCalledTimes(2);
+    expect(outline.jumpToPrompt).not.toHaveBeenCalled();
+    expect(input.loadOlder).not.toHaveBeenCalled();
     expect(result.current.error).toBe(false);
   });
 });
@@ -1482,4 +1488,102 @@ it("rejects a malformed canonical index before trusting its sequence identity", 
   );
   expect(ledger.classify(contentReadRequest())).toBeUndefined();
   expect(ledger.summary().errors).toHaveLength(2);
+});
+
+describe("passive indexed latest prompt content", () => {
+  it("keeps assistant-only history and following intact, then loads and scrolls only for explicit review", async () => {
+    runtime.listAgentTimelinePrompts.mockReset().mockResolvedValue({
+      epoch: "epoch-1",
+      prompts: [{ seq: 1, timestamp: new Date(0).toISOString(), preview: "Latest prompt" }],
+    });
+    const window = deferred<void>();
+    runtime.fetchAgentTimeline.mockReset().mockReturnValue(window.promise);
+    const content = deferred<ReturnType<typeof stickyUser>>();
+    const fetchPrompt = vi.fn(() => content.promise);
+    const assistant: StreamItem = {
+      kind: "assistant_message",
+      id: "tail-answer",
+      text: "Current tail",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch-1", seq: 206 },
+    };
+    const reading = createPromptReadingPublisher();
+    reading.publish(assistant.id, [], false, true, false, 206);
+    const before = reading.getSnapshot();
+    const scrollToMessage = vi.fn();
+    const viewportRef = {
+      current: {
+        scrollToBottom: vi.fn(),
+        prepareForViewportChange: vi.fn(),
+        scrollToMessage,
+        cancelMessageScroll: vi.fn(),
+      },
+    };
+    const loadOlder = vi.fn(async () => false);
+    const jumpToLoaded = vi.fn();
+    const tail: StreamItem[] = [assistant];
+    const { result, rerender } = renderHook(
+      ({ items }) => {
+        const outline = useChatOutline({
+          agentId: "agent",
+          serverId: "server",
+          timelineEpoch: "epoch-1",
+          enabled: true,
+          tail: items,
+          head: [],
+          viewportRef,
+          onJumpError: vi.fn(),
+        });
+        const sticky = useStickyPrompt({
+          ...stickyInput(items, outline),
+          reading,
+          fetchPrompt,
+          loadOlder,
+          jumpToLoaded,
+        });
+        return { outline, sticky };
+      },
+      { initialProps: { items: tail } },
+    );
+    await waitFor(() => expect(result.current.outline.indexReady).toBe(true));
+    expect(runtime.fetchAgentTimeline).not.toHaveBeenCalled();
+    await waitFor(() => expect(fetchPrompt).toHaveBeenCalledTimes(1));
+    expect(loadOlder).not.toHaveBeenCalled();
+    expect(scrollToMessage).not.toHaveBeenCalled();
+    const prompt = {
+      ...stickyUser("latest", 1),
+      text: "Latest prompt\n  formatting retained",
+      images: [{ id: "image" }],
+      attachments: [{ id: "file" }],
+    } as ReturnType<typeof stickyUser>;
+    await act(async () => content.resolve(prompt));
+    expect(result.current.sticky.message).toEqual(prompt);
+    expect(reading.getSnapshot()).toBe(before);
+    expect(tail).toEqual([assistant]);
+    expect(runtime.fetchAgentTimeline).not.toHaveBeenCalled();
+    act(() => result.current.sticky.reveal());
+    expect(runtime.fetchAgentTimeline).toHaveBeenCalledTimes(1);
+    expect(runtime.fetchAgentTimeline).toHaveBeenCalledWith(
+      "server",
+      "agent",
+      {
+        direction: "before",
+        cursor: { epoch: "epoch-1", seq: 22 },
+        limit: 40,
+        projection: "projected",
+        mergeWindow: true,
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(scrollToMessage).not.toHaveBeenCalled();
+    expect(jumpToLoaded).not.toHaveBeenCalled();
+    expect(result.current.sticky.message).toEqual(prompt);
+    rerender({ items: [prompt, assistant] });
+    await waitFor(() => expect(scrollToMessage).toHaveBeenCalledWith("latest"));
+    await act(async () => window.resolve());
+    expect(scrollToMessage).toHaveBeenCalledTimes(1);
+    expect(result.current.sticky.busy).toBe(false);
+    expect(result.current.sticky.error).toBe(false);
+    expect(reading.getSnapshot()).toBe(before);
+  });
 });

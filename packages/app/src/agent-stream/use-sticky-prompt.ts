@@ -111,6 +111,8 @@ export function useStickyPrompt(input: Input) {
   const missingReadingSeq = getMissingReadingPromptSeq({
     navigating: reading.navigating,
     intentional: reading.manual || reading.following,
+    indexed,
+    cancelled,
     pending: pending !== null || outline.isJumping,
     target: readingTarget,
     latest: targets.at(-1),
@@ -209,30 +211,8 @@ export function useStickyPrompt(input: Input) {
     }
   }, [enabled, outline.jumpError, pending, targets]);
 
-  useEffect(() => {
-    const newest = targets.at(-1);
-    if (
-      enabled &&
-      indexed &&
-      !selectedMessage &&
-      newest &&
-      !pending &&
-      !cancelled &&
-      !error &&
-      !outline.jumpError
-    )
-      selectTarget(newest, false);
-  }, [
-    enabled,
-    cancelled,
-    error,
-    indexed,
-    selectedMessage,
-    outline.jumpError,
-    pending,
-    selectTarget,
-    targets,
-  ]);
+  // Initial/latest display is a content lookup, never an implicit prompt jump.
+  // Only an explicit navigation below may replace the authoritative history window.
 
   useEffect(() => {
     if (!enabled || !discoveringPrevious) return;
@@ -302,7 +282,7 @@ export function useStickyPrompt(input: Input) {
     } else if (message) navigate(retryDirection.current);
     else if (indexed) {
       const newest = targets.at(-1);
-      if (newest) selectTarget(newest, false);
+      if (newest) readingContent.retry();
       else outline.retryIndex();
     }
   });
@@ -379,7 +359,11 @@ export function useStickyPrompt(input: Input) {
   const reveal = useStableEvent(() => {
     if (!enabled || busy) return;
     const target = targets[position];
-    if (target) selectTarget(target, true, { preserveSelection: true });
+    if (target) {
+      // Retain the displayed cache copy while the owner loads its original row.
+      setSelected(message ?? null);
+      selectTarget(target, true, { preserveSelection: true });
+    }
   });
   return {
     message,
