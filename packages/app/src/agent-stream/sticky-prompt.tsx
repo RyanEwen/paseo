@@ -15,10 +15,17 @@ import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 import { PromptMessageSurface, PromptDiscoverySurface } from "./prompt-navigation-surface";
 import { PromptNavigationContext } from "./prompt-navigation-actions";
 import { usePromptNavigationControls } from "./use-prompt-navigation-controls";
+import {
+  fetchReadingPromptContext,
+  normalContextPageReader,
+  type ContextPageReader,
+} from "./fetch-reading-prompt-context";
+import type { StreamItem } from "@/types/stream";
 import { fetchPromptContent } from "./fetch-prompt-content";
 import { useStickyPrompt } from "./use-sticky-prompt";
 
 type Props = Parameters<typeof useStickyPrompt>[0] & {
+  contextPageReader?: ContextPageReader | null;
   serverId: string;
   agentId: string;
   client: DaemonClient | null;
@@ -34,14 +41,36 @@ export interface StickyPromptHandle {
 
 /** Overlay a compact copy as the original bubble crosses the viewport top, without resizing the timeline viewport. */
 export const StickyPrompt = forwardRef<StickyPromptHandle, Props>(function StickyPrompt(
-  { serverId, agentId, client, availableHeight, contentMaxWidth, children, ...input },
+  {
+    serverId,
+    agentId,
+    client,
+    contextPageReader,
+    availableHeight,
+    contentMaxWidth,
+    children,
+    ...input
+  },
   ref,
 ) {
   const readPrompt = useStableEvent(async (seq: number) => {
     if (!client || !input.epoch) throw new Error("Prompt content is unavailable");
     return fetchPromptContent(client, agentId, input.epoch, seq);
   });
-  const navigation = useStickyPrompt({ ...input, fetchPrompt: readPrompt });
+  const readContext = useStableEvent(async (source: StreamItem, signal: AbortSignal) => {
+    if (!client || contextPageReader === null) throw new Error("Reading context is unavailable");
+    return fetchReadingPromptContext(
+      contextPageReader ?? normalContextPageReader(client, agentId),
+      source,
+      signal,
+      contextPageReader ? "projected" : "canonical",
+    );
+  });
+  const navigation = useStickyPrompt({
+    ...input,
+    fetchPrompt: readPrompt,
+    fetchContext: readContext,
+  });
   const controls = usePromptNavigationControls(navigation);
   const [disclosure, setDisclosure] = useState({ epoch: input.epoch, key: null as string | null });
   const expandedKey = disclosure.epoch === input.epoch ? disclosure.key : null;

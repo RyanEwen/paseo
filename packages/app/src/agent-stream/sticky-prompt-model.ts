@@ -7,6 +7,8 @@ export interface PromptTarget {
   key: string;
   seq?: number;
   item?: UserPrompt;
+  /** Cache content is not proof that the original row is loaded. */
+  cached?: boolean;
 }
 
 /** Merge the complete daemon index with loaded prompts, including local submissions. */
@@ -233,4 +235,111 @@ export function resolvePromptGeometry(
     prefixHeightOne: frame.prefixHeightOne,
     prefixHeightTwo: frame.prefixHeightTwo,
   };
+}
+
+/** Resolve a visible canonical source without conflating repeated provider message IDs. */
+export function resolveContextSource(
+  items: readonly StreamItem[],
+  epoch: string | null,
+  rowId: string | null,
+  seq: number | null | undefined,
+  requested = true,
+): StreamItem | undefined {
+  if (!requested) return undefined;
+  const candidates = items.filter(
+    (item) =>
+      item.timelineCursor?.epoch === epoch &&
+      (seq != null ? item.timelineCursor.seq === seq : item.id === rowId),
+  );
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
+/** Add cached content to navigation order without claiming the original row is loaded. */
+export function mergeCachedPromptTarget(
+  targets: PromptTarget[],
+  fetched: UserPrompt | undefined,
+  selected: UserPrompt | null,
+  epoch: string | null,
+): PromptTarget[] {
+  const cached = fetched ?? selected;
+  if (!cached || findPromptTarget(targets, cached) !== -1) return targets;
+  const seq = cached.timelineCursor?.epoch === epoch ? cached.timelineCursor.seq : undefined;
+  if (seq === undefined) return targets;
+  return [...targets, { key: `${epoch}:${seq}`, seq, item: cached, cached: true }].sort(
+    (a, b) => (a.seq ?? Infinity) - (b.seq ?? Infinity),
+  );
+}
+
+/** Only manual missing context uses the passive reader; explicit jumps keep their selection. */
+export function shouldReadContext(
+  enabled: boolean,
+  missing: boolean,
+  cancelled: boolean,
+  navigating: boolean,
+  pending: PromptTarget | "previous" | null,
+): boolean {
+  return enabled && missing && !cancelled && !navigating && pending === null;
+}
+
+/** Freeze explicit selection while its original loads; otherwise use the active reading cache. */
+export function resolveContextMessage(
+  pending: PromptTarget | "previous" | null,
+  missing: boolean,
+  selected: UserPrompt | undefined,
+  fetched: UserPrompt | undefined,
+  missingSeq: number | undefined,
+  canFetch: boolean,
+): UserPrompt | undefined {
+  if (pending) return selected;
+  if (missing) return fetched;
+  return resolveStickyPromptMessage(selected, fetched, false, missingSeq, canFetch);
+}
+
+/** Explicit cached-row revelation loads history; passive context never does. */
+export function shouldDiscoverCachedPrompt(
+  pending: PromptTarget | "previous" | null,
+  indexed: boolean,
+  message: UserPrompt | undefined,
+  cancelled: boolean,
+  readingMissing: boolean,
+): boolean {
+  if (pending !== null && pending !== "previous" && pending.cached) return true;
+  return (
+    !readingMissing &&
+    shouldDiscoverPrompt(pending === "previous", indexed, message, cancelled, false)
+  );
+}
+
+/** Stop pagination only when the actual original row is loaded, not its cache copy. */
+export function hasDiscoveredCachedPrompt(
+  pending: PromptTarget | "previous" | null,
+  loaded: PromptTarget[],
+  previous: PromptTarget | undefined,
+  readingMissing: boolean,
+  readingTarget: PromptTarget | undefined,
+  message: UserPrompt | undefined,
+): boolean {
+  if (pending !== null && pending !== "previous" && pending.cached)
+    return loaded.some((target) => target.key === pending.key && target.item !== undefined);
+  return hasDiscoveredPrompt(
+    pending === "previous",
+    previous,
+    readingMissing,
+    readingTarget,
+    message,
+  );
+}
+
+/** Missing canonical identity is an actionable error, never a guessed source cursor. */
+export function isContextSourceMissing(requested: boolean, source: StreamItem | undefined) {
+  return requested && !source;
+}
+
+/** A cache-resolved reading prompt can be pinned while its original is outside the loaded window. */
+export function resolveStickyReadingTarget(
+  target: PromptTarget | undefined,
+  targets: readonly PromptTarget[],
+  position: number,
+) {
+  return target ?? targets[position];
 }

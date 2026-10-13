@@ -390,8 +390,9 @@ export async function holdAgentOlderTimelinePages(
       if (!belongsToLedger) return false;
       const purpose = ledger.beforeResponsePurpose(payload);
       if (purpose === "window") return false;
-      if (purpose === "content") {
-        ledger.completeContent(payload);
+      if (purpose === "content" || purpose === "context") {
+        if (purpose === "content") ledger.completeContent(payload);
+        else ledger.completeContext(payload);
         contentForwards.push(forward);
       } else {
         forward();

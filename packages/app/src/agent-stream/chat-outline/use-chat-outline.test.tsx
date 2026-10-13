@@ -9,6 +9,14 @@ import { createPromptReadingPublisher } from "../prompt-reading-position";
 import { usePromptNavigationControls } from "../use-prompt-navigation-controls";
 import * as protocolSchemas from "@getpaseo/protocol/messages";
 import { createTimelineRequestLedger } from "../../../e2e/support/helpers/timeline-request-ledger";
+import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import {
+  fetchReadingPromptContext,
+  childContextPageReader,
+  type ContextPage,
+  type ContextEntry,
+} from "../fetch-reading-prompt-context";
+import type { UserPrompt } from "../sticky-prompt-model";
 import { useReadingPrompt } from "../use-reading-prompt";
 import { useStickyPrompt } from "../use-sticky-prompt";
 import type { StreamItem } from "@/types/stream";
@@ -943,32 +951,43 @@ it("does not transfer an arrow selection to a different reading-edge prompt afte
   expect(result.current.message?.id).toBe("first");
 });
 
-it("discovers an index-free reading prompt before the loaded window while retaining newer prompts", async () => {
-  const olderAnswer = {
+it("reads index-free context without applying an older viewed window", async () => {
+  const answer = {
     kind: "assistant_message" as const,
     id: "answer",
     text: "response",
     timestamp: new Date(2),
     timelineCursor: { epoch: "epoch-1", seq: 2 },
   };
-  const latest = stickyUser("latest", 3);
   const old = stickyUser("old", 1);
-  const page = deferred<boolean>();
+  const latest = stickyUser("latest", 3);
   const reading = createPromptReadingPublisher();
+  const held = deferred<typeof old | undefined>();
+  const fetchContext = vi.fn((_source: StreamItem, _signal: AbortSignal) => held.promise);
+  const ownerPage = deferred<boolean>();
   const input = {
-    ...stickyInput([olderAnswer, latest], stickyOutline([])),
+    ...stickyInput([answer, latest], stickyOutline([])),
     indexed: false,
     reading,
-    loadOlder: vi.fn(() => page.promise),
+    fetchContext,
+    loadOlder: vi.fn(() => ownerPage.promise),
   };
   const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
-  act(() => reading.publish(olderAnswer.id));
-  await waitFor(() => expect(input.loadOlder).toHaveBeenCalledTimes(1));
-  expect(result.current.message).toBeUndefined();
-  rerender({ ...input, items: [old, olderAnswer, latest], progressKey: "older-page" });
-  await act(async () => page.resolve(true));
+  act(() => reading.publish(answer.id));
+  expect(input.loadOlder).not.toHaveBeenCalled();
+  await waitFor(() => expect(fetchContext).toHaveBeenCalledTimes(1));
+  expect(input.loadOlder).not.toHaveBeenCalled();
+  await act(async () => held.resolve(old));
   expect(result.current.message?.id).toBe("old");
   expect(result.current.stickyVisible).toBe(true);
+  expect(input.outline.jumpToPrompt).not.toHaveBeenCalled();
+  expect(reading.getSnapshot().rowId).toBe("answer");
+  act(() => result.current.reveal());
+  await waitFor(() => expect(input.loadOlder).toHaveBeenCalledTimes(1));
+  expect(input.jumpToLoaded).not.toHaveBeenCalled();
+  rerender({ ...input, items: [old, answer, latest], progressKey: "older" });
+  await act(async () => ownerPage.resolve(true));
+  await waitFor(() => expect(input.jumpToLoaded).toHaveBeenCalledWith("old"));
 });
 
 it("preserves known attachment content when its indexed prompt leaves the loaded window", async () => {
@@ -1585,5 +1604,381 @@ describe("passive indexed latest prompt content", () => {
     expect(result.current.sticky.busy).toBe(false);
     expect(result.current.sticky.error).toBe(false);
     expect(reading.getSnapshot()).toBe(before);
+  });
+});
+
+// Ranges and shared message identity are captured from the old-host response.
+// Predecessor USER and intervening pages below are synthetic boundary fixtures.
+describe("index-free cache-only context", () => {
+  const source: StreamItem = {
+    kind: "assistant_message",
+    id: "segment-256",
+    messageId: "same",
+    text: "answer",
+    timestamp: new Date(0),
+    timelineCursor: { epoch: "epoch", seq: 256 },
+  };
+  const entry = (start: number, end: number, type = "assistant_message"): ContextEntry => ({
+    provider: "mock",
+    timestamp: new Date(0).toISOString(),
+    seqStart: start,
+    seqEnd: end,
+    sourceSeqRanges: [{ startSeq: start, endSeq: end }],
+    collapsed: [],
+    item:
+      type === "user_message"
+        ? { type: "user_message", text: "original prompt" }
+        : { type: "assistant_message", messageId: "same", text: "answer" },
+  });
+  const page = (entries: ContextEntry[], hasOlder = true): ContextPage => ({
+    epoch: "epoch",
+    entries,
+    hasOlder,
+    error: null,
+    reset: false,
+    staleCursor: false,
+    gap: false,
+  });
+
+  it("separates shared messageId occurrences and walks true expanded source starts", async () => {
+    const reader = vi
+      .fn()
+      .mockResolvedValueOnce(page([entry(246, 256)]))
+      .mockResolvedValueOnce(page([entry(220, 242)]))
+      .mockResolvedValueOnce(page([entry(212, 217)]))
+      .mockResolvedValueOnce(page([entry(63, 63, "user_message"), entry(64, 64, "user_message")]));
+    const prompt = await fetchReadingPromptContext(reader, source, new AbortController().signal);
+    expect(prompt?.timelineCursor).toEqual({ epoch: "epoch", seq: 64 });
+    expect(prompt?.text).toBe("original prompt");
+    expect(
+      reader.mock.calls.map(([request]) => [request.cursor, request.limit, request.projection]),
+    ).toEqual([
+      [257, 1, "projected"],
+      [246, 40, "canonical"],
+      [220, 40, "canonical"],
+      [212, 40, "canonical"],
+    ]);
+  });
+
+  it("counts the source probe inside the eight-read cap", async () => {
+    let end = 246;
+    const reader = vi
+      .fn()
+      .mockImplementation(async (request) =>
+        request.limit === 1 ? page([entry(246, 256)]) : page([entry(--end, end)]),
+      );
+    await expect(
+      fetchReadingPromptContext(reader, source, new AbortController().signal),
+    ).rejects.toThrow("request budget");
+    expect(reader).toHaveBeenCalledTimes(8);
+  });
+
+  it.each([
+    { epoch: "wrong" },
+    { reset: true },
+    { staleCursor: true },
+    { gap: true },
+    { error: "failed" },
+    { entries: [entry(220, 242)] },
+    { entries: [entry(246, 256), entry(246, 256)] },
+    { entries: [{ ...entry(246, 256), sourceSeqRanges: [] }] },
+  ])("rejects changed, missing or ambiguous source metadata %j", async (invalid) => {
+    const reader = vi.fn().mockResolvedValue({ ...page([entry(246, 256)]), ...invalid });
+    await expect(
+      fetchReadingPromptContext(reader, source, new AbortController().signal),
+    ).rejects.toThrow();
+    expect(reader).toHaveBeenCalledTimes(1);
+  });
+
+  it("exhausts tool-only history without applying pages", async () => {
+    const reader = vi
+      .fn()
+      .mockResolvedValueOnce(page([entry(246, 256)]))
+      .mockResolvedValueOnce(page([], false));
+    expect(
+      await fetchReadingPromptContext(reader, source, new AbortController().signal),
+    ).toBeUndefined();
+    expect(reader).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects nonprogress instead of looping", async () => {
+    const reader = vi
+      .fn()
+      .mockResolvedValueOnce(page([entry(246, 256)]))
+      .mockResolvedValueOnce(page([entry(246, 256)]));
+    await expect(
+      fetchReadingPromptContext(reader, source, new AbortController().signal),
+    ).rejects.toThrow("backward");
+    expect(reader).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancels a held probe before any backward request", async () => {
+    const held = deferred<ContextPage>();
+    const reader = vi.fn(() => held.promise);
+    const controller = new AbortController();
+    const result = fetchReadingPromptContext(reader, source, controller.signal);
+    controller.abort();
+    held.resolve(page([entry(246, 256)]));
+    await expect(result).rejects.toThrow();
+    expect(reader).toHaveBeenCalledTimes(1);
+  });
+
+  it("walks tool-only pages to the nearest USER and cancels held backward work", async () => {
+    const tool: ContextEntry = {
+      ...entry(218, 218),
+      item: {
+        type: "tool_call",
+        callId: "call",
+        name: "Read",
+        status: "completed",
+        error: null,
+        detail: { type: "read", filePath: "file" },
+      },
+    };
+    const held = deferred<ContextPage>();
+    const reader = vi
+      .fn()
+      .mockResolvedValueOnce(page([entry(246, 256)]))
+      .mockResolvedValueOnce(page([tool]))
+      .mockImplementationOnce(() => held.promise);
+    const controller = new AbortController();
+    const result = fetchReadingPromptContext(reader, source, controller.signal);
+    await waitFor(() => expect(reader).toHaveBeenCalledTimes(3));
+    expect(reader.mock.calls[2]![0].cursor).toBe(218);
+    controller.abort();
+    held.resolve(page([entry(63, 63, "user_message")]));
+    await expect(result).rejects.toThrow("cancelled");
+    expect(reader).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries a context failure and caches exhausted history without repeated reads", async () => {
+    const fetchContext = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("missing source"))
+      .mockResolvedValue(undefined);
+    const { result, rerender } = renderHook(useReadingPrompt, {
+      initialProps: { epoch: "epoch", seq: undefined, knownPrompts: [], source, fetchContext },
+    });
+    await waitFor(() => expect(result.current.error).toBe(true));
+    act(() => result.current.retry());
+    await waitFor(() => expect(fetchContext).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    rerender({
+      epoch: "epoch",
+      seq: undefined,
+      knownPrompts: [],
+      source: { ...source },
+      fetchContext,
+    });
+    expect(result.current.error).toBe(false);
+    expect(fetchContext).toHaveBeenCalledTimes(2);
+  });
+
+  it("shares the sixteen-entry cap between context and known canonical prompts", async () => {
+    const fetchContext = vi.fn(async () => stickyUser("context", 1, "epoch"));
+    const knownPrompts = Array.from({ length: 16 }, (_, i) =>
+      stickyUser(`known-${i}`, i + 300, "epoch"),
+    );
+    const { result, rerender } = renderHook(useReadingPrompt, {
+      initialProps: {
+        epoch: "epoch",
+        seq: undefined,
+        knownPrompts: [] as UserPrompt[],
+        source,
+        fetchContext,
+      },
+    });
+    await waitFor(() => expect(result.current.item?.id).toBe("context"));
+    rerender({
+      epoch: "epoch",
+      seq: undefined,
+      knownPrompts,
+      source: { ...source, id: "other" },
+      fetchContext,
+    });
+    await waitFor(() => expect(fetchContext).toHaveBeenCalledTimes(2));
+    rerender({ epoch: "epoch", seq: undefined, knownPrompts, source, fetchContext });
+    await waitFor(() => expect(fetchContext).toHaveBeenCalledTimes(3));
+  });
+
+  it("scopes child reads to the exact owner and never applies their payload", async () => {
+    const fetchProviderSubagentTimeline = vi.fn().mockResolvedValue({
+      ...page([entry(246, 256)]),
+      parentAgentId: "parent",
+      subagentId: "child",
+      provider: "mock",
+      direction: "before",
+      rows: [{ ...entry(246, 256), seq: 256 }],
+    });
+    const client = { fetchProviderSubagentTimeline } as unknown as DaemonClient;
+    const reader = childContextPageReader(client, "parent", "child");
+    const request = { epoch: "epoch", cursor: 257, limit: 1, projection: "projected" as const };
+    expect((await reader(request)).entries[0]?.seqStart).toBe(246);
+    expect(fetchProviderSubagentTimeline).toHaveBeenCalledExactlyOnceWith("parent", "child", {
+      direction: "before",
+      cursor: { epoch: "epoch", seq: 257 },
+      limit: 1,
+    });
+    fetchProviderSubagentTimeline.mockResolvedValue({
+      parentAgentId: "other",
+      subagentId: "child",
+    });
+    await expect(reader(request)).rejects.toThrow("child identity");
+  });
+
+  it("does not publish a held context after epoch replacement", async () => {
+    const held = deferred<UserPrompt | undefined>();
+    const fetchContext = vi.fn((_source: StreamItem, _signal: AbortSignal) => held.promise);
+    const { result, rerender } = renderHook(useReadingPrompt, {
+      initialProps: { epoch: "epoch", seq: undefined, knownPrompts: [], source, fetchContext },
+    });
+    await waitFor(() => expect(fetchContext).toHaveBeenCalledTimes(1));
+    rerender({
+      epoch: "new",
+      seq: undefined,
+      knownPrompts: [],
+      source: { ...source, timelineCursor: { epoch: "new", seq: 256 } },
+      fetchContext,
+    });
+    expect(fetchContext.mock.calls[0]![1].aborted).toBe(true);
+    await act(async () => held.resolve(stickyUser("old", 1, "epoch")));
+    expect(result.current.item?.timelineCursor?.epoch).not.toBe("epoch");
+  });
+});
+
+describe("strict old-host context accounting", () => {
+  const sourceResponse = () => ({
+    ...contentReadResponse("assistant_message"),
+    direction: "tail",
+    hasOlder: true,
+    entries: [
+      {
+        ...contentReadResponse("assistant_message").entries[0]!,
+        seqStart: 246,
+        seqEnd: 256,
+        sourceSeqRanges: [{ startSeq: 246, endSeq: 256 }],
+      },
+    ],
+  });
+  const probeRequest = () => ({
+    ...contentReadRequest("probe"),
+    cursor: { epoch: "epoch", seq: 257 },
+  });
+  const probeResponse = () => ({
+    ...sourceResponse(),
+    direction: "before",
+    requestId: "probe",
+    startCursor: { epoch: "epoch", seq: 256 },
+    endCursor: { epoch: "epoch", seq: 256 },
+  });
+  const contextRequest = () => ({
+    ...contentReadRequest("context-page"),
+    limit: 40,
+    projection: "canonical",
+    cursor: { epoch: "epoch", seq: 246 },
+  });
+  const oldLedger = () => {
+    const ledger = createTimelineRequestLedger("agent", protocolSchemas);
+    ledger.observeWindow(sourceResponse());
+    return ledger;
+  };
+  it("accounts for source probe and canonical content separately from the unchanged window budget", () => {
+    const ledger = oldLedger();
+    expect(ledger.classify({ ...contentReadRequest("window"), limit: 40 })).toBe("window");
+    expect(ledger.classify(probeRequest())).toBe("context");
+    ledger.completeContext(probeResponse());
+    expect(ledger.classify(contextRequest())).toBe("context");
+    ledger.completeContext({
+      ...contentReadResponse(),
+      requestId: "context-page",
+      projection: "canonical",
+    });
+    expect(ledger.summary()).toMatchObject({
+      allBefore: 3,
+      windowBefore: 1,
+      contentBefore: 0,
+      contextBefore: 2,
+      pendingContext: 0,
+      contextChainActive: false,
+      errors: [],
+    });
+  });
+  it.each([
+    { agentId: "other" },
+    { limit: 2 },
+    { mergeWindow: true },
+    { cursor: { epoch: "other", seq: 257 } },
+    { cursor: { epoch: "epoch", seq: 256 } },
+  ])("rejects unowned probe %j", (invalid) => {
+    const ledger = oldLedger();
+    expect(ledger.classify({ ...probeRequest(), ...invalid })).toBeUndefined();
+    expect(ledger.summary().errors).toHaveLength(1);
+  });
+  it.each([
+    { epoch: "other" },
+    { agentId: "other" },
+    { entries: [{}] },
+    { reset: true },
+    { endCursor: { epoch: "epoch", seq: 255 } },
+    { entries: [{ ...sourceResponse().entries[0]!, sourceSeqRanges: [] }] },
+    { entries: [{ ...sourceResponse().entries[0]!, seqEnd: 255 }] },
+  ])("records malformed or changed probe response %j without throwing", (invalid) => {
+    const ledger = oldLedger();
+    ledger.classify(probeRequest());
+    expect(() => ledger.completeContext({ ...probeResponse(), ...invalid })).not.toThrow();
+    expect(ledger.summary().errors).toHaveLength(1);
+  });
+  it("rejects duplicate probe, response and wrong backward cursor", () => {
+    const ledger = oldLedger();
+    ledger.classify(probeRequest());
+    ledger.completeContext(probeResponse());
+    expect(ledger.classify({ ...probeRequest(), requestId: "duplicate" })).toBeUndefined();
+    ledger.completeContext(probeResponse());
+    expect(
+      ledger.classify({ ...contextRequest(), cursor: { epoch: "epoch", seq: 247 } }),
+    ).toBeUndefined();
+    expect(ledger.summary().errors).toHaveLength(3);
+  });
+  it("rejects a ninth request rather than assigning it a window slot", () => {
+    const ledger = oldLedger();
+    ledger.classify(probeRequest());
+    ledger.completeContext(probeResponse());
+    for (let n = 1; n < 8; n += 1) {
+      const cursor = 247 - n;
+      const id = `page-${n}`;
+      expect(
+        ledger.classify({
+          ...contextRequest(),
+          requestId: id,
+          cursor: { epoch: "epoch", seq: cursor },
+        }),
+      ).toBe("context");
+      const seq = cursor - 1;
+      ledger.completeContext({
+        ...sourceResponse(),
+        direction: "before",
+        projection: "canonical",
+        requestId: id,
+        startCursor: { epoch: "epoch", seq },
+        endCursor: { epoch: "epoch", seq },
+        entries: [
+          {
+            ...sourceResponse().entries[0]!,
+            seqStart: seq,
+            seqEnd: seq,
+            sourceSeqRanges: [{ startSeq: seq, endSeq: seq }],
+          },
+        ],
+      });
+    }
+    expect(
+      ledger.classify({
+        ...contextRequest(),
+        requestId: "ninth",
+        cursor: { epoch: "epoch", seq: 239 },
+      }),
+    ).toBeUndefined();
+    expect(ledger.summary()).toMatchObject({ contextBefore: 8, windowBefore: 0 });
+    expect(ledger.summary().errors).toHaveLength(1);
   });
 });

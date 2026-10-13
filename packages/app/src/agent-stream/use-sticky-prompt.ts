@@ -12,16 +12,21 @@ import type { StreamItem } from "@/types/stream";
 import type { ChatOutline } from "./chat-outline/use-chat-outline";
 import {
   buildPromptTargets,
+  resolveContextSource,
+  isContextSourceMissing,
+  mergeCachedPromptTarget,
   resolveReadingPromptTarget,
   getMissingReadingPromptSeq,
   isStickyPromptVisible,
+  resolveStickyReadingTarget,
   resolveStickyPromptProgress,
   resolvePromptOcclusionTop,
   resolvePromptGeometry,
-  shouldDiscoverPrompt,
+  shouldReadContext,
+  resolveContextMessage,
+  shouldDiscoverCachedPrompt,
+  hasDiscoveredCachedPrompt,
   needsReadingPromptDiscovery,
-  hasDiscoveredPrompt,
-  resolveStickyPromptMessage,
   isNextPromptDisabled,
   findPromptTarget,
   isPromptNavigationBusy,
@@ -34,6 +39,7 @@ interface Input {
   enabled?: boolean;
   reading?: PromptReadingSource;
   fetchPrompt?: (seq: number) => Promise<UserPrompt>;
+  fetchContext?: (source: StreamItem, signal: AbortSignal) => Promise<UserPrompt | undefined>;
   items: StreamItem[];
   epoch: string | null;
   outline: ChatOutline;
@@ -67,7 +73,7 @@ export function useStickyPrompt(input: Input) {
     readingSource.getSnapshot,
     readingSource.getSnapshot,
   );
-  const targets = useMemo(
+  const loadedTargets = useMemo(
     () => buildPromptTargets(items, outline.prompts, epoch),
     [items, outline.prompts, epoch],
   );
@@ -90,7 +96,7 @@ export function useStickyPrompt(input: Input) {
     preserveSelection?: boolean;
   } | null>(null);
   const retryDirection = useRef<-1 | 1>(-1);
-  const latest = targets.at(-1)?.item;
+  const latest = loadedTargets.at(-1)?.item;
   const selectedMessage = selected ?? latest;
 
   // The reading row is authoritative for manual scrolling. Keep full selected content
@@ -98,9 +104,9 @@ export function useStickyPrompt(input: Input) {
   const readingTarget = useMemo(
     () =>
       reading.following
-        ? targets.at(-1)
-        : resolveReadingPromptTarget(items, targets, reading.rowId, reading.seq),
-    [items, reading.rowId, reading.seq, reading.following, targets],
+        ? loadedTargets.at(-1)
+        : resolveReadingPromptTarget(items, loadedTargets, reading.rowId, reading.seq),
+    [items, reading.rowId, reading.seq, reading.following, loadedTargets],
   );
   const discoverReading = needsReadingPromptDiscovery(
     indexed,
@@ -115,24 +121,45 @@ export function useStickyPrompt(input: Input) {
     cancelled,
     pending: pending !== null || outline.isJumping,
     target: readingTarget,
-    latest: targets.at(-1),
+    latest: loadedTargets.at(-1),
     selected: selectedMessage,
   });
   const knownPrompts = useMemo(
     () => items.filter((item): item is UserPrompt => item.kind === "user_message"),
     [items],
   );
+  const contextRequested = shouldReadContext(
+    enabled,
+    discoverReading,
+    cancelled,
+    reading.navigating,
+    pending,
+  );
+  const contextSource = resolveContextSource(
+    items,
+    epoch,
+    reading.rowId,
+    reading.seq,
+    contextRequested,
+  );
   const readingContent = useReadingPrompt({
     knownPrompts,
     epoch,
     seq: enabled ? missingReadingSeq : undefined,
     fetchPrompt: input.fetchPrompt,
+    source: contextSource,
+    fetchContext: input.fetchContext,
   });
+  const targets = useMemo(
+    () => mergeCachedPromptTarget(loadedTargets, readingContent.item, selected, epoch),
+    [loadedTargets, readingContent.item, selected, epoch],
+  );
   const readingItem = readingTarget?.item ?? readingContent.item;
-  const message = resolveStickyPromptMessage(
+  const message = resolveContextMessage(
+    pending,
+    discoverReading,
     selectedMessage,
     readingContent.item,
-    discoverReading,
     missingReadingSeq,
     input.fetchPrompt !== undefined,
   );
@@ -164,10 +191,10 @@ export function useStickyPrompt(input: Input) {
   const discoveringPrevious = pending === "previous";
   const discovery = usePromptDiscovery({
     enabled:
-      enabled &&
-      shouldDiscoverPrompt(discoveringPrevious, indexed, message, cancelled, discoverReading),
-    reached: hasDiscoveredPrompt(
-      discoveringPrevious,
+      enabled && shouldDiscoverCachedPrompt(pending, indexed, message, cancelled, discoverReading),
+    reached: hasDiscoveredCachedPrompt(
+      pending,
+      loadedTargets,
       previous,
       discoverReading,
       readingTarget,
@@ -184,7 +211,7 @@ export function useStickyPrompt(input: Input) {
       if (!enabled) return;
       setError(false);
       retryTarget.current = { target, scroll, preserveSelection: options?.preserveSelection };
-      if (target.item) {
+      if (target.item && !target.cached) {
         setSelected(
           !options?.preserveSelection && target.key === targets.at(-1)?.key ? null : target.item,
         );
@@ -192,24 +219,28 @@ export function useStickyPrompt(input: Input) {
         if (scroll) jumpToLoaded(target.item.id);
       } else if (target.seq !== undefined) {
         setPending(target);
-        outline.jumpToPrompt(target.seq, { scroll, source: "sticky" });
+        if (indexed) outline.jumpToPrompt(target.seq, { scroll, source: "sticky" });
       }
     },
   );
 
   useEffect(() => {
     if (!enabled || !pending || pending === "previous") return;
-    const loaded = targets.find((target) => target.key === pending.key);
+    const loaded = loadedTargets.find((target) => target.key === pending.key);
     if (loaded?.item) {
       const preserveSelection =
         retryTarget.current?.target.key === loaded.key && retryTarget.current.preserveSelection;
       setSelected(!preserveSelection && loaded.key === targets.at(-1)?.key ? null : loaded.item);
       setPending(null);
-    } else if (outline.jumpError) {
+      if (pending.cached && retryTarget.current?.scroll) jumpToLoaded(loaded.item.id);
+    } else if (
+      outline.jumpError ||
+      (pending.cached && ["error", "limited", "exhausted"].includes(discovery.status))
+    ) {
       setError(true);
       setPending(null);
     }
-  }, [enabled, outline.jumpError, pending, targets]);
+  }, [enabled, outline.jumpError, pending, loadedTargets, discovery.status, jumpToLoaded, targets]);
 
   // Initial/latest display is a content lookup, never an implicit prompt jump.
   // Only an explicit navigation below may replace the authoritative history window.
@@ -375,7 +406,13 @@ export function useStickyPrompt(input: Input) {
     previousKnownBoundary: indexed ? outline.indexReady : !hasOlder,
     activate,
     stickyVisible:
-      enabled && isStickyPromptVisible(message, readingTarget, reading.rowId, stickyProgress),
+      enabled &&
+      isStickyPromptVisible(
+        message,
+        resolveStickyReadingTarget(readingTarget, targets, position),
+        reading.rowId,
+        stickyProgress,
+      ),
     discoveryStatus: discovery.status,
     cancelled,
     busy,
@@ -386,6 +423,7 @@ export function useStickyPrompt(input: Input) {
       outline.jumpError,
       discovery.status === "error",
       readingContent.error,
+      isContextSourceMissing(contextRequested, contextSource),
     ].some(Boolean),
     previousDisabled: isPreviousPromptDisabled({
       message,

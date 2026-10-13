@@ -302,6 +302,7 @@ export interface AgentStreamViewProps {
     hasOlder: boolean;
     isLoadingOlder: boolean;
     progressKey: string | null;
+    readPromptContext?: import("./fetch-reading-prompt-context").ContextPageReader;
     onLoadOlder: (acceptance?: TimelinePageAcceptance) => boolean | Promise<boolean>;
   };
 }
@@ -1176,6 +1177,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               loadingOlder={remoteIsLoadingOlder}
               progressKey={remoteProgressKey}
               loadOlder={loadRemoteOlder}
+              contextPageReader={resolveContextPageReader(historyPagination)}
               jumpToLoaded={jumpToStickyMessage}
               serverId={resolvedServerId}
               client={client}
@@ -1325,7 +1327,8 @@ function historyPaginationPropsEqual(
     left?.hasOlder === right?.hasOlder &&
     left?.isLoadingOlder === right?.isLoadingOlder &&
     left?.progressKey === right?.progressKey &&
-    left?.onLoadOlder === right?.onLoadOlder
+    left?.onLoadOlder === right?.onLoadOlder &&
+    left?.readPromptContext === right?.readPromptContext
   );
 }
 
@@ -1890,4 +1893,10 @@ function resolveTranscriptEpoch(
 ): string | null {
   if (provided) return provided.epoch ?? null;
   return rootEpoch;
+}
+
+/** An unavailable child cache reader must never fall through to the synthetic parent journal. */
+function resolveContextPageReader(provided: AgentStreamViewProps["historyPagination"]) {
+  if (!provided) return undefined;
+  return provided.readPromptContext ?? null;
 }
