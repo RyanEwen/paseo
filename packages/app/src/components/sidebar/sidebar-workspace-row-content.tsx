@@ -442,24 +442,39 @@ export function SidebarWorkspaceTrailingStatusActions({
   children: ReactNode;
 }) {
   return (
-    <View style={styles.trailingContentRow}>
-      <WorkspaceStatusIndicator
-        bucket={workspace.statusBucket}
-        workspaceKind={workspace.workspaceKind}
-      />
-      <HoverRevealActions
-        visible={visible}
-        width={18}
-        height={20}
-        testID={`sidebar-workspace-hover-actions-${workspace.workspaceKey}`}
-      >
-        {children}
-      </HoverRevealActions>
+    <View style={styles.workspaceStatusActionsFrame}>
+      <View style={[styles.trailingContentRow, styles.workspaceStatusActionsContent]}>
+        <WorkspaceStatusIndicator
+          bucket={workspace.statusBucket}
+          workspaceKind={workspace.workspaceKind}
+        />
+        <HoverRevealActions
+          visible={visible}
+          width={18}
+          height={20}
+          testID={`sidebar-workspace-hover-actions-${workspace.workspaceKey}`}
+        >
+          {children}
+        </HoverRevealActions>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // Reserve the complete revealed footprint so the 100ms internal movement never steals
+  // title width. The right anchor keeps idle status and visible actions on the same rail.
+  workspaceStatusActionsFrame: {
+    position: "relative",
+    width: theme.iconSize.md + theme.spacing[2] + 18,
+    height: 20,
+    flexShrink: 0,
+  },
+  workspaceStatusActionsContent: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+  },
   trailingContentRow: {
     flexDirection: "row",
     alignItems: "center",
