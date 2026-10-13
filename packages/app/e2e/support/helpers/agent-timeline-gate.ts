@@ -1,3 +1,4 @@
+import { loadProtocolSchemas } from "./daemon-client-loader";
 import { createTimelineRequestLedger } from "./timeline-request-ledger";
 import type { Page } from "@playwright/test";
 import { loadSessionMessageReaders } from "./new-workspace";
@@ -346,7 +347,7 @@ export async function holdAgentOlderTimelinePages(
   agentId: string,
   daemonPort?: number,
 ): Promise<OlderTimelinePagesGate> {
-  const ledger = createTimelineRequestLedger(agentId);
+  const ledger = createTimelineRequestLedger(agentId, await loadProtocolSchemas());
   const contentForwards: Array<() => void> = [];
   let requestCount = 0;
   let responseCount = 0;

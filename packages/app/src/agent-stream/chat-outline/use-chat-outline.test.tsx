@@ -7,6 +7,7 @@ import type { StreamViewportHandle } from "../strategy";
 import { PROMPT_DISCOVERY_PAGE_BUDGET } from "../use-prompt-discovery";
 import { createPromptReadingPublisher } from "../prompt-reading-position";
 import { usePromptNavigationControls } from "../use-prompt-navigation-controls";
+import * as protocolSchemas from "@getpaseo/protocol/messages";
 import { createTimelineRequestLedger } from "../../../e2e/support/helpers/timeline-request-ledger";
 import { useReadingPrompt } from "../use-reading-prompt";
 import { useStickyPrompt } from "../use-sticky-prompt";
@@ -1312,7 +1313,7 @@ describe("prompt ownership across authoritative epochs", () => {
 
 /** Use the real advertised feature and canonical index to exercise the test gate's contract. */
 function indexedReadLedger() {
-  const ledger = createTimelineRequestLedger("agent");
+  const ledger = createTimelineRequestLedger("agent", protocolSchemas);
   ledger.observe(
     { type: "status" },
     { status: "server_info", features: { agentTimelinePromptIndex: true } },
@@ -1399,7 +1400,7 @@ describe("explicit history-window and indexed-content accounting", () => {
   });
 
   it("rejects cache-shaped reads without an advertised capability and canonical index", () => {
-    const ledger = createTimelineRequestLedger("agent");
+    const ledger = createTimelineRequestLedger("agent", protocolSchemas);
     expect(ledger.classify(contentReadRequest())).toBeUndefined();
     expect(ledger.summary().allBefore).toBe(1);
     expect(ledger.summary().errors).toHaveLength(1);

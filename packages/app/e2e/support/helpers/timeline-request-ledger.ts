@@ -1,11 +1,13 @@
-import {
-  type FetchAgentTimelineResponseMessage,
-  AgentTimelineEntryPayloadSchema,
-  AgentTimelineListPromptsResponseMessageSchema,
-  FetchAgentTimelineRequestMessageSchema,
-  FetchAgentTimelineResponseMessageSchema,
-} from "@getpaseo/protocol/messages";
+import type { FetchAgentTimelineResponseMessage } from "@getpaseo/protocol/messages";
 import { TIMELINE_FETCH_PAGE_SIZE } from "../../../src/timeline/timeline-fetch-policy";
+
+type TimelineRequestSchemas = Pick<
+  typeof import("@getpaseo/protocol/messages"),
+  | "AgentTimelineEntryPayloadSchema"
+  | "AgentTimelineListPromptsResponseMessageSchema"
+  | "FetchAgentTimelineRequestMessageSchema"
+  | "FetchAgentTimelineResponseMessageSchema"
+>;
 
 export type TimelineReadPurpose = "window" | "content";
 interface ContentTarget {
@@ -17,7 +19,15 @@ interface ContentTarget {
  * Violations are retained for the owning test assertion instead of escaping a socket callback.
  * Cache reads never become held history pages or enter the projected-row ownership ledger.
  */
-export function createTimelineRequestLedger(agentId: string) {
+export function createTimelineRequestLedger(agentId: string, schemas: TimelineRequestSchemas) {
+  // The browser harness injects its native ESM protocol instance. A static runtime
+  // import here would make Playwright transform a second instance before client loading.
+  const {
+    AgentTimelineEntryPayloadSchema,
+    AgentTimelineListPromptsResponseMessageSchema,
+    FetchAgentTimelineRequestMessageSchema,
+    FetchAgentTimelineResponseMessageSchema,
+  } = schemas;
   let indexed = false;
   let indexEpoch: string | null = null;
   let promptSeqs = new Set<number>();
