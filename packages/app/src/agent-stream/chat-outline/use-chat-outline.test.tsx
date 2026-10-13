@@ -7,6 +7,7 @@ import type { StreamViewportHandle } from "../strategy";
 import { PROMPT_DISCOVERY_PAGE_BUDGET } from "../use-prompt-discovery";
 import { createPromptReadingPublisher } from "../prompt-reading-position";
 import { usePromptNavigationControls } from "../use-prompt-navigation-controls";
+import { createTimelineRequestLedger } from "../../../e2e/support/helpers/timeline-request-ledger";
 import { useReadingPrompt } from "../use-reading-prompt";
 import { useStickyPrompt } from "../use-sticky-prompt";
 import type { StreamItem } from "@/types/stream";
@@ -858,7 +859,15 @@ it("reads an unloaded active prompt without replacing or scrolling the viewport,
   expect(result.current.message).toBeUndefined();
   act(() => result.current.retry());
   await waitFor(() => expect(fetchPrompt).toHaveBeenCalledTimes(2));
+  const readingBeforeContent = reading.getSnapshot();
   await act(async () => content.resolve(loadedOlder));
+  expect(reading.getSnapshot()).toBe(readingBeforeContent);
+  expect(reading.getSnapshot()).toMatchObject({
+    manual: true,
+    following: false,
+    navigating: false,
+  });
+  expect(input.items).toEqual([olderAnswer, latest]);
   expect(result.current.message).toEqual(loadedOlder);
   expect(result.current.stickyVisible).toBe(true);
   expect(result.current.error).toBe(false);
@@ -1299,4 +1308,177 @@ describe("prompt ownership across authoritative epochs", () => {
     await waitFor(() => expect(result.current.item).toEqual(replacement));
     expect(fetchPrompt).toHaveBeenCalledTimes(2);
   });
+});
+
+/** Use the real advertised feature and canonical index to exercise the test gate's contract. */
+function indexedReadLedger() {
+  const ledger = createTimelineRequestLedger("agent");
+  ledger.observe(
+    { type: "status" },
+    { status: "server_info", features: { agentTimelinePromptIndex: true } },
+  );
+  ledger.observe(
+    { type: "agent.timeline.list_prompts.response" },
+    {
+      requestId: "index",
+      agentId: "agent",
+      epoch: "epoch",
+      prompts: [1, 3].map((seq) => ({
+        seq,
+        timestamp: new Date(0).toISOString(),
+        preview: `Prompt ${seq}`,
+      })),
+      error: null,
+    },
+  );
+  return ledger;
+}
+
+function contentReadRequest(requestId = "content") {
+  return {
+    type: "fetch_agent_timeline_request",
+    agentId: "agent",
+    requestId,
+    direction: "before",
+    cursor: { epoch: "epoch", seq: 2 },
+    limit: 1,
+    projection: "projected",
+  };
+}
+
+function contentReadResponse(type = "user_message") {
+  return {
+    requestId: "content",
+    agentId: "agent",
+    agent: null,
+    direction: "before",
+    epoch: "epoch",
+    projection: "projected",
+    reset: false,
+    staleCursor: false,
+    gap: false,
+    window: { minSeq: 1, maxSeq: 3, nextSeq: 4 },
+    hasOlder: false,
+    hasNewer: true,
+    startCursor: { epoch: "epoch", seq: 1 },
+    endCursor: { epoch: "epoch", seq: 1 },
+    entries: [
+      {
+        provider: "mock",
+        timestamp: new Date(0).toISOString(),
+        seqStart: 1,
+        seqEnd: 1,
+        sourceSeqRanges: [{ startSeq: 1, endSeq: 1 }],
+        collapsed: [],
+        item: { type, text: "Prompt 1" },
+      },
+    ],
+    error: null,
+  };
+}
+
+describe("explicit history-window and indexed-content accounting", () => {
+  it("accounts for every request without consuming a held window slot for canonical content", () => {
+    const ledger = indexedReadLedger();
+    expect(ledger.classify({ ...contentReadRequest("window"), limit: 40 })).toBe("window");
+    expect(ledger.classify(contentReadRequest())).toBe("content");
+    expect(
+      ledger.beforeResponsePurpose({ requestId: "window", agentId: "agent", direction: "before" }),
+    ).toBe("window");
+    expect(
+      ledger.beforeResponsePurpose({ requestId: "content", agentId: "agent", direction: "before" }),
+    ).toBe("content");
+    ledger.completeContent(contentReadResponse());
+    expect(ledger.summary()).toEqual({
+      allBefore: 2,
+      windowBefore: 1,
+      contentBefore: 1,
+      pendingContent: 0,
+      errors: [],
+    });
+  });
+
+  it("rejects cache-shaped reads without an advertised capability and canonical index", () => {
+    const ledger = createTimelineRequestLedger("agent");
+    expect(ledger.classify(contentReadRequest())).toBeUndefined();
+    expect(ledger.summary().allBefore).toBe(1);
+    expect(ledger.summary().errors).toHaveLength(1);
+  });
+
+  it.each([
+    { limit: 2 },
+    { projection: "canonical" },
+    { mergeWindow: true },
+    { cursor: { epoch: "epoch", seq: 3 } },
+    { cursor: { epoch: "stale", seq: 2 } },
+  ])("rejects unclassified before request %j instead of silently filtering it", (invalid) => {
+    const ledger = indexedReadLedger();
+    expect(ledger.classify({ ...contentReadRequest(), ...invalid })).toBeUndefined();
+    expect(ledger.summary()).toMatchObject({ allBefore: 1, windowBefore: 0, contentBefore: 0 });
+    expect(ledger.summary().errors).toHaveLength(1);
+  });
+
+  it("rejects a second read of the same indexed prompt in the same epoch", () => {
+    const ledger = indexedReadLedger();
+    expect(ledger.classify(contentReadRequest())).toBe("content");
+    ledger.completeContent(contentReadResponse());
+    expect(ledger.classify(contentReadRequest("duplicate"))).toBeUndefined();
+    expect(ledger.summary()).toMatchObject({ allBefore: 2, windowBefore: 0, contentBefore: 1 });
+    expect(ledger.summary().errors).toHaveLength(1);
+  });
+
+  it("rejects content already present in delivered authoritative pages", () => {
+    const ledger = indexedReadLedger();
+    ledger.observeWindow(contentReadResponse());
+    expect(ledger.classify(contentReadRequest())).toBeUndefined();
+    expect(ledger.summary().errors).toHaveLength(1);
+  });
+
+  it("rejects a non-user content response and an unclassified response identity", () => {
+    const ledger = indexedReadLedger();
+    expect(ledger.classify(contentReadRequest())).toBe("content");
+    ledger.completeContent(contentReadResponse("assistant_message"));
+    expect(
+      ledger.beforeResponsePurpose({ requestId: "unknown", agentId: "agent", direction: "before" }),
+    ).toBeUndefined();
+    expect(ledger.summary().errors).toHaveLength(2);
+  });
+});
+
+it.each([null, {}, { seqStart: 1, seqEnd: 1 }, { seqStart: 1, seqEnd: 1, item: null }])(
+  "records malformed cache entry %j instead of escaping the socket callback",
+  (entry) => {
+    const ledger = indexedReadLedger();
+    ledger.classify(contentReadRequest());
+    expect(() =>
+      ledger.completeContent({ ...contentReadResponse(), entries: [entry] }),
+    ).not.toThrow();
+    expect(ledger.summary()).toMatchObject({
+      pendingContent: 0,
+      errors: ["Malformed canonical prompt-content response"],
+    });
+  },
+);
+
+it.each([
+  { agentId: "other" },
+  { direction: "after" },
+  { startCursor: { epoch: "other", seq: 1 } },
+  { endCursor: { epoch: "epoch", seq: 2 } },
+  { entries: [] },
+])("rejects invalid canonical content identity %j", (invalid) => {
+  const ledger = indexedReadLedger();
+  ledger.classify(contentReadRequest());
+  ledger.completeContent({ ...contentReadResponse(), ...invalid });
+  expect(ledger.summary().errors).toHaveLength(1);
+});
+
+it("rejects a malformed canonical index before trusting its sequence identity", () => {
+  const ledger = indexedReadLedger();
+  ledger.observe(
+    { type: "agent.timeline.list_prompts.response" },
+    { requestId: "broken", agentId: "agent", epoch: "epoch", prompts: [null], error: null },
+  );
+  expect(ledger.classify(contentReadRequest())).toBeUndefined();
+  expect(ledger.summary().errors).toHaveLength(2);
 });

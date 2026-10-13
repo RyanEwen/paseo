@@ -347,13 +347,38 @@ export async function holdOlderHistoryPages(
     agent.agentId,
     daemonPort,
   );
+  /** Keep every before read accountable, while releasing content separately from held pages. */
+  const assertReadAccounting = () => {
+    const accounting = gate.getReadAccounting();
+    expect(accounting.errors).toEqual([]);
+    expect(accounting.allBefore).toBe(accounting.windowBefore + accounting.contentBefore);
+    expect(accounting.windowBefore).toBe(gate.getRequestCount());
+  };
+  const settleContentReads = async () => {
+    assertReadAccounting();
+    await expect.poll(() => gate.getReadAccounting().pendingContent).toBe(0);
+    assertReadAccounting();
+    await waitForTimelineGeometryToSettle(page);
+    const before = await captureContentReadViewport(page);
+    if (gate.flushContentReads() === 0) return;
+    // The content becomes visible in its own overlay, while the authoritative page remains held.
+    await expect(page.getByTestId("sticky-user-message").filter({ visible: true })).toBeVisible();
+    await waitForTimelineGeometryToSettle(page);
+    expect(await captureContentReadViewport(page)).toEqual(before);
+    assertReadAccounting();
+  };
   return {
     async expectRequestedPages(count) {
       await gate.waitForRequestCount(count);
+      assertReadAccounting();
+      expect(gate.getRequestCount()).toBe(count);
+      await settleContentReads();
       expect(gate.getRequestCount()).toBe(count);
     },
     async expectSettledWithRequestedPages(count) {
+      await settleContentReads();
       await waitForTimelineGeometryToSettle(page);
+      assertReadAccounting();
       expect(gate.getRequestCount()).toBe(count);
     },
     expectNoRepeatedEntries() {
@@ -667,4 +692,23 @@ export async function scrollTimelinePastPrompt(page: Page, prompt: string): Prom
   await timeline.hover();
   await page.mouse.wheel(0, delta);
   await expect(page.getByTestId("sticky-user-message")).toContainText(prompt);
+}
+
+/** Observe the original viewport and canonical rows, excluding the content-only sticky copy. */
+async function captureContentReadViewport(page: Page) {
+  const viewport = page.getByTestId("agent-chat-scroll").filter({ visible: true });
+  return {
+    geometry: await viewport.evaluate((element) => ({
+      scrollTop: element.scrollTop,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      rows: Array.from(element.querySelectorAll("[data-history-row-id]")).map((row) =>
+        row.getAttribute("data-history-row-id"),
+      ),
+    })),
+    bottomActionVisible: await page
+      .getByTestId("scroll-to-bottom-button")
+      .filter({ visible: true })
+      .isVisible(),
+  };
 }
