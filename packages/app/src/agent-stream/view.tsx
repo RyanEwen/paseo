@@ -1166,7 +1166,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         <ToolCallSheetProvider>
           <AssistantSelectionCopySurface style={stylesheet.container} onLayout={measureChatHeight}>
             <StickyPrompt
-              key={`${resolvedServerId}:${agentId}:${timelineEpoch}`}
+              key={`${resolvedServerId}:${agentId}`}
               enabled={stickyEnabled}
               items={findItems}
               epoch={timelineEpoch}
