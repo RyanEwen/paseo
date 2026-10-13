@@ -70,7 +70,13 @@ export function useScrollToMessage({
             const target = scrollContainerRef.current?.querySelector<HTMLElement>(
               `[data-message-id="${CSS.escape(messageId)}"]`,
             );
-            return target ? target.getBoundingClientRect().top : estimateTargetTop(messageId);
+            return target ? target.getBoundingClientRect().top : null;
+          },
+          estimateTargetTop(messageId) {
+            // Find occurrences own their exact target; a message-row estimate must
+            // never replace a missing or aborted occurrence's geometry.
+            if (occurrenceRef.current) return null;
+            return estimateTargetTop(messageId);
           },
           getContainerTop() {
             return scrollContainerRef.current?.getBoundingClientRect().top ?? 0;
