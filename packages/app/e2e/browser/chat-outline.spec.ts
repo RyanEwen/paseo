@@ -335,6 +335,7 @@ for (const viewport of [
         "emit 85 assistant messages before synthetic user message",
       );
       for (let index = prompts.length - 1; index >= 0; index -= 1) {
+        if (viewport.width === 1440) await initialCopy.hover();
         await initialCopy.getByTestId("sticky-user-message-previous").click();
         await expectTimelinePromptLandedBelowTop(page, prompts[index]!);
         if (index > 0) await scrollTimelinePastPrompt(page, prompts[index]!);
@@ -355,6 +356,7 @@ for (const viewport of [
         path: `../../docs/qa-evidence/sticky-user-message/short-preview-${viewport.width}.png`,
       });
       for (let index = 1; index < prompts.length; index += 1) {
+        if (viewport.width === 1440) await sticky.hover();
         await sticky.getByTestId("sticky-user-message-next").click();
         await expectTimelinePromptLandedBelowTop(page, prompts[index]!);
         await scrollTimelinePastPrompt(page, prompts[index]!);
@@ -398,13 +400,37 @@ for (const viewport of [
         .getByTestId("user-message")
         .filter({ hasText: agent.newestPrompt });
       await expect(newestBubble.getByTestId("user-message-next")).toBeDisabled();
+      const actionRow = newestBubble.getByTestId("user-message-trailing-row");
+      await expect(actionRow.getByTestId("user-message-previous")).toHaveCount(1);
+      await expect(actionRow.getByTestId("user-message-next")).toHaveCount(1);
+      await expect(
+        actionRow.getByRole("button", { name: "Copy message", exact: true }),
+      ).toHaveCount(1);
+      const actionBounds = await actionRow.boundingBox();
+      if (viewport.width === 1440) {
+        await page.mouse.move(2, 2);
+        await expect
+          .poll(() => actionRow.evaluate((node) => getComputedStyle(node).opacity))
+          .toBe("0");
+        await newestBubble.hover();
+      }
+      await expect
+        .poll(() => actionRow.evaluate((node) => getComputedStyle(node).opacity))
+        .toBe("1");
+      expect(await actionRow.boundingBox()).toEqual(actionBounds);
+
       for (let index = agent.prompts.length - 2; index >= 0; index -= 1) {
         const original = page
           .getByTestId("agent-chat-scroll")
           .getByTestId("user-message")
           .filter({ hasText: agent.prompts[index + 1]! });
-        if (await sticky.count()) await previous.click();
-        else await original.getByTestId("user-message-previous").click();
+        if (await sticky.count()) {
+          if (viewport.width === 1440) await sticky.hover();
+          await previous.click();
+        } else {
+          if (viewport.width === 1440) await original.hover();
+          await original.getByTestId("user-message-previous").click();
+        }
         const target = page
           .getByTestId("agent-chat-scroll")
           .getByTestId("user-message")
@@ -426,7 +452,7 @@ for (const viewport of [
             await expect
               .poll(() => sticky.evaluate((element) => Number(getComputedStyle(element).opacity)))
               .toBe(1);
-            const bubble = await sticky.getByTestId("user-message").boundingBox();
+            const bubble = await sticky.getByTestId("user-message-bubble").boundingBox();
             const controls = await sticky.getByTestId("sticky-user-message-controls").boundingBox();
             expect(controls!.y).toBeGreaterThanOrEqual(bubble!.y + bubble!.height - 1);
             await page.screenshot({
@@ -474,6 +500,7 @@ for (const viewport of [
         }
       }
       await expect(previous).toBeDisabled();
+      if (viewport.width === 1440) await sticky.hover();
       await next.click();
       await expectTimelinePromptLandedBelowTop(page, agent.prompts[1]!);
       await scrollTimelinePastPrompt(page, agent.prompts[1]!);

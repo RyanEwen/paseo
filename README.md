@@ -12,7 +12,7 @@ All optional features start enabled. The settings button opens **Paseo++** first
 
 ### Keep user prompts in view
 
-Prompts pin as their bubbles reach the top, with one visible copy. More… appears only when text or attachment details are hidden. Click a pinned message to return to it, or use the arrows to move between prompts. Newer messages pass over older pinned messages.
+Prompts pin as their bubbles reach the top, with one visible copy. More… appears only when text or attachment details are hidden. Click a pinned message to return to it, or use the arrows to move between prompts. Newer messages pass over older pinned messages. Navigation arrows sit beside copy and rewind controls, appearing on hover on desktop and staying visible on touch screens.
 
 ### Readable tool activity
 

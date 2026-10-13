@@ -110,6 +110,40 @@ export function PromptMessageSurface({
       ) : null,
     [size, expanded, hidesContent, t, disclosureState, toggleExpanded],
   );
+  const actions = useMemo(
+    () => (
+      <View style={styles.controls} testID="sticky-user-message-controls">
+        <Button
+          variant="ghost"
+          size={size}
+          accessibilityLabel={t("stickyPrompt.previous")}
+          disabled={navigation.busy || navigation.previousDisabled}
+          loading={navigation.busy}
+          onPress={navigation.previous}
+          leftIcon={ChevronUp}
+          testID="sticky-user-message-previous"
+        />
+        <Button
+          variant="ghost"
+          size={size}
+          accessibilityLabel={t("stickyPrompt.next")}
+          disabled={navigation.busy || navigation.nextDisabled}
+          onPress={navigation.next}
+          leftIcon={ChevronDown}
+          testID="sticky-user-message-next"
+        />
+      </View>
+    ),
+    [
+      size,
+      t,
+      navigation.busy,
+      navigation.previousDisabled,
+      navigation.nextDisabled,
+      navigation.previous,
+      navigation.next,
+    ],
+  );
   return (
     <View style={clipStyle}>
       <View style={surfaceStyle} testID="sticky-user-message">
@@ -126,6 +160,7 @@ export function PromptMessageSurface({
             attachments={message.attachments}
             timestamp={message.timestamp.getTime()}
             disableOuterSpacing
+            navigationActions={actions}
             contentAction={disclosure}
             previewLines={previewLines}
             onPreviewOverflowChange={reportTextOverflow}
@@ -144,31 +179,11 @@ export function PromptMessageSurface({
               attachments={message.attachments}
               timestamp={message.timestamp.getTime()}
               disableOuterSpacing
+              navigationActions={actions}
               contentAction={disclosure}
             />
           </ScrollView>
         )}
-        <View style={styles.controls} testID="sticky-user-message-controls">
-          <Button
-            variant="ghost"
-            size={size}
-            accessibilityLabel={t("stickyPrompt.previous")}
-            disabled={navigation.busy || navigation.previousDisabled}
-            loading={navigation.busy}
-            onPress={navigation.previous}
-            leftIcon={ChevronUp}
-            testID="sticky-user-message-previous"
-          />
-          <Button
-            variant="ghost"
-            size={size}
-            accessibilityLabel={t("stickyPrompt.next")}
-            disabled={navigation.busy || navigation.nextDisabled}
-            onPress={navigation.next}
-            leftIcon={ChevronDown}
-            testID="sticky-user-message-next"
-          />
-        </View>
         {(navigation.error || navigation.discoveryStatus === "limited") && (
           <View style={styles.row}>
             <Text accessibilityRole="alert" style={styles.text}>

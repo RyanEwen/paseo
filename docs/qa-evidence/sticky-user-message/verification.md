@@ -2,7 +2,7 @@
 
 Branch: `feat/sticky-user-message-navigation`.
 
-Prompts pin at the measured bubble top with an opaque surface and complementary original-text masking, so one copy is painted. The copy matches the original bubble's position and width. Newer bubbles clip older copies. Arrows remain below the copy; More… appears only for measured text overflow or omitted attachment details. Desktop previews use two lines, compact previews one. Clicking or pressing Enter on the pinned message returns to its original bubble; selecting text does not navigate.
+Prompts pin at the measured bubble top with an opaque surface and complementary original-text masking, so one copy is painted. The copy matches the original bubble's position and width. Newer bubbles clip older copies. Navigation shares the copy/rewind action row, appearing on desktop hover and remaining visible on touch screens; More… appears only for measured text overflow or omitted attachment details. Desktop previews use two lines, compact previews one. Clicking or pressing Enter on the pinned message returns to its original bubble; selecting text does not navigate.
 
 Reviewing an earlier prompt remains stable during incoming messages. Sending from the composer
 or using Jump to bottom resumes the latest prompt and invalidates pending navigation, including

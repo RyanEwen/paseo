@@ -409,10 +409,12 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     alignSelf: "flex-end",
     flexDirection: "row",
     alignItems: "center",
-    height: 24,
+    minHeight: 24,
     gap: theme.spacing[2],
     marginTop: theme.spacing[2],
   },
+  // Pinned previews already place their controls directly below the compact bubble.
+  trailingRowPreview: { marginTop: 0 },
   trailingRowHidden: {
     opacity: 0,
   },
@@ -547,7 +549,6 @@ export const UserMessage = memo(function UserMessage({
 }: UserMessageProps) {
   const isCompact = useIsCompactFormFactor();
   const expandedCopy = isExpandedPromptCopy(copyMask);
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [lightboxMetadata, setLightboxMetadata] = useState<UserMessageImageAttachment | null>(null);
   const handleLightboxClose = useCallback(() => setLightboxMetadata(null), []);
@@ -558,8 +559,10 @@ export const UserMessage = memo(function UserMessage({
   const resolvedDisableOuterSpacing = useDisableOuterSpacing(disableOuterSpacing);
   const hasText = message.trim().length > 0;
 
+  const showMessageActions = hasText && (previewLines === undefined || !!navigationActions);
+  const hasTrailingRow = showMessageActions || !!navigationActions;
   const showTrailingRow =
-    !copyMask && !isPending && hasText && (isCompact || isNative || isHovered);
+    !copyMask && !isPending && hasTrailingRow && (isCompact || isNative || isHovered);
   const formattedTimestamp = useMemo(
     () => formatMessageTimestamp(new Date(timestamp)),
     [timestamp],
@@ -598,11 +601,12 @@ export const UserMessage = memo(function UserMessage({
   const trailingRowStyle = useMemo(
     () => [
       userMessageStylesheet.trailingRow,
+      previewLines === undefined ? undefined : userMessageStylesheet.trailingRowPreview,
       showTrailingRow
         ? userMessageStylesheet.trailingRowVisible
         : userMessageStylesheet.trailingRowHidden,
     ],
-    [showTrailingRow],
+    [showTrailingRow, previewLines],
   );
 
   return (
@@ -658,8 +662,7 @@ export const UserMessage = memo(function UserMessage({
           />
           {contentAction}
         </View>
-        {navigationActions}
-        {hasText && previewLines === undefined ? (
+        {hasTrailingRow ? (
           <View
             style={trailingRowStyle}
             pointerEvents={showTrailingRow ? "auto" : "none"}
@@ -667,22 +670,18 @@ export const UserMessage = memo(function UserMessage({
             aria-hidden={!!copyMask}
             accessibilityElementsHidden={!!copyMask}
           >
-            <Text style={userMessageStylesheet.timestampText} testID="user-message-timestamp">
-              {formattedTimestamp}
-            </Text>
-            {capabilities && messageId ? (
-              <RewindMenu
+            {showMessageActions ? (
+              <UserMessageTextActions
+                formattedTimestamp={formattedTimestamp}
                 capabilities={capabilities}
-                isPending={rewindMutation.isPending}
-                rewoundText={message}
+                messageId={messageId}
+                isRewindPending={rewindMutation.isPending}
+                message={message}
                 onRewind={handleRewind}
+                getContent={getMessageContent}
               />
             ) : null}
-            <TurnCopyButton
-              getContent={getMessageContent}
-              containerStyle={userMessageStylesheet.copyButton}
-              accessibilityLabel={t("message.actions.copyMessage")}
-            />
+            {navigationActions}
           </View>
         ) : null}
       </View>
@@ -690,6 +689,47 @@ export const UserMessage = memo(function UserMessage({
     </View>
   );
 });
+
+/** Keep timestamp, rewind and copy together beside optional prompt navigation. */
+function UserMessageTextActions({
+  formattedTimestamp,
+  capabilities,
+  messageId,
+  isRewindPending,
+  message,
+  onRewind,
+  getContent,
+}: {
+  formattedTimestamp: string;
+  capabilities?: AgentCapabilityFlags;
+  messageId?: string;
+  isRewindPending: boolean;
+  message: string;
+  onRewind: React.ComponentProps<typeof RewindMenu>["onRewind"];
+  getContent: () => string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Text style={userMessageStylesheet.timestampText} testID="user-message-timestamp">
+        {formattedTimestamp}
+      </Text>
+      {capabilities && messageId ? (
+        <RewindMenu
+          capabilities={capabilities}
+          isPending={isRewindPending}
+          rewoundText={message}
+          onRewind={onRewind}
+        />
+      ) : null}
+      <TurnCopyButton
+        getContent={getContent}
+        containerStyle={userMessageStylesheet.copyButton}
+        accessibilityLabel={t("message.actions.copyMessage")}
+      />
+    </>
+  );
+}
 
 interface AssistantTurnFooterProps {
   getContent: () => string;
