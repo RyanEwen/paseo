@@ -16,6 +16,8 @@ interface SettingsInfoTipProps {
   info: ReactNode;
   testID?: string;
   contentTestID?: string;
+  /** Image help can use a wider frame while ordinary text tips keep the default. */
+  contentMaxWidth?: number;
 }
 
 /**
@@ -23,7 +25,13 @@ interface SettingsInfoTipProps {
  * header that opens a tooltip. Never a paragraph under the header — see
  * docs/design.md §7.
  */
-export function SettingsInfoTip({ title, info, testID, contentTestID }: SettingsInfoTipProps) {
+export function SettingsInfoTip({
+  title,
+  info,
+  testID,
+  contentTestID,
+  contentMaxWidth,
+}: SettingsInfoTipProps) {
   const { t } = useTranslation();
   return (
     <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile>
@@ -38,7 +46,13 @@ export function SettingsInfoTip({ title, info, testID, contentTestID }: Settings
           <ThemedInfo size={ICON_SIZE.sm} uniProps={mutedIconMapping} />
         </Pressable>
       </TooltipTrigger>
-      <TooltipContent side="top" align="start" offset={8} testID={contentTestID}>
+      <TooltipContent
+        side="top"
+        align="start"
+        offset={8}
+        testID={contentTestID}
+        maxWidth={contentMaxWidth}
+      >
         {typeof info === "string" || typeof info === "number" ? (
           <Text style={styles.tooltipText}>{info}</Text>
         ) : (

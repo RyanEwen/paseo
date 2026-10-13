@@ -14,8 +14,6 @@ All optional features start enabled. The settings button opens **Paseo++** first
 
 Prompts pin as their bubbles reach the top, with one visible copy. More… appears only when text or attachment details are hidden. Click a pinned message to return to it, or use the arrows to move between prompts. Newer messages pass over older pinned messages.
 
-[View example](packages/app/assets/settings-examples/annotated/stickyUserPrompts-sticky-user-prompts.svg)
-
 ### Readable tool activity
 
 See clearer descriptions of reading, editing, creating, searching and running scripts across compatible providers. Running, failed and canceled operations keep their status, and full commands, output and multi-file changes remain expandable. Turn this off to restore classic labels and grouping.
@@ -62,8 +60,6 @@ Keep selected workspaces at the top of their project, alongside the existing opt
 
 Follow workspaces as status changes move them to new positions with quick transitions. Animations respect reduced-motion preferences and preserve collapsed groups and display limits.
 
-[Before](packages/app/assets/settings-examples/annotated/sidebarWorkspaceTransitions-workspace-positions-before.svg) · [After](packages/app/assets/settings-examples/annotated/sidebarWorkspaceTransitions-workspace-positions-after.svg)
-
 ### Automatic Android update checks
 
 Check for published previews on startup and resume. Turning automatic checks off keeps manual checking and installation available.
@@ -76,13 +72,9 @@ Choose filtering, grouping, and sorting independently, including project, worksp
 
 Choose how many workspaces each sidebar group shows before **Show more**, or choose **Show all**, in Paseo++ settings. The default is 20.
 
-[Workspace limit](packages/app/assets/settings-examples/workspace-limit-mode.png) · [Custom count](packages/app/assets/settings-examples/workspace-limit-count.png)
-
 ### Explorer and Changes
 
 Choose whether Explorer starts open in new desktop workspaces and whether opening a changed file shows its own diff or all changed files. Set a default comparison, or automatically switch between Uncommitted when dirty and Committed when clean. Changes remembers each workspace's comparison across reloads. Find these preferences in **Settings → Paseo++**.
-
-[Changed files](packages/app/assets/settings-examples/annotated/explorer-explorer-changes-list.svg) · [File comparison](packages/app/assets/settings-examples/annotated/explorer-explorer-changes-diff.svg)
 
 ## Other additions
 

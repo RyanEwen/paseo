@@ -1,5 +1,15 @@
 # Settings screenshot examples
 
+## Contextual presentation revision
+
+Settings help and README examples retain contextual original captures for tool activity, Previous agents, project selection, project chips and emphasis, bulk controls and project pinning. Project chips use one arrow; red outlines mark the Previous agents item, readable tool activity, the bulk icons and Pin in project. The tool-activity annotation covers the historical green focus border; original capture pixels stay intact. Explorer/Changes, sticky prompts, workspace motion and list count use text help only.
+
+Nine focused tooltip tests and all three tests in the changed browser file pass. The browser test uses the existing tooltip suite’s DOM SVG adapter for decoration and the actual Image renderer for original PNG loading, clipping and 390/320 pixel window bounds. Native SVG rendering is not qualified by this adapter.
+
+Image help uses up to 320 pixels of width and shrinks on narrower screens. Ordinary text-only settings tips retain their existing width. Previous agents now shows a fresh isolated browser capture of the plus-button menu, with workspace chrome and the full menu retained. Its existing capture case passed once in 18.1 seconds; the fixture daemon and Metro stopped afterward. Other retained captures are historical browser evidence. Physical native rendering remains unverified. `context-frames.json` records the current frames, source hashes and vector annotations.
+
+## Original capture and help qualification
+
 Source and bundled assets are an incremental change against the verified direct archive of current preview. Storage, canonical feature preferences, sync save gating and sync section source remain byte-identical. The count controller is changed only to add memoized help accessories. All existing feature consumers, defaults and saved choices remain intact. README and Codex hooks are excluded.
 
 Five independent real-UI browser capture cases pass across three retained runs. The first run qualified Previous agents, Explorer/Changes and sticky prompts. Two helper failures rejected an incomplete overview and queried a header as a group container. The second run qualified the complete 1440 by 3000 overview and sidebar controls. The final positions-only retry corrected the actual running bucket ID. Earlier successful cases were not repeated. All seven owned listeners refuse connections; fixtures are stopped.
