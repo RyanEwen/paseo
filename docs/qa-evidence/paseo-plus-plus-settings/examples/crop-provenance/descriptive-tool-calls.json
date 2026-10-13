@@ -1,0 +1,54 @@
+{
+  "id": "descriptive-tool-calls",
+  "source": "readable-tool-owner-labels.png",
+  "sourceSha256": "a8c8e9593564d32be9cf87e4557c5054633c4e656bb953785eec0a39fb59c871",
+  "originalOwnerCaptureManifest": "readable-tool-owner-capture-manifest.json",
+  "originalOwnerSourceManifest": "readable-tool-owner-source-manifest.json",
+  "originalOwnerCapture": {
+    "mode": "desktop-on",
+    "name": "labels",
+    "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-labels.png",
+    "sha256": "a8c8e9593564d32be9cf87e4557c5054633c4e656bb953785eec0a39fb59c871",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_f0233d98442c570f",
+    "detailsText": "5 file operations, 2 commands, 1 file read, and 1 search\n5 file operations, 2 commands, 1 file read, and 1 search\nRead\nsrc/notifications.ts\nFailed: Edit\nsrc/failed-edit.ts\nCanceled: Write\nsrc/canceled-write.ts\nSearched\nnotification\nChanged files\nsrc/created.ts, src/updated.ts, src/deleted.ts\nRunning script\nnpm run test\nRunning script\nnpm run test\nFailed: Run command",
+    "pngDimensions": {
+      "width": 1280,
+      "height": 900
+    }
+  },
+  "platform": "browser web",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1280,
+    "height": 900
+  },
+  "crop": {
+    "left": 390,
+    "top": 460,
+    "width": 330,
+    "height": 128
+  },
+  "description": "Qualified owner capture, reused only the real known-operation rows. Historical sticky surface is excluded.",
+  "boundary": "Existing owner browser evidence. No new capture or physical native output claim.",
+  "rawRecord": "assets/raw/descriptive-tool-calls-owner.json",
+  "captureSuggestedCrop": {
+    "left": 390,
+    "top": 460,
+    "width": 330,
+    "height": 128
+  },
+  "asset": "descriptive-tool-calls.png",
+  "assetSha256": "bf31fdc59792df09665588e40eb5b461560fc65c3cb61cadf65bb2ea383f5b8e",
+  "assetPixels": {
+    "width": 330,
+    "height": 128
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

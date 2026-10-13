@@ -3,14 +3,21 @@ import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
   paseoPlusPlus: {
+    examples: {
+      annotated: "箭头标出对应功能。",
+      before: "状态更改前",
+      after: "状态更改后",
+      imageLabel: "{{title}} 示例",
+      positions: "状态更改前后的最终位置。这些静态图片不展示动画时长。",
+      explorer: "更改列表和工作副本差异的示例。",
+      workspaceLimit: "选择每组的初始显示数量或显示全部。已展开的组会保持展开。",
+    },
     loadFailed: "无法加载已保存的偏好。更改功能前请重试。",
     saving: "正在保存...",
     title: "Paseo++",
     optional: "可选功能",
-    optionalHint: "选择仅用于此应用安装。关闭功能会保留已保存的数据和偏好。",
-    preferences: "现有偏好",
-    preferencesHint: "使用现有控件管理这些新增功能",
-    configure: "配置",
+    optionalHint: "启用同步后，选项跟随所选的设置主机。关闭功能会保留已保存的数据和偏好。",
+    preferences: "更多侧边栏设置",
     fixes: "修复和分支基本功能",
     fixesHint: "这些改进始终启用",
     additions: "其他新增功能",
@@ -56,12 +63,8 @@ export const zhCN: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "侧边栏显示选项",
-        hint: "使用工作区侧边栏的显示菜单管理过滤、分组、排序、项目和分支标签、活动及代码变更统计",
-      },
-      updates: {
-        label: "预览版更新",
-        hint: "桌面版和支持的 Android 构建可从关于页面检查和安装更新。Android 安装需要您的批准。",
+        label: "工作区顺序和详情",
+        hint: "分别按名称、状态或自定义顺序排列项目和工作区。同时显示最近活动时间和代码更改总计；项目和分支名称默认显示。请在工作区侧边栏的显示菜单中调整。",
       },
     },
     fixesList: {

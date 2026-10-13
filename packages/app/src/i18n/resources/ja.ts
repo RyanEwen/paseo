@@ -3,15 +3,24 @@ import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
   paseoPlusPlus: {
+    examples: {
+      annotated: "矢印は対象の機能を示しています。",
+      before: "状態変更前",
+      after: "状態変更後",
+      imageLabel: "{{title}} の例",
+      positions:
+        "状態変更前後の確定した位置です。静止画像ではアニメーションの時間は示していません。",
+      explorer: "変更一覧と作業コピーの差分の例です。",
+      workspaceLimit:
+        "各グループの初期表示数を選ぶか、すべて表示します。展開済みのグループは展開されたままです。",
+    },
     loadFailed: "保存済みの設定を読み込めません。機能を変更する前に再試行してください。",
     saving: "保存中...",
     title: "Paseo++",
     optional: "任意の機能",
     optionalHint:
-      "このアプリのインストールに適用されます。無効にしても保存データや設定は保持されます。",
-    preferences: "既存の設定",
-    preferencesHint: "これらの追加機能には既存の設定を使います",
-    configure: "設定する",
+      "同期を有効にすると、設定は選択した設定ホストに従います。機能をオフにしても保存済みのデータと設定は保持されます。",
+    preferences: "サイドバーのその他の設定",
     fixes: "修正とフォークの基本機能",
     fixesHint: "これらの改善は常に有効です",
     additions: "その他の追加機能",
@@ -57,12 +66,8 @@ export const ja: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "サイドバーの表示設定",
-        hint: "ワークスペースのサイドバーの表示メニューでフィルター、グループ、並び順、プロジェクトとブランチの表示、活動と変更数を操作します",
-      },
-      updates: {
-        label: "プレビュー版の更新",
-        hint: "デスクトップと対応する Android ビルドではアプリ情報から更新を確認・インストールできます。Android では承認が必要です。",
+        label: "ワークスペースの順序と詳細",
+        hint: "プロジェクトとワークスペースを個別に名前、状態、任意の順序で並べ替えられます。最終アクティビティとコード変更の合計を同時に表示できます。プロジェクト名とブランチ名は既定で表示されます。ワークスペースのサイドバーにある表示メニューで設定してください。",
       },
     },
     fixesList: {

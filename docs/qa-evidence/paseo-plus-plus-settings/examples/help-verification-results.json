@@ -1,0 +1,129 @@
+{
+  "sourcePatchSha256": "878d0eed82769dc54fc26a283faa79986920661f7056043d13206d8a03722650",
+  "deltaFromV3Sha256": "e6ce972f854abf4d0d190e46576bc52fead88442f3cc6d8c48bb8ef5a772350a",
+  "desktop": {
+    "result": "PASS",
+    "seconds": 14.9,
+    "viewport": [1440, 900],
+    "qualifiedSourceManifest": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/delivery-annotated-v2/source-assets-manifest.json"
+  },
+  "compact": {
+    "result": "PASS",
+    "seconds": 14.9,
+    "viewport": [390, 844],
+    "touchEmulation": true,
+    "qualifiedSourceManifest": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/delivery-annotated-v4/source-assets-manifest.json"
+  },
+  "checks": "All 15 controls: actual local PNG loading, decorative SVG arrows where applicable, viewport bounds, keyboard/hover or tap disclosure and dismissal, all visible flags on, unchanged persisted preferences.",
+  "nativePhysical": "Unverified; Android automatic checks text only",
+  "logs": {
+    "browser-help-01.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/browser-help-01.log",
+      "sha256": "5d67bbb2b2a011409b36435b928c54a821548da5d767da2fc96d7b0faff3bed6"
+    },
+    "browser-help-02.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/browser-help-02.log",
+      "sha256": "345ba9b6872387b5fe760640a0d6bb18cc27e50f144db3d1dbebfd99a9c51120"
+    },
+    "browser-help-03.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/browser-help-03.log",
+      "sha256": "ab76e164ba6c26e01b98d0472478b9d087574a26d3a704c873219676d522d109"
+    },
+    "browser-help-04.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/browser-help-04.log",
+      "sha256": "027c56fe3bf8b35df39071b0103604a2e4717cff3ad964f17c31f27b3f3f4021"
+    },
+    "help-teardown-01.json": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/help-teardown-01.json",
+      "sha256": "4bc44f39816b0611fd524bf9fd2778c75452c655babd14f30076d91fb7c8039b"
+    },
+    "help-teardown-02.json": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/help-teardown-02.json",
+      "sha256": "413730aea8c0c94873a9e9cad58267e6c085c1fba9878807dc76114324c2f6dd"
+    },
+    "help-teardown-03.json": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/help-teardown-03.json",
+      "sha256": "fc47eee053face9e097c435b46b72097893593362925478181226df21b8cf0ef"
+    },
+    "help-teardown-04.json": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/help-teardown-04.json",
+      "sha256": "d91cf584fc97614445137940957ec745f15484ac0330376447c9e618af7ab1d3"
+    },
+    "compact-tooltip-regression-red.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/compact-tooltip-regression-red.log",
+      "sha256": "94f578aca8230f61f09f5e42438683e272e866f7198a7f66d6f8b292d1c6c768"
+    },
+    "compact-tooltip-repair-tests.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/compact-tooltip-repair-tests.log",
+      "sha256": "80206de69d607d8a82a0f4bb9f971efa2423aef3e852ec1f21ef319b3eaa82cc"
+    },
+    "compact-tooltip-repair-all-typecheck.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/compact-tooltip-repair-all-typecheck.log",
+      "sha256": "c0dc776f7920402d912a18ab765c068b203a82c3dffd73899e02b7937754c9e8"
+    },
+    "compact-tooltip-repair-all-lint.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/compact-tooltip-repair-all-lint.log",
+      "sha256": "cffc2fc08e587a6383c15f4af6f9d26203e8a1df4bafaac8f8b30f0e580c9fdf"
+    },
+    "compact-tooltip-repair-format.log": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/evidence/compact-tooltip-repair-format.log",
+      "sha256": "ec180e438031b0af73f7493e7608f2eee9d2d891ab2ce55984e143185a530a2f"
+    }
+  },
+  "helpPictures": {
+    "compact-help-projectPinning-1791843797964.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-projectPinning-1791843797964.png",
+      "sha256": "d21668137c13af2166f8fe68b7c7bca3a15a8c8af852112fa185169c69f85c05",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-projectPinning-1791843797964.json"
+    },
+    "compact-help-sidebarActivityChips-1791843796442.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarActivityChips-1791843796442.png",
+      "sha256": "3b73d353443370cb7e22ade1d283e45ee26d3201ecf3a3e684730c614ac89bac",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarActivityChips-1791843796442.json"
+    },
+    "compact-help-sidebarProjectEmphasis-1791843796953.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarProjectEmphasis-1791843796953.png",
+      "sha256": "91f605917304c505d54135a33a771893c3fafce49c3208e2cba8f0565b9e9eba",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarProjectEmphasis-1791843796953.json"
+    },
+    "compact-help-sidebarProjectSelector-1791843795798.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarProjectSelector-1791843795798.png",
+      "sha256": "663f0800a64d66d66b5310007fbf1fbe70c1ac7231be5aa1d01579b99a22a4e7",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarProjectSelector-1791843795798.json"
+    },
+    "compact-help-sidebarWorkspaceTransitions-1791843798607.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarWorkspaceTransitions-1791843798607.png",
+      "sha256": "0e02564d55a876ef0b88862b70dff1af05361114005c8160708b262c1475e6cd",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/compact-help-sidebarWorkspaceTransitions-1791843798607.json"
+    },
+    "desktop-help-projectPinning-1791842733838.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-projectPinning-1791842733838.png",
+      "sha256": "84dd4903277983fa3360d387e4b3afbcb111549a85b34233cffb891b2b9640c2",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-projectPinning-1791842733838.json"
+    },
+    "desktop-help-sidebarActivityChips-1791842732220.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarActivityChips-1791842732220.png",
+      "sha256": "b3935def70f11c7838b8280dc9f0212fdf0c75c15e4fd62ec275b88e5386d69f",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarActivityChips-1791842732220.json"
+    },
+    "desktop-help-sidebarProjectEmphasis-1791842732839.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarProjectEmphasis-1791842732839.png",
+      "sha256": "8d3bba88d1367dc325c8bebc11998ed9a59506ad8126e801ac91e5ac69f198e1",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarProjectEmphasis-1791842732839.json"
+    },
+    "desktop-help-sidebarProjectSelector-1791842731284.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarProjectSelector-1791842731284.png",
+      "sha256": "9990e82f182ce19a9aa5fb0b36e366a223a58282bfb1c5a1c4a765b6515b16d5",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarProjectSelector-1791842731284.json"
+    },
+    "desktop-help-sidebarWorkspaceTransitions-1791842734532.png": {
+      "path": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarWorkspaceTransitions-1791842734532.png",
+      "sha256": "fc46a1944bf0c69c8b659155643c08775ded156346b7a37f08eb3c716ded78a3",
+      "provenance": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/.dev/settings-examples-reconstruction/capture-02/assets/help/desktop-help-sidebarWorkspaceTransitions-1791842734532.json"
+    }
+  },
+  "inspectedCompactPictures": true,
+  "allBrowserFixturesStopped": true,
+  "ports": [35545, 43401],
+  "slotReleased": true
+}

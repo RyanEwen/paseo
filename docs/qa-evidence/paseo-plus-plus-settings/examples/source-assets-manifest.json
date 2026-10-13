@@ -1,0 +1,283 @@
+{
+  "patchSha256": "878d0eed82769dc54fc26a283faa79986920661f7056043d13206d8a03722650",
+  "files": {
+    "packages/app/src/components/settings/headings/settings-info-tip.tsx": {
+      "baseSha256": "85104fab3c9eaea46ec6b999d80b17fa5d08c0eddc24e5063d07d7424db05134",
+      "candidateSha256": "c1ad01cc5871d3e0547e543f8efbf793d7daed814ab7d894bd024599c1b4a074",
+      "bytes": 2038
+    },
+    "packages/app/src/components/settings/index.tsx": {
+      "baseSha256": "b84828a1693ee9e9a07e919a4e5a5fd8466f7c6df15aa217807aed3a0b7a469f",
+      "candidateSha256": "0f1e3a586cca8b64bc4e63fca66e9e99ba7105ac253ec91a67be76ca1069d9b6",
+      "bytes": 6151
+    },
+    "packages/app/src/components/settings/settings-example.tsx": {
+      "baseSha256": null,
+      "candidateSha256": "8f1553aad5bfafb550c8fc5441b72e9a0831810157da4937e300656e2806ddc9",
+      "bytes": 3291
+    },
+    "packages/app/src/screens/settings/paseo-plus-plus-section.tsx": {
+      "baseSha256": "26fd7af56222ad2c3af1431a13ff4fb297d805a45c766d95b1b65de354d7084b",
+      "candidateSha256": "e1e0da32f7452d1972672a1403028905cdfe3830bcebe2cc31a7d9ae83be103d",
+      "bytes": 6123
+    },
+    "packages/app/src/screens/settings/paseo-plus-plus/explorer-section.tsx": {
+      "baseSha256": "863a7eb74c4d6e98cf8d160dc397cdd90b915ea83e3580ddcf8425e12a377b74",
+      "candidateSha256": "1a700360207495fa950c3ed1f32ebce960ba55f7da4c33b45facfaa8d1442e22",
+      "bytes": 5655
+    },
+    "packages/app/src/components/ui/tooltip.test.tsx": {
+      "baseSha256": "19e0f1bc5fe503c132dfc1bb737b53deb94b0fff4409ec6224c7523bd7bd9070",
+      "candidateSha256": "2574ee622c2f90d3a050e7385475cd07b66610595a0a0d9b4a03d0ba52b91dd9",
+      "bytes": 9180
+    },
+    "packages/app/e2e/support/helpers/app.ts": {
+      "baseSha256": "0f6fa0131b5f2d83d6f23d35ffbd413b3be4aaf826140fe027f591de1bf40fce",
+      "candidateSha256": "e82b7b27511cc0172be82610251f46762edf37a83ff898eb82aabe48d880c384",
+      "bytes": 14609
+    },
+    "packages/app/e2e/support/helpers/settings-example-capture.ts": {
+      "baseSha256": null,
+      "candidateSha256": "948f2ef69a3e200d32cdb5ea9eea441ab23fbef1908ac7f36466f34bf25e7631",
+      "bytes": 3179
+    },
+    "packages/app/e2e/support/helpers/settings-example-scenes.ts": {
+      "baseSha256": null,
+      "candidateSha256": "0f33e82c1212c99a636ec0d639b836c55e39b8ab442f042532b9e3a9a3923f16",
+      "bytes": 11480
+    },
+    "packages/app/e2e/browser/settings-navigation.spec.ts": {
+      "baseSha256": "680071f4b4d052824201e6403f71419adb676fcac161de457ed13d4f731858ce",
+      "candidateSha256": "202ee1819f64cfa4c501a1b6e055d05e13cd1535f16d996bcdb5aed4d6eca482",
+      "bytes": 24281
+    },
+    "packages/app/src/i18n/resources/ar.ts": {
+      "baseSha256": "363d0b22138cbf944cc2f6dc9f6331431482b38e183d90888034c8614130a3c2",
+      "candidateSha256": "e46eefbabf6b6b2121283b8abce49bd9551e225d1f20c99461b728d16fcba642",
+      "bytes": 146491
+    },
+    "packages/app/src/i18n/resources/en.ts": {
+      "baseSha256": "5a7e19652450361f6e38522c7e97fdf4eabd439187cb91e0304db9765410d473",
+      "candidateSha256": "ccb9b91e9df33df636a0b448cd557f555705ea9daf18ef865970f0273ad870e5",
+      "bytes": 118004
+    },
+    "packages/app/src/i18n/resources/es.ts": {
+      "baseSha256": "a0e46b52b15c17afac673cde5796b8b89599527306e9d3ba7c3326a68d3b7b31",
+      "candidateSha256": "7f18d2c4eb20fde6e7fd6d3c67dfbc82c6d87bc34d64bc238f5c783dab2f7c2b",
+      "bytes": 126936
+    },
+    "packages/app/src/i18n/resources/fr.ts": {
+      "baseSha256": "d44e868c8fc1ccb27fc2c9fd80f809f0b6ce0c307dc246a5c9b405903c9404de",
+      "candidateSha256": "82253bdc3dd4c46327e1624dd9314276146769407a793bf9ce6b8d4a0407c4d1",
+      "bytes": 132343
+    },
+    "packages/app/src/i18n/resources/ja.ts": {
+      "baseSha256": "e1e7cab536bbe0dc7243f728e9c64a0cd537b285210f66a05d9506d320bd64ee",
+      "candidateSha256": "fce5968fd2aca341637d354e6bca92929b1e9ce8d9606bee799d1e84af2e2a99",
+      "bytes": 145234
+    },
+    "packages/app/src/i18n/resources/ko.ts": {
+      "baseSha256": "85d725719a44a94d8c73e409f3b8778f50d010002209a791dd01e24608f90d6e",
+      "candidateSha256": "0ec16e712ecf14df533faf4fa78bbe4ec2ba1c4c2125c4c78605d2bd0f32f527",
+      "bytes": 132365
+    },
+    "packages/app/src/i18n/resources/pt-BR.ts": {
+      "baseSha256": "c48184b38fab1fbd3a34d1765dab791140b73ac65c946c0817f0314ddc48c43c",
+      "candidateSha256": "0b3027defc11107e3e8d4c58f22604a2b1e14111a522ce271bcbb52fb77fff5a",
+      "bytes": 124247
+    },
+    "packages/app/src/i18n/resources/ru.ts": {
+      "baseSha256": "1eb790cb1d41504c877e87dc0f466391a4e573515ea3b6e797506aa3631cd248",
+      "candidateSha256": "fd563f0e093ba3fbd9c75dd8e53d6dad142d4410e705851116ce2935bcc9b130",
+      "bytes": 174103
+    },
+    "packages/app/src/i18n/resources/zh-CN.ts": {
+      "baseSha256": "c556e33d7ba1e46097aec0162154ecca1924c5b1caa173e35f25d64ab59900aa",
+      "candidateSha256": "30687aa477d9241ae490edd4933110a3064b1fec1accaf3dd4c3b24474050266",
+      "bytes": 111322
+    },
+    "packages/app/src/paseo-plus-plus/settings-examples.ts": {
+      "baseSha256": null,
+      "candidateSha256": "2188113e63801abb021c9a353aaf4375a71d028d2c2a476b42fc467758afe2c0",
+      "bytes": 4790
+    },
+    "packages/app/src/screens/settings/paseo-plus-plus/sidebar-limit-section.tsx": {
+      "baseSha256": "9d60dc3ae74835d8f3cbd7b030e83dcbbc6b0d2d54d2362569c14b01df22b381",
+      "candidateSha256": "9c85c9c218a3f5c4f37bc128828897d79c31a7a5ae3161334817cc9b5b1b2a4f",
+      "bytes": 5774
+    },
+    "packages/app/e2e/support/helpers/settings-example-help.ts": {
+      "baseSha256": null,
+      "candidateSha256": "6defc366439b052cc5c388e5fd87449fb29a4c6b7b037b67f3f8d00d245d8828",
+      "bytes": 4391
+    },
+    "packages/app/src/components/settings/screenshot-arrow.ts": {
+      "baseSha256": null,
+      "candidateSha256": "67f17b132cea38b0e77fa766602121d5e967c9c5fd4def5188f472d0bbf0c681",
+      "bytes": 946
+    },
+    "packages/app/src/components/settings/screenshot-annotations.tsx": {
+      "baseSha256": null,
+      "candidateSha256": "63fc4107385074afc3d1a080be1ac14012595028f3cfb92fc3ae84684ad74069",
+      "bytes": 1160
+    },
+    "packages/app/src/components/ui/tooltip.tsx": {
+      "baseSha256": "3a47bf60d77bc2d6081ef33a5a22473d384dc6bf7c6bcdc1ccf14140aa223be3",
+      "candidateSha256": "bdbf82d9768283ac5b0d136e107515ab47a23fb844613ba60e1293142c945da3",
+      "bytes": 16617
+    },
+    "packages/app/assets/settings-examples/annotated/descriptiveToolCalls-descriptive-tool-calls.svg": {
+      "baseSha256": null,
+      "candidateSha256": "427814f46208f85b8d4abfeef4889b26d1a71b26f888df1f35a39f74cff9ce47",
+      "bytes": 10322
+    },
+    "packages/app/assets/settings-examples/annotated/explorer-explorer-changes-diff.svg": {
+      "baseSha256": null,
+      "candidateSha256": "56b1bfdfc36f24afaeeaee39c0af2a09409d6df203b1f26f830d4b10e6a6aa7e",
+      "bytes": 10590
+    },
+    "packages/app/assets/settings-examples/annotated/explorer-explorer-changes-list.svg": {
+      "baseSha256": null,
+      "candidateSha256": "9df139447780bb0899400497180c6e93acad321933818b84b198daae3441c653",
+      "bytes": 8962
+    },
+    "packages/app/assets/settings-examples/annotated/previousAgents-previous-agents.svg": {
+      "baseSha256": null,
+      "candidateSha256": "73483aa2fa6d961dd1005a7daaf7f9d2b0ae26666d7482af7202f13aa264ecc2",
+      "bytes": 16437
+    },
+    "packages/app/assets/settings-examples/annotated/projectPinning-project-pin.svg": {
+      "baseSha256": null,
+      "candidateSha256": "7f1ef6f1cbd4829e3412a56a6645665d8852b9f4c72ddd3619eb969e31e50edb",
+      "bytes": 13334
+    },
+    "packages/app/assets/settings-examples/annotated/sidebarActivityChips-project-header.svg": {
+      "baseSha256": null,
+      "candidateSha256": "49e352f6fcb7071e80efdb28ffeb24776d2c3ee738f0200f5d87df834e4a14d8",
+      "bytes": 4237
+    },
+    "packages/app/assets/settings-examples/annotated/sidebarBulkActions-bulk-actions.svg": {
+      "baseSha256": null,
+      "candidateSha256": "0d02dd9b6ebc9415b825478292a4d29716741b1b05363f23213f76fbdc0db2bc",
+      "bytes": 3768
+    },
+    "packages/app/assets/settings-examples/annotated/sidebarProjectEmphasis-project-header.svg": {
+      "baseSha256": null,
+      "candidateSha256": "3d66e13e771447c69c650f97ecc2a0f2ffdfc3b0b49faf4e7dcfe977a94f4bbb",
+      "bytes": 4227
+    },
+    "packages/app/assets/settings-examples/annotated/sidebarProjectSelector-project-selector.svg": {
+      "baseSha256": null,
+      "candidateSha256": "c8d014c1f62f95c45aaaee9133b6637b6413ad082c232879b0bbf2113dfbbd10",
+      "bytes": 8899
+    },
+    "packages/app/assets/settings-examples/annotated/sidebarWorkspaceTransitions-workspace-positions-after.svg": {
+      "baseSha256": null,
+      "candidateSha256": "7cfe525a5270eaf6eeba166346c97fbc96cd8a98940d243f8e853919e9c389e1",
+      "bytes": 9203
+    },
+    "packages/app/assets/settings-examples/annotated/sidebarWorkspaceTransitions-workspace-positions-before.svg": {
+      "baseSha256": null,
+      "candidateSha256": "c9ff4ac93a0f73975ce1b99c266a6f6d05f8a4ed90dd81e4b40413253e8fab14",
+      "bytes": 7011
+    },
+    "packages/app/assets/settings-examples/annotated/stickyUserPrompts-sticky-user-prompts.svg": {
+      "baseSha256": null,
+      "candidateSha256": "ed2f7f589668b16ca6eee64564fe062670b44b6ddace516966be9f3109b3e681",
+      "bytes": 11529
+    },
+    "packages/app/assets/settings-examples/bulk-actions.png": {
+      "baseSha256": null,
+      "candidateSha256": "92f934b86b87cf7c407449d097f333bc2a528174898b1c695767fe95bea9170c",
+      "bytes": 2163
+    },
+    "packages/app/assets/settings-examples/descriptive-tool-calls.png": {
+      "baseSha256": null,
+      "candidateSha256": "bf31fdc59792df09665588e40eb5b461560fc65c3cb61cadf65bb2ea383f5b8e",
+      "bytes": 7291
+    },
+    "packages/app/assets/settings-examples/explorer-changes-diff.png": {
+      "baseSha256": null,
+      "candidateSha256": "b7dcd8d00fa87acb3403e776adb10f2f89c18507a01890a8a2773329a9799983",
+      "bytes": 7500
+    },
+    "packages/app/assets/settings-examples/explorer-changes-list.png": {
+      "baseSha256": null,
+      "candidateSha256": "c0a9e0fa2028fa55d0b46708ed9038902792c536eb656a7c8cef952e0809032e",
+      "bytes": 6271
+    },
+    "packages/app/assets/settings-examples/previous-agents.png": {
+      "baseSha256": null,
+      "candidateSha256": "4b6fcc245d450d0cd91568259ce28b4c631fe386f0a829c6d22db4295343f356",
+      "bytes": 11883
+    },
+    "packages/app/assets/settings-examples/project-header.png": {
+      "baseSha256": null,
+      "candidateSha256": "711f6037a98739a3e235d754d42c964b6ae176aeed9ef96aa499bae12e985c25",
+      "bytes": 2734
+    },
+    "packages/app/assets/settings-examples/project-pin.png": {
+      "baseSha256": null,
+      "candidateSha256": "158f4f3418c89d4e11561fb660560eda0a4c416e7114f034fe2ef7ea39417f21",
+      "bytes": 9541
+    },
+    "packages/app/assets/settings-examples/project-selector.png": {
+      "baseSha256": null,
+      "candidateSha256": "6052b8debfc5cad7784fd467dcbaeeb84f1a95754b7c6cbc1897810ac66f79d2",
+      "bytes": 6223
+    },
+    "packages/app/assets/settings-examples/sticky-user-prompts.png": {
+      "baseSha256": null,
+      "candidateSha256": "ede863ee58caaa9f5cfca7051057c7c61d665026524c0f4559980d9af6c14906",
+      "bytes": 8191
+    },
+    "packages/app/assets/settings-examples/workspace-limit-count.png": {
+      "baseSha256": null,
+      "candidateSha256": "f3ef1e739abff7afb06d6d69dedff9e7c830ee4b5d53ab91e37cbd29bd49c696",
+      "bytes": 1757
+    },
+    "packages/app/assets/settings-examples/workspace-limit-mode.png": {
+      "baseSha256": null,
+      "candidateSha256": "fe752c91759233fce17cc006e7dfdcaed9b829a0c10e0f86885ab74df7eb4fa3",
+      "bytes": 1161
+    },
+    "packages/app/assets/settings-examples/workspace-positions-after.png": {
+      "baseSha256": null,
+      "candidateSha256": "942bbb4a9b8bc3d43007a53ef862b0514aa249e4e0965fbfa1a31cae3b03bb17",
+      "bytes": 6456
+    },
+    "packages/app/assets/settings-examples/workspace-positions-before.png": {
+      "baseSha256": null,
+      "candidateSha256": "06c0bbc9df677881e9967b7e6fc1532e5ba458a2567ef665c71f4c3d0e5c08f4",
+      "bytes": 4812
+    }
+  },
+  "authoredSourceFiles": 25,
+  "baseRootManifestSha256": "4b9c20b6dd432b8ccbf5e5e9ae128f1c50d9dd20fd607020c61cc3e767af66b8",
+  "protectedSourceUnchanged": {
+    "packages/app/src/hooks/use-settings/storage.ts": "465de5b57a46ff85e98f45b28a248689788c4396ff7a1fe47c93e2b6808dd3da",
+    "packages/app/src/hooks/use-settings/use-settings-save.ts": "b609386881c9d79f68c7a744bc4a8cb90a8ae29383c163d8765d77caeb2c5c83",
+    "packages/app/src/screens/settings/settings-sync-section.tsx": "353c6f1ffc269c3c2477e5a1061d3747c7d7e392f650642a38f9a8a464326c8c",
+    "packages/app/src/paseo-plus-plus/preferences.ts": "f99c8ee9bfe7873263dd8d8647899dd4f103a46c7ddaced30cbf991a3b86f8b6"
+  },
+  "resultingBytesVerified": true,
+  "excluded": [
+    "README",
+    "Codex hooks",
+    "storage/preference schema",
+    "sync runtime",
+    "count model/save logic",
+    "other feature consumers",
+    "fixture-only Metro/cache/warmup overrides"
+  ],
+  "coverage": {
+    "visualOptionalFeatures": 9,
+    "androidAutomaticChecks": "Text only; no native screenshot",
+    "explorer": "Shared actual Changes list/diff illustration, not independent automatic behavior proof",
+    "workspaceLimit": "Actual settings controls from current overview, not list behavior",
+    "motionPair": "Qualified historical owner actual-movement pair, cropped to rows; three core motion files match preview commit. Fresh one-row group-change pair preserved but not used as movement illustration."
+  },
+  "annotations": "Separate vector layers using genuine base PNG pixels. SVG exports embed byte-identical PNG bytes; original raw captures/crops and provenance retained.",
+  "browserHelpVerification": "Desktop v2 passes all 15 help controls. Compact v3 exposed real touch hover prepress/remount defect; approved canonical press-mode repair v4 awaits only affected compact rerun.",
+  "gitHistory": "Original mixed worktree and all branches unchanged; dependency/base policy still pending"
+}

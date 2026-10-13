@@ -1,3 +1,5 @@
+import { getExplorerExampleImages } from "@/paseo-plus-plus/settings-examples";
+import { SettingsExample } from "@/components/settings/settings-example";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,11 +18,46 @@ type ExplorerSetting =
   | "workingDiffDefaultComparison"
   | "workingDiffAutoSwitch";
 
+const HELP_CONTENT = {
+  autoOpenExplorerSidebar: {
+    label: "settings.layout.explorer.autoOpen.label",
+    hint: "settings.layout.explorer.autoOpen.description",
+  },
+  explorerDiffScope: {
+    label: "settings.layout.explorer.diffScope.label",
+    hint: "settings.layout.explorer.diffScope.description",
+  },
+  workingDiffDefaultComparison: {
+    label: "settings.layout.explorer.comparison.label",
+    hint: "settings.layout.explorer.comparison.description",
+  },
+  workingDiffAutoSwitch: {
+    label: "settings.layout.explorer.autoSwitch.label",
+    hint: "settings.layout.explorer.autoSwitch.description",
+  },
+} as const;
+
 /** Explorer defaults for new workspaces and changed-file navigation. */
 export function ExplorerSection() {
   const { t } = useTranslation();
   const { settings, save, pending, failed, isLoading, error } = useSettingsSave<ExplorerSetting>();
   const disabled = isLoading || error !== null || pending !== null;
+  const help = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(HELP_CONTENT).map(([key, content]) => [
+          key,
+          <SettingsExample
+            key={key}
+            title={t(content.label)}
+            caption={`${t(content.hint)} ${t("paseoPlusPlus.examples.explorer")}`}
+            images={getExplorerExampleImages(key)}
+            testID={`settings-example-${key}`}
+          />,
+        ]),
+      ),
+    [t],
+  );
 
   /** Keep each control's attempted value outside durable settings until its save succeeds. */
   const saveSetting = useCallback(
@@ -82,6 +119,7 @@ export function ExplorerSection() {
         {isWeb ? (
           <SettingsSwitch
             label={t("settings.layout.explorer.autoOpen.label")}
+            labelAccessory={help.autoOpenExplorerSidebar}
             {...feedback(
               "autoOpenExplorerSidebar",
               t("settings.layout.explorer.autoOpen.description"),
@@ -92,6 +130,7 @@ export function ExplorerSection() {
         ) : null}
         <SettingsSelect
           label={t("settings.layout.explorer.diffScope.label")}
+          labelAccessory={help.explorerDiffScope}
           {...feedback("explorerDiffScope", t("settings.layout.explorer.diffScope.description"))}
           value={settings.explorerDiffScope}
           options={diffScopeOptions}
@@ -99,6 +138,7 @@ export function ExplorerSection() {
         />
         <SettingsSelect
           label={t("settings.layout.explorer.comparison.label")}
+          labelAccessory={help.workingDiffDefaultComparison}
           {...feedback(
             "workingDiffDefaultComparison",
             t("settings.layout.explorer.comparison.description"),
@@ -110,6 +150,7 @@ export function ExplorerSection() {
         />
         <SettingsSwitch
           label={t("settings.layout.explorer.autoSwitch.label")}
+          labelAccessory={help.workingDiffAutoSwitch}
           {...feedback(
             "workingDiffAutoSwitch",
             t("settings.layout.explorer.autoSwitch.description"),

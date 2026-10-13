@@ -1,3 +1,4 @@
+import { PaseoLogo } from "@/components/icons/paseo-logo";
 import { PaseoPlusPlusSection } from "@/screens/settings/paseo-plus-plus-section";
 import { AndroidAppUpdateRow } from "@/app-updates/settings-row";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -155,7 +156,7 @@ const SIDEBAR_SECTION_ITEMS: SidebarSectionItem[] = [
   {
     id: "paseo-plus-plus",
     labelKey: "paseoPlusPlus.title",
-    icon: Settings,
+    icon: PaseoLogo,
     Content: PaseoPlusPlusSection,
   },
   { id: "general", labelKey: "settings.sections.general", icon: Settings },

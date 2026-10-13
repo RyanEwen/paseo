@@ -544,6 +544,11 @@ export function normalizeHostSectionSlug(value: string): HostSectionSlug | null 
   return LEGACY_HOST_SECTION_SLUGS[value] ?? null;
 }
 
+/** Open the fork preferences from app entry points; /settings remains the section-navigation root. */
+export function buildDefaultSettingsRoute() {
+  return buildSettingsSectionRoute("paseo-plus-plus");
+}
+
 export function buildSettingsRoute() {
   return "/settings" as const;
 }

@@ -3,14 +3,24 @@ import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
   paseoPlusPlus: {
+    examples: {
+      annotated: "화살표는 해당 기능을 가리킵니다.",
+      before: "상태 변경 전",
+      after: "상태 변경 후",
+      imageLabel: "{{title}} 예시",
+      positions:
+        "상태 변경 전후의 최종 위치입니다. 정지 이미지는 애니메이션 시간을 보여주지 않습니다.",
+      explorer: "변경 목록과 작업 사본 차이의 예입니다.",
+      workspaceLimit:
+        "그룹별 초기 표시 개수를 선택하거나 모두 표시하세요. 이미 펼친 그룹은 펼쳐진 상태를 유지합니다.",
+    },
     loadFailed: "저장된 설정을 불러오지 못했습니다. 기능 변경 전에 다시 시도하세요.",
     saving: "저장 중...",
     title: "Paseo++",
     optional: "선택 기능",
-    optionalHint: "이 앱 설치에 적용됩니다. 꺼도 저장된 데이터와 설정은 유지됩니다.",
-    preferences: "기존 설정",
-    preferencesHint: "이 추가 기능은 기존 설정에서 조정합니다",
-    configure: "설정",
+    optionalHint:
+      "동기화를 켜면 선택한 설정 호스트의 환경설정을 따릅니다. 기능을 꺼도 저장된 데이터와 설정은 유지됩니다.",
+    preferences: "사이드바의 추가 설정",
     fixes: "수정 사항과 포크 기본 기능",
     fixesHint: "이 개선 사항은 항상 활성화됩니다",
     additions: "기타 추가 기능",
@@ -56,12 +66,8 @@ export const ko: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "사이드바 표시 옵션",
-        hint: "워크스페이스 사이드바의 표시 메뉴에서 필터, 그룹, 정렬, 프로젝트/브랜치 표시, 활동 및 변경 합계를 관리합니다",
-      },
-      updates: {
-        label: "미리보기 업데이트",
-        hint: "데스크톱과 지원되는 Android 빌드는 정보에서 업데이트를 확인하고 설치할 수 있습니다. Android 설치는 승인이 필요합니다.",
+        label: "워크스페이스 순서 및 세부 정보",
+        hint: "프로젝트와 워크스페이스를 이름, 상태 또는 사용자 지정 순서로 각각 정렬하세요. 최근 활동과 코드 변경 합계를 함께 표시할 수 있으며, 프로젝트와 브랜치 이름은 기본으로 표시됩니다. 워크스페이스 사이드바의 표시 메뉴에서 설정하세요.",
       },
     },
     fixesList: {

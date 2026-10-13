@@ -3,15 +3,24 @@ import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
   paseoPlusPlus: {
+    examples: {
+      annotated: "Les flèches indiquent la fonctionnalité.",
+      before: "Avant le changement d’état",
+      after: "Après le changement d’état",
+      imageLabel: "Exemple : {{title}}",
+      positions:
+        "Positions finales avant et après un changement d’état. Ces images ne montrent pas la durée de l’animation.",
+      explorer: "Exemple de la liste des changements et du diff de la copie de travail.",
+      workspaceLimit:
+        "Choisissez un nombre initial par groupe ou Tout afficher. Les groupes que vous avez développés restent développés.",
+    },
     loadFailed: "Impossible de charger les préférences. Réessayez avant de modifier les fonctions.",
     saving: "Enregistrement...",
     title: "Paseo++",
     optional: "Fonctions facultatives",
     optionalHint:
-      "Ces choix concernent cette installation. La désactivation conserve les données et préférences.",
-    preferences: "Préférences existantes",
-    preferencesHint: "Utilisez les contrôles existants pour ces ajouts",
-    configure: "Configurer",
+      "Les choix suivent l’hôte de paramètres sélectionné lorsque la synchronisation est activée. La désactivation conserve les données et préférences.",
+    preferences: "Autres commandes de la barre latérale",
     fixes: "Correctifs et éléments essentiels",
     fixesHint: "Ces améliorations restent actives",
     additions: "Autres ajouts",
@@ -57,12 +66,8 @@ export const fr: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Affichage de la barre latérale",
-        hint: "Utilisez Affichage dans la barre latérale de l’espace pour les filtres, groupes, tri, noms de projet/branche, activité et totaux des modifications",
-      },
-      updates: {
-        label: "Mises à jour de prévisualisation",
-        hint: "Les versions de bureau et Android compatibles peuvent vérifier et installer les mises à jour depuis À propos. Android demande votre autorisation.",
+        label: "Ordre et détails des espaces de travail",
+        hint: "Triez séparément les projets et les espaces de travail par nom, état ou ordre personnalisé. Affichez ensemble la dernière activité et les totaux des modifications du code ; les libellés de projet et de branche sont activés par défaut. Réglez ces options dans Affichage, dans la barre latérale des espaces de travail.",
       },
     },
     fixesList: {

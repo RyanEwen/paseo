@@ -1,0 +1,24 @@
+{
+  "id": "desktop-help-sidebarProjectEmphasis",
+  "source": "desktop-help-sidebarProjectEmphasis-1791842732839.png",
+  "sourceManifestSha256": "18e93c6cdf7c4aaacf55a8cf3d8307d181a104aa147a794a62a3d21c38bc4309",
+  "sourceSha256": "8d3bba88d1367dc325c8bebc11998ed9a59506ad8126e801ac91e5ac69f198e1",
+  "capturedAtUtc": "2026-10-12T22:05:32.943Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 684,
+    "top": 597,
+    "width": 291,
+    "height": 168
+  },
+  "description": "Actual local screenshot help after real keyboard focus or compact touch disclosure.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified."
+}
