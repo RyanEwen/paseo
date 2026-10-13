@@ -39,7 +39,9 @@ test("sidebar initial count saves arbitrary values and Show all without acceptin
   await page.goto(buildSettingsSectionRoute("paseo-plus-plus"));
   const input = page.getByTestId("sidebar-workspace-limit-count");
   const save = page.getByTestId("sidebar-workspace-limit-save");
-  const mode = page.getByTestId("sidebar-workspace-limit-mode").getByRole("button");
+  const mode = page.getByTestId("sidebar-workspace-limit-mode").getByRole("button", {
+    name: /^Initially show per group: (Limited|Show all)$/,
+  });
   await expect(input).toHaveValue("20");
   await input.fill("37");
   await save.click();
