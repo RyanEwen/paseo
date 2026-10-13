@@ -30,11 +30,13 @@ import {
   waitForWorkspaceTabsVisible,
 } from "../support/helpers/workspace-tabs";
 import { getServerId } from "../support/helpers/server-id";
-import { buildHostWorkspaceRoute } from "@/utils/host-routes";
+import { buildDefaultSettingsRoute, buildHostWorkspaceRoute } from "@/utils/host-routes";
 import { WORKSPACE_DECK_MAX_MOUNTED_WORKSPACES } from "@/screens/workspace/workspace-deck-retention";
 import { delayBrowserAgentCreatedStatus } from "../support/helpers/new-workspace";
 import { installDaemonWebSocketGate } from "../support/helpers/daemon-websocket-gate";
 import { gotoAppShell, openSettings, selectModel } from "../support/helpers/app";
+import { expectAppRoute } from "../support/helpers/route-assertions";
+import { openSettingsSection } from "../support/helpers/settings";
 import { observeTimelineSubscriptions } from "../support/helpers/timeline-delivery";
 import { rememberTimelineRequestCounts } from "../support/helpers/timeline-resume";
 import {
@@ -312,7 +314,6 @@ async function expectRejectedPromptBeforeError(page: Page, prompt: string, error
 async function configureSteerInSettings(page: Page): Promise<void> {
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.press(`${modifier}+Comma`);
-  await expect(page).toHaveURL(/\/settings\/general$/);
   await selectSteerInSettings(page);
 }
 
@@ -324,7 +325,6 @@ async function selectSteerInSettings(page: Page): Promise<void> {
 async function configureInterruptInSettings(page: Page): Promise<void> {
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.press(`${modifier}+Comma`);
-  await expect(page).toHaveURL(/\/settings\/general$/);
   await selectSendBehaviorInSettings(page, "Interrupt", "interrupt");
 }
 
@@ -333,6 +333,9 @@ async function selectSendBehaviorInSettings(
   behaviorLabel: string,
   stored: string,
 ): Promise<void> {
+  // Shortcut and button entry paths share one explicit route to the General field.
+  await expectAppRoute(page, buildDefaultSettingsRoute());
+  await openSettingsSection(page, "general");
   await page.getByRole("button", { name: /^Default send: / }).click();
   await page.getByRole("menuitem", { name: behaviorLabel, exact: true }).click();
   await expect
