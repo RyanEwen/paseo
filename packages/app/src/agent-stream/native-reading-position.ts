@@ -18,7 +18,7 @@ export function resolveNativeReadingPosition(input: {
 }) {
   const history = input.visibleHistory
     .filter((token) => token.isViewable)
-    .toSorted((a, b) => (b.index ?? 0) - (a.index ?? 0));
+    .sort((a, b) => (b.index ?? 0) - (a.index ?? 0));
   const visibleUserIds = history
     .filter((token) => token.item.kind === "user_message")
     .map((token) => token.item.id);

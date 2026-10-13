@@ -504,6 +504,62 @@ it("native viewability selects the chronological reading edge and records visibl
   expect(position).toEqual({ rowId: "history-user", visibleUserIds: ["history-user"] });
 });
 
+it("native reading preserves ordering and header geometry without ES2023 array methods", () => {
+  const descriptor = Object.getOwnPropertyDescriptor(Array.prototype, "toSorted");
+  const user = (id: string): StreamItem => ({
+    id,
+    kind: "user_message",
+    text: "prompt",
+    timestamp: new Date(0),
+  });
+  const first = user("history-first");
+  const second = user("history-second");
+  const live = user("live-user");
+  const answer: StreamItem = {
+    id: "live-answer",
+    kind: "assistant_message",
+    text: "response",
+    timestamp: new Date(0),
+  };
+  const visibleHistory = Object.freeze([
+    { item: second, index: 2, isViewable: true },
+    { item: user("hidden"), index: 99, isViewable: false },
+    { item: first, index: 7, isViewable: true },
+  ]);
+  const original = [...visibleHistory];
+  const input = {
+    visibleHistory,
+    liveHead: [live, answer],
+    liveGeometry: new Map([
+      [live.id, { y: 0, height: 100 }],
+      [answer.id, { y: 100, height: 5900 }],
+    ]),
+    headerHeight: 6000,
+    viewportHeight: 600,
+    offsetY: 5350,
+  };
+  try {
+    Reflect.deleteProperty(Array.prototype, "toSorted");
+    expect(resolveNativeReadingPosition({ ...input, headerHeight: null })).toEqual({
+      rowId: first.id,
+      visibleUserIds: [first.id, second.id],
+    });
+    expect(resolveNativeReadingPosition(input)).toEqual({
+      rowId: live.id,
+      visibleUserIds: [first.id, second.id, live.id],
+    });
+    expect(resolveNativeReadingPosition({ ...input, offsetY: 5300 })).toEqual({
+      rowId: answer.id,
+      visibleUserIds: [first.id, second.id],
+    });
+    expect(visibleHistory).toEqual(original);
+    expect(visibleHistory.map((token) => token.index)).toEqual([2, 99, 7]);
+  } finally {
+    if (descriptor) Reflect.defineProperty(Array.prototype, "toSorted", descriptor);
+    else Reflect.deleteProperty(Array.prototype, "toSorted");
+  }
+});
+
 it("native measured live header tracks the original leaving view without DOM APIs", () => {
   const user = {
     id: "live-user",
