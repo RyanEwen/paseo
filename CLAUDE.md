@@ -67,7 +67,7 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 
 ### Writing docs
 
-- **Keep the fork overview current.** For RyanEwen/paseo, review the opening README section with
+- **Keep the fork overview current.** For RyanEwen/paseo-plus-plus, review the opening README section with
   every feature change and upstream merge. Add user-visible differences, revise changed behavior,
   and remove additions that upstream now includes. Follow [the fork overview review rule](docs/release.md#fork-overview-review).
 

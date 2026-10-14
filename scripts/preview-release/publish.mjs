@@ -5,12 +5,11 @@ import { getGitHubRelease, getReleaseLookupTag, waitForGitHubRelease } from "../
 import { uploadWithRetry } from "../upload-release-assets.mjs";
 import { isMainModule } from "../is-main-module.mjs";
 import { validatePreviewAssets } from "./assets.mjs";
+import { requirePreviewRepository } from "./source.mjs";
 
 /** Publish only a complete validated draft; never replace the bytes of a published preview. */
 export async function publishPreviewRelease({ directory, repo, notes, publish }) {
-  if (repo !== "RyanEwen/paseo") {
-    throw new Error("Preview publishing is restricted to RyanEwen/paseo");
-  }
+  requirePreviewRepository(repo);
   if (!notes?.trim()) {
     throw new Error("Provide user-facing release notes before creating a preview");
   }

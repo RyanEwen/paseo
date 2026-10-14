@@ -32,7 +32,7 @@ env:
 
 jobs:
   source:
-    if: github.repository == 'RyanEwen/paseo'
+    if: github.repository == 'RyanEwen/paseo' || github.repository == 'RyanEwen/paseo-plus-plus'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -48,20 +48,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
-      - name: Require the preview branch and successful source CI
+      - name: Require the fork integration branch and successful source CI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [[ "$GITHUB_REF" != refs/heads/ryan/preview ]]; then
-            echo "::error::Run this workflow on ryan/preview"
-            exit 1
-          fi
-          conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&per_page=1" --jq '.workflow_runs[0].conclusion // "missing"')"
-          if [[ "$conclusion" != success ]]; then
-            echo "::error::Source CI must pass before releasing this commit (current result: $conclusion)"
-            exit 1
-          fi
+        run: node scripts/preview-release/source.mjs
       - name: Require release credentials
         if: ${{ !inputs.verify_daemon_updates_only }}
         env:

@@ -2,7 +2,7 @@
 
 # Paseo++
 
-Paseo++ is [RyanEwen/paseo](https://github.com/RyanEwen/paseo), an experimental fork of [Paseo](https://github.com/getpaseo/paseo). It includes upstream improvements alongside the features and fixes below.
+Paseo++ is [RyanEwen/paseo-plus-plus](https://github.com/RyanEwen/paseo-plus-plus), an experimental fork of [Paseo](https://github.com/getpaseo/paseo). It includes upstream improvements alongside the features and fixes below.
 
 ![Paseo++ settings showing optional features enabled and Explorer preferences](docs/qa-evidence/settings-examples/settings-overview-full.png)
 
@@ -138,13 +138,13 @@ Paseo++ apps and daemons keep separate identities, settings, and update sources 
 
 ## Install Paseo++
 
-Download desktop and Android previews from [Paseo++ releases](https://github.com/RyanEwen/paseo/releases). Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage previews receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
+Download desktop and Android previews from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage previews receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
 
 Paseo++ desktop and Android apps keep their own settings and identities, separate from upstream Paseo. Set up your hosts and preferences independently in each app. The desktop app also keeps its bundled daemon in `~/.paseo-plus-plus-desktop` on port 6790, separate from the standalone daemon. Desktop and Android previews use fresh Paseo++ installations and settings; set up connections again when moving from the former Debug builds.
 
 ### Standalone daemon (Linux and WSL)
 
-Install Node.js 22 or newer and at least one agent CLI. Download the matching `paseo-daemon-<version>-linux-<arch>.tgz` from [Paseo++ releases](https://github.com/RyanEwen/paseo/releases). Use `x64` for Intel/AMD or `arm64` for ARM. Linux packages require glibc; Alpine/musl is unsupported.
+Install Node.js 22 or newer and at least one agent CLI. Download the matching `paseo-daemon-<version>-linux-<arch>.tgz` from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). Use `x64` for Intel/AMD or `arm64` for ARM. Linux packages require glibc; Alpine/musl is unsupported.
 
 Install the downloaded package, then start the daemon:
 

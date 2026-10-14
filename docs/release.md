@@ -79,7 +79,7 @@ short-lived hotfix branch, not another maintained release track.
 
 ## Fork overview review
 
-In RyanEwen/paseo, the opening README section owns the list of user-visible differences from
+In RyanEwen/paseo-plus-plus, the opening README section owns the list of user-visible differences from
 upstream. Review it when you add or change a feature and when you merge upstream changes. Remove
 an addition from the list once upstream includes it. Describe available behavior; label planned
 distribution separately until builds are published.
@@ -95,11 +95,14 @@ cannot determine whether a feature description is accurate.
 
 ## Fork preview distribution
 
-RyanEwen/paseo uses `ryan/preview` as a merge-only integration branch. Develop changes on feature
-branches, review them, then merge them into `ryan/preview`. Rename `ryan/dev` only after its existing
-work is integrated; do not rewrite its history. CI covers both fork branches.
+RyanEwen/paseo-plus-plus uses `main` as its default, merge-only integration branch. Develop changes
+on feature branches, review them, then merge them into `main`. The fork's former upstream mirror
+is preserved as `upstream/main`; the `origin` remote continues to point to getpaseo/paseo. Integration
+CI retains both `main` and `ryan/preview` triggers, preserving upstream `main` CI too. During the
+rename, release operations accept the exact
+old repository `RyanEwen/paseo` and old integration branch `ryan/preview` as well.
 
-The **Fork Preview Release** workflow is manually dispatched on `ryan/preview`. It builds Windows
+The **Fork Preview Release** workflow is manually dispatched on fork `main`. It builds Windows
 and Linux for x64 and ARM64, plus standalone Linux daemon/CLI packages and an Android APK. macOS is
 deferred until Apple signing is available. iOS and hosted web are excluded. These builds display
 as Paseo++. The desktop identity is `sh.paseo.plusplus.desktop`, its profile folder is `Paseo++`,
@@ -195,10 +198,10 @@ The workflow does not uninstall existing apps or import their settings.
 ### Prepare and publish
 
 Ensure the workflow file is available on the fork's default branch so GitHub exposes manual dispatch.
-Select `ryan/preview` when running it. Wait for CI on the source commit to pass first.
+Select fork `main` when running it. Wait for push CI on the exact source commit to pass first.
 
 ```bash
-gh workflow run preview-release.yml --repo RyanEwen/paseo --ref ryan/preview \
+gh workflow run preview-release.yml --repo RyanEwen/paseo-plus-plus --ref main \
   -f notes="Describe what users can do in this preview." -F publish=false
 ```
 
@@ -210,6 +213,120 @@ every build and asset check. A failed build or upload never makes an update disc
 
 A published preview is immutable. Rerunning its upload is refused rather than replacing files
 that clients may already have downloaded. Start a new workflow run for a corrected release.
+
+### Repository and integration branch cutover
+
+When the user has authorized the named repository and branch renames, carry out that cutover after
+qualification, source review, approval of the concrete source commit/push/integration, and green
+exact-source push CI. Do not ask again for the same external renames. This preparation does not
+authorize a release or local workspace changes. Keep active review workspace branches, paths,
+project membership, and workspace identities stable. A directory named `preview-distribution` does
+not identify a maintained release branch. Local branch and directory cleanup are separate,
+authorized actions after unique work is preserved.
+
+Installed Android, standalone daemon, and desktop builds keep discovering updates through
+`RyanEwen/paseo`. Their existing bridges accept exact old and new release asset URLs. Keep that
+discovery endpoint and the GitHub redirect working. User-facing repository and release-note links
+use the new name. Do not create another repository at the old name; doing so takes over the redirect.
+Do not change app IDs, profiles, package names, link schemes, signing keys, checksum rules, or updater
+channels during the cutover.
+
+Follow these steps in order under the existing authorization for the named external renames:
+
+1. **Record and preserve the starting state.** Read GitHub repository ID, default branch, all branch
+   heads, protections/rulesets, Actions permissions, workflow IDs/run counters, environments,
+   secret names, variable names, GitHub App access, open PR bases, and the published asset inventory.
+   Preserve release IDs, asset IDs, sizes, checksums, and provenance. Inspect Azure/Expo/Firebase and
+   any external rules that bind to a repository slug; update only a confirmed slug constraint with
+   approval. Do not print secret or variable values. Record the published source SHA, preview number,
+   and current remote integration SHA. Re-read every head immediately before a mutation and stop if
+   it differs from the approved snapshot.
+2. **Preserve local work separately.** Record each worktree's path, branch, HEAD, dirty status, remotes,
+   and Paseo workspace/baseRef. Save dirty source and untracked review artifacts outside disposable
+   caches. Compare local `ryan/preview` and `main` with their fork remote heads; preserve unpublished
+   commits and divergence with full SHAs and durable refs before any later local cleanup. Keep the
+   unpublished integration commits on their existing local integration/review refs until reviewed
+   reconciliation. A transition commit based on the published remote head can diverge from that
+   local history; only the published source and reviewed transition belong in the new remote `main`.
+   Do not push the unpublished commits, rename local branches, move worktrees,
+   or modify project/workspace metadata as a side effect of the GitHub cutover.
+3. **Land only the reviewed transition source.** Record the owner patch's exact base and file hashes.
+   After explicit commit/push authorization, integrate it into remote `ryan/preview` from a clean
+   checkout of that remote head, never from the local branch with unpublished work. Require complete
+   green push CI, including browser checks, for the resulting exact SHA. Record that SHA as the
+   approved integration head. The inherited Cloudflare deployment and automatic Nix bot jobs must
+   be restricted to `getpaseo/paseo` before the branch becomes `main`. Fork preview publishing and
+   ordinary CI remain enabled. No npm publication or upstream write is part of this transition.
+   Commit/push/integration approval covers source preparation, which must reach GitHub before its
+   CI can run. New canonical user links are unavailable before the repository rename, so do not
+   release an app from this source until cutover; this does not block the approved source push.
+4. **Rename the existing GitHub branches.** Require that `upstream/main` is absent, then rename fork
+   `main` to `upstream/main` using GitHub's branch rename operation. Verify the mirror's full SHA is
+   unchanged. Rename `ryan/preview` to `main`, then verify its SHA equals the approved integration
+   head and the default branch is `main`. Set the default explicitly only if needed. Restore or
+   retarget protection/ruleset branch patterns and required checks deliberately. Review open PR
+   bases; do not treat automatic retargeting as proof. A preserved mirror retains its original
+   workflow source: integration-branch trigger edits do not enable push CI on `upstream/main`.
+   Use its existing manual CI dispatch where available; do not patch the mirror and change its
+   preserved SHA to enable automation. Do not dispatch a preview during these steps.
+5. **Rename the same GitHub repository.** Rename `RyanEwen/paseo` to `RyanEwen/paseo-plus-plus`, keeping
+   its repository ID. Verify default branch and both heads again, workflow file/ID and durable run
+   counter, releases/assets, Actions settings, credentials by name, environments, and app access.
+   This changes an existing repository, rather than copying it to a fresh one. Retain the workflow
+   path and name; recreating it can reset preview numbering and Android version codes.
+6. **Verify discovery without releasing.** Check old API discovery redirects to this same repository
+   and previously published download URLs still resolve to unchanged assets. Check new repository/release
+   links and the canonical release-note API. Confirm exact old/new asset selection, checksum and
+   signature protections, and installed Android/desktop/daemon discovery before calling update
+   compatibility verified. HTTP redirects alone do not qualify installed update behavior. If live
+   installed-client access is unavailable, record that limit and keep the release gate pending.
+7. **Keep local reconciliation separate.** The GitHub cutover does not require pruning refs, deleting
+   aliases, or updating active local branches. Retain existing local refs and baseRefs until explicit
+   owner comparison-ref migration. If separately authorized, change only the `fork` remote URL to
+   the new slug; `origin` remains upstream. Git remote configuration is shared by all worktrees.
+   Fetch new tracking branches without pruning the old ones. Record each preserved full local and
+   remote mirror head and the intended tracking target before any later reconciliation. Do not
+   silently fast-forward local `main` from its old mirror head to either remote mirror or new fork
+   integration history. Resolve an old `fork/ryan/preview` comparison target deliberately, preserving
+   the owner's original base SHA; do not replace it with upstream `origin/main` or unrelated local
+   `main`. Local branch names, active paths, and Paseo metadata remain stable until separately
+   coordinated. Keep all workspaces under the existing project.
+8. **Qualify the next release separately.** Require fresh full push CI on fork `main` at the intended
+   release SHA before dispatch. The workflow checks repository, integration ref, and successful push
+   CI for that SHA, then pins every build and provenance file to it. Confirm preview run number and
+   Android version code increase, and no release at its tag is already published. Use a draft first
+   unless publication is explicitly authorized. Verify the complete platform/assets gate and
+   installed update paths before publication; never replace a published release.
+
+Useful read-only preflight commands (save outputs in the coordinator's cutover evidence):
+
+```bash
+gh api repos/RyanEwen/paseo --jq '{id,full_name,default_branch,permissions}'
+gh api repos/RyanEwen/paseo/branches --paginate --jq '.[] | {name,sha:.commit.sha,protected}'
+gh api repos/RyanEwen/paseo/rulesets --paginate
+gh api repos/RyanEwen/paseo/actions/permissions
+gh api repos/RyanEwen/paseo/actions/workflows --jq '.workflows[] | {id,name,path,state}'
+gh secret list --repo RyanEwen/paseo
+gh api repos/RyanEwen/paseo/actions/variables --jq '.variables[].name'
+gh api repos/RyanEwen/paseo/environments --jq '.environments[].name'
+gh api 'repos/RyanEwen/paseo/releases?per_page=100' --paginate
+git worktree list --porcelain
+git show-ref --heads
+git remote -v
+```
+
+For branch-specific protection endpoints, URL-encode slash-containing branch names. Record 404s as
+absent settings only after checking access; a permission error is not proof that no protection exists.
+Inspect environment-scoped credentials and external integration access separately from repo secrets.
+
+**Rollback:** Stop dispatch/publication if any head, identity, credentials, redirect, asset, or required
+check fails verification. Before the repository rename, reverse only completed branch renames,
+checking the preserved full heads and resetting the default to `ryan/preview`. Do not reset source
+history or unpublished local work. After the repository rename, prefer holding the new name and
+repairing configuration without a release. Renaming back requires a new explicit decision and fresh
+old/new discovery checks; reverse-rename redirect behavior is not assumed. Once a new-name release
+is published, preserve its assets and clients' URLs and repair forward. Never create a replacement
+old-name repository, recreate a workflow, or overwrite a published release as rollback.
 
 ## ACP catalog updates
 

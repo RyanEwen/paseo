@@ -48,7 +48,7 @@ This is the section I read most carefully. I need to see that *you* tested this,
 - [ ] QA evidence
 - [ ] Tests added or updated where it made sense
 
-### Fork overview (RyanEwen/paseo only)
+### Fork overview (RyanEwen/paseo-plus-plus only)
 
 <!-- Update the opening README section when this changes what the fork offers, including when
 upstream catches up with an addition. Otherwise check the box below and replace the explanation.
