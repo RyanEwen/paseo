@@ -1,3 +1,4 @@
+import type { PromptJumpPlacement } from "../prompt-jump-placement";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { AgentTimelinePromptIndexPayload } from "@getpaseo/client/internal/daemon-client";
 import { useStableEvent } from "@/hooks/use-stable-event";
@@ -23,6 +24,7 @@ interface PendingPromptJump {
   fetchSettled: boolean;
   hasScrolled: boolean;
   scroll: boolean;
+  placement?: PromptJumpPlacement;
 }
 
 export interface UseChatOutlineInput {
@@ -43,9 +45,12 @@ export interface ChatOutline {
   activePrompt: ActivePromptSource;
   jumpToPrompt: (
     seq: number,
-    options?: { scroll?: boolean; source?: "sticky" | "outline" },
+    options?: { scroll?: boolean; source?: "sticky" | "outline"; placement?: PromptJumpPlacement },
   ) => void;
-  jumpToMessage: (id: string, options?: { source?: "sticky" | "outline" }) => void;
+  jumpToMessage: (
+    id: string,
+    options?: { source?: "sticky" | "outline"; placement?: PromptJumpPlacement },
+  ) => void;
   reportReadingPosition: (seq: number | null) => void;
   isJumping: boolean;
   jumpError: boolean;
@@ -200,7 +205,8 @@ export function useChatOutline({
         revealLoadedMessage?.(target.id);
         return;
       }
-      if (pendingJump.scroll) viewportRef.current?.scrollToMessage?.(target.id);
+      if (pendingJump.scroll)
+        scrollToPlacedMessage(viewportRef.current, target.id, pendingJump.placement);
       setPendingJump((current) => {
         if (current?.requestId !== pendingJump.requestId) return current;
         return { ...current, hasScrolled: true };
@@ -214,7 +220,14 @@ export function useChatOutline({
   }, [loadedItems, ownerKey, pendingJump, revealLoadedMessage, viewportRef, visibleMessageIds]);
 
   const jumpToPrompt = useCallback(
-    (seq: number, options?: { scroll?: boolean; source?: "sticky" | "outline" }) => {
+    (
+      seq: number,
+      options?: {
+        scroll?: boolean;
+        source?: "sticky" | "outline";
+        placement?: PromptJumpPlacement;
+      },
+    ) => {
       const scroll = options?.scroll !== false;
       cancelJump();
       jumpSourceRef.current = options?.source ?? "outline";
@@ -229,10 +242,11 @@ export function useChatOutline({
             fetchSettled: true,
             hasScrolled: false,
             scroll,
+            placement: options?.placement,
           });
           return;
         }
-        if (scroll) viewportRef.current?.scrollToMessage?.(loaded.id);
+        if (scroll) scrollToPlacedMessage(viewportRef.current, loaded.id, options?.placement);
         return;
       }
       if (!index) return;
@@ -246,6 +260,7 @@ export function useChatOutline({
         fetchSettled: false,
         hasScrolled: false,
         scroll,
+        placement: options?.placement,
       });
       void getHostRuntimeStore()
         .fetchAgentTimeline(
@@ -283,7 +298,7 @@ export function useChatOutline({
 
   /** Local submissions and child transcript rows do not require a root prompt index. */
   const jumpToMessage = useStableEvent(
-    (id: string, options?: { source?: "sticky" | "outline" }) => {
+    (id: string, options?: { source?: "sticky" | "outline"; placement?: PromptJumpPlacement }) => {
       const item = loadedItems.find((entry) => entry.id === id);
       if (item?.timelineCursor) {
         jumpToPrompt(item.timelineCursor.seq, options);
@@ -295,7 +310,8 @@ export function useChatOutline({
       revealLoadedMessage?.(id);
       jumpFrameRef.current = requestAnimationFrame(() => {
         jumpFrameRef.current = null;
-        if (requestId === nextJumpRequestIdRef.current) viewportRef.current?.scrollToMessage?.(id);
+        if (requestId === nextJumpRequestIdRef.current)
+          scrollToPlacedMessage(viewportRef.current, id, options?.placement);
       });
     },
   );
@@ -320,4 +336,14 @@ export function useChatOutline({
     indexError,
     retryIndex: () => setIndexRevision((value) => value + 1),
   };
+}
+
+/** Preserve existing occurrence/default navigation while forwarding explicit arrow placement. */
+function scrollToPlacedMessage(
+  viewport: StreamViewportHandle | null,
+  id: string,
+  placement?: PromptJumpPlacement,
+) {
+  if (placement === "pinned") viewport?.scrollToMessage?.(id, undefined, placement);
+  else viewport?.scrollToMessage?.(id);
 }

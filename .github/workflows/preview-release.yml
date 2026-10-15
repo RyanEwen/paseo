@@ -4,9 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       notes:
-        description: "User-facing changes in this preview"
+        description: "User-facing changes in this fork release"
         required: true
         type: string
+      release_kind:
+        description: "Final updater prerelease bridge, or normal Latest after bridge qualification"
+        required: true
+        default: bridge
+        type: choice
+        options:
+          - bridge
+          - latest
       verify_daemon_updates_only:
         description: "Verify a real update between the two newest published daemon previews, without building or publishing apps"
         default: false
@@ -80,6 +88,12 @@ jobs:
       - name: Resolve fixed release source
         id: release
         run: node scripts/preview-release/metadata.mjs >> "$GITHUB_OUTPUT"
+      - name: Require the published bridge before normal releases
+        if: ${{ !inputs.verify_daemon_updates_only }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PASEO_PREVIEW_RELEASE_KIND: ${{ inputs.release_kind }}
+        run: node scripts/preview-release/publication-policy.mjs
 
   desktop:
     if: ${{ !inputs.verify_daemon_updates_only }}
@@ -383,4 +397,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PASEO_PREVIEW_NOTES: ${{ inputs.notes }}
           PASEO_PREVIEW_PUBLISH: ${{ inputs.publish }}
+          PASEO_PREVIEW_RELEASE_KIND: ${{ inputs.release_kind }}
         run: node scripts/preview-release/publish.mjs preview-release-assets

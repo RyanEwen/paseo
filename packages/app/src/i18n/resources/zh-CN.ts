@@ -62,6 +62,19 @@ export const zhCN: TranslationResources = {
     additionsHint: "这些工作流程仍然可用",
     saveFailed: "无法保存。请重试。",
     features: {
+      workspaceChatLinks: {
+        label: "在 Paseo 中打开聊天链接",
+        hint: "在桌面端，将聊天中的网页链接在所属工作区的浏览器中打开。关闭后使用外部浏览器。链接菜单中的“在 Paseo 中打开”仍然可用。",
+      },
+      sidebarHostUpdates: {
+        label: "侧边栏中的主机更新",
+        hint: "在主机菜单中显示更新操作。关闭后仍可使用主机设置。",
+      },
+      mobileWorkspaceTabs: {
+        label: "移动端工作区标签页",
+        hint: "在紧凑布局中显示可滚动的标签栏。关闭后使用原来的标签选择器，并保留当前选中的标签。",
+      },
+
       descriptiveToolCalls: {
         label: "易读的工具活动",
         hint: "描述已知操作，并在详情中保留准确命令和输出。关闭后恢复经典标签。",
@@ -107,7 +120,7 @@ export const zhCN: TranslationResources = {
     links: {
       sidebar: {
         label: "工作区顺序和详情",
-        hint: "分别按名称、状态或自定义顺序排列项目和工作区。同时显示最近活动时间和代码更改总计；项目和分支名称默认显示。请在工作区侧边栏的显示菜单中调整。",
+        hint: "分别按名称、状态或自定义顺序排列项目和工作区。同时显示最近活动时间和代码更改总计；项目名称默认显示。分支名称可选择显示，默认不显示。请在工作区侧边栏的显示菜单中调整。",
       },
     },
     fixesList: {
@@ -163,6 +176,9 @@ export const zhCN: TranslationResources = {
     current: "你使用的是最新发布的预览版本。",
     available: "预览版本 {{version}} 已可用。",
     downloading: "正在下载并验证更新…",
+    downloadProgress: "正在下载 {{percent}}%（{{downloaded}} / {{total}}）",
+    downloadBytes: "正在下载 {{downloaded}}…",
+    verifying: "正在验证下载的更新…",
     permission: "在 Android 设置中允许此应用安装更新，然后返回并再次点击安装更新。",
     installer: "请在 Android 中完成安装。如果已取消，请点击安装更新重试。",
     install: "安装更新",
@@ -754,6 +770,8 @@ export const zhCN: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "在 Paseo 浏览器中打开",
+      openExternally: "在外部浏览器中打开",
       unavailable: {
         title: "浏览器仅桌面端可用",
         subtitle: "在 Electron 中打开此 workspace 以使用内置浏览器。",
@@ -2517,6 +2535,21 @@ export const zhCN: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "强调色",
+        hint: "用于主要控件和你发送的消息",
+        updateHost: "请更新所选的设置主机以更改强调色",
+        preview: "你的消息将呈现此效果",
+        options: {
+          default: "默认",
+          blue: "蓝色",
+          green: "绿色",
+          purple: "紫色",
+          rose: "玫瑰色",
+          orange: "橙色",
+          teal: "青色",
+        },
+      },
       theme: {
         title: "主题",
         accessibilityLabel: "主题：{{value}}",

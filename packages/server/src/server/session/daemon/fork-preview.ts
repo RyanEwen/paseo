@@ -14,21 +14,21 @@ const ReleaseSchema = z.object({
   assets: z.array(z.object({ name: z.string(), browser_download_url: z.string().url() })),
 });
 
-/** Select published fork previews by their durable build number, independent of upstream versions. */
+/** Select published fork builds by workflow sequence, regardless of GitHub's prerelease flag. */
 export function selectForkPreview(value: unknown) {
   const releases = z.array(ReleaseSchema).parse(value);
-  const previews = releases.filter(
-    (release) =>
-      !release.draft &&
-      release.prerelease &&
-      /^v\d+\.\d+\.\d+-preview\.\d+$/.test(release.tag_name),
-  );
-  previews.sort(
-    (left, right) =>
-      Number(right.tag_name.split("preview.").pop()) -
-      Number(left.tag_name.split("preview.").pop()),
-  );
-  const release = previews[0];
+  const previews = releases.flatMap((release) => {
+    const match = /^v\d+\.\d+\.\d+-preview\.(\d+)$/.exec(release.tag_name);
+    // Keep the tag namespace and monotonic counter when GitHub classification changes.
+    if (release.draft || !match) return [];
+    const build = Number(match[1]);
+    if (!Number.isSafeInteger(build) || build < 1 || build > 1_100_000_000) {
+      throw new Error("Invalid preview build number");
+    }
+    return [{ release, build }];
+  });
+  previews.sort((left, right) => right.build - left.build);
+  const release = previews[0]?.release;
   if (!release) throw new Error("No published fork daemon preview is available");
   const filename = `paseo-daemon-${release.tag_name.slice(1)}-${process.platform}-${process.arch}.tgz`;
   const packageAsset = release.assets.find((asset) => asset.name === filename);
@@ -42,7 +42,7 @@ export function selectForkPreview(value: unknown) {
     });
     if (!canonicalAssetUrl) throw new Error("Unexpected fork release asset URL");
   }
-  return { filename, packageAsset, checksumAsset };
+  return { version: release.tag_name.slice(1), filename, packageAsset, checksumAsset };
 }
 
 /** Verify downloaded bytes before npm can replace the running installation. */
@@ -68,8 +68,8 @@ interface DownloadOptions {
   request?: (url: string) => Promise<Response>;
 }
 
-/** Download only public releases; draft and incomplete releases never fall back to upstream npm. */
-export async function downloadForkPreview({ request = requestRelease }: DownloadOptions = {}) {
+/** Resolve the installable preview without downloading or changing the host installation. */
+export async function resolveForkPreview({ request = requestRelease }: DownloadOptions = {}) {
   // Pagination avoids losing the newest preview behind stable releases or other prereleases.
   const releases = [];
   for (let page = 1; ; page += 1) {
@@ -80,7 +80,12 @@ export async function downloadForkPreview({ request = requestRelease }: Download
     releases.push(...batch);
     if (batch.length < 100) break;
   }
-  const preview = selectForkPreview(releases);
+  return selectForkPreview(releases);
+}
+
+/** Download only public releases; draft and incomplete releases never fall back to upstream npm. */
+export async function downloadForkPreview({ request = requestRelease }: DownloadOptions = {}) {
+  const preview = await resolveForkPreview({ request });
   const checksums = await (await request(preview.checksumAsset.browser_download_url)).text();
   const bytes = new Uint8Array(
     await (await request(preview.packageAsset.browser_download_url)).arrayBuffer(),

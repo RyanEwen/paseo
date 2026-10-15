@@ -1,3 +1,6 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
+import { isHttpUrl } from "@/utils/http-url";
+import { classifyForResolution } from "./resolver";
 import { useMemo, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { Platform, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -32,7 +35,7 @@ export function AssistantMarkdownLink({
   children,
 }: AssistantMarkdownLinkProps) {
   const { target, onHoverIn, onPress } = useFileLink(source);
-  const { configRef } = useAssistantFileLinkResolverContext();
+  const { configRef, httpLinkDestination } = useAssistantFileLinkResolverContext();
   const workspaceRoot = configRef.current.workspaceRoot;
   const tooltipPath = useMemo(
     () => (target ? formatFileLinkTooltipPath({ target, workspaceRoot }) : null),
@@ -99,7 +102,21 @@ export function AssistantMarkdownLink({
     </a>
   );
 
-  return <FileLinkHoverTooltip filePath={tooltipPath}>{anchor}</FileLinkHoverTooltip>;
+  const resolution = classifyForResolution(source, { workspaceRoot });
+  const isHttpLink =
+    resolution.kind === "resolved" &&
+    resolution.value.kind === "external" &&
+    isHttpUrl(resolution.value.url);
+  const showBrowserMenu = Boolean(configRef.current.onOpenHttpUrl) && isHttpLink;
+  const content = <FileLinkHoverTooltip filePath={tooltipPath}>{anchor}</FileLinkHoverTooltip>;
+  if (showBrowserMenu) {
+    return (
+      <WorkspaceHttpLinkMenu url={source.href} defaultDestination={httpLinkDestination}>
+        {content}
+      </WorkspaceHttpLinkMenu>
+    );
+  }
+  return content;
 }
 
 interface AssistantMarkdownCodeLinkProps {

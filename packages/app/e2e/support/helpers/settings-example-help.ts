@@ -46,11 +46,14 @@ export async function verifySettingsExamplesHelp(page: Page, compact: boolean, d
     const content = page.getByTestId(`settings-example-${example}-content`);
     await expect(content).toBeVisible();
     const images = content.locator("img");
-    const expectedCount =
-      example === "sidebarWorkspaceTransitions" || EXPLORER_SETTINGS.some((key) => key === example)
-        ? 2
-        : 1;
-    await expect(images).toHaveCount(expectedCount);
+    const textOnly = [
+      "stickyUserPrompts",
+      "sidebarWorkspaceTransitions",
+      "workspace-limit-mode",
+      "workspace-limit-count",
+      ...EXPLORER_SETTINGS,
+    ].some((key) => key === example);
+    await expect(images).toHaveCount(textOnly ? 0 : 1);
     for (const image of await images.all()) {
       await expect(image).toHaveAttribute("alt", /.+ example\./);
       await expect
@@ -62,8 +65,14 @@ export async function verifySettingsExamplesHelp(page: Page, compact: boolean, d
         .toBe(true);
     }
     const annotations = content.locator("svg");
-    const expectedAnnotations = example.startsWith("workspace-limit-") ? 0 : expectedCount;
-    await expect(annotations).toHaveCount(expectedAnnotations);
+    const marked = [
+      "descriptiveToolCalls",
+      "previousAgents",
+      "sidebarActivityChips",
+      "sidebarBulkActions",
+      "projectPinning",
+    ].includes(example);
+    await expect(annotations).toHaveCount(marked ? 1 : 0);
     for (const annotation of await annotations.all()) await expect(annotation).toBeVisible();
     const bounds = await content.boundingBox();
     expect(bounds).not.toBeNull();

@@ -7,6 +7,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
 import { Button } from "@/components/ui/button";
+import { PinnedMessageActionBackdrop } from "./pinned-message-action-backdrop";
 import { UserMessage } from "@/components/message";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
@@ -36,8 +37,8 @@ export function PromptMessageSurface({
   size: "md" | "sm";
 }) {
   const { t } = useTranslation();
-  const compact = useIsCompactFormFactor();
-  const previewLines = compact ? 1 : 2;
+  const previewLines = 1;
+  const actionBackdrop = useMemo(() => <PinnedMessageActionBackdrop />, []);
   const revealMessage = useStableEvent((event: GestureResponderEvent) => {
     if (isWeb) {
       const selection = window.getSelection();
@@ -99,9 +100,12 @@ export function PromptMessageSurface({
       expanded || hidesContent ? (
         <Button
           variant="ghost"
-          size={size}
+          size={expanded ? size : "xs"}
+          hitSlop={expanded ? undefined : 8}
+          style={expanded ? undefined : styles.inlineDisclosure}
           accessibilityLabel={expanded ? t("stickyPrompt.collapse") : t("stickyPrompt.expand")}
           accessibilityState={disclosureState}
+          textStyle={styles.disclosureText}
           onPress={toggleExpanded}
           testID="sticky-user-message-disclosure"
         >
@@ -109,6 +113,40 @@ export function PromptMessageSurface({
         </Button>
       ) : null,
     [size, expanded, hidesContent, t, disclosureState, toggleExpanded],
+  );
+  const actions = useMemo(
+    () => (
+      <View style={styles.controls} testID="sticky-user-message-controls">
+        <Button
+          variant="ghost"
+          size={size}
+          accessibilityLabel={t("stickyPrompt.previous")}
+          disabled={navigation.busy || navigation.previousDisabled}
+          loading={navigation.busy}
+          onPress={navigation.previous}
+          leftIcon={ChevronUp}
+          testID="sticky-user-message-previous"
+        />
+        <Button
+          variant="ghost"
+          size={size}
+          accessibilityLabel={t("stickyPrompt.next")}
+          disabled={navigation.busy || navigation.nextDisabled}
+          onPress={navigation.next}
+          leftIcon={ChevronDown}
+          testID="sticky-user-message-next"
+        />
+      </View>
+    ),
+    [
+      size,
+      t,
+      navigation.busy,
+      navigation.previousDisabled,
+      navigation.nextDisabled,
+      navigation.previous,
+      navigation.next,
+    ],
   );
   return (
     <View style={clipStyle}>
@@ -126,7 +164,11 @@ export function PromptMessageSurface({
             attachments={message.attachments}
             timestamp={message.timestamp.getTime()}
             disableOuterSpacing
-            contentAction={disclosure}
+            pinned
+            actionRowBackdrop={actionBackdrop}
+            navigationActions={actions}
+            keepActionsVisible={navigation.actionVisibleMessageId === message.id}
+            inlineContentAction={disclosure}
             previewLines={previewLines}
             onPreviewOverflowChange={reportTextOverflow}
           />
@@ -144,31 +186,14 @@ export function PromptMessageSurface({
               attachments={message.attachments}
               timestamp={message.timestamp.getTime()}
               disableOuterSpacing
+              pinned
+              actionRowBackdrop={actionBackdrop}
+              navigationActions={actions}
+              keepActionsVisible={navigation.actionVisibleMessageId === message.id}
               contentAction={disclosure}
             />
           </ScrollView>
         )}
-        <View style={styles.controls} testID="sticky-user-message-controls">
-          <Button
-            variant="ghost"
-            size={size}
-            accessibilityLabel={t("stickyPrompt.previous")}
-            disabled={navigation.busy || navigation.previousDisabled}
-            loading={navigation.busy}
-            onPress={navigation.previous}
-            leftIcon={ChevronUp}
-            testID="sticky-user-message-previous"
-          />
-          <Button
-            variant="ghost"
-            size={size}
-            accessibilityLabel={t("stickyPrompt.next")}
-            disabled={navigation.busy || navigation.nextDisabled}
-            onPress={navigation.next}
-            leftIcon={ChevronDown}
-            testID="sticky-user-message-next"
-          />
-        </View>
         {(navigation.error || navigation.discoveryStatus === "limited") && (
           <View style={styles.row}>
             <Text accessibilityRole="alert" style={styles.text}>
@@ -198,6 +223,7 @@ export function PromptDiscoverySurface({
   const compact = useIsCompactFormFactor();
   const size = compact ? "md" : "sm";
   const status = navigation.discoveryStatus;
+  const discoveryStyle = useMemo(() => [styles.container, styles.discoveryBackground], []);
   if (
     !navigation.busy &&
     !navigation.error &&
@@ -212,7 +238,7 @@ export function PromptDiscoverySurface({
   else if (status === "limited") label = t("stickyPrompt.moreHistory");
   else if (status === "exhausted") label = t("stickyPrompt.none");
   return (
-    <View style={styles.container} testID="sticky-user-message">
+    <View style={discoveryStyle} testID="sticky-user-message">
       <View style={styles.row}>
         <View style={styles.preview}>
           <Text
@@ -241,14 +267,17 @@ export function PromptDiscoverySurface({
 }
 
 const styles = StyleSheet.create((theme) => ({
+  disclosureText: { color: theme.colors.userMessageForeground },
   container: {
-    backgroundColor: theme.colors.surface0,
     flexShrink: 0,
     paddingHorizontal: theme.spacing[2],
     paddingBottom: theme.spacing[2],
   },
+  discoveryBackground: { backgroundColor: theme.colors.surface0 },
   row: { flexDirection: "row", alignItems: "center", gap: theme.spacing[1] },
   preview: { flex: 1, minWidth: 0 },
+  // An opaque button covers only the preview suffix, not the original text layout.
+  inlineDisclosure: { backgroundColor: theme.colors.surface3 },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
   text: { color: theme.colors.foreground, fontSize: theme.fontSize.base },
 }));

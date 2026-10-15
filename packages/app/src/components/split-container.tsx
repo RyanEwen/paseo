@@ -69,10 +69,7 @@ import {
 } from "@/screens/workspace/workspace-pane-state";
 import type { WorkspacePaneContentModel } from "@/screens/workspace/workspace-pane-content";
 import { WorkspacePanelHost } from "@/screens/workspace/workspace-panel-host";
-import {
-  WorkspaceDesktopTabsRow,
-  type WorkspaceDesktopTabRowItem,
-} from "@/screens/workspace/workspace-desktop-tabs-row";
+import { WorkspaceTabsRow, type WorkspaceTabRowItem } from "@/screens/workspace/workspace-tabs-row";
 import { ExplorerSidebarDock } from "@/screens/workspace/explorer-sidebar";
 import {
   WorkspaceTabPresentationResolver,
@@ -1171,7 +1168,7 @@ function SplitPaneView({
   );
   const paneTabs = useMemo(() => paneState.tabs.map((tab) => tab.descriptor), [paneState.tabs]);
   const activeTabDescriptor = paneState.activeTab?.descriptor ?? null;
-  const desktopTabRowItems = useMemo<WorkspaceDesktopTabRowItem[]>(
+  const desktopTabRowItems = useMemo<WorkspaceTabRowItem[]>(
     () =>
       paneTabs.map((tab) => ({
         tab,
@@ -1260,7 +1257,7 @@ function SplitPaneView({
       >
         <WindowChromeSafeArea placement="inline" style={styles.paneTabs}>
           <TitlebarDragRegion />
-          <WorkspaceDesktopTabsRow
+          <WorkspaceTabsRow
             paneId={pane.id}
             isFocused={isFocused && isWorkspaceFocused}
             tabs={desktopTabRowItems}

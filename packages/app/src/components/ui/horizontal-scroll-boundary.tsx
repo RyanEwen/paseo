@@ -65,7 +65,7 @@ export function useHorizontalScrollBoundary() {
   const rightShadeStyle = useAnimatedStyle(() => ({
     opacity: Number(offset.value + viewportWidth.value < contentWidth.value - EDGE_EPSILON),
   }));
-  return { onLayout, onContentSizeChange, onScroll, leftShadeStyle, rightShadeStyle };
+  return { onLayout, onContentSizeChange, onScroll, leftShadeStyle, rightShadeStyle, offset };
 }
 
 export function HorizontalScrollBoundaryShades({

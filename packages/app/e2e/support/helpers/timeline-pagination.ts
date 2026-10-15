@@ -601,7 +601,8 @@ async function readTimelineViewport(page: Page): Promise<TimelineViewportSnapsho
   });
 }
 
-async function waitForTimelineGeometryToSettle(page: Page): Promise<void> {
+/** Wait for bounded RAF geometry stability without moving the pointer or scrolling. */
+export async function waitForTimelineGeometryToSettle(page: Page): Promise<void> {
   const scroll = page.locator('[data-testid="agent-chat-scroll"]:visible').first();
   await scroll.evaluate(
     (element) =>

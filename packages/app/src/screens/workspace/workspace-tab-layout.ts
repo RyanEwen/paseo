@@ -17,6 +17,8 @@ export interface WorkspaceTabLayoutInput {
   viewportWidth: number;
   tabLabelWidths: number[];
   metrics: WorkspaceTabLayoutMetrics;
+  /** Compact strips keep readable content widths and scroll instead of compressing tabs. */
+  preserveNaturalWidths?: boolean;
 }
 
 export interface WorkspaceTabLayoutItem {
@@ -79,12 +81,14 @@ export function computeWorkspaceTabLayout(
   );
   const naturalTotalWidth = naturalWidths.reduce((total, width) => total + width, 0);
   const minimumTotalWidth = input.metrics.minTabWidth * tabCount;
-  const requiresHorizontalScrollFallback = availableTabsWidth < minimumTotalWidth;
+  const requiresHorizontalScrollFallback = input.preserveNaturalWidths
+    ? availableTabsWidth < naturalTotalWidth
+    : availableTabsWidth < minimumTotalWidth;
 
   let resolvedWidths = naturalWidths;
-  if (requiresHorizontalScrollFallback) {
+  if (!input.preserveNaturalWidths && requiresHorizontalScrollFallback) {
     resolvedWidths = Array.from({ length: tabCount }, () => input.metrics.minTabWidth);
-  } else if (naturalTotalWidth > availableTabsWidth) {
+  } else if (!input.preserveNaturalWidths && naturalTotalWidth > availableTabsWidth) {
     const widthToRemove = naturalTotalWidth - availableTabsWidth;
     const shrinkCapacity = naturalTotalWidth - minimumTotalWidth;
     const shrinkRatio = widthToRemove / shrinkCapacity;
@@ -105,4 +109,27 @@ export function computeWorkspaceTabLayout(
     closeButtonPolicy: "all",
     requiresHorizontalScrollFallback,
   };
+}
+
+/** Reveal the selected tab with the smallest movement, clamped to the measured scroll range. */
+export function resolveWorkspaceTabScrollOffset(input: {
+  offset: number;
+  viewportWidth: number;
+  contentWidth: number;
+  tabStart: number;
+  tabWidth: number;
+}): number {
+  const { offset, viewportWidth, contentWidth, tabStart, tabWidth } = input;
+  if (viewportWidth <= 0 || contentWidth <= 0) {
+    return offset;
+  }
+
+  let nextOffset = offset;
+  if (tabStart < offset || tabWidth > viewportWidth) {
+    nextOffset = tabStart;
+  } else if (tabStart + tabWidth > offset + viewportWidth) {
+    nextOffset = tabStart + tabWidth - viewportWidth;
+  }
+
+  return clamp(nextOffset, 0, Math.max(0, contentWidth - viewportWidth));
 }

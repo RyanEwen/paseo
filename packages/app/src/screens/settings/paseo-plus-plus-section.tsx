@@ -15,6 +15,9 @@ import { useSettingsSave } from "@/hooks/use-settings/use-settings-save";
 import type { PaseoPlusPlusFeature } from "@/paseo-plus-plus/preferences";
 
 const OPTIONAL_FEATURES: readonly PaseoPlusPlusFeature[] = [
+  "workspaceChatLinks",
+  "sidebarHostUpdates",
+  "mobileWorkspaceTabs",
   "descriptiveToolCalls",
   "stickyUserPrompts",
   "previousAgents",

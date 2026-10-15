@@ -1,3 +1,4 @@
+import { formatFileSize } from "@/utils/format-file-size";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import React, {
@@ -66,16 +67,6 @@ function trimNonEmpty(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function formatFileSize({ size }: { size: number }): string {
-  if (size < 1024) {
-    return `${size} B`;
-  }
-  if (size < 1024 * 1024) {
-    return `${(size / 1024).toFixed(1)} KB`;
-  }
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function ReadonlySource({
   preview,
   filename,
@@ -122,7 +113,7 @@ function TooLargeSource({ size }: { size?: number }) {
   return (
     <View style={styles.centerState} testID="file-source-too-large">
       <Text style={styles.emptyText}>{t("panels.file.tooLargeToDisplay")}</Text>
-      {size ? <Text style={styles.binaryMetaText}>{formatFileSize({ size })}</Text> : null}
+      {size ? <Text style={styles.binaryMetaText}>{formatFileSize(size)}</Text> : null}
     </View>
   );
 }
@@ -214,7 +205,7 @@ function FilePreviewBody({
   return (
     <View style={styles.centerState}>
       <Text style={styles.emptyText}>{t("panels.file.binaryPreviewUnavailable")}</Text>
-      <Text style={styles.binaryMetaText}>{formatFileSize({ size: preview.size })}</Text>
+      <Text style={styles.binaryMetaText}>{formatFileSize(preview.size)}</Text>
     </View>
   );
 }

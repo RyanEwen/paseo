@@ -1,5 +1,7 @@
 # Contributing to Paseo
 
+This checkout is the Paseo++ fork. Follow its [development and integration workflow](docs/worktree-development.md#fork-branches-and-ownership) for fork changes. The contribution and community policy below describes upstream Paseo; its upstream issue and discussion links are not fork support channels.
+
 This guide is here to save us both time and help you find a useful way to contribute.
 
 Paseo grows through bug reports, testing, workflow discussions, plugins, documentation, and people helping each other. The sections below explain where each contribution belongs and what to expect.

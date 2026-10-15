@@ -2,6 +2,9 @@ import { z } from "zod";
 
 /** App preference opt-outs for optional fork UI. Disabling never deletes feature data. */
 const preferencesObject = z.looseObject({
+  workspaceChatLinks: z.boolean().catch(true),
+  sidebarHostUpdates: z.boolean().catch(true),
+  mobileWorkspaceTabs: z.boolean().catch(true),
   descriptiveToolCalls: z.boolean().catch(true),
   stickyUserPrompts: z.boolean().catch(true),
   previousAgents: z.boolean().catch(true),

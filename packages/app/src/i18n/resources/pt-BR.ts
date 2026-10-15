@@ -71,6 +71,19 @@ export const ptBR: TranslationResources = {
     additionsHint: "Estas funções continuam disponíveis",
     saveFailed: "Não foi possível salvar. Tente novamente.",
     features: {
+      workspaceChatLinks: {
+        label: "Abrir links de conversa no Paseo",
+        hint: "No computador, abrir links da conversa no navegador do próprio espaço. Desative para usar o navegador externo. Abrir no Paseo continua disponível no menu do link.",
+      },
+      sidebarHostUpdates: {
+        label: "Atualizações de hosts na barra lateral",
+        hint: "Mostrar ações de atualização no menu de hosts. As configurações do host continuam disponíveis quando esta opção está desativada.",
+      },
+      mobileWorkspaceTabs: {
+        label: "Abas de espaços no celular",
+        hint: "Mostrar uma barra de abas rolável em espaços compactos. Desative para usar o seletor anterior sem mudar a aba selecionada.",
+      },
+
       descriptiveToolCalls: {
         label: "Atividade de ferramentas legível",
         hint: "Descreve operações conhecidas e mantém comandos e saídas exatos nos detalhes. Desative para restaurar os rótulos clássicos.",
@@ -116,7 +129,7 @@ export const ptBR: TranslationResources = {
     links: {
       sidebar: {
         label: "Ordem e detalhes dos espaços de trabalho",
-        hint: "Ordene projetos e espaços de trabalho separadamente por nome, status ou ordem personalizada. Mostre a última atividade e os totais de alterações de código juntos; os rótulos de projeto e branch estão ativados por padrão. Ajuste essas opções em Exibição, na barra lateral dos espaços de trabalho.",
+        hint: "Ordene projetos e espaços de trabalho separadamente por nome, status ou ordem personalizada. Mostre a última atividade e os totais de alterações de código juntos; os rótulos de projeto estão ativados por padrão. Os rótulos de branch são opcionais e estão desativados por padrão. Ajuste essas opções em Exibição, na barra lateral dos espaços de trabalho.",
       },
     },
     fixesList: {
@@ -172,6 +185,9 @@ export const ptBR: TranslationResources = {
     current: "Você tem a prévia publicada mais recente.",
     available: "A prévia {{version}} está disponível.",
     downloading: "Baixando e verificando a atualização…",
+    downloadProgress: "Baixando {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "Baixando {{downloaded}}…",
+    verifying: "Verificando a atualização baixada…",
     permission:
       "Permita atualizações deste aplicativo nas configurações do Android, volte e toque em Instalar atualização novamente.",
     installer:
@@ -771,6 +787,8 @@ export const ptBR: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Abrir no navegador do Paseo",
+      openExternally: "Abrir em um navegador externo",
       unavailable: {
         title: "O navegador é exclusivo do desktop",
         subtitle: "Abra este workspace no Electron para usar o navegador integrado.",
@@ -2602,6 +2620,21 @@ export const ptBR: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "Cor de destaque",
+        hint: "Usada nos controles principais e nas suas mensagens",
+        updateHost: "Atualize o host de configurações selecionado para alterar a cor de destaque",
+        preview: "Suas mensagens terão esta aparência",
+        options: {
+          default: "Padrão",
+          blue: "Azul",
+          green: "Verde",
+          purple: "Roxo",
+          rose: "Rosa",
+          orange: "Laranja",
+          teal: "Verde-azulado",
+        },
+      },
       theme: {
         title: "Tema",
         accessibilityLabel: "Tema: {{value}}",

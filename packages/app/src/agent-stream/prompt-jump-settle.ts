@@ -1,3 +1,4 @@
+import { resolvePromptJumpInset, type PromptJumpPlacement } from "./prompt-jump-placement";
 interface PromptJumpScrollMetrics {
   clientHeight: number;
   scrollHeight: number;
@@ -16,7 +17,7 @@ export interface PromptJumpSettleViewport {
 }
 
 export interface PromptJumpSettleController {
-  start(messageId: string, options?: { smooth?: boolean }): void;
+  start(messageId: string, options?: { smooth?: boolean; placement?: PromptJumpPlacement }): void;
   cancel(): void;
   isActive(): boolean;
 }
@@ -24,10 +25,14 @@ export interface PromptJumpSettleController {
 const POSITION_TOLERANCE_PX = 1;
 const REQUIRED_STABLE_FRAMES = 2;
 const FRAME_BUDGET = 24;
-export const PROMPT_JUMP_TOP_INSET_PX = 8;
+export const PROMPT_JUMP_TOP_INSET_PX = resolvePromptJumpInset();
 
-function distanceFromLandingPosition(targetTop: number, containerTop: number): number {
-  return targetTop - containerTop - PROMPT_JUMP_TOP_INSET_PX;
+function distanceFromLandingPosition(
+  targetTop: number,
+  containerTop: number,
+  inset: number,
+): number {
+  return targetTop - containerTop - inset;
 }
 
 /** Settle against real target geometry, using virtual estimates only to bring rows into view.
@@ -44,6 +49,7 @@ export function createPromptJumpSettleController(input: {
   let activeMessageId: string | null = null;
   let startedAt = 0;
   let smooth = false;
+  let inset = PROMPT_JUMP_TOP_INSET_PX;
   let previousEase = 0;
   let frameId: number | null = null;
   let sampledFrames = 0;
@@ -76,7 +82,7 @@ export function createPromptJumpSettleController(input: {
     const targetTop = measuredTargetTop ?? input.viewport.estimateTargetTop?.(messageId) ?? null;
     if (measuredTargetTop === null) stableFrames = 0;
     if (targetTop !== null) {
-      const delta = distanceFromLandingPosition(targetTop, input.viewport.getContainerTop());
+      const delta = distanceFromLandingPosition(targetTop, input.viewport.getContainerTop(), inset);
       if (Math.abs(delta) <= POSITION_TOLERANCE_PX) {
         // A virtual estimate can match the inset before the real row mounts.
         // Only consecutive actual measurements can complete the landing.
@@ -102,6 +108,7 @@ export function createPromptJumpSettleController(input: {
           remainingDelta = distanceFromLandingPosition(
             adjustedTargetTop,
             input.viewport.getContainerTop(),
+            inset,
           );
         }
         const maxScrollTop = Math.max(0, after.scrollHeight - after.clientHeight);
@@ -124,6 +131,7 @@ export function createPromptJumpSettleController(input: {
     start(messageId, options) {
       finish();
       smooth = options?.smooth === true;
+      inset = resolvePromptJumpInset(options?.placement);
       previousEase = 0;
       startedAt = input.now?.() ?? performance.now();
       activeMessageId = messageId;

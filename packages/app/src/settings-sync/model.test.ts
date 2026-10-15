@@ -1,3 +1,8 @@
+import {
+  selectAccentColorSupport,
+  exportSupportedAccentSettings,
+} from "@/appearance/accent-support";
+import { ServerInfoStatusPayloadSchema } from "@getpaseo/protocol/messages";
 import { QueryClient } from "@tanstack/react-query";
 import {
   APP_SETTINGS_QUERY_KEY,
@@ -530,4 +535,97 @@ it("never publishes or sends an edit when the durable outbox write fails", async
   await model.flush();
   expect(a.writes).toHaveLength(1);
   expect(applied).toEqual({ app: { theme: "light" } });
+});
+
+describe("accent settings compatibility", () => {
+  const oldInfo = ServerInfoStatusPayloadSchema.parse({
+    status: "server_info",
+    serverId: "old",
+    features: { appSettingsSync: true },
+  });
+  const newInfo = ServerInfoStatusPayloadSchema.parse({
+    status: "server_info",
+    serverId: "new",
+    features: { appSettingsSync: true, appSettingsAccentColor: true },
+  });
+  const sessions = { old: { serverInfo: oldInfo }, new: { serverInfo: newInfo } };
+
+  it("enables local and capable host choices, blocking an older or unknown selected host", () => {
+    expect(selectAccentColorSupport({ sessions }, null)).toBe(true);
+    expect(selectAccentColorSupport({ sessions }, "new")).toBe(true);
+    expect(selectAccentColorSupport({ sessions }, "old")).toBe(false);
+    expect(selectAccentColorSupport({ sessions }, "missing")).toBe(false);
+  });
+
+  it("omits only accent from explicit initialization for an older host", () => {
+    const app = { ...DEFAULT_CLIENT_SETTINGS, accentColor: "purple", future: { preserved: true } };
+    const { accentColor: _accent, ...rest } = app;
+    const olderExport = exportSupportedAccentSettings(
+      app,
+      selectAccentColorSupport({ sessions }, "old"),
+    );
+    expect(olderExport).toEqual(rest);
+    expect(app.accentColor).toBe("purple");
+    expect(
+      exportSupportedAccentSettings(app, selectAccentColorSupport({ sessions }, "new")),
+    ).toEqual(app);
+    expect(
+      exportSupportedAccentSettings(app, selectAccentColorSupport({ sessions }, null)),
+    ).toEqual(app);
+  });
+
+  it("retains a queued accent for its original host when selecting an older host", async () => {
+    const { model, saved, device } = setup();
+    const a = host({
+      ...snapshot("dark"),
+      values: { app: { theme: "dark", accentColor: "default" } },
+    });
+    const b = host(snapshot("light"));
+    await model.load();
+    await model.selectHost("A");
+    await model.connect("A", a.transport);
+    await model.connect("A", null);
+    await model.edit([{ path: ["app", "accentColor"], value: "blue", expectedRevision: 0 }]);
+    await model.selectHost("B");
+    await model.connect("B", b.transport);
+    expect(b.writes).toEqual([]);
+    expect(saved()).toMatchObject({
+      hosts: { A: { pending: [{ path: ["app", "accentColor"], value: "blue" }] } },
+    });
+    await model.selectHost("A");
+    await model.connect("A", a.transport);
+    expect(device()).toEqual({ app: { theme: "dark", accentColor: "blue" } });
+    expect(a.writes).toHaveLength(1);
+    expect(b.writes).toEqual([]);
+  });
+});
+
+it("backs up the full accent choice while publishing only supported fields, then restores it", async () => {
+  let device: Record<string, unknown> = { app: { theme: "dark", accentColor: "purple" } };
+  const original = structuredClone(device);
+  const purposes: string[] = [];
+  const older = host(snapshot(null));
+  const model = new SettingsSyncModel({
+    readLocal: async () => null,
+    writeLocal: async () => {},
+    getDeviceValues: async (purpose) => {
+      purposes.push(purpose);
+      if (purpose === "backup") return structuredClone(device);
+      return {
+        app: exportSupportedAccentSettings({ theme: "dark", accentColor: "purple" }, false),
+      };
+    },
+    applyValues: async (values) => {
+      device = structuredClone(values);
+    },
+  });
+  await model.load();
+  await model.selectHost("older");
+  await model.connect("older", older.transport);
+  await model.publishDeviceSettings();
+  expect(older.read().values).toEqual({ app: { theme: "dark" } });
+  expect(purposes).toEqual(["backup", "publish"]);
+  await model.restoreDeviceSettings();
+  expect(device).toEqual(original);
+  expect(older.writes).toHaveLength(1);
 });

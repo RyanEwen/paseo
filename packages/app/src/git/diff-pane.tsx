@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import { useState, useCallback, useMemo, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -699,18 +700,20 @@ function ChangesPullRequestExternalLink({
     void openExternalUrl(model.url);
   }, [model.url]);
   return (
-    <ToolbarButton
-      compact={compact}
-      label={label}
-      onPress={handlePress}
-      testID="changes-open-pull-request-external"
-    >
-      <ThemedExternalLink
-        size={paneContentToolbarIconSize(compact)}
-        strokeWidth={1.5}
-        uniProps={extraMutedIconColorMapping}
-      />
-    </ToolbarButton>
+    <WorkspaceHttpLinkMenu url={model.url}>
+      <ToolbarButton
+        compact={compact}
+        label={label}
+        onPress={handlePress}
+        testID="changes-open-pull-request-external"
+      >
+        <ThemedExternalLink
+          size={paneContentToolbarIconSize(compact)}
+          strokeWidth={1.5}
+          uniProps={extraMutedIconColorMapping}
+        />
+      </ToolbarButton>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

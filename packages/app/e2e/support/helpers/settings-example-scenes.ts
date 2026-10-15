@@ -41,7 +41,14 @@ export async function capturePreviousAgentsExample(page: Page, directory: string
     await openWorkspaceWithAgents(page, [history, survivor]);
     await closeWorkspaceAgentTab(page, history.id);
     await page.getByTestId("workspace-new-tab-button").click();
-    await page.getByTestId("workspace-new-tab-menu-reopen-closed-agent").click();
+    const reopen = page.getByTestId("workspace-new-tab-menu-reopen-closed-agent");
+    await recordSettingsExample(page, {
+      id: "previous-agents-menu",
+      directory,
+      regions: [page.getByTestId("workspace-new-tab-button"), reopen],
+      description: "The plus-button menu offers Previous agents beside the workspace tabs.",
+    });
+    await reopen.click();
     const content = page.getByTestId("reopen-closed-agent-dialog-content");
     const search = page.getByTestId("reopen-closed-agent-search");
     await expect(content).toContainText(history.title);

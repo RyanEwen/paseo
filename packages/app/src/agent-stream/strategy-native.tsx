@@ -1,3 +1,4 @@
+import type { PromptJumpPlacement } from "./prompt-jump-placement";
 import { PromptBubbleGeometryContext, type PromptBubbleNode } from "./prompt-bubble-geometry";
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -28,7 +29,12 @@ import { useKeyboardStreamInset } from "@/keyboard/shift";
 import { useRevisedHistoryRows } from "./history-row-revision";
 import { useBottomAnchorController } from "./bottom-anchor-controller";
 import { useScrollKeyboardDismiss } from "./scroll-keyboard-dismiss/use-scroll-keyboard-dismiss";
-import type { StreamRenderInput, StreamStrategy, StreamViewportHandle } from "./strategy";
+import type {
+  StreamRenderInput,
+  StreamStrategy,
+  StreamViewportHandle,
+  ScrollToMessageOccurrence,
+} from "./strategy";
 import {
   createStreamStrategy,
   isNearBottomForStreamRenderStrategy,
@@ -365,6 +371,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     historyItems.findIndex((item) => item.id === id),
   );
   const reportPromptFailure = useStableEvent(() => props.onMessageNavigationError?.());
+  const promptNodes = useRef(new Map<string, PromptBubbleNode>());
   const promptJumpController = useMemo(
     () =>
       createNativePromptJumpController({
@@ -381,6 +388,24 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
             );
           },
           getLiveHeaderHeight: () => liveHeaderHeightRef.current,
+          measureTarget: (id, callback) => {
+            const prompt = promptNodes.current.get(id);
+            const viewport = flatListRef.current?.getNativeScrollRef();
+            if (!prompt || !viewport || !("measureInWindow" in viewport)) {
+              callback(null);
+              return;
+            }
+            viewport.measureInWindow((_x, viewportY) => {
+              prompt.measureInWindow((_promptX, promptY) => {
+                const metrics = streamViewportMetricsRef.current;
+                callback({
+                  top: promptY - viewportY,
+                  offset: metrics.offsetY,
+                  maxOffset: Math.max(0, metrics.contentHeight - metrics.viewportHeight),
+                });
+              });
+            });
+          },
           scrollToIndex: (index) =>
             flatListRef.current?.scrollToIndex({
               index,
@@ -399,7 +424,6 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       }),
     [findHistoryPromptIndex, reportPromptFailure, reducedMotion],
   );
-  const promptNodes = useRef(new Map<string, PromptBubbleNode>());
   const textPrefixRef = useRef(
     new Map<string, { prefixHeightOne: number; prefixHeightTwo: number }>(),
   );
@@ -536,12 +560,18 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 0 }), []);
 
   /** Detach once for a new intent; controller retries preserve the same target and budget. */
-  const scrollToPrompt = useStableEvent((messageId: string) => {
-    bottomAnchorController.detachByUser();
-    navigatingPromptRef.current = true;
-    promptJumpController.start(messageId);
-    schedulePromptSettle(450);
-  });
+  const scrollToPrompt = useStableEvent(
+    (
+      messageId: string,
+      _occurrence?: ScrollToMessageOccurrence,
+      placement?: PromptJumpPlacement,
+    ) => {
+      bottomAnchorController.detachByUser();
+      navigatingPromptRef.current = true;
+      promptJumpController.start(messageId, placement);
+      schedulePromptSettle(450);
+    },
+  );
 
   useEffect(() => {
     cancelPromptJump();

@@ -20,6 +20,7 @@ class PaseoAppUpdateModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("PaseoAppUpdate")
+    Events("downloadProgress")
 
     Function("getVersionCode") { installedPackage().longVersionCode.toDouble() }
 
@@ -34,7 +35,8 @@ class PaseoAppUpdateModule : Module() {
       val partial = File(updateFile.parentFile, "preview.partial")
       updateFile.delete()
       try {
-        downloadApk(url, partial)
+        downloadApk(url, partial, versionCode)
+        reportDownloadProgress(versionCode, partial.length(), partial.length(), "verifying")
         val digest = MessageDigest.getInstance("SHA-256")
         partial.inputStream().use { input ->
           val buffer = ByteArray(65536)
@@ -103,8 +105,18 @@ class PaseoAppUpdateModule : Module() {
     }
   }
 
+  /** Send bounded-rate byte progress without weakening checksum or installer approval gates. */
+  private fun reportDownloadProgress(versionCode: Double, bytes: Long, total: Long?, phase: String) {
+    sendEvent("downloadProgress", mapOf(
+      "versionCode" to versionCode,
+      "phase" to phase,
+      "bytesDownloaded" to bytes.toDouble(),
+      "totalBytes" to total?.toDouble()
+    ))
+  }
+
   /** Follow GitHub's HTTPS asset redirects with bounded time, size, and disk use. */
-  private fun downloadApk(url: String, output: File) {
+  private fun downloadApk(url: String, output: File, versionCode: Double) {
     var target = URL(url)
     val deadline = System.nanoTime() + 10L * 60 * 1_000_000_000
     repeat(6) {
@@ -120,6 +132,9 @@ class PaseoAppUpdateModule : Module() {
         } else {
           check(status == 200) { "Update download failed (HTTP $status)." }
           var total = 0L
+          val expectedBytes = connection.contentLengthLong.takeIf { it > 0 }
+          var lastProgressAt = System.nanoTime()
+          reportDownloadProgress(versionCode, total, expectedBytes, "downloading")
           connection.inputStream.use { input ->
             output.outputStream().use { destination ->
               val buffer = ByteArray(65536)
@@ -130,9 +145,15 @@ class PaseoAppUpdateModule : Module() {
                 total += count
                 check(total <= 512L * 1024 * 1024) { "Update APK exceeds the download limit." }
                 destination.write(buffer, 0, count)
+                val now = System.nanoTime()
+                if (now - lastProgressAt >= 250_000_000L) {
+                  reportDownloadProgress(versionCode, total, expectedBytes, "downloading")
+                  lastProgressAt = now
+                }
               }
             }
           }
+          reportDownloadProgress(versionCode, total, expectedBytes, "downloading")
           return
         }
       } finally {

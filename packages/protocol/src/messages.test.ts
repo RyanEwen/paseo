@@ -471,6 +471,21 @@ describe("paseo worktree archive request compatibility", () => {
 });
 
 describe("daemon update messages", () => {
+  test("accepts read-only availability requests and correlated eligible or unavailable results", () => {
+    const request = { type: "daemon.update.check_availability.request", requestId: "check-1" };
+    expect(SessionInboundMessageSchema.parse(request)).toEqual(request);
+    for (const result of [
+      { version: "0.11.2-preview.14", reason: null },
+      { version: null, reason: "Source installation" },
+    ]) {
+      const response = {
+        type: "daemon.update.check_availability.response",
+        payload: { requestId: "check-1", ...result },
+      };
+      expect(SessionOutboundMessageSchema.parse(response)).toEqual(response);
+    }
+  });
+
   test("daemon update progress is a scoped outbound message", () => {
     const parsed = SessionOutboundMessageSchema.parse({
       type: "daemon.update.progress",

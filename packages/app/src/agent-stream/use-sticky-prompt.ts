@@ -1,3 +1,5 @@
+import type { PromptJumpPlacement } from "./prompt-jump-placement";
+import { useNavigationActionVisibility } from "./use-navigation-action-visibility";
 import { useLayoutEffect, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { TimelinePageAcceptance } from "@/timeline/fetch-viewed-timeline-page";
@@ -48,7 +50,7 @@ interface Input {
   loadingOlder: boolean;
   progressKey: string | null;
   loadOlder: (acceptance?: TimelinePageAcceptance) => boolean | Promise<boolean>;
-  jumpToLoaded: (id: string) => void;
+  jumpToLoaded: (id: string, placement?: PromptJumpPlacement) => void;
 }
 
 /** Own the sticky selection while the existing timeline owner loads and scrolls prompts. */
@@ -65,6 +67,12 @@ export function useStickyPrompt(input: Input) {
     loadOlder,
     jumpToLoaded,
   } = input;
+  const {
+    key: actionVisibilityKey,
+    start: showNavigationActions,
+    retarget: retargetNavigationActions,
+    clear: clearNavigationActions,
+  } = useNavigationActionVisibility(enabled, epoch);
   const readingSource = enabled
     ? (input.reading ?? EMPTY_PROMPT_READING_SOURCE)
     : EMPTY_PROMPT_READING_SOURCE;
@@ -94,6 +102,7 @@ export function useStickyPrompt(input: Input) {
     target: PromptTarget;
     scroll: boolean;
     preserveSelection?: boolean;
+    placement?: PromptJumpPlacement;
   } | null>(null);
   const retryDirection = useRef<-1 | 1>(-1);
   const latest = loadedTargets.at(-1)?.item;
@@ -207,19 +216,29 @@ export function useStickyPrompt(input: Input) {
   });
 
   const selectTarget = useStableEvent(
-    (target: PromptTarget, scroll: boolean = true, options?: { preserveSelection?: boolean }) => {
+    (
+      target: PromptTarget,
+      scroll: boolean = true,
+      options?: { preserveSelection?: boolean; placement?: PromptJumpPlacement },
+    ) => {
       if (!enabled) return;
       setError(false);
-      retryTarget.current = { target, scroll, preserveSelection: options?.preserveSelection };
+      const placement = options?.placement ?? "pinned";
+      retryTarget.current = {
+        target,
+        scroll,
+        preserveSelection: options?.preserveSelection,
+        placement,
+      };
       if (target.item && !target.cached) {
         setSelected(
           !options?.preserveSelection && target.key === targets.at(-1)?.key ? null : target.item,
         );
         setPending(null);
-        if (scroll) jumpToLoaded(target.item.id);
+        if (scroll) jumpToLoaded(target.item.id, placement);
       } else if (target.seq !== undefined) {
         setPending(target);
-        if (indexed) outline.jumpToPrompt(target.seq, { scroll, source: "sticky" });
+        if (indexed) outline.jumpToPrompt(target.seq, { scroll, source: "sticky", placement });
       }
     },
   );
@@ -232,7 +251,8 @@ export function useStickyPrompt(input: Input) {
         retryTarget.current?.target.key === loaded.key && retryTarget.current.preserveSelection;
       setSelected(!preserveSelection && loaded.key === targets.at(-1)?.key ? null : loaded.item);
       setPending(null);
-      if (pending.cached && retryTarget.current?.scroll) jumpToLoaded(loaded.item.id);
+      if (pending.cached && retryTarget.current?.scroll)
+        jumpToLoaded(loaded.item.id, retryTarget.current?.placement);
     } else if (
       outline.jumpError ||
       (pending.cached && ["error", "limited", "exhausted"].includes(discovery.status))
@@ -242,15 +262,34 @@ export function useStickyPrompt(input: Input) {
     }
   }, [enabled, outline.jumpError, pending, loadedTargets, discovery.status, jumpToLoaded, targets]);
 
+  useEffect(() => {
+    if (
+      error ||
+      outline.jumpError ||
+      ["error", "limited", "exhausted", "cancelled"].includes(discovery.status)
+    ) {
+      clearNavigationActions();
+    }
+  }, [error, outline.jumpError, discovery.status, clearNavigationActions]);
+
   // Initial/latest display is a content lookup, never an implicit prompt jump.
   // Only an explicit navigation below may replace the authoritative history window.
 
   useEffect(() => {
     if (!enabled || !discoveringPrevious) return;
-    if (previous) selectTarget(previous);
-    else if (["error", "limited", "exhausted", "cancelled"].includes(discovery.status))
+    if (previous) {
+      retargetNavigationActions(previous.key);
+      selectTarget(previous);
+    } else if (["error", "limited", "exhausted", "cancelled"].includes(discovery.status))
       setPending(null);
-  }, [enabled, discoveringPrevious, discovery.status, previous, selectTarget]);
+  }, [
+    enabled,
+    discoveringPrevious,
+    discovery.status,
+    previous,
+    selectTarget,
+    retargetNavigationActions,
+  ]);
 
   const navigate = useStableEvent((direction: -1 | 1) => {
     if (!enabled || !message) return;
@@ -261,11 +300,13 @@ export function useStickyPrompt(input: Input) {
     // Freeze the current prompt before a remote jump replaces the loaded window.
     setSelected(message);
     const target = targets[position + direction];
+    showNavigationActions(target?.key ?? "discover-previous");
     if (target) selectTarget(target);
     else if (direction === -1 && hasOlder) setPending("previous");
   });
 
   const cancel = useStableEvent(() => {
+    clearNavigationActions();
     if (!enabled) return;
     outline.cancelJump();
     readingContent.cancel();
@@ -276,6 +317,7 @@ export function useStickyPrompt(input: Input) {
     setCancelled(true);
   });
   const reviewReading = useStableEvent(() => {
+    clearNavigationActions();
     if (!enabled) return;
     outline.cancelJump();
     readingContent.cancel();
@@ -309,6 +351,7 @@ export function useStickyPrompt(input: Input) {
         targets.find((entry) => entry.key === previousAttempt.target.key) ?? previousAttempt.target;
       selectTarget(target, previousAttempt.scroll, {
         preserveSelection: previousAttempt.preserveSelection,
+        placement: previousAttempt.placement,
       });
     } else if (message) navigate(retryDirection.current);
     else if (indexed) {
@@ -330,6 +373,7 @@ export function useStickyPrompt(input: Input) {
     setCancelled(false);
     retryDirection.current = direction;
     const target = targets[current + direction];
+    showNavigationActions(target?.key ?? "discover-previous");
     if (target) selectTarget(target);
     else if (direction === -1 && hasOlder) setPending("previous");
   });
@@ -389,14 +433,16 @@ export function useStickyPrompt(input: Input) {
   // uses the same window acceptance and scrolling owner as arrow navigation.
   const reveal = useStableEvent(() => {
     if (!enabled || busy) return;
+    clearNavigationActions();
     const target = targets[position];
     if (target) {
       // Retain the displayed cache copy while the owner loads its original row.
       setSelected(message ?? null);
-      selectTarget(target, true, { preserveSelection: true });
+      selectTarget(target, true, { preserveSelection: true, placement: "original" });
     }
   });
   return {
+    actionVisibleMessageId: resolveActionVisibleMessageId(targets, actionVisibilityKey),
     message,
     stickyProgress,
     geometry,
@@ -482,4 +528,9 @@ function resolveEpochPromptState(
 ) {
   if (scopeChanged) return { selected: null, pending: null, error: false, cancelled: false };
   return state;
+}
+
+/** Cached prompt content does not grant action ownership to an unrelated mounted row. */
+function resolveActionVisibleMessageId(targets: PromptTarget[], key: string | null) {
+  return targets.find((target) => target.key === key)?.item?.id;
 }

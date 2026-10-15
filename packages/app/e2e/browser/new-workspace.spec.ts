@@ -2,7 +2,9 @@ import type { Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { existsSync, renameSync } from "node:fs";
 import path from "node:path";
-import { buildHostWorkspaceRoute } from "@/utils/host-routes";
+import { WorkspaceLayoutPersistedStateSchema } from "@/stores/workspace-layout-storage";
+import { collectAllTabs } from "@/stores/workspace-layout-actions";
+import { buildHostWorkspaceRoute, buildSettingsSectionRoute } from "@/utils/host-routes";
 import { expect, test } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import {
@@ -85,6 +87,7 @@ interface AdoptedAgentSession {
   page: Page;
   workspaceId: string;
   agentTitle: string;
+  agentId: string;
 }
 
 /** Verifies the adopted workspace exposes its first agent in the desktop tab strip. */
@@ -100,22 +103,65 @@ async function expectDesktopAdoptedAgent({
   });
 }
 
-/** Verifies the adopted workspace's single agent in the compact switcher, then dismisses it. */
-async function expectCompactAdoptedAgent({ page, agentTitle }: AdoptedAgentSession): Promise<void> {
-  const switcher = page.getByRole("button", { name: "Switch tabs (1 open)", exact: true });
-  await expect(switcher).toBeVisible();
-  await switcher.click();
+/** Verifies the adopted workspace exposes its first agent directly in the compact tab strip. */
+async function expectCompactAdoptedAgent({
+  page,
+  workspaceId,
+  agentTitle,
+}: AdoptedAgentSession): Promise<void> {
+  const adoptedDeck = page
+    .getByTestId(`workspace-deck-entry-${getServerId()}:${workspaceId}`)
+    .filter({ visible: true });
+  const tab = adoptedDeck.locator('[data-testid^="workspace-tab-agent_"]');
+  await expect(tab).toHaveCount(1, { timeout: 30_000 });
+  await expect(tab).toBeVisible();
+  await expect(tab).toContainText(agentTitle);
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(adoptedDeck.getByTestId("workspace-new-tab-button")).toBeVisible();
+}
 
-  // First-agent conversion preserves its draft tab ID, so identify the session by title.
-  const sessionMenu = page.locator('[data-testid^="workspace-tab-menu-"][data-testid$="-trigger"]');
-  await expect(sessionMenu).toHaveCount(1);
-  await expect(sessionMenu).toBeVisible();
+/** First-agent conversion keeps its optimistic draft identity in the legacy chooser. */
+async function expectLegacyCompactAdoptedAgent({
+  page,
+  workspaceId,
+  agentTitle,
+  agentId,
+}: AdoptedAgentSession): Promise<void> {
+  const deck = page
+    .getByTestId(`workspace-deck-entry-${getServerId()}:${workspaceId}`)
+    .filter({ visible: true });
+  const switcher = deck.getByTestId("workspace-tab-switcher-trigger");
+  await expect(switcher).toContainText(agentTitle);
+  await expect(deck.getByTestId("workspace-tabs-scroll")).toHaveCount(0);
+  const raw = await page.evaluate(() => localStorage.getItem("workspace-layout-state"));
+  if (!raw) throw new Error("Expected the adopted workspace layout");
+  const persisted = WorkspaceLayoutPersistedStateSchema.parse(JSON.parse(raw).state);
+  const layout = persisted.layoutByWorkspace[`${getServerId()}:${workspaceId}`];
+  if (!layout) throw new Error("Expected the adopted workspace layout after persistence");
+  const tab = collectAllTabs(layout.root).find(
+    (candidate) => candidate.target.kind === "agent" && candidate.target.agentId === agentId,
+  );
+  if (!tab) throw new Error("Expected the first agent tab after draft conversion");
+  expect(tab.tabId).toMatch(/^draft_/);
+  const menuId = `workspace-tab-menu-${tab.tabId}-trigger`;
+  await switcher.click();
+  await expect(page.getByTestId(menuId)).toBeVisible();
   await expect(page.getByText(agentTitle, { exact: true }).last()).toBeVisible();
   await page
     .getByRole("button", { name: "Bottom sheet backdrop" })
+    .filter({ visible: true })
     .first()
     .click({ position: { x: 12, y: 12 } });
-  await expect(sessionMenu).toHaveCount(0);
+  await expect(page.getByTestId(menuId)).toHaveCount(0);
+  await page.reload();
+  await expect(switcher).toContainText(agentTitle);
+  await switcher.click();
+  await expect(page.getByTestId(menuId)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Bottom sheet backdrop" })
+    .filter({ visible: true })
+    .first()
+    .click({ position: { x: 12, y: 12 } });
 }
 
 async function switchSidebarToStatusGrouping(page: import("@playwright/test").Page) {
@@ -431,17 +477,24 @@ test.describe("New workspace flow", () => {
     }
   });
 
-  for (const { viewport, expectAgentSession } of [
+  for (const { viewport, expectAgentSession, legacySwitcher } of [
     {
       viewport: { width: 1440, height: 1000 },
       expectAgentSession: expectDesktopAdoptedAgent,
+      legacySwitcher: false,
     },
     {
       viewport: { width: 390, height: 844 },
       expectAgentSession: expectCompactAdoptedAgent,
+      legacySwitcher: false,
+    },
+    {
+      viewport: { width: 390, height: 844 },
+      expectAgentSession: expectLegacyCompactAdoptedAgent,
+      legacySwitcher: true,
     },
   ]) {
-    test(`new worktree options create exact branches and reuse checkouts at ${viewport.width}px`, async ({
+    test(`new worktree options create exact branches and reuse checkouts at ${viewport.width}px${legacySwitcher ? " with legacy switcher" : ""}`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize(viewport);
@@ -453,6 +506,16 @@ test.describe("New workspace flow", () => {
       localWorkspaceIds.add(opened.workspaceId);
       try {
         await gotoAppShell(page);
+        if (legacySwitcher) {
+          await page.goto(buildSettingsSectionRoute("paseo-plus-plus"));
+          const control = page
+            .getByTestId("paseo-plus-plus-mobileWorkspaceTabs")
+            .getByRole("switch");
+          await expect(control).toBeChecked();
+          await control.click();
+          await expect(control).not.toBeChecked();
+          await expect(control).toBeEnabled();
+        }
         const openForm = async () => {
           const query = new URLSearchParams({
             serverId: getServerId(),
@@ -649,6 +712,7 @@ test.describe("New workspace flow", () => {
           page,
           workspaceId: adoptedWorkspaceId,
           agentTitle: adoptedAgents[0].agent.title!,
+          agentId: adoptedAgents[0].agent.id,
         });
         expect(
           execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: repo.path }).toString(),

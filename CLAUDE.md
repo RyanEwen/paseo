@@ -17,6 +17,9 @@ This is an npm workspace monorepo:
 
 ## Docs
 
+Before selecting a base, integration target, or upstream synchronization path for this fork, read
+[fork branches and ownership](docs/worktree-development.md#fork-branches-and-ownership).
+
 `docs/` is the source of truth for system-level and process-level knowledge. **"The docs", "check the docs", or "check the X docs" always mean this directory — not the web.** Look here before fetching anything online; the docs capture gotchas and conventions you cannot derive from the code or external sources.
 
 At the start of non-trivial work, list `docs/` and skim anything relevant to the task.
@@ -44,6 +47,7 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 | [docs/plugins.md](docs/plugins.md)                                       | Local plugin manifest, directory source config, RPCs, native surfaces, and attachment sources                                  |
 | [docs/service-proxy.md](docs/service-proxy.md)                           | Service proxy: exposing workspace scripts at public URLs, DNS setup, reverse proxy config                                      |
 | [docs/development.md](docs/development.md)                               | Dev server, build sync gotchas, CLI reference, agent state, Playwright MCP                                                     |
+| [docs/worktree-development.md](docs/worktree-development.md)             | Fork branch roles, owner lifecycle, upstream synchronization, environment qualification, and review assembly                   |
 | [docs/rpc-namespacing.md](docs/rpc-namespacing.md)                       | WebSocket RPC naming convention — dotted namespaces and `.request`/`.response` pairs                                           |
 | [docs/protocol-compatibility.md](docs/protocol-compatibility.md)         | Why app/daemon versions drift, protocol vs feature contract, capability gating, COMPAT tagging                                 |
 | [docs/protocol-validation.md](docs/protocol-validation.md)               | zod-aot generated inbound WebSocket validation, patched compiler regressions, schema-purity rules                              |
@@ -58,6 +62,7 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 | [docs/explorer-sidebar.md](docs/explorer-sidebar.md)                     | Explorer sidebar and ordinary side-pane host contracts, lifecycle, placement, and routing preferences                          |
 | [docs/ad-hoc-daemon-testing.md](docs/ad-hoc-daemon-testing.md)           | Isolated in-process daemon test harness                                                                                        |
 | [docs/browser-capture-harness.md](docs/browser-capture-harness.md)       | Real-Electron browser screenshot harness and compositor-surface gotcha                                                         |
+| [docs/native-browser-feasibility.md](docs/native-browser-feasibility.md) | Deferred native-browser research and historical qualification boundaries                                                   |
 | [docs/android.md](docs/android.md)                                       | App variants, local/cloud builds, EAS workflows, version codes, F-Droid source builds and store metadata                       |
 | [docs/docker.md](docs/docker.md)                                         | Running the daemon and bundled web UI in Docker, volumes, agent images, security                                               |
 | [docs/release.md](docs/release.md)                                       | Release playbook, draft releases, completion checklist                                                                         |

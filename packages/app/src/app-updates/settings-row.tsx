@@ -15,7 +15,7 @@ export function AndroidAppUpdateRow() {
   const handleCheck = useCallback(() => void check(), [check]);
   const handleInstall = useCallback(() => void install(), [install]);
   if (!androidUpdaterNative) return null;
-  const busy = status === "checking" || status === "downloading";
+  const busy = status === "checking" || status === "downloading" || status === "verifying";
   return (
     <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
       <View style={settingsStyles.rowContent}>
@@ -29,7 +29,13 @@ export function AndroidAppUpdateRow() {
           {t("settings.about.updates.check")}
         </Button>
         {update ? (
-          <Button variant="default" size="sm" disabled={busy} onPress={handleInstall}>
+          <Button
+            variant="default"
+            size="sm"
+            disabled={busy}
+            loading={status === "downloading" || status === "verifying"}
+            onPress={handleInstall}
+          >
             {t("androidUpdates.install")}
           </Button>
         ) : null}

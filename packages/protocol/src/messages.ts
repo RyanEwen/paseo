@@ -1867,6 +1867,11 @@ export const ShutdownServerRequestMessageSchema = z.object({
   requestId: z.string(),
 });
 
+export const DaemonUpdateAvailabilityRequestMessageSchema = z.object({
+  type: z.literal("daemon.update.check_availability.request"),
+  requestId: z.string(),
+});
+
 export const DaemonUpdateRequestMessageSchema = z.object({
   type: z.literal("daemon.update.request"),
   requestId: z.string(),
@@ -3299,6 +3304,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   CancelAgentRequestMessageSchema,
   ShutdownServerRequestMessageSchema,
   RestartServerRequestMessageSchema,
+  DaemonUpdateAvailabilityRequestMessageSchema,
   DaemonUpdateRequestMessageSchema,
   FetchAgentTimelineRequestMessageSchema,
   AgentTimelineSearchRequestMessageSchema,
@@ -3609,6 +3615,8 @@ export const ServerInfoStatusPayloadSchema = z
         workspaceLabels: z.boolean().optional(),
         // COMPAT(appSettingsSync): added in v0.11.2, remove after 2027-10-12.
         appSettingsSync: z.boolean().optional(),
+        // COMPAT(appSettingsAccentColor): added in v0.11.2, remove gate after 2027-10-14.
+        appSettingsAccentColor: z.boolean().optional(),
         // COMPAT(workspaceSetupRun): added in v0.8.0, remove gate after 2027-09-02.
         workspaceSetupRun: z.boolean().optional(),
         // COMPAT(workspaceTerminals): added in v0.8.0, remove gate after 2027-09-05.
@@ -3699,6 +3707,8 @@ export const ServerInfoStatusPayloadSchema = z
         daemonDiagnostics: z.boolean().optional(),
         // COMPAT(daemonSelfUpdate): added in v0.1.93, remove gate after 2026-12-13.
         daemonSelfUpdate: z.boolean().optional(),
+        // COMPAT(daemonUpdateAvailability): added after v0.11.2, remove gate after 2027-04-14.
+        daemonUpdateAvailability: z.boolean().optional(),
         // COMPAT(agentForkContext): added in v0.1.102, remove gate after 2026-12-28.
         agentForkContext: z.boolean().optional(),
         // COMPAT(agentForkContextCursor): added in v0.1.108, remove gate after 2027-01-14.
@@ -6537,6 +6547,18 @@ export const TerminalAttentionRequiredSchema = z.object({
   }),
 });
 
+export const DaemonUpdateAvailabilityResponseSchema = z.object({
+  type: z.literal("daemon.update.check_availability.response"),
+  payload: z.object({
+    requestId: z.string(),
+    version: z.string().nullable(),
+    reason: z.string().nullable(),
+  }),
+});
+export type DaemonUpdateAvailabilityResponse = z.infer<
+  typeof DaemonUpdateAvailabilityResponseSchema
+>;
+
 export const DaemonUpdateResponseSchema = z.object({
   type: z.literal("daemon.update.response"),
   payload: z.object({
@@ -7092,6 +7114,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   LoopLogsResponseSchema,
   LoopStopResponseSchema,
   DaemonUpdateProgressMessageSchema,
+  DaemonUpdateAvailabilityResponseSchema,
   DaemonUpdateResponseSchema,
 ]);
 

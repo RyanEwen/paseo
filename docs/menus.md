@@ -35,6 +35,17 @@ carries new-tab actions, while wide leaves those to the strip's `+` menu and lis
 actions only. Items both surfaces share live in one component that each menu renders, from the same
 callbacks, so the two can't drift.
 
+## HTTP link destinations
+
+Use the owning workspace for internal link destinations. When the built-in desktop browser is
+available, workspace chat HTTP(S) links open a new browser tab and offer an external-browser action
+in their context menu. Other workspace-associated links keep their primary action and offer
+**Open in Paseo browser** through the same menu engine.
+
+Native apps, plain browser clients, and links outside a workspace open externally without an
+internal destination chooser. Do not depend on optional browser plugins for this behavior. Keep
+authentication and pairing flows on their existing external default.
+
 ## Selecting an item on iOS
 
 An item that closes the menu runs its action after a fixed grace period on iOS, not immediately:

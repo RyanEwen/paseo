@@ -10,6 +10,7 @@ interface UseWorkspaceTabLayoutInput {
   tabLabelWidths: number[];
   viewportWidthOverride?: number | null;
   metrics: WorkspaceTabLayoutMetrics;
+  preserveNaturalWidths?: boolean;
 }
 
 interface UseWorkspaceTabLayoutResult {
@@ -31,8 +32,9 @@ export function useWorkspaceTabLayout(
         viewportWidth: resolvedViewportWidth,
         tabLabelWidths: input.tabLabelWidths,
         metrics: input.metrics,
+        preserveNaturalWidths: input.preserveNaturalWidths,
       }),
-    [input.metrics, input.tabLabelWidths, resolvedViewportWidth],
+    [input.metrics, input.tabLabelWidths, input.preserveNaturalWidths, resolvedViewportWidth],
   );
 
   return {

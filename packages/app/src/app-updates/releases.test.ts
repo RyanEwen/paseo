@@ -33,13 +33,32 @@ describe("fork Android update selection", () => {
       selectAndroidUpdate(
         [
           { ...release(20), draft: true },
-          { ...release(21), prerelease: false },
+          { ...release(21), tag_name: "v0.11.2", prerelease: false },
           { ...release(22), tag_name: "v0.11.2-beta.1" },
           release(13),
         ],
         1_000_000_013,
       ),
     ).toBeNull();
+  });
+  it("lets legacy discovery find the retained bridge and upgraded installs select normal releases", () => {
+    const bridge = release(77);
+    const normal = { ...release(80), prerelease: false };
+    const releases = [normal, bridge, release(76), { ...release(81), draft: true }];
+    // Published clients filter out normal releases before choosing their next update.
+    const legacyVisible = releases.filter((candidate) => candidate.prerelease);
+    expect(selectAndroidUpdate(legacyVisible, 1_000_000_076)?.versionCode).toBe(1_000_000_077);
+    expect(selectAndroidUpdate(releases, 1_000_000_077)?.versionCode).toBe(1_000_000_080);
+    expect(selectAndroidUpdate(releases, 1_000_000_080)).toBeNull();
+    expect(selectAndroidUpdate(releases, 1_000_000_081)).toBeNull();
+  });
+  it("applies the same complete-asset and URL guards to normal releases", () => {
+    const normal = { ...release(80), prerelease: false };
+    expect(() => selectAndroidUpdate([release(77), { ...normal, assets: [] }], 0)).toThrow(
+      "missing its APK or checksum",
+    );
+    normal.assets[0].browser_download_url += "?download=1";
+    expect(() => selectAndroidUpdate([normal], 0)).toThrow("Unexpected fork release asset URL");
   });
   it("never offers a downgrade or the installed build", () => {
     expect(selectAndroidUpdate([release(13)], 1_000_000_014)).toBeNull();

@@ -1,0 +1,218 @@
+{
+  "presentation": "Contextual original captures; one chip arrow and red outlines for previous agents, tool activity, pin and bulk controls",
+  "nativeDeviceValidated": false,
+  "frames": [
+    {
+      "id": "descriptive-tool-calls",
+      "source": "readable-tool-owner-labels.png",
+      "sourceSha256": "a8c8e9593564d32be9cf87e4557c5054633c4e656bb953785eec0a39fb59c871",
+      "width": 1280,
+      "height": 900,
+      "viewport": {
+        "left": 384,
+        "top": 386,
+        "width": 500,
+        "height": 364
+      },
+      "previousViewport": {
+        "left": 390,
+        "top": 460,
+        "width": 330,
+        "height": 128
+      },
+      "capturedAtUtc": null,
+      "arrows": [],
+      "outlines": [
+        {
+          "left": -2,
+          "top": 34,
+          "width": 836,
+          "height": 38,
+          "radius": 12
+        }
+      ]
+    },
+    {
+      "id": "previous-agents",
+      "source": "previous-agents-menu-1791928790406.png",
+      "sourceSha256": "f52945e6d15b9078a1a798629939461d9914de0de8a445f0153678242f6709bc",
+      "width": 1440,
+      "height": 900,
+      "viewport": {
+        "left": 320,
+        "top": 0,
+        "width": 400,
+        "height": 400
+      },
+      "previousViewport": {
+        "left": 376,
+        "top": 167,
+        "width": 330,
+        "height": 270
+      },
+      "capturedAtUtc": "2026-10-13T21:59:50.616Z",
+      "arrows": [],
+      "outlines": [
+        {
+          "left": 178,
+          "top": 104,
+          "width": 192,
+          "height": 28
+        }
+      ]
+    },
+    {
+      "id": "project-selector",
+      "source": "project-selector-1791840834825.png",
+      "sourceSha256": "9f34c617084382ba13506830a4fb1487e06e2ef4d8c0d775c8f8034d9a4da0da",
+      "width": 1440,
+      "height": 900,
+      "viewport": {
+        "left": 0,
+        "top": 125,
+        "width": 320,
+        "height": 270
+      },
+      "previousViewport": {
+        "left": 8,
+        "top": 163,
+        "width": 304,
+        "height": 110
+      },
+      "capturedAtUtc": "2026-10-12T21:33:54.999Z",
+      "arrows": [],
+      "outlines": []
+    },
+    {
+      "id": "project-header",
+      "source": "project-header-1791840834086.png",
+      "sourceSha256": "ed5fcf356a307907de345c2f1a1fd21dd3eec12a3c5fe21fee109f74381d0d68",
+      "width": 1440,
+      "height": 900,
+      "viewport": {
+        "left": 0,
+        "top": 125,
+        "width": 320,
+        "height": 270
+      },
+      "previousViewport": {
+        "left": 0,
+        "top": 273,
+        "width": 319,
+        "height": 56
+      },
+      "capturedAtUtc": "2026-10-12T21:33:54.277Z",
+      "arrows": [],
+      "outlines": []
+    },
+    {
+      "id": "bulk-actions",
+      "source": "bulk-actions-1791840834352.png",
+      "sourceSha256": "1032ed48718bc564fbb8deeff1b75222ab5f7acb032633c72ede51795e00dbea",
+      "width": 1440,
+      "height": 900,
+      "viewport": {
+        "left": 0,
+        "top": 125,
+        "width": 320,
+        "height": 270
+      },
+      "previousViewport": {
+        "left": 0,
+        "top": 125,
+        "width": 312,
+        "height": 58
+      },
+      "capturedAtUtc": "2026-10-12T21:33:54.534Z",
+      "arrows": [],
+      "outlines": [
+        {
+          "left": 226,
+          "top": 14,
+          "width": 52,
+          "height": 28
+        }
+      ]
+    },
+    {
+      "id": "project-pin",
+      "source": "project-pin-1791840835441.png",
+      "sourceSha256": "9947e3d5c0893c1f9654853ec6a27d03b0534edb22bb8e38a298ac6be1143e6a",
+      "width": 1440,
+      "height": 900,
+      "viewport": {
+        "left": 0,
+        "top": 125,
+        "width": 344,
+        "height": 452
+      },
+      "previousViewport": {
+        "left": 60,
+        "top": 347,
+        "width": 276,
+        "height": 222
+      },
+      "capturedAtUtc": "2026-10-12T21:33:55.557Z",
+      "arrows": [],
+      "outlines": [
+        {
+          "left": 74,
+          "top": 319,
+          "width": 245,
+          "height": 27
+        }
+      ]
+    }
+  ],
+  "exports": [
+    {
+      "feature": "descriptiveToolCalls",
+      "path": "packages/app/assets/settings-examples/annotated/descriptiveToolCalls-descriptive-tool-calls.svg",
+      "sha256": "f28dfd79bc61bf6afce884fce27ec7ee991291041bf1376f321a58bc24b3940f",
+      "arrows": 0,
+      "outlines": 1
+    },
+    {
+      "feature": "previousAgents",
+      "path": "packages/app/assets/settings-examples/annotated/previousAgents-previous-agents.svg",
+      "sha256": "a091fdeed655ac3a6145d5dec2232a3c7fd852670d29b9aabb1d6ed396a48d18",
+      "arrows": 0,
+      "outlines": 1
+    },
+    {
+      "feature": "sidebarProjectSelector",
+      "path": "packages/app/assets/settings-examples/annotated/sidebarProjectSelector-project-selector.svg",
+      "sha256": "0a1aff8f406f8c9a3babc24eeadad8cc1d3cf808777e2b3afd0081df577304b1",
+      "arrows": 0,
+      "outlines": 0
+    },
+    {
+      "feature": "sidebarActivityChips",
+      "path": "packages/app/assets/settings-examples/annotated/sidebarActivityChips-project-header.svg",
+      "sha256": "ba0cdce7c5b90df0c1905512a4d95512dcbae0e0b29b93db5534f83daa59ea89",
+      "arrows": 1,
+      "outlines": 0
+    },
+    {
+      "feature": "sidebarProjectEmphasis",
+      "path": "packages/app/assets/settings-examples/annotated/sidebarProjectEmphasis-project-header.svg",
+      "sha256": "f084df91ccf97538055ef00c3559f7fdf8ae78b291b05200b9448424c1e6119b",
+      "arrows": 0,
+      "outlines": 0
+    },
+    {
+      "feature": "sidebarBulkActions",
+      "path": "packages/app/assets/settings-examples/annotated/sidebarBulkActions-bulk-actions.svg",
+      "sha256": "ccf4a24eea4ce6f9b5aa82d7e101c9951eb1614b4bba78165f16211e2db6521e",
+      "arrows": 0,
+      "outlines": 1
+    },
+    {
+      "feature": "projectPinning",
+      "path": "packages/app/assets/settings-examples/annotated/projectPinning-project-pin.svg",
+      "sha256": "fb7e78f2263564eb6468382ecaa250455313fb7bb7d4d724c9a4ced49cb1ea3a",
+      "arrows": 0,
+      "outlines": 1
+    }
+  ]
+}

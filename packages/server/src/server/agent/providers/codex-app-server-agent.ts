@@ -6149,7 +6149,7 @@ export class CodexAppServerAgentSession implements AgentSession {
         error: parsed.errorMessage ?? "Codex turn failed",
       });
     } else if (parsed.status === "interrupted") {
-      this.dismissInterruptedAsyncQuestions();
+      // Async answers belong to the session, including across stopped or superseded turns.
       this.emitEvent({ type: "turn_canceled", provider: CODEX_PROVIDER, reason: "interrupted" });
     } else {
       if (this.planModeEnabled && this.latestPlanResult?.text) {
@@ -6507,20 +6507,6 @@ export class CodexAppServerAgentSession implements AgentSession {
     const request = this.asyncQuestions.receive(item);
     if (request)
       this.emitEvent({ type: "permission_requested", provider: CODEX_PROVIDER, request });
-  }
-
-  private dismissInterruptedAsyncQuestions(): void {
-    const resolution: AgentPermissionResponse = { behavior: "deny", message: "Interrupted" };
-    for (const request of this.asyncQuestions.pending()) {
-      const prepared = this.asyncQuestions.prepareResponse(request.id, resolution);
-      this.emitEvent({ type: "timeline", provider: CODEX_PROVIDER, item: prepared.complete() });
-      this.emitEvent({
-        type: "permission_resolved",
-        provider: CODEX_PROVIDER,
-        requestId: request.id,
-        resolution,
-      });
-    }
   }
 
   private reconcileAsyncQuestionsAfterRewind(): void {

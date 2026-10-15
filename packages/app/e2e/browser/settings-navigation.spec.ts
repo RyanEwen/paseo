@@ -428,7 +428,8 @@ for (const width of [1440, 390]) {
       await expect(section.getByText("Preview updates", { exact: true })).toHaveCount(0);
       await expect(section.getByText("Workspace order and details", { exact: true })).toBeVisible();
       await expect(section).toContainText("Sort projects and workspaces independently");
-      await expect(section).toContainText("project and branch labels are on by default");
+      await expect(section).toContainText("project labels are on by default");
+      await expect(section).toContainText("Branch labels are optional and off by default");
       await page.goto(buildSettingsSectionRoute("sidebar"));
       await expect(page.getByTestId("sidebar-nav-section-header")).toBeVisible();
       await expect(

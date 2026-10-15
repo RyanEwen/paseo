@@ -16,7 +16,7 @@ export function AndroidUpdateCalloutSource() {
   const { settings, isLoading, error: settingsError } = useAppSettings();
   const automaticChecksAllowed =
     !isLoading && settingsError === null && settings.paseoPlusPlus.androidAutomaticUpdateChecks;
-  const { status, update, error, check, install } = useAndroidUpdate();
+  const { status, update, error, progress, check, install } = useAndroidUpdate();
   useEffect(() => {
     // Wait for persisted opt-outs before scheduling any automatic network request.
     if (!androidUpdaterNative || !automaticChecksAllowed) return;
@@ -35,12 +35,15 @@ export function AndroidUpdateCalloutSource() {
 
   useEffect(() => {
     if (!androidUpdaterNative || (!update && !error) || status === "checking") return;
-    const busy = status === "downloading";
+    const busy = status === "downloading" || status === "verifying";
     return callouts.show({
       id: "android-app-update",
       dismissalKey: `android-app-update:${update?.version ?? "error"}:${status}`,
       priority: 200,
-      title: t("androidUpdates.title"),
+      title:
+        status === "available"
+          ? t("desktop.updates.callout.availableTitle")
+          : t("androidUpdates.title"),
       description: androidUpdateStatus(),
       variant: status === "error" ? "error" : "default",
       actions: [
@@ -56,6 +59,6 @@ export function AndroidUpdateCalloutSource() {
       ],
       testID: "android-update-callout",
     });
-  }, [callouts, status, update, error, check, install, t]);
+  }, [callouts, status, update, error, progress, check, install, t]);
   return null;
 }

@@ -12,6 +12,11 @@ import {
   requirePreviewSource,
   requireSuccessfulSourceCi,
 } from "./preview-release/source.mjs";
+import {
+  fingerprintBridgeAssets,
+  resolvePublicationPolicy,
+  updaterBridgeMarker,
+} from "./preview-release/publication-policy.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const ciWorkflowPath = new URL(".github/workflows/ci.yml", repoRoot);
@@ -142,6 +147,215 @@ test("preview releases build one checked commit and require every approved platf
     assert.ok(source.includes(`runner: ${runner}`), `missing ${runner}`);
   }
   assert.doesNotMatch(source, /macos|eas build|npm publish|contents: write[\s\S]*contents: write/);
+  assert.match(source, /release_kind:[\s\S]*default: bridge[\s\S]*- bridge[ \t]*\n[ \t]+- latest/);
+  assert.match(
+    jobs.get("source").join("\n"),
+    /run: node scripts\/preview-release\/publication-policy\.mjs/,
+  );
+  assert.match(
+    jobs.get("release").join("\n"),
+    /PASEO_PREVIEW_RELEASE_KIND: \$\{\{ inputs\.release_kind \}\}/,
+  );
+});
+
+/** A pinned published bridge and later source, without GitHub access or publication. */
+function publicationFixture() {
+  const assets = [
+    {
+      id: 101,
+      name: "preview-release.json",
+      size: 456,
+      digest: `sha256:${"a".repeat(64)}`,
+      state: "uploaded",
+    },
+    {
+      id: 102,
+      name: "SHA256SUMS",
+      size: 789,
+      digest: `sha256:${"b".repeat(64)}`,
+      state: "uploaded",
+    },
+  ];
+  const bridge = {
+    id: 123,
+    tag_name: "v0.11.2-preview.77",
+    target_commitish: "a".repeat(40),
+    draft: false,
+    prerelease: true,
+    body: updaterBridgeMarker,
+    assets,
+  };
+  return {
+    kind: "latest",
+    release: {
+      tag: "v0.11.2-preview.80",
+      version: "0.11.2-preview.80",
+      buildNumber: 80,
+      commit: "b".repeat(40),
+    },
+    qualifiedBridge: {
+      schemaVersion: 1,
+      releaseId: bridge.id,
+      tag: bridge.tag_name,
+      commit: bridge.target_commitish,
+      assetFingerprint: fingerprintBridgeAssets(assets),
+      qualificationEvidence: "docs/qa-evidence/updater-bridge/acceptance.md",
+    },
+    releases: [bridge],
+    comparison: {
+      status: "ahead",
+      base_commit: { sha: bridge.target_commitish },
+      merge_base_commit: { sha: bridge.target_commitish },
+    },
+  };
+}
+
+test("normal Latest publication stays closed until a published bridge is qualified in reviewed source", () => {
+  const fixture = publicationFixture();
+  assert.throws(
+    () => resolvePublicationPolicy({ ...fixture, qualifiedBridge: null }),
+    /reviewed qualified-bridge receipt/,
+  );
+  assert.deepEqual(resolvePublicationPolicy(fixture), { prerelease: false, makeLatest: true });
+  assert.deepEqual(
+    resolvePublicationPolicy({ ...fixture, kind: "bridge", qualifiedBridge: null, releases: [] }),
+    { prerelease: true, makeLatest: false },
+  );
+  assert.throws(
+    () => resolvePublicationPolicy({ ...fixture, kind: "stable" }),
+    /kind must be bridge or latest/,
+  );
+  assert.throws(
+    () => resolvePublicationPolicy({ ...fixture, kind: "bridge" }),
+    /final updater bridge already exists/,
+  );
+  assert.throws(
+    () => resolvePublicationPolicy({ ...fixture, kind: "bridge", qualifiedBridge: null }),
+    /final updater bridge already exists/,
+  );
+});
+
+test("normal release gate requires the exact retained prerelease, asset inventory and source ancestry", () => {
+  const fixture = publicationFixture();
+  const bridge = fixture.releases[0];
+  for (const replacement of [
+    { ...bridge, draft: true },
+    { ...bridge, prerelease: false },
+    { ...bridge, id: bridge.id + 1 },
+    { ...bridge, target_commitish: "c".repeat(40) },
+    { ...bridge, body: "Unmarked old preview" },
+    { ...bridge, assets: bridge.assets.slice(1) },
+    { ...bridge, assets: [...bridge.assets, { ...bridge.assets[0], id: 103, name: "extra.apk" }] },
+  ]) {
+    assert.throws(
+      () => resolvePublicationPolicy({ ...fixture, releases: [replacement] }),
+      /immutable assets must remain published/,
+    );
+  }
+  assert.throws(
+    () => resolvePublicationPolicy({ ...fixture, releases: [] }),
+    /immutable assets must remain published/,
+  );
+  for (const comparison of [
+    null,
+    { ...fixture.comparison, status: "identical" },
+    { ...fixture.comparison, status: "diverged" },
+    { ...fixture.comparison, base_commit: { sha: "c".repeat(40) } },
+    { ...fixture.comparison, merge_base_commit: { sha: "c".repeat(40) } },
+  ]) {
+    assert.throws(
+      () => resolvePublicationPolicy({ ...fixture, comparison }),
+      /descend from the qualified bridge/,
+    );
+  }
+  for (const qualificationEvidence of [
+    "../receipt.md",
+    "docs/qa-evidence/../receipt.md",
+    "https://example.com/receipt.md",
+  ]) {
+    assert.throws(
+      () =>
+        resolvePublicationPolicy({
+          ...fixture,
+          qualifiedBridge: { ...fixture.qualifiedBridge, qualificationEvidence },
+        }),
+      /reviewed qualified-bridge receipt/,
+    );
+  }
+});
+
+test("normal publication preserves the native counter and desktop ordering without assuming the next run number", () => {
+  const fixture = publicationFixture();
+  for (const [version, buildNumber] of [
+    ["0.11.2-preview.77", 77],
+    ["0.11.2-preview.76", 76],
+    ["0.11.1-preview.81", 81],
+  ]) {
+    assert.throws(
+      () =>
+        resolvePublicationPolicy({
+          ...fixture,
+          release: { ...fixture.release, tag: `v${version}`, version, buildNumber },
+        }),
+      /advance the published/,
+    );
+  }
+  assert.throws(
+    () =>
+      resolvePublicationPolicy({
+        ...fixture,
+        releases: [
+          ...fixture.releases,
+          {
+            ...fixture.releases[0],
+            id: 124,
+            tag_name: "v0.11.3-preview.81",
+            prerelease: false,
+            body: "Normal release",
+          },
+        ],
+      }),
+    /advance the published/,
+  );
+  assert.throws(
+    () =>
+      resolvePublicationPolicy({ ...fixture, release: { ...fixture.release, buildNumber: 81 } }),
+    /provenance/,
+  );
+  assert.throws(
+    () => resolvePublicationPolicy({ ...fixture, release: { ...fixture.release, tag: "v0.11.2" } }),
+    /canonical fork workflow tag/,
+  );
+  assert.throws(
+    () =>
+      resolvePublicationPolicy({
+        ...fixture,
+        release: { ...fixture.release, tag: "v0.11.2-preview.1100000001" },
+      }),
+    /valid build number/,
+  );
+});
+
+test("qualified bridge fingerprint detects replaced assets and ignores API inventory order", () => {
+  const assets = publicationFixture().releases[0].assets;
+  const fingerprint = fingerprintBridgeAssets(assets);
+  assert.equal(fingerprintBridgeAssets(assets.toReversed()), fingerprint);
+  for (const change of [
+    { id: 999 },
+    { size: 999 },
+    { name: "replaced.json" },
+    { digest: `sha256:${"c".repeat(64)}` },
+  ]) {
+    assert.notEqual(fingerprintBridgeAssets([{ ...assets[0], ...change }, assets[1]]), fingerprint);
+  }
+  for (const invalid of [
+    [],
+    [assets[0], assets[0]],
+    [{ ...assets[0], state: "new" }],
+    [{ ...assets[0], digest: null }],
+  ]) {
+    assert.throws(() => fingerprintBridgeAssets(invalid), /bridge asset/);
+  }
 });
 
 test("fork code changes require a README update or an explicit review with a reason", () => {

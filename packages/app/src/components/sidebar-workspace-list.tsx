@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import { ProjectActivityChip } from "./sidebar/project-activity-chip";
 import { useSidebarProjectActivity } from "./sidebar/use-sidebar-project-activity";
 import { useAppSettings } from "@/hooks/use-settings";
@@ -340,28 +341,30 @@ export function PrBadge({ hint, style }: { hint: PrHint; style?: StyleProp<ViewS
   const presentation = getForgePresentation(normalizeForge(hint.forge));
 
   return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={t("workspace.git.pr.accessibility.pullRequest", {
-        number: hint.number,
-        context: presentation.changeRequestContext,
-      })}
-      hitSlop={4}
-      onPressIn={handlePressIn}
-      onPress={handlePress}
-      onHoverIn={handleHoverIn}
-      onHoverOut={handleHoverOut}
-      style={pressableStyle}
-    >
-      {isHovered ? (
-        <ThemedExternalLink size={12} uniProps={foregroundColorMapping} />
-      ) : (
-        <PullRequestStateIcon state={hint.state} size={12} />
-      )}
-      <Text style={textStyle} numberOfLines={1}>
-        {hint.number}
-      </Text>
-    </Pressable>
+    <WorkspaceHttpLinkMenu url={hint.url}>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t("workspace.git.pr.accessibility.pullRequest", {
+          number: hint.number,
+          context: presentation.changeRequestContext,
+        })}
+        hitSlop={4}
+        onPressIn={handlePressIn}
+        onPress={handlePress}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
+        style={pressableStyle}
+      >
+        {isHovered ? (
+          <ThemedExternalLink size={12} uniProps={foregroundColorMapping} />
+        ) : (
+          <PullRequestStateIcon state={hint.state} size={12} />
+        )}
+        <Text style={textStyle} numberOfLines={1}>
+          {hint.number}
+        </Text>
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

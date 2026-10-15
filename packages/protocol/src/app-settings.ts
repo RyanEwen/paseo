@@ -51,6 +51,7 @@ export const SYNC_APP_SETTING_KEYS = [
   "paseoPlusPlus",
   "theme",
   "pluginThemeId",
+  "accentColor",
   "language",
   "sendBehavior",
   "serviceUrlBehavior",

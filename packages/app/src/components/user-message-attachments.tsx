@@ -1,5 +1,5 @@
 import { useTextLink } from "@/hooks/use-text-link";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Text, View, type GestureResponderEvent } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
@@ -29,10 +29,16 @@ export function UserMessageAttachments({
   const { t } = useTranslation();
   const keyboardLink = useTextLink(onContentPress);
   const count = images.length + attachments.length;
+  // Share the compact cell with prompt text; an intrinsic count must not consume it.
+  const summaryStyle = useMemo(
+    () => [styles.summary, hasText ? styles.sharedSummary : undefined],
+    [hasText],
+  );
   if (compact)
     return count > 0 ? (
       <Text
-        style={styles.summary}
+        style={summaryStyle}
+        numberOfLines={1}
         {...keyboardLink}
         onPress={onContentPress}
         accessibilityRole={onContentPress ? "link" : undefined}
@@ -97,5 +103,10 @@ function ImagePill({
 const styles = StyleSheet.create((theme) => ({
   row: { flexDirection: "row", gap: theme.spacing[2], flexWrap: "wrap" },
   spacing: { marginBottom: theme.spacing[2] },
-  summary: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm },
+  sharedSummary: { flex: 1, minWidth: 0 },
+  summary: {
+    color: theme.colors.userMessageMutedForeground,
+    fontSize: theme.fontSize.sm,
+    flexShrink: 1,
+  },
 }));

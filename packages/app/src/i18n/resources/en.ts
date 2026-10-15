@@ -65,6 +65,19 @@ export const en = {
     additionsHint: "These workflows remain available",
     saveFailed: "Unable to save. Try again.",
     features: {
+      workspaceChatLinks: {
+        label: "Open chat links in Paseo",
+        hint: "Open web links from workspace chats in that workspace’s browser on desktop. Turn off to use your external browser. Open in Paseo remains in the link menu.",
+      },
+      sidebarHostUpdates: {
+        label: "Host updates in the sidebar",
+        hint: "Show host update actions in the host menu. Host settings remain available when this is off.",
+      },
+      mobileWorkspaceTabs: {
+        label: "Mobile workspace tabs",
+        hint: "Show a scrolling tab strip in compact workspaces. Turn off to use the earlier tab chooser without changing the selected tab.",
+      },
+
       descriptiveToolCalls: {
         label: "Readable tool activity",
         hint: "Describe known operations while keeping exact commands and output in details. Turn off to restore classic labels.",
@@ -110,7 +123,7 @@ export const en = {
     links: {
       sidebar: {
         label: "Workspace order and details",
-        hint: "Sort projects and workspaces independently by name, status or custom order. Show last activity and code-change totals together; project and branch labels are on by default. Adjust these in Display in the workspace sidebar.",
+        hint: "Sort projects and workspaces independently by name, status or custom order. Show last activity and code-change totals together; project labels are on by default. Branch labels are optional and off by default. Adjust these in Display in the workspace sidebar.",
       },
     },
     fixesList: {
@@ -165,7 +178,10 @@ export const en = {
     checking: "Checking for updates…",
     current: "You have the latest published preview.",
     available: "Preview {{version}} is available.",
-    downloading: "Downloading and verifying the update…",
+    downloading: "Preparing the update download…",
+    downloadProgress: "Downloading {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "Downloading {{downloaded}}…",
+    verifying: "Verifying the downloaded update…",
     permission:
       "Allow updates from this app in Android Settings, then return and tap Install update again.",
     installer: "Finish installation in Android. If you cancelled, tap Install update to try again.",
@@ -758,6 +774,8 @@ export const en = {
       },
     },
     browser: {
+      openInPaseo: "Open in Paseo browser",
+      openExternally: "Open in external browser",
       unavailable: {
         title: "Browser is desktop-only",
         subtitle: "Open this workspace in Electron to use the built-in browser.",
@@ -2672,6 +2690,21 @@ export const en = {
       },
     },
     appearance: {
+      accent: {
+        title: "Accent color",
+        hint: "Used for primary controls and your messages",
+        updateHost: "Update your selected settings host to change the accent color",
+        preview: "This is how your messages will look",
+        options: {
+          default: "Default",
+          blue: "Blue",
+          green: "Green",
+          purple: "Purple",
+          rose: "Rose",
+          orange: "Orange",
+          teal: "Teal",
+        },
+      },
       theme: {
         title: "Theme",
         accessibilityLabel: "Theme: {{value}}",

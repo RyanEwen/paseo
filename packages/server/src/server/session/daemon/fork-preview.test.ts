@@ -2,7 +2,12 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { describe, expect, test } from "vitest";
-import { downloadForkPreview, selectForkPreview, verifyForkChecksum } from "./fork-preview.js";
+import {
+  downloadForkPreview,
+  resolveForkPreview,
+  selectForkPreview,
+  verifyForkChecksum,
+} from "./fork-preview.js";
 
 function release(build: number, options: { draft?: boolean; missingPackage?: boolean } = {}) {
   const tag = `v0.11.1-preview.${build}`;
@@ -24,6 +29,31 @@ describe("fork preview updates", () => {
     expect(
       selectForkPreview([release(9), release(12), release(13, { draft: true })]).filename,
     ).toBe(`paseo-daemon-0.11.1-preview.12-${process.platform}-${process.arch}.tgz`);
+  });
+  test("keeps a bridge visible to old hosts while upgraded hosts discover normal releases", () => {
+    const bridge = release(77);
+    const normal = { ...release(80), prerelease: false };
+    const releases = [normal, bridge, release(76), release(81, { draft: true })];
+    const legacyVisible = releases.filter((candidate) => candidate.prerelease);
+    expect(selectForkPreview(legacyVisible).version).toBe("0.11.1-preview.77");
+    expect(selectForkPreview(releases).version).toBe("0.11.1-preview.80");
+    expect(() => selectForkPreview([{ ...normal, assets: [] }, bridge])).toThrow(
+      "Fork preview has no daemon package",
+    );
+    normal.assets[0].browser_download_url += "?download=1";
+    expect(() => selectForkPreview([normal])).toThrow("Unexpected fork release asset URL");
+  });
+  test("ignores other tag namespaces and refuses invalid workflow counters", () => {
+    expect(
+      selectForkPreview([
+        { ...release(99), prerelease: false, tag_name: "v1.0.0" },
+        { ...release(98), tag_name: "v1.0.0-beta.1" },
+        release(77),
+      ]).version,
+    ).toBe("0.11.1-preview.77");
+    for (const build of [0, 1_100_000_001, 10 ** 20]) {
+      expect(() => selectForkPreview([release(build)])).toThrow("Invalid preview build number");
+    }
   });
   test("refuses an incomplete newest preview rather than selecting older bytes", () => {
     expect(() => selectForkPreview([release(12, { missingPackage: true }), release(9)])).toThrow(
@@ -90,6 +120,7 @@ describe("daemon repository rename bridge", () => {
   test("accepts canonical assets from the renamed repository", () => {
     const preview = renamedRelease();
     expect(selectForkPreview([preview])).toEqual({
+      version: "0.11.1-preview.12",
       filename: preview.assets[0].name,
       packageAsset: preview.assets[0],
       checksumAsset: preview.assets[1],
@@ -199,4 +230,27 @@ describe("daemon repository rename bridge", () => {
       }),
     ).rejects.toThrow("checksum mismatch");
   });
+});
+
+test("availability discovers the platform package and checksum asset without downloading bytes", async () => {
+  const calls: string[] = [];
+  const preview = release(12);
+  const result = await resolveForkPreview({
+    request: async (url) => {
+      calls.push(url);
+      return Response.json([preview]);
+    },
+  });
+  expect(result.version).toBe("0.11.1-preview.12");
+  expect(calls).toEqual([
+    "https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100&page=1",
+  ]);
+});
+
+test("availability refuses a missing checksum asset", async () => {
+  const preview = release(12);
+  preview.assets.pop();
+  await expect(
+    resolveForkPreview({ request: async () => Response.json([preview]) }),
+  ).rejects.toThrow("Fork preview has no daemon package");
 });

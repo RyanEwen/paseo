@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { createServer } from "node:http";
 import net from "node:net";
@@ -86,15 +86,48 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+/** Create ordinary Git test data only in the runner's disposable workspace directory. */
+function seedRepositoryFixture(cwd) {
+  const options = { cwd, stdio: "ignore" };
+  execFileSync("git", ["init", "--initial-branch=main"], options);
+  // Fixture commits need neither the user's signing setup nor their global hooks.
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "-c",
+      "commit.gpgSign=false",
+      "-c",
+      `core.hooksPath=${path.join(cwd, ".git", "fixture-hooks")}`,
+      "commit",
+      "--allow-empty",
+      "-m",
+      "Seed isolated repository fixture",
+    ],
+    options,
+  );
+  execFileSync(
+    "git",
+    ["remote", "add", "origin", "https://github.com/acme/workspace-links.git"],
+    options,
+  );
+}
+
 function seedPaseoHome(paseoHome, listen, workspaceRoot) {
   const timestamp = "2026-01-01T00:00:00.000Z";
   const projects = workspaceIds.map((workspaceId, index) => {
     const cwd = path.join(workspaceRoot, `workspace-${index + 1}`);
     fs.mkdirSync(cwd, { recursive: true });
+    if (index === 0) {
+      seedRepositoryFixture(cwd);
+    }
     return {
       projectId: `project-${workspaceId}`,
       rootPath: cwd,
-      kind: "non_git",
+      kind: index === 0 ? "git" : "non_git",
       displayName: `Desktop browser project ${index + 1}`,
       customName: null,
       createdAt: timestamp,
@@ -109,7 +142,7 @@ function seedPaseoHome(paseoHome, listen, workspaceRoot) {
     kind: "directory",
     displayName: `Desktop browser workspace ${index + 1}`,
     title: `Desktop browser workspace ${index + 1}`,
-    branch: null,
+    branch: index === 0 ? "main" : null,
     baseBranch: null,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -273,7 +306,7 @@ async function waitForGuestActiveElement(client, browserId, elementId) {
   return false;
 }
 
-async function createCallerAgent(daemonPort, workspaceId = workspaceIds[0]) {
+async function createCallerAgent({ daemonPort, workspaceId = workspaceIds[0], responseText }) {
   const transport = new StreamableHTTPClientTransport(
     new URL(`http://127.0.0.1:${daemonPort}/mcp/agents`),
   );
@@ -286,7 +319,10 @@ async function createCallerAgent(daemonPort, workspaceId = workspaceIds[0]) {
         workspace: { kind: "existing", workspaceId },
         title: "Browser desktop browser E2E caller",
         provider: "mock/ten-second-stream",
-        settings: { modeId: "load-test" },
+        settings: {
+          modeId: "load-test",
+          features: responseText ? { mockAssistantResponse: responseText } : {},
+        },
         initialPrompt: "Remain available while the browser bridge regression runs.",
       },
     });
@@ -1323,6 +1359,9 @@ async function main() {
       runPluginLinksRegression({
         page,
         remotePort,
+        serverId: status.serverId,
+        createChatAgent: () =>
+          createCallerAgent({ daemonPort, responseText: `[Workspace chat link](${target.url})` }),
         workspaceId: workspaceIds[0],
         remoteWorkspaceId: workspaceIds[1],
         url: target.url,
@@ -1346,10 +1385,10 @@ async function main() {
 
     await runAppearanceFontSizeRegression(page);
 
-    const callerAgentId = await createCallerAgent(daemonPort);
+    const callerAgentId = await createCallerAgent({ daemonPort });
     const typingAgent = {
       workspaceId: workspaceIds.at(-1),
-      agentId: await createCallerAgent(daemonPort, workspaceIds.at(-1)),
+      agentId: await createCallerAgent({ daemonPort, workspaceId: workspaceIds.at(-1) }),
     };
     const transport = new StreamableHTTPClientTransport(
       new URL(

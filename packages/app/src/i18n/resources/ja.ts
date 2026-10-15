@@ -68,6 +68,19 @@ export const ja: TranslationResources = {
     additionsHint: "これらの操作は引き続き利用できます",
     saveFailed: "保存できませんでした。もう一度お試しください。",
     features: {
+      workspaceChatLinks: {
+        label: "チャットのリンクをPaseoで開く",
+        hint: "デスクトップでは、チャットのウェブリンクをそのワークスペースのブラウザーで開きます。オフにすると外部ブラウザーを使います。リンクメニューの「Paseoで開く」は引き続き使えます。",
+      },
+      sidebarHostUpdates: {
+        label: "サイドバーのホスト更新",
+        hint: "ホストメニューに更新操作を表示します。オフにしてもホスト設定は引き続き利用できます。",
+      },
+      mobileWorkspaceTabs: {
+        label: "モバイルのワークスペースタブ",
+        hint: "コンパクト表示でスクロール可能なタブバーを表示します。オフにすると、選択中のタブを変えずに以前のタブ選択に戻ります。",
+      },
+
       descriptiveToolCalls: {
         label: "わかりやすいツール操作",
         hint: "既知の操作を説明し、正確なコマンドと出力は詳細に保持します。無効にすると従来のラベルに戻ります。",
@@ -113,7 +126,7 @@ export const ja: TranslationResources = {
     links: {
       sidebar: {
         label: "ワークスペースの順序と詳細",
-        hint: "プロジェクトとワークスペースを個別に名前、状態、任意の順序で並べ替えられます。最終アクティビティとコード変更の合計を同時に表示できます。プロジェクト名とブランチ名は既定で表示されます。ワークスペースのサイドバーにある表示メニューで設定してください。",
+        hint: "プロジェクトとワークスペースを個別に名前、状態、任意の順序で並べ替えられます。最終アクティビティとコード変更の合計を同時に表示できます。プロジェクト名は既定で表示されます。ブランチ名の表示は任意で、既定では非表示です。ワークスペースのサイドバーにある表示メニューで設定してください。",
       },
     },
     fixesList: {
@@ -169,6 +182,9 @@ export const ja: TranslationResources = {
     current: "最新の公開プレビューを使用しています。",
     available: "プレビュー {{version}} が利用可能です。",
     downloading: "更新をダウンロードして検証中…",
+    downloadProgress: "ダウンロード中 {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "ダウンロード中 {{downloaded}}…",
+    verifying: "ダウンロードした更新を検証中…",
     permission:
       "Android の設定でこのアプリからの更新を許可し、戻って「更新をインストール」をもう一度タップしてください。",
     installer:
@@ -769,6 +785,8 @@ export const ja: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Paseo ブラウザーで開く",
+      openExternally: "外部ブラウザーで開く",
       unavailable: {
         title: "ブラウザはデスクトップ専用です",
         subtitle: "組み込みブラウザを使用するには、このワークスペースをElectronで開いてください。",
@@ -2576,6 +2594,21 @@ export const ja: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "アクセントカラー",
+        hint: "主要な操作と自分のメッセージに使用します",
+        updateHost: "アクセントカラーを変更するには、選択した設定ホストを更新してください",
+        preview: "メッセージはこのように表示されます",
+        options: {
+          default: "デフォルト",
+          blue: "ブルー",
+          green: "グリーン",
+          purple: "パープル",
+          rose: "ローズ",
+          orange: "オレンジ",
+          teal: "ティール",
+        },
+      },
       theme: {
         title: "テーマ",
         accessibilityLabel: "テーマ: {{value}}",

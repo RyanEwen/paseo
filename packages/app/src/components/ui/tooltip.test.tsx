@@ -2,7 +2,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { JSDOM } from "jsdom";
-import { Pressable, Text, View } from "react-native";
+import { Dimensions, Pressable, Text, View } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Tooltip, TooltipTrigger } from "./tooltip";
 import { SettingsInfoTip } from "@/components/settings/headings/settings-info-tip";
@@ -73,13 +73,6 @@ vi.mock("react-native-reanimated", () => ({
   FadeOut: { duration: () => undefined },
 }));
 
-vi.mock("react-native-unistyles", () => ({
-  withUnistyles: (component: unknown) => component,
-  StyleSheet: {
-    create: (styles: unknown) => styles,
-  },
-}));
-
 let root: Root | null = null;
 let container: HTMLElement | null = null;
 
@@ -93,6 +86,11 @@ beforeEach(() => {
   vi.stubGlobal("HTMLElement", dom.window.HTMLElement);
   vi.stubGlobal("Node", dom.window.Node);
   vi.stubGlobal("navigator", dom.window.navigator);
+  // React Native Web initializes Dimensions before this manually installed JSDOM window.
+  Dimensions.set({
+    window: { width: 390, height: 844, scale: 1, fontScale: 1 },
+    screen: { width: 390, height: 844, scale: 1, fontScale: 1 },
+  });
 
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -265,6 +263,7 @@ describe("SettingsInfoTip", () => {
               width: 60,
               height: 36,
               arrows: [{ fromX: 10, fromY: 32, toX: 20, toY: 18 }],
+              outlines: [{ left: 4, top: 4, width: 48, height: 24 }],
             },
           ]}
         />,
@@ -276,9 +275,45 @@ describe("SettingsInfoTip", () => {
     expect(image?.parentElement?.style.width).toBe("60px");
     const annotation = document.querySelector('svg[viewBox="0 0 60 36"]');
     expect(annotation?.getAttribute("aria-hidden")).toBe("true");
+    expect(annotation?.querySelectorAll("rect")).toHaveLength(2);
     expect(image?.getAttribute("alt")).toBe("Bulk actions example. Expand and collapse groups");
     expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
       "Expand and collapse groups",
     );
+  });
+  it("frames the contextual region without changing the full screenshot and stays within a narrow screen", () => {
+    layout.compact = true;
+    Dimensions.set({
+      window: { width: 320, height: 640, scale: 1, fontScale: 1 },
+      screen: { width: 320, height: 640, scale: 1, fontScale: 1 },
+    });
+    act(() =>
+      root?.render(
+        <SettingsExample
+          title="Project activity"
+          caption="Status beside its project and workspaces"
+          testID="context-help"
+          images={[
+            {
+              id: "project-context",
+              source: 1,
+              width: 1440,
+              height: 900,
+              viewport: { left: 0, top: 125, width: 320, height: 270 },
+            },
+          ]}
+        />,
+      ),
+    );
+    pressSettingsHelp("Project activity");
+    const image = document.querySelector("img")!;
+    const original = image.parentElement!;
+    const frame = original.parentElement!;
+    expect(frame.style.width).toBe("272px");
+    expect(original.style.width).toBe("1224px");
+    expect(original.style.height).toBe("765px");
+    expect(original.style.top).toBe("-106.25px");
+    expect(document.querySelector("svg")).toBeNull();
+    expect(image.getAttribute("alt")).toContain("Status beside its project and workspaces");
   });
 });

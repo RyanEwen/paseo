@@ -31,7 +31,7 @@ export function createSettingsHostTransport(
     const previous = current;
     current = null;
     if (previous) await previous.release();
-    input.signal.throwIfAborted();
+    throwIfSettingsReadAborted(input.signal);
     if (generation !== readGeneration) throw new Error("Settings read was superseded");
 
     const subscription = input.client.observeAppSettings({ signal: input.signal });
@@ -48,7 +48,7 @@ export function createSettingsHostTransport(
     });
     try {
       const result = await subscription.ready;
-      input.signal.throwIfAborted();
+      throwIfSettingsReadAborted(input.signal);
       initialized = true;
       return result.snapshot;
     } catch (error) {
@@ -64,4 +64,11 @@ export function createSettingsHostTransport(
       return !input.signal.aborted && current === subscription && generation === readGeneration;
     }
   }
+}
+
+/** Native signals expose abort state/events without the newer helper; retain any original reason. */
+function throwIfSettingsReadAborted(signal: AbortSignal): void {
+  if (!signal.aborted) return;
+  if (signal.reason !== undefined) throw signal.reason;
+  throw Object.assign(new Error("Settings read aborted"), { name: "AbortError" });
 }

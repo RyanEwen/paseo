@@ -63,7 +63,7 @@ export interface SettingsSyncTransport {
 export interface SettingsSyncDeps {
   readLocal(): Promise<unknown>;
   writeLocal(value: LocalState): Promise<void>;
-  getDeviceValues(): Promise<Record<string, unknown>>;
+  getDeviceValues(purpose: "backup" | "publish"): Promise<Record<string, unknown>>;
   applyValues(values: Record<string, unknown>): Promise<void>;
 }
 
@@ -178,7 +178,7 @@ export class SettingsSyncModel {
         if (!this.current(host, generation)) return;
         const old = this.local.hosts[host];
         if (old && snapshot.revision < old.snapshot.revision) return;
-        const backup = old?.backup ?? (await this.deps.getDeviceValues());
+        const backup = old?.backup ?? (await this.deps.getDeviceValues("backup"));
         if (!this.current(host, generation)) return;
         // An unknown-outcome write that is already durable needs no second write.
         const pending = (old?.pending ?? []).filter(
@@ -266,7 +266,7 @@ export class SettingsSyncModel {
     const generation = this.generation;
     if (!host || !transport?.writable || this.state.status !== "empty")
       throw new Error("Read an empty settings host before publishing");
-    const values = await this.deps.getDeviceValues();
+    const values = await this.deps.getDeviceValues("publish");
     if (!this.current(host, generation)) return;
     const patches = settingsDiff({}, values, EMPTY).filter((patch) =>
       isSyncedSettingsPath(patch.path),

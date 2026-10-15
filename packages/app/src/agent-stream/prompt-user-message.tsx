@@ -6,7 +6,7 @@ import {
 } from "./prompt-bubble-geometry";
 import { memo, useMemo, useCallback, useContext, type ComponentProps } from "react";
 import { UserMessage } from "@/components/message";
-import { PromptNavigationActions } from "./prompt-navigation-actions";
+import { PromptNavigationActions, PromptNavigationContext } from "./prompt-navigation-actions";
 
 /** Attach viewport-owned navigation without changing the shared message renderer's identity. */
 export const PromptUserMessage = memo(function PromptUserMessage({
@@ -32,9 +32,11 @@ export const PromptUserMessage = memo(function PromptUserMessage({
     (event: TextLayoutEvent) => geometry?.onTextLayout(timelineMessageId, event.nativeEvent.lines),
     [geometry, timelineMessageId],
   );
+  const navigation = useContext(PromptNavigationContext);
+  const hasNavigation = navigation?.targetIds.includes(timelineMessageId) ?? false;
   const actions = useMemo(
-    () => <PromptNavigationActions messageId={timelineMessageId} />,
-    [timelineMessageId],
+    () => (hasNavigation ? <PromptNavigationActions messageId={timelineMessageId} /> : null),
+    [timelineMessageId, hasNavigation],
   );
   return (
     <UserMessage
@@ -44,6 +46,7 @@ export const PromptUserMessage = memo(function PromptUserMessage({
       bubbleRef={geometry ? registerBubble : undefined}
       onBubbleLayout={geometry ? onBubbleLayout : undefined}
       navigationActions={actions}
+      keepActionsVisible={navigation?.actionVisibleMessageId === timelineMessageId}
     />
   );
 });

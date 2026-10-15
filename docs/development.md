@@ -1,5 +1,8 @@
 # Development
 
+For this fork's branch roles, feature ownership, and integration process, follow the
+[worktree guide](worktree-development.md#fork-branches-and-ownership).
+
 ## Prerequisites
 
 - Node.js (see `.tool-versions` for exact version)
@@ -371,6 +374,9 @@ exact ref also resolves through its stored branch name.
 
 Worktrees inherit committed Git state only; uncommitted source-checkout changes are not copied.
 
+These are generic application ref-resolution rules. For this fork, use the explicit base and
+comparison targets in the [fork branch strategy](worktree-development.md#fork-branches-and-ownership).
+
 ## paseo.json service scripts
 
 `worktree.setup` and `worktree.teardown` accept either a multiline shell script or an array
@@ -488,6 +494,11 @@ Measured bundle size for a standard Expo web export:
 - brotli: 1.93 MiB
 
 The desktop-managed daemon disables the bundled web UI by default (`PASEO_WEB_UI_ENABLED=false`) because the desktop app already ships the renderer as `app-dist`. Shipping the same assets again inside `@getpaseo/server` would duplicate the ~10.8 MiB install. Desktop packaging also excludes `node_modules/@getpaseo/server/dist/server/web-ui/**` from the packaged app.
+
+## Worktree qualification and integration
+
+See [worktree development and integration](worktree-development.md) for dependency qualification,
+validation handoffs, frozen preview evidence, and combining concurrent feature changes.
 
 ## Built workspace packages
 
