@@ -223,9 +223,12 @@ test.describe("Settings — compact master-detail", () => {
     const workspaceRoute = buildHostWorkspaceRoute(getServerId(), workspace.workspaceId);
 
     await openWorkspace(page, workspace);
-    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    await openMobileAgentSidebar(page);
     await page.getByTestId("sidebar-hosts-trigger").click();
-    await page.getByRole("button", { name: /Open .* settings/ }).click();
+    await page
+      .getByTestId(`sidebar-host-row-${getServerId()}`)
+      .getByRole("button", { name: "Open localhost settings", exact: true })
+      .click();
 
     await expectAppRoute(page, buildSettingsHostSectionRoute(getServerId(), "host"));
     await expect(page.getByText("Overview", { exact: true })).toBeVisible();
