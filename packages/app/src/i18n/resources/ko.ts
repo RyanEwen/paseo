@@ -68,6 +68,19 @@ export const ko: TranslationResources = {
     additionsHint: "이 작업은 계속 사용할 수 있습니다",
     saveFailed: "저장하지 못했습니다. 다시 시도하세요.",
     features: {
+      workspaceChatLinks: {
+        label: "채팅 링크를 Paseo에서 열기",
+        hint: "데스크톱에서 채팅 웹 링크를 해당 작업공간의 브라우저로 엽니다. 끄면 외부 브라우저를 사용합니다. 링크 메뉴의 Paseo에서 열기는 계속 사용할 수 있습니다.",
+      },
+      sidebarHostUpdates: {
+        label: "사이드바의 호스트 업데이트",
+        hint: "호스트 메뉴에 업데이트 작업을 표시합니다. 꺼도 호스트 설정은 계속 사용할 수 있습니다.",
+      },
+      mobileWorkspaceTabs: {
+        label: "모바일 작업공간 탭",
+        hint: "작은 화면에서 스크롤 가능한 탭 막대를 표시합니다. 끄면 선택한 탭을 유지하며 이전 탭 선택기를 사용합니다.",
+      },
+
       descriptiveToolCalls: {
         label: "읽기 쉬운 도구 활동",
         hint: "알려진 작업을 설명하고 정확한 명령과 출력은 세부 정보에 보존합니다. 끄면 기존 레이블로 돌아갑니다.",
@@ -113,7 +126,7 @@ export const ko: TranslationResources = {
     links: {
       sidebar: {
         label: "워크스페이스 순서 및 세부 정보",
-        hint: "프로젝트와 워크스페이스를 이름, 상태 또는 사용자 지정 순서로 각각 정렬하세요. 최근 활동과 코드 변경 합계를 함께 표시할 수 있으며, 프로젝트와 브랜치 이름은 기본으로 표시됩니다. 워크스페이스 사이드바의 표시 메뉴에서 설정하세요.",
+        hint: "프로젝트와 워크스페이스를 이름, 상태 또는 사용자 지정 순서로 각각 정렬하세요. 최근 활동과 코드 변경 합계를 함께 표시할 수 있으며, 프로젝트 이름은 기본으로 표시됩니다. 브랜치 이름 표시는 선택 사항이며 기본으로 꺼져 있습니다. 워크스페이스 사이드바의 표시 메뉴에서 설정하세요.",
       },
     },
     fixesList: {
@@ -169,6 +182,9 @@ export const ko: TranslationResources = {
     current: "최신 공개 프리뷰를 사용 중입니다.",
     available: "프리뷰 {{version}}을 사용할 수 있습니다.",
     downloading: "업데이트 다운로드 및 검증 중…",
+    downloadProgress: "다운로드 중 {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "다운로드 중 {{downloaded}}…",
+    verifying: "다운로드한 업데이트 확인 중…",
     permission:
       "Android 설정에서 이 앱의 업데이트를 허용한 후 돌아와서 업데이트 설치를 다시 누르세요.",
     installer: "Android에서 설치를 완료하세요. 취소했다면 업데이트 설치를 눌러 다시 시도하세요.",
@@ -762,6 +778,8 @@ export const ko: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Paseo 브라우저에서 열기",
+      openExternally: "외부 브라우저에서 열기",
       unavailable: {
         title: "브라우저는 데스크톱 전용입니다",
         subtitle: "내장 브라우저를 사용하려면 이 워크스페이스를 Electron에서 여세요.",
@@ -2561,6 +2579,21 @@ export const ko: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "강조 색상",
+        hint: "주요 컨트롤과 내 메시지에 사용됩니다",
+        updateHost: "강조 색상을 변경하려면 선택한 설정 호스트를 업데이트하세요",
+        preview: "메시지가 이렇게 표시됩니다",
+        options: {
+          default: "기본값",
+          blue: "파랑",
+          green: "초록",
+          purple: "보라",
+          rose: "장미색",
+          orange: "주황",
+          teal: "청록",
+        },
+      },
       theme: {
         title: "테마",
         accessibilityLabel: "테마: {{value}}",

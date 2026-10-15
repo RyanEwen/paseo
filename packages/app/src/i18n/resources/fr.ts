@@ -70,6 +70,19 @@ export const fr: TranslationResources = {
     additionsHint: "Ces fonctions restent disponibles",
     saveFailed: "Échec de l’enregistrement. Réessayez.",
     features: {
+      workspaceChatLinks: {
+        label: "Ouvrir les liens de discussion dans Paseo",
+        hint: "Sur ordinateur, ouvrir les liens web des discussions dans le navigateur de leur espace. Désactivez pour utiliser votre navigateur externe. Ouvrir dans Paseo reste disponible dans le menu du lien.",
+      },
+      sidebarHostUpdates: {
+        label: "Mises à jour des hôtes dans la barre latérale",
+        hint: "Afficher les actions de mise à jour dans le menu des hôtes. Les réglages des hôtes restent accessibles si cette option est désactivée.",
+      },
+      mobileWorkspaceTabs: {
+        label: "Onglets des espaces sur mobile",
+        hint: "Afficher une barre d’onglets défilante dans les espaces compacts. Désactivez pour retrouver le sélecteur précédent sans changer l’onglet actif.",
+      },
+
       descriptiveToolCalls: {
         label: "Activité des outils lisible",
         hint: "Décrit les opérations connues et conserve les commandes et sorties exactes dans les détails. Désactivez pour rétablir les libellés classiques.",
@@ -115,7 +128,7 @@ export const fr: TranslationResources = {
     links: {
       sidebar: {
         label: "Ordre et détails des espaces de travail",
-        hint: "Triez séparément les projets et les espaces de travail par nom, état ou ordre personnalisé. Affichez ensemble la dernière activité et les totaux des modifications du code ; les libellés de projet et de branche sont activés par défaut. Réglez ces options dans Affichage, dans la barre latérale des espaces de travail.",
+        hint: "Triez séparément les projets et les espaces de travail par nom, état ou ordre personnalisé. Affichez ensemble la dernière activité et les totaux des modifications du code ; les libellés de projet sont activés par défaut. Les libellés de branche sont facultatifs et désactivés par défaut. Réglez ces options dans Affichage, dans la barre latérale des espaces de travail.",
       },
     },
     fixesList: {
@@ -171,6 +184,9 @@ export const fr: TranslationResources = {
     current: "Vous avez la dernière préversion publiée.",
     available: "La préversion {{version}} est disponible.",
     downloading: "Téléchargement et vérification de la mise à jour…",
+    downloadProgress: "Téléchargement à {{percent}} % ({{downloaded}} / {{total}})",
+    downloadBytes: "Téléchargement de {{downloaded}}…",
+    verifying: "Vérification de la mise à jour téléchargée…",
     permission:
       "Autorisez les mises à jour depuis cette application dans les paramètres Android, puis revenez et appuyez à nouveau sur Installer la mise à jour.",
     installer:
@@ -770,6 +786,8 @@ export const fr: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Ouvrir dans le navigateur Paseo",
+      openExternally: "Ouvrir dans un navigateur externe",
       unavailable: {
         title: "Le navigateur est réservé à l’app de bureau",
         subtitle: "Ouvrez cet espace de travail dans Electron pour utiliser le navigateur intégré.",
@@ -2616,6 +2634,22 @@ export const fr: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "Couleur d’accent",
+        hint: "Utilisée pour les commandes principales et vos messages",
+        updateHost:
+          "Mettez à jour l’hôte de paramètres sélectionné pour changer la couleur d’accent",
+        preview: "Voici l’apparence de vos messages",
+        options: {
+          default: "Par défaut",
+          blue: "Bleu",
+          green: "Vert",
+          purple: "Violet",
+          rose: "Rose",
+          orange: "Orange",
+          teal: "Sarcelle",
+        },
+      },
       theme: {
         title: "Thème",
         accessibilityLabel: "Thème : {{value}}",

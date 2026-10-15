@@ -1,6 +1,6 @@
 # Design
 
-Tokens — every color, font size, weight, spacing step, radius, icon size — live in `packages/app/src/styles/theme.ts`.
+Tokens, including font sizes, weights, spacing, radii, icon sizes and semantic colors, live in `packages/app/src/styles/theme.ts`. Curated accent pairs live in `packages/app/src/styles/accent.ts`.
 
 ---
 
@@ -47,6 +47,19 @@ Foreground is for the thing being acted on: row titles, section headings, the se
 `foregroundExtraMuted` is reserved for passive chrome that must sit behind muted text, such as an always-visible window control. Use the solid token instead of lowering SVG opacity; per-path opacity makes overlapping icon strokes render unevenly. Interactive hover and pressed states return to `foreground`.
 
 Accent is the one CTA per surface. A `<Button variant="default">` filled with `accent` appears at most once on a page. Most pages have zero — settings is mostly toggles and text, the workspace pane is mostly content, the chat composer is the input itself.
+
+The Appearance accent choice changes `accent`, `accentBright`, `accentForeground` and the
+`userMessage*` tokens. User-message text, attachment summaries, disclosure controls and prefix
+masks follow those tokens, including pinned copies. Status, identity, terminal and focus-ring
+colors retain their own meaning. Ghost buttons honor an explicit `textStyle` color on hover so
+controls inside a colored surface can preserve their contrast.
+
+Apply accent choices from the authored theme, including the selected plugin contribution.
+Default restores that palette; never derive a reset from an already patched runtime theme.
+Light and dark accents have separate fills and foregrounds. Hold text at 4.5:1 and primary
+controls at 3:1 against built-in surfaces, including pressed states. Arbitrary plugin surfaces
+can differ from their declared light/dark scheme; the accent fill/text pair stays readable,
+but the surrounding plugin surface determines the control boundary contrast.
 
 Destructive is a color, not a click. Restart-daemon and remove-host are `<Button variant="outline">` in the row trailing slot; the destructive surface only appears inside the `confirmDialog` (`packages/app/src/screens/settings/host-page.tsx:541-547`). Workspace archive opens a confirm dialog before any red appears (`packages/app/src/components/sidebar-workspace-list.tsx`). Red appears after the user has indicated intent.
 

@@ -23,6 +23,7 @@ import {
   RenameTerminalResponseSchema,
   RestartRequestedStatusPayloadSchema,
   ShutdownRequestedStatusPayloadSchema,
+  DaemonUpdateAvailabilityResponseSchema,
   DaemonUpdateResponseSchema,
   SessionInboundMessageSchema,
   type ActiveTurnBehavior,
@@ -3823,6 +3824,25 @@ export class DaemonClient {
           return null;
         }
         return shutdown.data;
+      },
+    });
+  }
+
+  /** Read installable update availability without changing the selected host. */
+  async checkDaemonUpdateAvailability() {
+    const requestId = this.createRequestId();
+    const message = SessionInboundMessageSchema.parse({
+      type: "daemon.update.check_availability.request",
+      requestId,
+    });
+    return this.sendRequest({
+      requestId,
+      message,
+      timeout: 300_000,
+      select: (msg) => {
+        const parsed = DaemonUpdateAvailabilityResponseSchema.safeParse(msg);
+        if (!parsed.success || parsed.data.payload.requestId !== requestId) return null;
+        return parsed.data.payload;
       },
     });
   }

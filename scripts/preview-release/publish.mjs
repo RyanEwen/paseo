@@ -6,14 +6,16 @@ import { uploadWithRetry } from "../upload-release-assets.mjs";
 import { isMainModule } from "../is-main-module.mjs";
 import { validatePreviewAssets } from "./assets.mjs";
 import { requirePreviewRepository } from "./source.mjs";
+import { requirePublicationPolicy, updaterBridgeMarker } from "./publication-policy.mjs";
 
 /** Publish only a complete validated draft; never replace the bytes of a published preview. */
-export async function publishPreviewRelease({ directory, repo, notes, publish }) {
+export async function publishPreviewRelease({ directory, repo, notes, publish, kind = "bridge" }) {
   requirePreviewRepository(repo);
   if (!notes?.trim()) {
     throw new Error("Provide user-facing release notes before creating a preview");
   }
   const release = JSON.parse(readFileSync(path.join(directory, "preview-release.json"), "utf8"));
+  requirePublicationPolicy({ kind, repo, release });
   await validatePreviewAssets({ directory, release });
   const existing = getGitHubRelease(repo, release.tag);
   if (existing && (!existing.draft || existing.target_commitish !== release.commit)) {
@@ -24,15 +26,17 @@ export async function publishPreviewRelease({ directory, repo, notes, publish })
 
 Windows (x64 and ARM64), Linux (x64 and ARM64), standalone Linux daemon/CLI packages, and Android builds are attached.
 Install Paseo++ alongside the official app. Windows and Linux AppImage builds
-receive future previews from this fork. Standalone hosts can install their matching daemon
-package with npm and run paseo-plus-plus; host updates stay on fork previews.
-Android previews check for updates in the app and install them with Android's approval.
+receive future updates from this fork. Standalone hosts can install their matching daemon
+package with npm and run paseo-plus-plus; host updates stay on fork releases.
+Android builds check for updates in the app and install them with Android's approval.
 
 Paseo++ has its own desktop and Android identities and starts with fresh settings.
 Install it separately from the former Debug app, then set up your connections again.
-Subsequent Paseo++ previews update the new installation in place.
+Subsequent Paseo++ releases update the new installation in place.
 
 macOS, iOS, and hosted web previews are not included.
+
+${kind === "bridge" ? updaterBridgeMarker : ""}
 
 *AI disclosure: this comment and the related code were written with the assistance of AI.*
 `;
@@ -94,6 +98,8 @@ macOS, iOS, and hosted web previews are not included.
     );
   }
   if (publish) {
+    // The qualified bridge must still be public and unchanged after uploads finish.
+    const policy = requirePublicationPolicy({ kind, repo, release });
     execFileSync(
       "gh",
       [
@@ -104,9 +110,9 @@ macOS, iOS, and hosted web previews are not included.
         "-F",
         "draft=false",
         "-F",
-        "prerelease=true",
+        `prerelease=${policy.prerelease}`,
         "-f",
-        "make_latest=false",
+        `make_latest=${policy.makeLatest}`,
       ],
       { stdio: "inherit" },
     );
@@ -123,5 +129,6 @@ if (isMainModule(import.meta.url)) {
     repo: process.env.GITHUB_REPOSITORY,
     notes: process.env.PASEO_PREVIEW_NOTES,
     publish: process.env.PASEO_PREVIEW_PUBLISH === "true",
+    kind: process.env.PASEO_PREVIEW_RELEASE_KIND ?? "bridge",
   });
 }

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { OpenFileDisposition } from "@/workspace/file-open";
+import { isHttpUrl } from "@/utils/http-url";
 import { openExternalUrl } from "@/utils/open-external-url";
 import type { InlinePathTarget } from "./parse";
 import {
@@ -308,7 +309,20 @@ async function dispatchExternalUrl(input: {
   ) {
     return;
   }
-  await openExternalUrl(input.url);
+  try {
+    // Keep explicit browser menu actions available while respecting the latest primary-click choice.
+    if (
+      input.context.openHttpLinksInPaseoRef.current &&
+      current.onOpenHttpUrl &&
+      isHttpUrl(input.url)
+    ) {
+      await current.onOpenHttpUrl(input.url);
+    } else {
+      await openExternalUrl(input.url);
+    }
+  } catch (error) {
+    current.toast?.error(error instanceof Error ? error.message : String(error));
+  }
 }
 
 async function dispatchUnresolvedError(input: {

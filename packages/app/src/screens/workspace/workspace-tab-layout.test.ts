@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeWorkspaceTabLayout,
   retainWorkspaceTabMeasuredWidth,
+  resolveWorkspaceTabScrollOffset,
 } from "@/screens/workspace/workspace-tab-layout";
 
 const metrics = {
@@ -112,6 +113,28 @@ describe("computeWorkspaceTabLayout", () => {
     expect(result.items.every((item) => item.showLabel)).toBe(true);
   });
 
+  it("keeps compact labels readable instead of compressing them to fit", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 390,
+      tabLabelWidths: [98, 98, 98, 98],
+      metrics,
+      preserveNaturalWidths: true,
+    });
+    expect(result.requiresHorizontalScrollFallback).toBe(true);
+    expect(result.items).toEqual(
+      Array.from({ length: 4 }, () => ({ width: 132, showLabel: true })),
+    );
+
+    const rotated = computeWorkspaceTabLayout({
+      viewportWidth: 844,
+      tabLabelWidths: [98, 98, 98, 98],
+      metrics,
+      preserveNaturalWidths: true,
+    });
+    expect(rotated.requiresHorizontalScrollFallback).toBe(false);
+    expect(rotated.items).toEqual(result.items);
+  });
+
   it("returns empty layout details when there are no tabs", () => {
     const result = computeWorkspaceTabLayout({
       viewportWidth: 1200,
@@ -142,5 +165,38 @@ describe("retainWorkspaceTabMeasuredWidth", () => {
 
   it("accepts the next usable layout width", () => {
     expect(retainWorkspaceTabMeasuredWidth(720, 640)).toBe(640);
+  });
+});
+
+describe("selected workspace tab visibility", () => {
+  const geometry = {
+    offset: 0,
+    viewportWidth: 300,
+    contentWidth: 800,
+    tabStart: 440,
+    tabWidth: 140,
+  };
+
+  it("reveals an offscreen selected or newly opened tab", () => {
+    expect(resolveWorkspaceTabScrollOffset(geometry)).toBe(280);
+  });
+
+  it("keeps a fully visible selection at the user's current offset", () => {
+    expect(resolveWorkspaceTabScrollOffset({ ...geometry, offset: 400 })).toBe(400);
+  });
+
+  it("reveals an earlier tab after selecting it", () => {
+    expect(resolveWorkspaceTabScrollOffset({ ...geometry, offset: 500 })).toBe(440);
+  });
+
+  it("updates visibility after rotation and clamps after closing tabs", () => {
+    expect(resolveWorkspaceTabScrollOffset({ ...geometry, viewportWidth: 160 })).toBe(420);
+    expect(resolveWorkspaceTabScrollOffset({ ...geometry, offset: 500, contentWidth: 600 })).toBe(
+      300,
+    );
+  });
+
+  it("waits for usable native measurements", () => {
+    expect(resolveWorkspaceTabScrollOffset({ ...geometry, viewportWidth: 0 })).toBe(0);
   });
 });

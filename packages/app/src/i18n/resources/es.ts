@@ -70,6 +70,19 @@ export const es: TranslationResources = {
     additionsHint: "Estas funciones siguen disponibles",
     saveFailed: "No se pudo guardar. Vuelve a intentarlo.",
     features: {
+      workspaceChatLinks: {
+        label: "Abrir enlaces del chat en Paseo",
+        hint: "En escritorio, abrir los enlaces web del chat en el navegador de su espacio. Desactiva para usar el navegador externo. Abrir en Paseo sigue disponible en el menú del enlace.",
+      },
+      sidebarHostUpdates: {
+        label: "Actualizaciones de hosts en la barra lateral",
+        hint: "Mostrar acciones de actualización en el menú de hosts. Los ajustes del host siguen disponibles al desactivar esta opción.",
+      },
+      mobileWorkspaceTabs: {
+        label: "Pestañas de espacios en móvil",
+        hint: "Mostrar una barra de pestañas desplazable en espacios compactos. Desactiva para usar el selector anterior sin cambiar la pestaña seleccionada.",
+      },
+
       descriptiveToolCalls: {
         label: "Actividad de herramientas legible",
         hint: "Describe operaciones conocidas y conserva comandos y resultados exactos en los detalles. Desactiva para restaurar las etiquetas clásicas.",
@@ -115,7 +128,7 @@ export const es: TranslationResources = {
     links: {
       sidebar: {
         label: "Orden y detalles de los espacios de trabajo",
-        hint: "Ordena proyectos y espacios de trabajo por separado por nombre, estado o un orden personalizado. Muestra la última actividad y los totales de cambios de código juntos; las etiquetas de proyecto y rama están activadas por defecto. Ajusta estas opciones en Mostrar, en la barra lateral de espacios de trabajo.",
+        hint: "Ordena proyectos y espacios de trabajo por separado por nombre, estado o un orden personalizado. Muestra la última actividad y los totales de cambios de código juntos; las etiquetas de proyecto están activadas por defecto. Las etiquetas de rama son opcionales y están desactivadas por defecto. Ajusta estas opciones en Mostrar, en la barra lateral de espacios de trabajo.",
       },
     },
     fixesList: {
@@ -171,6 +184,9 @@ export const es: TranslationResources = {
     current: "Tienes la última versión preliminar publicada.",
     available: "La versión preliminar {{version}} está disponible.",
     downloading: "Descargando y verificando la actualización…",
+    downloadProgress: "Descargando {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "Descargando {{downloaded}}…",
+    verifying: "Verificando la actualización descargada…",
     permission:
       "Permite las actualizaciones desde esta aplicación en los ajustes de Android, vuelve y pulsa Instalar actualización de nuevo.",
     installer:
@@ -771,6 +787,8 @@ export const es: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Abrir en el navegador de Paseo",
+      openExternally: "Abrir en un navegador externo",
       unavailable: {
         title: "El navegador es solo para escritorio",
         subtitle: "Abra este espacio de trabajo en Electron para usar el navegador integrado.",
@@ -2618,6 +2636,21 @@ export const es: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "Color de acento",
+        hint: "Se usa en los controles principales y tus mensajes",
+        updateHost: "Actualiza el host de ajustes seleccionado para cambiar el color de acento",
+        preview: "Así se verán tus mensajes",
+        options: {
+          default: "Predeterminado",
+          blue: "Azul",
+          green: "Verde",
+          purple: "Morado",
+          rose: "Rosa",
+          orange: "Naranja",
+          teal: "Verde azulado",
+        },
+      },
       theme: {
         title: "Tema",
         accessibilityLabel: "Tema:{{value}}",

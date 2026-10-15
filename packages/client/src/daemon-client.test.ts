@@ -7527,3 +7527,45 @@ test.each([false, true])(
     await send;
   },
 );
+
+test("correlates a read-only daemon update availability response", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_unit_test",
+    logger: noopLogger,
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connection = client.connect();
+  mock.triggerOpen();
+  await connection;
+  mock.sent.length = 0;
+  const response = client.checkDaemonUpdateAvailability();
+  const request = parseSentFrame(mock.sent[0]);
+  if (request.type !== "daemon.update.check_availability.request") {
+    throw new Error("Expected daemon availability request");
+  }
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "daemon.update.check_availability.response",
+      payload: { requestId: "another-request", version: "9.0.0", reason: null },
+    }),
+  );
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "daemon.update.check_availability.response",
+      payload: {
+        requestId: z.string().parse(request.requestId),
+        version: "0.11.2-preview.14",
+        reason: null,
+      },
+    }),
+  );
+  await expect(response).resolves.toEqual({
+    requestId: z.string().parse(request.requestId),
+    version: "0.11.2-preview.14",
+    reason: null,
+  });
+});

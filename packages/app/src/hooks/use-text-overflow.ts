@@ -4,20 +4,20 @@ import { isWeb } from "@/constants/platform";
 
 /** Measure rendered text overflow. Existing single-line callers need only the visible ref.
  * Clamped previews also mount an identical, unbounded Text at the same width and attach
- * fullRef/onFullTextLayout. Native compares actual laid-out lines; web compares measured
- * full/clamped extents. Hidden retained surfaces preserve their last positive measurement.
+ * fullRef/onFullLayout. Both platforms compare actual full/clamped layout heights.
+ * Hidden retained surfaces preserve their last positive measurement.
  */
 export function useTextOverflow(text: string, numberOfLines = 1) {
   const ref = useRef<Text>(null);
   const fullRef = useRef<Text>(null);
   const width = useRef(0);
   const height = useRef(0);
-  const fullLineCount = useRef<number | null>(null);
+  const fullHeight = useRef(0);
   const [overflowing, setOverflowing] = useState(false);
   const measure = useCallback(() => {
     if (!isWeb) {
-      if (width.current > 0 && height.current > 0 && fullLineCount.current !== null) {
-        setOverflowing(fullLineCount.current > numberOfLines);
+      if (width.current > 0 && height.current > 0 && fullHeight.current > 0) {
+        setOverflowing(fullHeight.current > height.current);
       }
       return;
     }
@@ -33,7 +33,7 @@ export function useTextOverflow(text: string, numberOfLines = 1) {
     } else {
       setOverflowing(element.scrollWidth > element.clientWidth);
     }
-  }, [numberOfLines]);
+  }, []);
   useEffect(() => {
     if (!isWeb || !ref.current) return;
     measure();
@@ -41,7 +41,7 @@ export function useTextOverflow(text: string, numberOfLines = 1) {
     observer.observe(ref.current as unknown as HTMLElement);
     if (fullRef.current) observer.observe(fullRef.current as unknown as HTMLElement);
     return () => observer.disconnect();
-  }, [measure, text]);
+  }, [measure, numberOfLines, text]);
   const onLayout = useCallback(
     (event: LayoutChangeEvent) => {
       width.current = event.nativeEvent.layout.width;
@@ -56,11 +56,20 @@ export function useTextOverflow(text: string, numberOfLines = 1) {
     }
   }, []);
   const onFullTextLayout = useCallback(
-    (event: TextLayoutEvent) => {
-      fullLineCount.current = event.nativeEvent.lines.length;
+    (_event: TextLayoutEvent) => {
       measure();
     },
     [measure],
   );
-  return { ref, fullRef, onLayout, onTextLayout, onFullTextLayout, overflowing };
+  const onFullLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      // Android's TextLayout event remeasures at rounded bounds and can report an
+      // extra line for text that fits. The laid-out probe height is authoritative.
+      const layout = event.nativeEvent.layout;
+      fullHeight.current = layout.width > 0 ? layout.height : 0;
+      measure();
+    },
+    [measure],
+  );
+  return { ref, fullRef, onLayout, onTextLayout, onFullLayout, onFullTextLayout, overflowing };
 }

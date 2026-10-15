@@ -123,3 +123,15 @@ it("rejects Usage host selection and parent replacement while preserving histori
     app: { usage: { serverId: "legacy-host", displayAs: "remaining", futureChoice: true } },
   });
 });
+
+it("durably stores accent choices alongside independent appearance preferences", async () => {
+  const { home, store } = await createStore();
+  await store.patch(
+    [theme("auto"), { path: ["app", "accentColor"], value: "purple", expectedRevision: 0 }],
+    true,
+  );
+  await store.patch([theme("light", 1)]);
+  expect((await new AppSettingsStore(home).read()).values).toEqual({
+    app: { theme: "light", accentColor: "purple" },
+  });
+});

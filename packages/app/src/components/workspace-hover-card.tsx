@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import {
   useCallback,
   useState,
@@ -335,14 +336,16 @@ function ChecksSummaryPressable({
   );
 
   return (
-    <Pressable
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="link"
-      style={checksSummaryPressableStyle}
-      onPress={handlePress}
-    >
-      {renderChildren}
-    </Pressable>
+    <WorkspaceHttpLinkMenu url={buildForgeChecksUrl(forge, url) ?? url}>
+      <Pressable
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="link"
+        style={checksSummaryPressableStyle}
+        onPress={handlePress}
+      >
+        {renderChildren}
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

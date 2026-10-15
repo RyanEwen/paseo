@@ -1,3 +1,4 @@
+import { useNavigationActionVisibility } from "../use-navigation-action-visibility";
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -55,6 +56,72 @@ describe("useChatOutline", () => {
     runtime.listAgentTimelinePrompts.mockReset();
     runtime.fetchAgentTimeline.mockReset();
     runtime.subscribeAgentTimeline.mockClear();
+  });
+
+  it("routes loaded pinned placement while default outline navigation keeps the original landing", () => {
+    const scrollToMessage = vi.fn();
+    const viewportRef = createRef<StreamViewportHandle>();
+    viewportRef.current = {
+      scrollToMessage,
+      scrollToBottom: vi.fn(),
+      prepareForViewportChange: vi.fn(),
+    };
+    const { result } = renderHook(() =>
+      useChatOutline({
+        agentId: "agent-1",
+        serverId: "server-1",
+        timelineEpoch: "epoch-1",
+        tail: [stickyUser("one", 1)],
+        head: [],
+        enabled: false,
+        viewportRef,
+        onJumpError: vi.fn(),
+      }),
+    );
+    act(() => result.current.jumpToPrompt(1, { source: "sticky", placement: "pinned" }));
+    expect(scrollToMessage).toHaveBeenLastCalledWith("one", undefined, "pinned");
+    act(() => result.current.jumpToMessage("one"));
+    expect(scrollToMessage).toHaveBeenLastCalledWith("one");
+    act(() => result.current.jumpToPrompt(1, { scroll: false, placement: "pinned" }));
+    expect(scrollToMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("retains unloaded pinned placement until its authoritative row loads", async () => {
+    runtime.listAgentTimelinePrompts.mockResolvedValue({
+      epoch: "epoch-1",
+      prompts: [{ seq: 2, timestamp: new Date(2).toISOString(), preview: "two" }],
+    });
+    const held = deferred<void>();
+    runtime.fetchAgentTimeline.mockReturnValue(held.promise);
+    const scrollToMessage = vi.fn();
+    const viewportRef = createRef<StreamViewportHandle>();
+    viewportRef.current = {
+      scrollToMessage,
+      scrollToBottom: vi.fn(),
+      prepareForViewportChange: vi.fn(),
+    };
+    const { result, rerender } = renderHook(
+      ({ tail }) =>
+        useChatOutline({
+          agentId: "agent-1",
+          serverId: "server-1",
+          timelineEpoch: "epoch-1",
+          tail,
+          head: [],
+          enabled: true,
+          viewportRef,
+          onJumpError: vi.fn(),
+        }),
+      { initialProps: { tail: [stickyUser("one", 1)] as StreamItem[] } },
+    );
+    await waitFor(() => expect(result.current.prompts).toHaveLength(1));
+    act(() => result.current.jumpToPrompt(2, { source: "sticky", placement: "pinned" }));
+    expect(scrollToMessage).not.toHaveBeenCalled();
+    rerender({ tail: [stickyUser("one", 1), stickyUser("two", 2)] });
+    await waitFor(() => expect(scrollToMessage).toHaveBeenCalledWith("two", undefined, "pinned"));
+    await act(async () => held.resolve());
+    expect(scrollToMessage).toHaveBeenCalledTimes(1);
+    expect(result.current.jumpError).toBe(false);
   });
 
   it("waits for a served timeline before requesting its prompt index", async () => {
@@ -484,7 +551,7 @@ describe("sticky user prompt navigation", () => {
     expect(result.current.nextDisabled).toBe(true);
     act(() => result.current.previous());
     expect(result.current.message).toEqual(items[1]);
-    expect(input.jumpToLoaded).toHaveBeenLastCalledWith("two");
+    expect(input.jumpToLoaded).toHaveBeenLastCalledWith("two", "pinned");
     const assistant: StreamItem = {
       kind: "assistant_message",
       id: "assistant",
@@ -509,7 +576,11 @@ describe("sticky user prompt navigation", () => {
     const input = stickyInput([newest]);
     const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
     act(() => result.current.previous());
-    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(2, { scroll: true, source: "sticky" });
+    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(2, {
+      scroll: true,
+      source: "sticky",
+      placement: "pinned",
+    });
     expect(result.current.busy).toBe(true);
     expect(result.current.message).toEqual(newest);
     rerender({ ...input, outline: { ...input.outline, jumpError: true } });
@@ -656,7 +727,7 @@ describe("prompt jump acceptance and cancellation", () => {
     fixture.rerender({ tail: [stickyUser("old", 1), stickyUser("latest", 3)] });
     await act(async () => fixture.page.resolve());
     await waitFor(() => expect(fixture.result.current.isJumping).toBe(false));
-    expect(fixture.scrollToMessage).toHaveBeenCalledWith("old");
+    expect(fixture.scrollToMessage).toHaveBeenCalledWith("old", "original");
     expect(fixture.result.current.jumpError).toBe(false);
     expect(fixture.onJumpError).not.toHaveBeenCalled();
   });
@@ -843,7 +914,7 @@ describe("viewport-owned sticky prompt", () => {
     act(() => reading.publish("second", ["second"], false));
     expect(result.current.message?.id).toBe("second");
     expect(result.current.stickyVisible).toBe(false);
-    expect(input.jumpToLoaded).toHaveBeenCalledWith("second");
+    expect(input.jumpToLoaded).toHaveBeenCalledWith("second", "pinned");
   });
 });
 
@@ -889,7 +960,7 @@ it("reads an unloaded active prompt without replacing or scrolling the viewport,
   expect(input.outline.jumpToPrompt).not.toHaveBeenCalled();
   expect(input.jumpToLoaded).not.toHaveBeenCalled();
   act(() => result.current.next());
-  expect(input.jumpToLoaded).toHaveBeenCalledWith("latest");
+  expect(input.jumpToLoaded).toHaveBeenCalledWith("latest", "pinned");
 });
 
 it("ignores a late content-only read after return to latest and isolates new panes", async () => {
@@ -987,7 +1058,7 @@ it("reads index-free context without applying an older viewed window", async () 
   expect(input.jumpToLoaded).not.toHaveBeenCalled();
   rerender({ ...input, items: [old, answer, latest], progressKey: "older" });
   await act(async () => ownerPage.resolve(true));
-  await waitFor(() => expect(input.jumpToLoaded).toHaveBeenCalledWith("old"));
+  await waitFor(() => expect(input.jumpToLoaded).toHaveBeenCalledWith("old", "original"));
 });
 
 it("preserves known attachment content when its indexed prompt leaves the loaded window", async () => {
@@ -1221,7 +1292,7 @@ describe("return to the pinned prompt", () => {
     const input = { ...stickyInput([latest]), reading };
     const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
     act(() => result.current.reveal());
-    expect(input.jumpToLoaded).toHaveBeenCalledWith(latest.id);
+    expect(input.jumpToLoaded).toHaveBeenCalledWith(latest.id, "original");
     expect(input.outline.jumpToPrompt).not.toHaveBeenCalled();
     act(() => reading.publish(latest.id, [latest.id], false, false, false, 3));
     const incoming = stickyUser("four", 4);
@@ -1250,7 +1321,11 @@ describe("return to the pinned prompt", () => {
     const { result, rerender } = renderHook(useStickyPrompt, { initialProps: input });
     await waitFor(() => expect(result.current.message?.id).toBe(old.id));
     act(() => result.current.reveal());
-    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(1, { scroll: true, source: "sticky" });
+    expect(input.outline.jumpToPrompt).toHaveBeenCalledWith(1, {
+      scroll: true,
+      source: "sticky",
+      placement: "original",
+    });
     expect(result.current.busy).toBe(true);
     act(() => result.current.reveal());
     expect(input.outline.jumpToPrompt).toHaveBeenCalledTimes(1);
@@ -1980,5 +2055,98 @@ describe("strict old-host context accounting", () => {
     ).toBeUndefined();
     expect(ledger.summary()).toMatchObject({ contextBefore: 8, windowBefore: 0 });
     expect(ledger.summary().errors).toHaveLength(1);
+  });
+});
+
+/** Unit input exercises visibility ownership, without pretending that a dispatched event proves browser hover. */
+function sendNavigationPointer(type: "pointerdown" | "pointermove", x: number, y: number) {
+  const event = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
+  Object.defineProperty(event, "pointerType", { value: "mouse" });
+  document.dispatchEvent(event);
+}
+
+describe("arrow destination action visibility", () => {
+  it("keeps held destination actions through the next pointerdown until the next arrow activates", () => {
+    const { result } = renderHook(() => useNavigationActionVisibility(true, "epoch-a"));
+    act(() => {
+      sendNavigationPointer("pointerdown", 1222, 164);
+      result.current.start("middle");
+    });
+    expect(result.current.key).toBe("middle");
+    // Discrete pointerdown flushes before pointerup/click. Hiding here disables the
+    // same button that must receive the second click, before it can replace ownership.
+    act(() => sendNavigationPointer("pointerdown", 1222, 164));
+    expect(result.current.key).toBe("middle");
+    act(() => result.current.start("oldest"));
+    expect(result.current.key).toBe("oldest");
+  });
+
+  it("holds the actual arrow destination through the navigation context, but not content reveal or cancel", () => {
+    const input = stickyInput([stickyUser("one", 1), stickyUser("two", 2), stickyUser("three", 3)]);
+    const { result } = renderHook(() => {
+      const navigation = useStickyPrompt(input);
+      return { navigation, controls: usePromptNavigationControls(navigation) };
+    });
+    act(() => result.current.navigation.activate("three", -1));
+    expect(result.current.controls.actionVisibleMessageId).toBe("two");
+    expect(input.jumpToLoaded).toHaveBeenLastCalledWith("two", "pinned");
+    act(() => result.current.navigation.next());
+    expect(result.current.controls.actionVisibleMessageId).toBe("three");
+    act(() => result.current.navigation.reveal());
+    expect(result.current.controls.actionVisibleMessageId).toBeUndefined();
+    act(() => result.current.navigation.previous());
+    expect(result.current.controls.actionVisibleMessageId).toBe("two");
+    act(() => result.current.navigation.cancel());
+    expect(result.current.controls.actionVisibleMessageId).toBeUndefined();
+  });
+
+  it("keeps stationary layout events visible, then clears on actual mouse coordinate change", () => {
+    const { result } = renderHook(() => useNavigationActionVisibility(true, "epoch-a"));
+    act(() => {
+      sendNavigationPointer("pointerdown", 1222, 545);
+      result.current.start("destination");
+    });
+    expect(result.current.key).toBe("destination");
+    act(() => sendNavigationPointer("pointermove", 1222, 545));
+    expect(result.current.key).toBe("destination");
+    act(() => sendNavigationPointer("pointermove", 1223, 545));
+    expect(result.current.key).toBeNull();
+    act(() => result.current.retarget("late-discovery"));
+    expect(result.current.key).toBeNull();
+  });
+
+  it("replaces the destination, cancels on scroll or explicit cancellation, and isolates epochs and opt-out", () => {
+    const { result, rerender } = renderHook(
+      ({ enabled, epoch }) => useNavigationActionVisibility(enabled, epoch),
+      { initialProps: { enabled: true, epoch: "epoch-a" } },
+    );
+    act(() => result.current.start("first"));
+    act(() => result.current.start("second"));
+    expect(result.current.key).toBe("second");
+    act(() => document.dispatchEvent(new Event("wheel")));
+    expect(result.current.key).toBeNull();
+    act(() => result.current.start("third"));
+    act(() => result.current.clear());
+    expect(result.current.key).toBeNull();
+    act(() => result.current.start("old-epoch"));
+    rerender({ enabled: true, epoch: "epoch-b" });
+    expect(result.current.key).toBeNull();
+    act(() => result.current.start("new-epoch"));
+    rerender({ enabled: false, epoch: "epoch-b" });
+    expect(result.current.key).toBeNull();
+    act(() => result.current.start("disabled"));
+    expect(result.current.key).toBeNull();
+  });
+
+  it("retargets held discovery without reviving a cleared request and removes listeners on unmount", () => {
+    const remove = vi.spyOn(document, "removeEventListener");
+    const { result, unmount } = renderHook(() => useNavigationActionVisibility(true, null));
+    act(() => result.current.start("discover-previous"));
+    act(() => result.current.retarget("canonical-target"));
+    expect(result.current.key).toBe("canonical-target");
+    unmount();
+    expect(remove).toHaveBeenCalledWith("pointermove", expect.any(Function), true);
+    expect(remove).toHaveBeenCalledWith("wheel", expect.any(Function), true);
+    remove.mockRestore();
   });
 });

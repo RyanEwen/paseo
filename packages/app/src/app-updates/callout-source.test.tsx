@@ -25,6 +25,7 @@ const fakes = vi.hoisted(() => ({
   },
   native: {
     getVersionCode: () => 1_000_000_013,
+    addListener: vi.fn(() => ({ remove: vi.fn() })),
     download: vi.fn(),
     install: vi.fn(),
   },

@@ -19,6 +19,12 @@ import { DEFAULT_DESKTOP_SETTINGS } from "@/desktop/settings/desktop-settings";
 import { isSettingsObject, settingsDiff } from "@getpaseo/protocol/app-settings-values";
 import { SettingsSyncModel } from "./model";
 
+import { useSessionStore } from "@/stores/session-store";
+import {
+  selectAccentColorSupport,
+  exportSupportedAccentSettings,
+} from "@/appearance/accent-support";
+
 const STORAGE_KEY = "app-settings-sync";
 const SIDEBAR_KEYS = SYNC_SIDEBAR_SETTING_KEYS;
 const deps: SettingsDeps = {
@@ -31,8 +37,13 @@ const deps: SettingsDeps = {
 };
 let applying = false;
 
-/** Known preferences only. Credentials, host selection, layouts and drafts never enter this blob. */
-export async function getDeviceSettingsValues(): Promise<Record<string, unknown>> {
+/**
+ * Read known preferences, excluding credentials, host selection, layouts and drafts.
+ * Backup preserves every choice; publish alone omits a field unsupported by the chosen host.
+ */
+export async function getDeviceSettingsValues(
+  purpose: "backup" | "publish" = "backup",
+): Promise<Record<string, unknown>> {
   await queryClient.getQueryCache().find({ queryKey: APP_SETTINGS_QUERY_KEY })?.promise;
   const settings =
     queryClient.getQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY) ??
@@ -49,7 +60,12 @@ export async function getDeviceSettingsValues(): Promise<Record<string, unknown>
   const state = useSidebarViewStore.getState();
   const sidebar: Record<string, unknown> = {};
   for (const key of SIDEBAR_KEYS) sidebar[key] = state[key];
-  return { app, sidebar };
+  if (purpose === "backup") return { app, sidebar };
+  const supported = selectAccentColorSupport(
+    useSessionStore.getState(),
+    settingsSync.getState().selectedHost,
+  );
+  return { app: exportSupportedAccentSettings(app, supported), sidebar };
 }
 
 /** Project host values through the existing normalization and durable app write path. */

@@ -5,11 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { i18n } from "@/i18n/i18next";
 import { AndroidAppUpdateRow } from "./settings-row";
 import { useAndroidUpdate } from "./store";
+import type { AndroidUpdateDownloadProgress } from "./native-contract";
 
 void i18n;
 // Chromium renders the real update row and store; only Android and the release service are substituted.
 const bridge = vi.hoisted(() => ({
   getVersionCode: () => 1_000_000_013,
+  addListener: vi.fn(
+    (_name: string, _handler: (progress: AndroidUpdateDownloadProgress) => void) => ({
+      remove: vi.fn(),
+    }),
+  ),
   download: vi.fn(),
   install: vi.fn(),
 }));
@@ -37,7 +43,7 @@ beforeEach(() => {
     filename: "paseo.apk",
   });
   requests.read.mockReset().mockResolvedValue(`${"a".repeat(64)}  paseo.apk`);
-  useAndroidUpdate.setState({ status: "idle", update: null, error: null });
+  useAndroidUpdate.setState({ status: "idle", update: null, error: null, progress: null });
   container = document.createElement("div");
   container.style.width = "360px";
   document.body.appendChild(container);
@@ -53,6 +59,65 @@ async function click(label: string) {
 }
 
 describe("Android update feedback", () => {
+  it("shows byte progress and verification while preventing duplicate update actions", async () => {
+    await click("Check");
+    let finishDownload!: () => void;
+    bridge.download.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishDownload = resolve;
+        }),
+    );
+
+    // Keep the real store operation pending while native events update the rendered row.
+    let installation!: Promise<void>;
+    act(() => {
+      installation = useAndroidUpdate.getState().install();
+    });
+    await vi.waitFor(() => expect(bridge.download).toHaveBeenCalledTimes(1));
+    const listener = bridge.addListener.mock.calls.at(-1)?.[1];
+    expect(listener).toBeTypeOf("function");
+    const report = (
+      totalBytes: number | null,
+      phase: "downloading" | "verifying" = "downloading",
+    ) => {
+      act(() =>
+        listener!({
+          versionCode: 1_000_000_000 + sequence,
+          bytesDownloaded: 1024 * 1024,
+          totalBytes,
+          phase,
+        }),
+      );
+    };
+
+    try {
+      report(4 * 1024 * 1024);
+      expect(within(container).getByText("Downloading 25% (1.0 MB / 4.0 MB)")).toBeTruthy();
+      expect(
+        within(container).getByRole("button", { name: "Check" }).getAttribute("aria-disabled"),
+      ).toBe("true");
+      expect(
+        within(container)
+          .getByRole("button", { name: "Install update" })
+          .getAttribute("aria-disabled"),
+      ).toBe("true");
+      expect(bridge.install).not.toHaveBeenCalled();
+
+      report(null);
+      expect(within(container).getByText("Downloading 1.0 MB…")).toBeTruthy();
+      report(1024 * 1024, "verifying");
+      expect(within(container).getByText("Verifying the downloaded update…")).toBeTruthy();
+      expect(container.scrollWidth).toBeLessThanOrEqual(container.clientWidth);
+      expect(bridge.install).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => {
+        finishDownload();
+        await installation;
+      });
+    }
+    expect(within(container).getByText(/Finish installation in Android/)).toBeTruthy();
+  });
   it("shows permission guidance, retains the install action, and acknowledges the installer handoff", async () => {
     await click("Check");
     expect(

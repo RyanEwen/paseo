@@ -1,4 +1,4 @@
-import { useMemo, type ReactElement } from "react";
+import { useCallback, useMemo, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { Text } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { WorkspaceTabMenuEntry } from "@/screens/workspace/workspace-tab-menu";
+import { CONTROL_HEIGHTS } from "@/components/ui/control-geometry";
 import type { Theme } from "@/styles/theme";
 
 const ThemedEllipsis = withUnistyles(Ellipsis);
@@ -88,20 +89,29 @@ export function MobileTabTrailingAccessory({
   menuTestIDBase,
   presentationLabel,
   menuEntries,
+  touchSized = false,
 }: {
   menuTestIDBase: string;
   presentationLabel: string;
   menuEntries: WorkspaceTabMenuEntry[];
+  touchSized?: boolean;
 }): ReactElement {
   const { t } = useTranslation();
+  const triggerStyle = useCallback(
+    (state: { open?: boolean; pressed?: boolean }) => [
+      mobileTabMenuTriggerStyle(state),
+      touchSized && styles.touchSizedTrigger,
+    ],
+    [touchSized],
+  );
   return (
     <DropdownMenu compactMode="sheet">
       <DropdownMenuTrigger
         testID={`${menuTestIDBase}-trigger`}
         accessibilityRole="button"
         accessibilityLabel={t("workspace.tabs.menu.openFor", { label: presentationLabel })}
-        hitSlop={8}
-        style={mobileTabMenuTriggerStyle}
+        hitSlop={touchSized ? undefined : 8}
+        style={triggerStyle}
       >
         <ThemedEllipsis size={14} uniProps={mutedColorMapping} />
       </DropdownMenuTrigger>
@@ -125,6 +135,10 @@ export function MobileTabTrailingAccessory({
 }
 
 const styles = StyleSheet.create((theme) => ({
+  touchSizedTrigger: {
+    width: CONTROL_HEIGHTS.field,
+    height: CONTROL_HEIGHTS.field,
+  },
   mobileTabMenuTrigger: {
     width: 28,
     height: 28,

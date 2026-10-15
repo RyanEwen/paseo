@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import React, { useCallback, useMemo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -161,27 +162,29 @@ function GitLabPipelineSection({
       onToggle={onToggle}
       summary={sectionSummary}
     >
-      <Pressable
-        onPress={handleOpenPipeline}
-        style={rowPressableStyle}
-        disabled={!summary.url}
-        testID="pr-pane-pipeline-link"
-      >
-        <GitLabPipelineStatusIcon status={summary.rawStatus} />
-        <Text style={sectionKitStyles.checkName} numberOfLines={1}>
-          {`Pipeline #${summary.id}`}
-        </Text>
-        {summary.rawStatus ? (
-          <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
-            {summary.rawStatus}
+      <WorkspaceHttpLinkMenu url={summary.url}>
+        <Pressable
+          onPress={handleOpenPipeline}
+          style={rowPressableStyle}
+          disabled={!summary.url}
+          testID="pr-pane-pipeline-link"
+        >
+          <GitLabPipelineStatusIcon status={summary.rawStatus} />
+          <Text style={sectionKitStyles.checkName} numberOfLines={1}>
+            {`Pipeline #${summary.id}`}
           </Text>
-        ) : null}
-        {summary.url ? (
-          <View style={sectionKitStyles.checkTrailing}>
-            <ThemedExternalLink size={12} uniProps={foregroundMutedColorMapping} />
-          </View>
-        ) : null}
-      </Pressable>
+          {summary.rawStatus ? (
+            <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
+              {summary.rawStatus}
+            </Text>
+          ) : null}
+          {summary.url ? (
+            <View style={sectionKitStyles.checkTrailing}>
+              <ThemedExternalLink size={12} uniProps={foregroundMutedColorMapping} />
+            </View>
+          ) : null}
+        </Pressable>
+      </WorkspaceHttpLinkMenu>
       {isLoading ? (
         <Text style={sectionKitStyles.emptyText}>
           {t("workspace.git.pr.empty.loadingPipeline")}
@@ -227,20 +230,22 @@ function PipelineJobRow({ job }: { job: CheckoutPipelineJob }) {
   }, [job.url]);
   const duration = formatPipelineDuration(job.durationSeconds);
   return (
-    <Pressable onPress={handlePress} style={jobRowPressableStyle} disabled={!job.url}>
-      <GitLabPipelineStatusIcon status={job.status} allowFailure={job.allowFailure} />
-      <Text style={sectionKitStyles.checkName} numberOfLines={1}>
-        {job.name}
-      </Text>
-      {job.allowFailure ? (
-        <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
-          {t("workspace.git.pr.empty.allowedToFail")}
+    <WorkspaceHttpLinkMenu url={job.url}>
+      <Pressable onPress={handlePress} style={jobRowPressableStyle} disabled={!job.url}>
+        <GitLabPipelineStatusIcon status={job.status} allowFailure={job.allowFailure} />
+        <Text style={sectionKitStyles.checkName} numberOfLines={1}>
+          {job.name}
         </Text>
-      ) : null}
-      <View style={sectionKitStyles.checkTrailing}>
-        {duration ? <Text style={sectionKitStyles.checkDuration}>{duration}</Text> : null}
-      </View>
-    </Pressable>
+        {job.allowFailure ? (
+          <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
+            {t("workspace.git.pr.empty.allowedToFail")}
+          </Text>
+        ) : null}
+        <View style={sectionKitStyles.checkTrailing}>
+          {duration ? <Text style={sectionKitStyles.checkDuration}>{duration}</Text> : null}
+        </View>
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

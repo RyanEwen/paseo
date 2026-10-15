@@ -135,6 +135,17 @@ archived workspace. History navigation must not infer workspace lifecycle from `
 or mutate either lifecycle. The workspace route asks the daemon for authoritative recovery state;
 only the route's explicit Unarchive or Restore action changes the archived workspace.
 
+Workspace archive can remove a Paseo-owned worktree after its final active workspace reference is
+archived. That removes its dependencies, build outputs, and other local files along with the
+checkout. Local or manually adopted directories are retained. Inspect ownership before treating
+archive as disk cleanup.
+
+Restore recreates a removed worktree from its saved Git branch and source repository; it does not
+restore uncommitted changes, untracked files, or private build and QA artifacts. The repository,
+branch, and target path must still be usable. Dependency setup is not run automatically during
+restoration. Preserve unfinished work before archiving; an archived conversation is not a source
+backup.
+
 The workspace + menu opens the **Reopen closed agent** dialog, scoped to that host and workspace identity.
 It includes archived agents and unarchived agents without open tabs. Runtime `closed` status
 does not mean a tab was closed. Selection uses the same navigation as History.

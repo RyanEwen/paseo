@@ -83,6 +83,7 @@ import { writeMarkdownToRichClipboard } from "@/utils/rich-clipboard";
 import { getDefaultMarkdownClipboardEnvironment } from "@/utils/rich-clipboard-default-environment";
 import { setAssistantMarkdownBlockHeight } from "@/utils/assistant-message-height-estimate";
 import { isRenderProfileEnabled } from "@/utils/render-profiler";
+import { UserMessagePreviewContent } from "./user-message-preview-content";
 import { UserMessageAttachments } from "./user-message-attachments";
 import { PlanCard } from "./plan-card";
 import { useToolCallSheet } from "./tool-call-sheet";
@@ -130,7 +131,15 @@ interface UserMessageProps {
   copyMask?: { prefixHeight: number; expanded: boolean };
   /** Optional accessible content action, rendered inside the bubble. */
   contentAction?: ReactNode;
+  /** Reserve space beside the compact preview for its disclosure. */
+  inlineContentAction?: ReactNode;
+  /** A pinned bubble meets the panel edge without a rounded top-left corner. */
+  pinned?: boolean;
+  /** Protect floating metadata and navigation without covering the surrounding conversation. */
+  actionRowBackdrop?: ReactNode;
   navigationActions?: ReactNode;
+  /** Explicit arrow navigation holds actions independently of actual pointer hover. */
+  keepActionsVisible?: boolean;
   previewLines?: number;
   onPreviewOverflowChange?: (overflowing: boolean) => void;
   serverId?: string;
@@ -358,7 +367,7 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: theme.colors.surface3,
+    backgroundColor: theme.colors.userMessageBackground,
   },
   container: {
     flexDirection: "row",
@@ -380,7 +389,7 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     marginBottom: theme.spacing[4],
   },
   bubble: {
-    backgroundColor: theme.colors.surface3,
+    backgroundColor: theme.colors.userMessageBackground,
     borderRadius: theme.borderRadius["2xl"],
     borderTopRightRadius: theme.borderRadius.sm,
     paddingHorizontal: theme.spacing[4],
@@ -388,8 +397,10 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     minWidth: 0,
     flexShrink: 1,
   },
+  pinnedBubble: { borderTopLeftRadius: 0 },
+  previewBubble: { paddingVertical: 0 },
   text: {
-    color: theme.colors.foreground,
+    color: theme.colors.userMessageForeground,
     fontSize: theme.fontSize.content,
     ...(isWeb
       ? {
@@ -409,10 +420,12 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     alignSelf: "flex-end",
     flexDirection: "row",
     alignItems: "center",
-    height: 24,
+    minHeight: 24,
     gap: theme.spacing[2],
     marginTop: theme.spacing[2],
   },
+  // Pinned previews already place their controls directly below the compact bubble.
+  trailingRowPreview: { marginTop: 0 },
   trailingRowHidden: {
     opacity: 0,
   },
@@ -518,6 +531,25 @@ function isExpandedPromptCopy(copyMask: UserMessageProps["copyMask"]): boolean {
   return copyMask?.expanded === true;
 }
 
+/** Preserve the original bubble geometry, with a square top edge only for its pinned copy. */
+function resolveUserMessageBubbleStyle(
+  width: number | undefined,
+  pinned: boolean | undefined,
+  compactPreview: boolean,
+) {
+  return [
+    userMessageStylesheet.bubble,
+    pinned ? userMessageStylesheet.pinnedBubble : undefined,
+    compactPreview ? userMessageStylesheet.previewBubble : undefined,
+    width === undefined ? undefined : inlineUnistylesStyle({ width }),
+  ];
+}
+
+/** Touch actions remain available; desktop navigation visibility does not alter actual hover. */
+function areMessageActionsVisible(compact: boolean, hovered: boolean, navigationHeld?: boolean) {
+  return compact || isNative || hovered || navigationHeld === true;
+}
+
 export const UserMessage = memo(function UserMessage({
   onContentPress,
   contentAccessibilityLabel,
@@ -528,7 +560,11 @@ export const UserMessage = memo(function UserMessage({
   onBubbleTextLayout,
   copyMask,
   contentAction,
+  inlineContentAction,
+  pinned,
+  actionRowBackdrop,
   navigationActions,
+  keepActionsVisible,
   previewLines,
   onPreviewOverflowChange,
   serverId,
@@ -547,7 +583,6 @@ export const UserMessage = memo(function UserMessage({
 }: UserMessageProps) {
   const isCompact = useIsCompactFormFactor();
   const expandedCopy = isExpandedPromptCopy(copyMask);
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [lightboxMetadata, setLightboxMetadata] = useState<UserMessageImageAttachment | null>(null);
   const handleLightboxClose = useCallback(() => setLightboxMetadata(null), []);
@@ -557,9 +592,15 @@ export const UserMessage = memo(function UserMessage({
   );
   const resolvedDisableOuterSpacing = useDisableOuterSpacing(disableOuterSpacing);
   const hasText = message.trim().length > 0;
+  const compactPreview = previewLines !== undefined;
 
+  const showMessageActions = hasText && (previewLines === undefined || !!navigationActions);
+  const hasTrailingRow = showMessageActions || !!navigationActions;
   const showTrailingRow =
-    !copyMask && !isPending && hasText && (isCompact || isNative || isHovered);
+    !copyMask &&
+    !isPending &&
+    hasTrailingRow &&
+    areMessageActionsVisible(isCompact, isHovered, keepActionsVisible);
   const formattedTimestamp = useMemo(
     () => formatMessageTimestamp(new Date(timestamp)),
     [timestamp],
@@ -589,22 +630,34 @@ export const UserMessage = memo(function UserMessage({
     [resolvedDisableOuterSpacing, isFirstInGroup, isLastInGroup, expandedCopy],
   );
   const bubbleStyle = useMemo(
-    () => [
-      userMessageStylesheet.bubble,
-      bubbleWidth === undefined ? undefined : inlineUnistylesStyle({ width: bubbleWidth }),
-    ],
-    [bubbleWidth],
+    () => resolveUserMessageBubbleStyle(bubbleWidth, pinned, compactPreview),
+    [bubbleWidth, pinned, compactPreview],
   );
   const trailingRowStyle = useMemo(
     () => [
       userMessageStylesheet.trailingRow,
+      previewLines === undefined ? undefined : userMessageStylesheet.trailingRowPreview,
       showTrailingRow
         ? userMessageStylesheet.trailingRowVisible
         : userMessageStylesheet.trailingRowHidden,
     ],
-    [showTrailingRow],
+    [showTrailingRow, previewLines],
   );
 
+  const attachmentContent = useMemo(
+    () => (
+      <UserMessageAttachments
+        onContentPress={onContentPress}
+        contentAccessibilityLabel={contentAccessibilityLabel}
+        images={images}
+        attachments={attachments}
+        compact={compactPreview}
+        hasText={hasText}
+        onOpen={setLightboxMetadata}
+      />
+    ),
+    [onContentPress, contentAccessibilityLabel, images, attachments, compactPreview, hasText],
+  );
   return (
     <View
       style={containerStyle}
@@ -636,30 +689,27 @@ export const UserMessage = memo(function UserMessage({
               testID="user-message-content-target"
             />
           )}
-          <UserMessageAttachments
-            onContentPress={onContentPress}
-            contentAccessibilityLabel={contentAccessibilityLabel}
-            images={images}
-            attachments={attachments}
-            compact={previewLines !== undefined}
+          <UserMessagePreviewContent
+            action={inlineContentAction}
+            compact={compactPreview}
             hasText={hasText}
-            onOpen={setLightboxMetadata}
-          />
-          <UserMessageText
-            message={message}
-            hasText={hasText}
-            previewLines={previewLines}
-            onPreviewOverflowChange={onPreviewOverflowChange}
-            hideTextAccessibility={hideTextAccessibility}
-            onBubbleTextLayout={onBubbleTextLayout}
-            copyMask={copyMask}
-            onContentPress={onContentPress}
-            contentAccessibilityLabel={contentAccessibilityLabel}
-          />
+            attachments={attachmentContent}
+          >
+            <UserMessageText
+              message={message}
+              hasText={hasText}
+              previewLines={previewLines}
+              onPreviewOverflowChange={onPreviewOverflowChange}
+              hideTextAccessibility={hideTextAccessibility}
+              onBubbleTextLayout={onBubbleTextLayout}
+              copyMask={copyMask}
+              onContentPress={onContentPress}
+              contentAccessibilityLabel={contentAccessibilityLabel}
+            />
+          </UserMessagePreviewContent>
           {contentAction}
         </View>
-        {navigationActions}
-        {hasText && previewLines === undefined ? (
+        {hasTrailingRow ? (
           <View
             style={trailingRowStyle}
             pointerEvents={showTrailingRow ? "auto" : "none"}
@@ -667,22 +717,19 @@ export const UserMessage = memo(function UserMessage({
             aria-hidden={!!copyMask}
             accessibilityElementsHidden={!!copyMask}
           >
-            <Text style={userMessageStylesheet.timestampText} testID="user-message-timestamp">
-              {formattedTimestamp}
-            </Text>
-            {capabilities && messageId ? (
-              <RewindMenu
+            {actionRowBackdrop}
+            {showMessageActions ? (
+              <UserMessageTextActions
+                formattedTimestamp={formattedTimestamp}
                 capabilities={capabilities}
-                isPending={rewindMutation.isPending}
-                rewoundText={message}
+                messageId={messageId}
+                isRewindPending={rewindMutation.isPending}
+                message={message}
                 onRewind={handleRewind}
+                getContent={getMessageContent}
               />
             ) : null}
-            <TurnCopyButton
-              getContent={getMessageContent}
-              containerStyle={userMessageStylesheet.copyButton}
-              accessibilityLabel={t("message.actions.copyMessage")}
-            />
+            {navigationActions}
           </View>
         ) : null}
       </View>
@@ -690,6 +737,47 @@ export const UserMessage = memo(function UserMessage({
     </View>
   );
 });
+
+/** Keep timestamp, rewind and copy together beside optional prompt navigation. */
+function UserMessageTextActions({
+  formattedTimestamp,
+  capabilities,
+  messageId,
+  isRewindPending,
+  message,
+  onRewind,
+  getContent,
+}: {
+  formattedTimestamp: string;
+  capabilities?: AgentCapabilityFlags;
+  messageId?: string;
+  isRewindPending: boolean;
+  message: string;
+  onRewind: React.ComponentProps<typeof RewindMenu>["onRewind"];
+  getContent: () => string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Text style={userMessageStylesheet.timestampText} testID="user-message-timestamp">
+        {formattedTimestamp}
+      </Text>
+      {capabilities && messageId ? (
+        <RewindMenu
+          capabilities={capabilities}
+          isPending={isRewindPending}
+          rewoundText={message}
+          onRewind={onRewind}
+        />
+      ) : null}
+      <TurnCopyButton
+        getContent={getContent}
+        containerStyle={userMessageStylesheet.copyButton}
+        accessibilityLabel={t("message.actions.copyMessage")}
+      />
+    </>
+  );
+}
 
 interface AssistantTurnFooterProps {
   getContent: () => string;

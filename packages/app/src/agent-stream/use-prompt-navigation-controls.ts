@@ -6,6 +6,7 @@ type PromptNavigation = ReturnType<typeof useStickyPrompt>;
 export interface PromptNavigationControls {
   targetIds: readonly (string | undefined)[];
   busy: boolean;
+  actionVisibleMessageId?: string;
   previousKnownBoundary: boolean;
   activate: PromptNavigation["activate"];
 }
@@ -18,9 +19,9 @@ export function usePromptNavigationControls(
     targets.map((target) => target.item?.id),
   );
   const targetIds = selectIds(navigation.targets);
-  const { busy, previousKnownBoundary, activate } = navigation;
+  const { busy, previousKnownBoundary, activate, actionVisibleMessageId } = navigation;
   return useMemo(
-    () => ({ targetIds, busy, previousKnownBoundary, activate }),
-    [targetIds, busy, previousKnownBoundary, activate],
+    () => ({ targetIds, busy, previousKnownBoundary, activate, actionVisibleMessageId }),
+    [targetIds, busy, previousKnownBoundary, activate, actionVisibleMessageId],
   );
 }

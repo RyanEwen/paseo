@@ -1,5 +1,7 @@
 # Settings feature ownership
 
+Historical ownership handoff for the recorded preview baseline. For new work, follow the [current fork strategy](../../../worktree-development.md#fork-branches-and-ownership). The branch names and qualification facts below describe the earlier snapshot.
+
 The branch was fast-forwarded from its original `25da9772a` base to the already committed `61ad3bc91` preview baseline before the authorized follow-up commit. Exact tracked and untracked backups remain in `.dev/settings-commit-preparation/pre-ff-01`. No history was rewritten.
 
 The initial settings page, canonical nine-feature contract, persistence, read recovery and Explorer relocation are already committed in that baseline. This follow-up owns the clearer fork inventory, default Settings entry and logo, generic screenshot help, annotations, local assets and related tests. Existing merged consumer features stay intact.

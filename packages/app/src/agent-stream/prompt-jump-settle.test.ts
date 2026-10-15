@@ -300,10 +300,17 @@ function nativeJumpFixture() {
   let measured = 0;
   let clock = 0;
   let failIndex = true;
+  let targetTop = 8;
+  let mounted = true;
+  let dropMeasurements = false;
+  let offset = 1000;
   const callbacks = new Set<() => void>();
   const archivedCallbacks: Array<() => void> = [];
   const onFailure = vi.fn();
-  const scrollToOffset = vi.fn();
+  const scrollToOffset = vi.fn((value: number) => {
+    targetTop += value - offset;
+    offset = value;
+  });
   const scrollToIndex = vi.fn((target: number) => {
     if (failIndex)
       controller.handleIndexFailure({
@@ -317,6 +324,10 @@ function nativeJumpFixture() {
       findHistoryIndex: () => index,
       findLiveOffset: () => liveOffset,
       getLiveHeaderHeight: () => header,
+      measureTarget: (_id, callback) => {
+        if (!dropMeasurements)
+          callback(mounted ? { top: targetTop, offset, maxOffset: 20000 } : null);
+      },
       scrollToIndex,
       scrollToOffset,
     },
@@ -343,6 +354,15 @@ function nativeJumpFixture() {
       callbacks.delete(next!);
       next!();
     },
+    dropMeasurements() {
+      dropMeasurements = true;
+    },
+    setMounted(value: boolean) {
+      mounted = value;
+    },
+    setTargetTop(value: number) {
+      targetTop = value;
+    },
     setHeader(value: number | null) {
       header = value;
     },
@@ -365,6 +385,57 @@ function nativeJumpFixture() {
 }
 
 describe("native prompt viewport recovery", () => {
+  it("bounds a native node that never returns its measurement callback", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.dropMeasurements();
+    f.controller.start("prompt");
+    while (f.pending()) f.retry();
+    expect(f.onFailure).toHaveBeenCalledWith("prompt");
+    expect(f.controller.isActive()).toBe(false);
+  });
+  it("waits for a mounted bubble rather than accepting estimated index frames", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setMounted(false);
+    f.controller.start("prompt");
+    f.retry();
+    expect(f.controller.isActive()).toBe(true);
+    expect(f.scrollToIndex).toHaveBeenCalledTimes(2);
+    f.setMounted(true);
+    f.retry();
+    f.retry();
+    expect(f.controller.isActive()).toBe(false);
+  });
+  it("cancels an accepted jump before its queued landing check", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setTargetTop(180);
+    f.controller.start("prompt");
+    const stale = f.archivedCallbacks[0]!;
+    f.controller.cancel();
+    stale();
+    expect(f.scrollToOffset).not.toHaveBeenCalled();
+    expect(f.pending()).toBe(0);
+  });
+  it("corrects an accepted scroll whose cell frame settles short on the first tap", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setTargetTop(180);
+    f.controller.start("prompt");
+    expect(f.controller.isActive()).toBe(true);
+    f.retry();
+    expect(f.scrollToOffset).toHaveBeenLastCalledWith(828, false);
+    // A later layout change must invalidate the first apparent landing.
+    f.setTargetTop(48);
+    f.retry();
+    expect(f.scrollToOffset).toHaveBeenLastCalledWith(788, false);
+    f.retry();
+    expect(f.controller.isActive()).toBe(true);
+    f.retry();
+    expect(f.controller.isActive()).toBe(false);
+    expect(f.onFailure).not.toHaveBeenCalled();
+  });
   it("includes long measured live header, rebases stable ID, then lands exactly", () => {
     const f = nativeJumpFixture();
     f.controller.start("prompt");
@@ -373,6 +444,9 @@ describe("native prompt viewport recovery", () => {
     f.succeed();
     f.retry();
     expect(f.scrollToIndex).toHaveBeenLastCalledWith(14);
+    f.setTargetTop(8);
+    f.retry();
+    f.retry();
     expect(f.controller.isActive()).toBe(false);
     expect(f.onFailure).not.toHaveBeenCalled();
   });
@@ -598,6 +672,9 @@ it("native live prompt uses its measured landing offset and the animated path", 
   expect(f.scrollToOffset).toHaveBeenCalledWith(5300, true);
   expect(f.scrollToIndex).not.toHaveBeenCalled();
   expect(f.onFailure).not.toHaveBeenCalled();
+  f.setTargetTop(8);
+  f.retry();
+  f.retry();
   expect(f.controller.isActive()).toBe(false);
 });
 
@@ -728,4 +805,43 @@ it("waits for native text layout before publishing a copy and accepts an explici
   expect(measured).toHaveBeenLastCalledWith(
     expect.objectContaining({ id: "attachments-only", progress: 1, prefixHeightOne: 0 }),
   );
+});
+
+describe("explicit prompt jump placement", () => {
+  it("pins a measured bubble beyond the edge, while the next original reveal retains its inset", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setTargetTop("target", 50);
+    controller.start("target", { placement: "pinned" });
+    while (frames.pendingFrames()) frames.runNextFrame();
+    expect(viewport.findTargetTop("target")).toBe(-2);
+    controller.start("target", { placement: "original" });
+    while (frames.pendingFrames()) frames.runNextFrame();
+    expect(viewport.findTargetTop("target")).toBe(8);
+  });
+
+  it("does not finish pinned placement on an unmounted estimate and cancels its pending frames", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setEstimatedTargetTop("target", -2);
+    controller.start("target", { placement: "pinned" });
+    frames.runNextFrame();
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(true);
+    controller.cancel();
+    expect(frames.pendingFrames()).toBe(0);
+  });
+
+  it("uses the same measured pinned destination in the inverted native controller", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setTargetTop(8);
+    f.controller.start("prompt", "pinned");
+    while (f.pending()) f.retry();
+    expect(f.scrollToOffset).toHaveBeenCalledWith(990, false);
+    expect(f.onFailure).not.toHaveBeenCalled();
+    expect(f.controller.isActive()).toBe(false);
+  });
 });

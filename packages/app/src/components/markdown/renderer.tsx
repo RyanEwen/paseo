@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import React, {
   useCallback,
   useEffect,
@@ -479,9 +480,11 @@ function SharedMarkdownLink({
 
   if (!isNative) {
     return (
-      <MarkdownLinkText style={style} onPress={handlePress}>
-        {children}
-      </MarkdownLinkText>
+      <WorkspaceHttpLinkMenu url={href}>
+        <MarkdownLinkText style={style} onPress={handlePress}>
+          {children}
+        </MarkdownLinkText>
+      </WorkspaceHttpLinkMenu>
     );
   }
 

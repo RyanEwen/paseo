@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Discovery stays on the existing repository until the rename is performed.
+// Keep the legacy discovery endpoint working through GitHub's repository redirect.
 const repository = "RyanEwen/paseo";
 const releaseRepositories = [repository, "RyanEwen/paseo-plus-plus"];
 const assetSchema = z.object({ name: z.string(), browser_download_url: z.url() });
@@ -21,12 +21,13 @@ export interface AndroidUpdate {
   filename: string;
 }
 
-/** Select by the preview workflow sequence, which stays monotonic across upstream versions. */
+/** Select published fork builds by workflow sequence, regardless of GitHub's prerelease flag. */
 export function selectAndroidUpdate(value: unknown, installedCode: number): AndroidUpdate | null {
   const releases = releasesSchema.parse(value);
   const previews = releases.flatMap((release) => {
     const match = /^v\d+\.\d+\.\d+-preview\.(\d+)$/.exec(release.tag_name);
-    if (release.draft || !release.prerelease || !match) return [];
+    // The final prerelease bridges older installs to normal GitHub releases with the same tags.
+    if (release.draft || !match) return [];
     const build = Number(match[1]);
     if (!Number.isSafeInteger(build) || build < 1 || build > 1_100_000_000) {
       throw new Error("Invalid preview build number");

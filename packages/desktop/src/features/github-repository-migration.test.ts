@@ -117,15 +117,25 @@ function channelFilename(platform: "win32" | "linux"): string {
 }
 
 describe("desktop GitHub repository rename bridge", () => {
-  it.each(["win32", "linux"] as const)(
-    "follows old feed, renamed manifest and signed CDN redirects for %s",
-    async (platform) => {
-      const updater = new NsisUpdater(null, app);
+  const transitions = [
+    { stage: "legacy to final prerelease", installed: "0.11.2-preview.20", build: 77 },
+    { stage: "legacy directly to normal release", installed: "0.11.2-preview.20", build: 80 },
+    { stage: "bridge to normal release", installed: "0.11.2-preview.77", build: 80 },
+  ];
+  it.each(
+    (["win32", "linux"] as const).flatMap((platform) =>
+      transitions.map(({ stage, installed, build }) => ({ platform, stage, installed, build })),
+    ),
+  )(
+    "follows the retained preview feed, repository and CDN redirects: $platform, $stage",
+    async ({ platform, installed, build }) => {
+      const updater = new NsisUpdater(null, { ...app, version: installed });
       updater.channel = "preview";
       updater.allowPrerelease = true;
       updater.allowDowngrade = false;
       updater.logger = null;
-      const tag = "v0.11.2-preview.21";
+      const version = `0.11.2-preview.${build}`;
+      const tag = `v${version}`;
       const filename = platform === "win32" ? "Paseo-Debug-Setup.exe" : "Paseo-Debug.AppImage";
       const bytes = Buffer.from("verified updater fixture");
       const digest = createHash("sha512").update(bytes).digest("base64");
@@ -141,8 +151,13 @@ describe("desktop GitHub repository rename bridge", () => {
         "https://release-assets.githubusercontent.com/github-production-release-asset/123456/manifest?sig=test";
       const binaryCdn =
         "https://release-assets.githubusercontent.com/github-production-release-asset/123456/binary?sig=test";
-      const feed = `<feed><entry><title>Paseo++ preview</title><link href="${newBase}/tag/${tag}"/><content>Preview changes</content></entry></feed>`;
-      const manifest = `version: 0.11.2-preview.21\nfiles:\n  - url: ${filename}\n    sha512: ${digest}\n    size: ${bytes.length}\n`;
+      // GitHub's Atom feed has no prerelease flag. Normal releases retain preview tags and manifests.
+      const retainedBridge =
+        build > 77
+          ? `<entry><title>Paseo++ updater bridge</title><link href="${newBase}/tag/v0.11.2-preview.77"/></entry>`
+          : "";
+      const feed = `<feed><entry><title>Paseo++ ${build > 77 ? "Latest" : "prerelease"}</title><link href="${newBase}/tag/${tag}"/><content>Release changes</content></entry>${retainedBridge}</feed>`;
+      const manifest = `version: ${version}\nfiles:\n  - url: ${filename}\n    sha512: ${digest}\n    size: ${bytes.length}\n`;
       const resources = new Map<string, Resource>([
         [oldFeed, { kind: "redirect", url: newFeed }],
         [newFeed, { kind: "body", bytes: Buffer.from(feed) }],
@@ -166,7 +181,7 @@ describe("desktop GitHub repository rename bridge", () => {
       );
       const info = await provider.getLatestVersion();
       expect(info.tag).toBe(tag);
-      expect(info.version).toBe("0.11.2-preview.21");
+      expect(info.version).toBe(version);
       const files = provider.resolveFiles(info);
       expect(files[0].url.href).toBe(oldBinary);
       expect(files[0].info.sha512).toBe(digest);

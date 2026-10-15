@@ -27,7 +27,7 @@ export type SidebarRowItems = Record<SidebarRowItem, boolean>;
 
 /** The persisted record is merged over these explicit product defaults. */
 export const DEFAULT_SIDEBAR_ROW_ITEMS: SidebarRowItems = {
-  branch: true,
+  branch: false,
   project: true,
   host: true,
   changeRequest: true,

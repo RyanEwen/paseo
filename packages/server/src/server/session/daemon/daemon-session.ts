@@ -7,6 +7,8 @@ import {
   collectDaemonDiagnostics,
   type DaemonWebSocketRuntimeDiagnosticSnapshot,
 } from "./diagnostics.js";
+import { daemonSelfUpdater } from "./daemon-self-updater.js";
+import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import { DaemonSelfUpdateSessionController } from "./daemon-self-update-session-controller.js";
 import type { ManagedAgent } from "../../agent/agent-manager.js";
 import type { PersistedProjectRecord, PersistedWorkspaceRecord } from "../../workspace-registry.js";
@@ -308,6 +310,25 @@ export class DaemonSession {
         },
       });
     }
+  }
+
+  /** A failed check never establishes eligibility and never requests a restart. */
+  async handleUpdateAvailabilityRequest(
+    msg: Extract<SessionInboundMessage, { type: "daemon.update.check_availability.request" }>,
+  ): Promise<void> {
+    let result;
+    try {
+      result = await daemonSelfUpdater.checkAvailability({
+        daemonVersion: this.daemonVersion ?? null,
+        desktopManaged: this.daemonRuntimeConfig?.desktopManaged === true,
+      });
+    } catch (error) {
+      result = { version: null, reason: getErrorMessage(error) };
+    }
+    this.host.emit({
+      type: "daemon.update.check_availability.response",
+      payload: { requestId: msg.requestId, ...result },
+    });
   }
 
   async handleUpdateRequest(

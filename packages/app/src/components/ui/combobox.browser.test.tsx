@@ -1,7 +1,9 @@
 import { TextPreview } from "./text-preview";
+import { SettingsExample } from "@/components/settings/settings-example";
+import type { ImageProps } from "react-native";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ComboboxItem } from "./combobox";
 
@@ -12,6 +14,29 @@ vi.mock("react-native-reanimated", async (importOriginal) => {
     ...actual,
     FadeIn: { duration: () => undefined },
     FadeOut: { duration: () => undefined },
+  };
+});
+
+// Match the tooltip suite's DOM decoration adapter instead of the shared null SVG stub.
+// This verifies vector placement in Chromium; native SVG rendering remains device-only QA.
+vi.mock("react-native-svg", () => {
+  const element =
+    (name: string) =>
+    ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) =>
+      React.createElement(name, props, children);
+  return { default: element("svg"), G: element("g"), Path: element("path"), Rect: element("rect") };
+});
+
+// Vite has no Metro numeric-asset registration. Resolve this static fixture ID
+// to its genuine local PNG, then use the real Image renderer and layout behavior.
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  const screenshot = { uri: "/assets/settings-examples/project-header.png" };
+  return {
+    ...actual,
+    Image: (props: ImageProps) => (
+      <actual.Image {...props} source={props.source === 1 ? screenshot : props.source} />
+    ),
   };
 });
 
@@ -145,4 +170,58 @@ it("measures clamped preview content at exact line boundaries and after resize",
   container.style.width = "900px";
   container.style.display = "flex";
   await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(false);
+});
+
+it("shows a contextual screenshot with one outline and fits narrow settings help", async () => {
+  await page.viewport(390, 844);
+  container = document.createElement("div");
+  container.style.padding = "24px";
+  document.body.appendChild(container);
+  root = createRoot(container);
+  act(() =>
+    root!.render(
+      <SettingsExample
+        title="Project activity"
+        caption="Status beside its project and workspaces"
+        testID="context-help"
+        images={[
+          {
+            id: "project-context",
+            source: 1,
+            width: 1440,
+            height: 900,
+            viewport: { left: 0, top: 125, width: 320, height: 270 },
+            outlines: [{ left: 226, top: 14, width: 52, height: 28 }],
+          },
+        ]}
+      />,
+    ),
+  );
+  await userEvent.hover(container.querySelector('[data-testid="context-help"]')!);
+  const content = page.getByTestId("context-help-content");
+  await expect.element(content).toBeVisible();
+  const image = document.querySelector("img")!;
+  await expect.poll(() => image.complete && image.naturalWidth === 1440).toBe(true);
+  expect(image.naturalHeight).toBe(900);
+  const frame = image.parentElement!.parentElement!;
+  expect(frame.getBoundingClientRect().width).toBe(320);
+  expect(frame.getBoundingClientRect().height).toBe(270);
+  expect(getComputedStyle(frame).overflow).toBe("hidden");
+  expect(frame.querySelectorAll("svg")).toHaveLength(1);
+  expect(frame.querySelectorAll("rect")).toHaveLength(2);
+  const bounds = content.element().getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(390);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  expect(window.innerWidth).toBe(390);
+  await page.screenshot({ path: ".vitest-screenshots/settings-context-390.png" });
+  await page.viewport(320, 640);
+  await expect.poll(() => frame.getBoundingClientRect().width).toBe(272);
+  const narrowBounds = content.element().getBoundingClientRect();
+  expect(narrowBounds.left).toBeGreaterThanOrEqual(0);
+  expect(narrowBounds.right).toBeLessThanOrEqual(320);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  expect(window.innerWidth).toBe(320);
+  await page.screenshot({ path: ".vitest-screenshots/settings-context-320.png" });
+  await page.viewport(1280, 720);
 });

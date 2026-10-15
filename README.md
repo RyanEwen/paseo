@@ -4,6 +4,8 @@
 
 Paseo++ is [RyanEwen/paseo-plus-plus](https://github.com/RyanEwen/paseo-plus-plus), an experimental fork of [Paseo](https://github.com/getpaseo/paseo). It includes upstream improvements alongside the features and fixes below.
 
+For fork development and integration, follow the [worktree guide](docs/worktree-development.md#fork-branches-and-ownership). Published builds follow the [fork release process](docs/release.md#fork-preview-distribution).
+
 ![Paseo++ settings showing optional features enabled and Explorer preferences](docs/qa-evidence/settings-examples/settings-overview-full.png)
 
 ## Optional features
@@ -12,9 +14,7 @@ All optional features start enabled. The settings button opens **Paseo++** first
 
 ### Keep user prompts in view
 
-Prompts pin as their bubbles reach the top, with one visible copy. More… appears only when text or attachment details are hidden. Click a pinned message to return to it, or use the arrows to move between prompts. Newer messages pass over older pinned messages.
-
-[View example](packages/app/assets/settings-examples/annotated/stickyUserPrompts-sticky-user-prompts.svg)
+Prompts pin as their bubbles reach the top, with one visible copy in a solid bubble over a transparent surrounding container. More… appears beside the pinned preview when text or attachment details are hidden. Click a pinned message to return to it, or use the arrows to move between pinned prompts without moving the controls. Newer messages pass over older pinned messages. Navigation arrows sit beside copy and rewind controls, appearing on hover on desktop and staying visible on touch screens. After arrow navigation, the destination’s controls stay visible until you move the mouse. Jump to latest sits above the composer’s right edge.
 
 ### Readable tool activity
 
@@ -31,6 +31,8 @@ Reopen conversations with closed tabs or archived agents from the workspace **+*
 ### Project selector
 
 Choose projects from the **Workspaces** heading. Click a project name to show only that project and close the menu, or use its checkbox to include several projects while keeping the menu open.
+
+The workspace heading, project selector, and display controls stay visible while you scroll the workspace list. Desktop expand and collapse controls stay with the heading.
 
 [View example](packages/app/assets/settings-examples/annotated/sidebarProjectSelector-project-selector.svg)
 
@@ -62,33 +64,39 @@ Keep selected workspaces at the top of their project, alongside the existing opt
 
 Follow workspaces as status changes move them to new positions with quick transitions. Animations respect reduced-motion preferences and preserve collapsed groups and display limits.
 
-[Before](packages/app/assets/settings-examples/annotated/sidebarWorkspaceTransitions-workspace-positions-before.svg) · [After](packages/app/assets/settings-examples/annotated/sidebarWorkspaceTransitions-workspace-positions-after.svg)
-
 ### Automatic Android update checks
 
-Check for published previews on startup and resume. Turning automatic checks off keeps manual checking and installation available.
+Check for published Paseo++ releases on startup and resume. Available updates appear in the sidebar. Follow download progress and verification in the sidebar or Settings, then approve installation in Android. Turning automatic checks off keeps manual checking and installation available.
+
+### Sidebar host updates
+
+Update a host from the sidebar when it confirms update support and a compatible release is available. Older hosts can use the manual update flow without a release-availability check. This sidebar action starts enabled; turn **Host updates in the sidebar** off in Paseo++ settings to hide it while keeping the ordinary update action in Host Settings.
 
 ## Display and reading preferences
 
+### Mobile workspace tabs
+
+Switch between workspace tabs directly on your phone with the tab strip enabled by default. Scroll it horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. Turn **Mobile workspace tabs** off in Paseo++ settings to restore the earlier chooser while preserving your selected tab and drafts.
+
+### Accent colors
+
+Choose an accent color in Appearance for primary controls and your messages, including pinned prompts. Colors adapt to light and dark themes; Default restores your theme’s original appearance. If you sync settings, update the selected settings host to enable this preference.
+
 ### Sidebar display options
 
-Choose filtering, grouping, and sorting independently, including project, workspace, status, and custom order. Show agent activity and code-change totals together. Project and branch labels start visible unless you chose to hide them. Find these controls in the sidebar's **Display** menu.
+Choose filtering, grouping, and sorting independently, including project, workspace, status, and custom order. Show agent activity and code-change totals together. Project labels start visible; branch labels are optional and start hidden. Saved choices are preserved. Find these controls in the sidebar's **Display** menu.
 
 Choose how many workspaces each sidebar group shows before **Show more**, or choose **Show all**, in Paseo++ settings. The default is 20.
-
-[Workspace limit](packages/app/assets/settings-examples/workspace-limit-mode.png) · [Custom count](packages/app/assets/settings-examples/workspace-limit-count.png)
 
 ### Explorer and Changes
 
 Choose whether Explorer starts open in new desktop workspaces and whether opening a changed file shows its own diff or all changed files. Set a default comparison, or automatically switch between Uncommitted when dirty and Committed when clean. Changes remembers each workspace's comparison across reloads. Find these preferences in **Settings → Paseo++**.
 
-[Changed files](packages/app/assets/settings-examples/annotated/explorer-explorer-changes-list.svg) · [File comparison](packages/app/assets/settings-examples/annotated/explorer-explorer-changes-diff.svg)
-
 ## Other additions
 
 ### Sync app settings
 
-Choose a settings host in Paseo++ to share preferences across your clients, including whether Usage appears in the sidebar. Switching hosts loads their saved settings first; an empty host requires an explicit publish action. Connection details, project filters, workspace order and collapsed groups stay local. Your settings host needs a daemon build with settings sync support.
+Choose a settings host in Paseo++ on Android or desktop to share preferences across your clients, including whether Usage appears in the sidebar. Switching hosts loads their saved settings first; an empty host requires an explicit publish action. Connection details, project filters, workspace order and collapsed groups stay local. Your settings host needs a daemon build with settings sync support.
 
 ### Android SSH hosts
 
@@ -104,7 +112,7 @@ Compatible plugins can display encoded video in workspace panels and recover pla
 
 ### Standalone Linux and WSL daemons
 
-Run a standalone Paseo++ daemon alongside upstream Paseo with separate settings, host identity, agents, and workspaces. Use the app's host **Update** action to receive published fork previews. See [installation instructions](#standalone-daemon-linux-and-wsl) below.
+Run a standalone Paseo++ daemon alongside upstream Paseo with separate settings, host identity, agents, and workspaces. Use the app's host **Update** action to receive published fork releases. See [installation instructions](#standalone-daemon-linux-and-wsl) below.
 
 ## Fixes and fork essentials
 
@@ -112,9 +120,19 @@ Run a standalone Paseo++ daemon alongside upstream Paseo with separate settings,
 
 Open the fork repository and published release notes from the app. Upstream issue, sponsorship, and Discord actions are removed.
 
+### Workspace browser links
+
+On desktop, HTTP and HTTPS links from workspace chat open in a Paseo browser tab by default. Turn **Open chat links in Paseo** off in Paseo++ settings to open primary clicks externally; **Open in Paseo browser** remains available in the link menu. When enabled, right-click a link to choose your external browser. Workspace repository, pull request, check, and Markdown links also offer **Open in Paseo browser**, while their usual action stays the same.
+
+Mobile and browser clients, and links outside a workspace, continue opening links externally.
+
 ### Background browser automation
 
 Desktop agents can interact with browser tabs while the pane is hidden, the app is unfocused, or its window is minimized.
+
+### Codex async questions
+
+Unanswered questions stay available when a Codex turn is stopped or interrupted. You can answer or dismiss them later, including after reopening the conversation.
 
 ### Notification targets
 
@@ -138,7 +156,9 @@ Paseo++ apps and daemons keep separate identities, settings, and update sources 
 
 ## Install Paseo++
 
-Download desktop and Android previews from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage previews receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
+Download desktop and Android builds from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage builds receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
+
+The planned transition to normal releases needs one final prerelease updater bridge for older Android apps and standalone hosts. That bridge has not been published by this change. The [release transition](docs/release.md#final-prerelease-bridge-and-normal-latest-releases) owns qualification, publication and bridge retention requirements.
 
 Paseo++ desktop and Android apps keep their own settings and identities, separate from upstream Paseo. Set up your hosts and preferences independently in each app. The desktop app also keeps its bundled daemon in `~/.paseo-plus-plus-desktop` on port 6790, separate from the standalone daemon. Desktop and Android previews use fresh Paseo++ installations and settings; set up connections again when moving from the former Debug builds.
 
@@ -155,7 +175,7 @@ paseo-plus-plus daemon run
 
 Keep that terminal open, or use `paseo-plus-plus daemon run` as your service's command. The standalone daemon keeps its settings, host identity, agents, and workspaces in `~/.paseo-plus-plus` and listens on `127.0.0.1:6791`. Upstream Paseo and Paseo++ can run side by side with their defaults. Set up the new daemon independently and connect your app to it. These defaults apply to previews built with the `paseo-plus-plus` command.
 
-Use the app's host **Update** action to install newer published Paseo++ daemon previews. Source-built daemons need to switch to a release package to use this update path.
+Use **Update** next to a host in the sidebar footer's hosts list to install a newer eligible daemon release. The action appears when the host confirms that its installation supports updating and a compatible release is available. Older hosts keep their Settings update action. Source-built daemons need to switch to a release package to use this update path.
 
 <!-- fork-overview:end -->
 

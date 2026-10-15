@@ -2,6 +2,19 @@
 
 All workspaces share one version and release together.
 
+## Repository and release lanes
+
+Select the repository and distribution lane before preparing a release:
+
+| Repository               | Release path                                                                              | Default source                   |
+| ------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------- |
+| RyanEwen/paseo-plus-plus | [Fork distribution](#fork-preview-distribution), manually dispatched; no npm publication. | Exact validated `fork/main` SHA. |
+| getpaseo/paseo           | Upstream stable/beta npm, desktop, and store flows below.                                 | `origin/main` in this checkout.  |
+
+The beta/stable skills must apply this selection before following an upstream checklist. A request
+for a new fork distribution lane needs an explicit decision; it is not implied by invoking a skill.
+For branch ownership and integration, follow the [worktree guide](worktree-development.md#fork-branches-and-ownership).
+
 ## Two steps
 
 A release has exactly two steps. The agent does the first, the user authorizes the second.
@@ -10,15 +23,14 @@ A release has exactly two steps. The agent does the first, the user authorizes t
 
 - format, lint, typecheck all green
 - resolve the release source to one commit and confirm that commit's existing CI is green
-- classify the diff from the previous stable to the release source as patch or minor, then show the
-  target version and rationale to the user
-- draft the changelog, show it to the user, wait for review
-- run the pre-release sanity check, surface findings to the user
+- for upstream publication, classify the diff from the previous stable as patch or minor and show the target version and rationale
+- draft user-facing notes for the selected lane and wait for review; fork releases use workflow notes, upstream releases use `CHANGELOG.md`
+- review the release changes and surface sanity-check findings to the user
 
 **Go-ahead** (user says "go ahead"):
 
 - commit the approved release inputs locally
-- run the release, which publishes npm and pushes the prepared branch and tag
+- run the approved lane: the fork preview workflow, or the upstream release command that publishes npm and pushes the prepared branch and tag
 - create the release heartbeat immediately and babysit it to completion
 
 Rules that apply to both steps:
@@ -31,15 +43,20 @@ Rules that apply to both steps:
 
 ## Release source and CI
 
-The default release source is `origin/main`. Fetch `origin`, then record the
-resolved commit. The default release checkout is a clean local `main` whose
-`HEAD` equals `origin/main`.
+For fork previews, resolve `fork/main` once, record the SHA, and confirm that exact commit's latest
+push CI is green before dispatch. Use a clean checkout of that source. Local `main` must track the fork
+and match the intended remote head; a review assembly is not a release source by default. See the
+[fork workflow](#prepare-and-publish) for its fixed-source and complete-asset gates.
 
-An explicit user instruction can select another ref, such as a hotfix commit or
+For upstream publication, the default source is `origin/main`. Fetch `origin`, record the resolved
+commit, and use a clean upstream checkout at that commit. Local fork `main` is not an upstream
+release checkout.
+
+For upstream publication, an explicit user instruction can select another ref, such as a hotfix commit or
 tag. Resolve that ref once and apply every source, diff, and CI check to that
 commit instead of `origin/main`.
 
-Before making release-preparation commits, confirm the existing CI run for the
+For the upstream flow, before making release-preparation commits, confirm the existing CI run for the
 resolved commit is green. Pending CI is watched to completion. Release
 preparation then stays local through the changelog, any explicitly requested ACP
 catalog update, lockfile preparation, and the version commit. After approval,
@@ -49,13 +66,15 @@ commit.
 
 ## Release branch discipline
 
-While you finalize a release on `main`, use a temporary `next` branch for work intended for the following
-release. This applies to both beta and stable releases.
+While you finalize an upstream beta or stable release on `main`, use a temporary `next` branch for
+work intended for the following release. Fork feature work follows the [worktree strategy](worktree-development.md#fork-branches-and-ownership);
+use `next` there only for explicitly requested release coordination, not as another permanent main.
+Select the integration ref for the release lane from [release source and CI](#release-source-and-ci).
 
-- Create each new `next` from freshly fetched `origin/main`. Reuse it while active.
+- Create each new `next` from the freshly fetched integration ref for that lane. Reuse it while active.
 - "This goes to next" means create the PR against `next` or retarget an existing
   PR, and keep that destination through delivery.
-- Keep `next` current by merging `origin/main` into it as release fixes land.
+- Keep `next` current by merging that integration ref into it as release fixes land.
   Avoid rebasing this shared branch because agents and open PRs depend on its history.
 - After the release ships, bring `next` up to date and open a `next` → `main` PR.
   Pass CI and merge without squashing away the individual PR commits needed for
@@ -70,7 +89,7 @@ GitHub's default PR events do not cover this. Deployment triggers stay unchanged
 
 ### Hotfix from a release tag
 
-If `main` contains changes you do not want to release, branch from the affected
+For the upstream release flow, if `main` contains changes you do not want to release, branch from the affected
 release tag and cherry-pick only the required fixes. Run CI on that branch, then
 use the normal release flow with it as the explicit source, choosing a new patch
 or beta version. Ensure the fixes and changelog also reach `main` and any active
@@ -95,12 +114,10 @@ cannot determine whether a feature description is accurate.
 
 ## Fork preview distribution
 
-RyanEwen/paseo-plus-plus uses `main` as its default, merge-only integration branch. Develop changes
-on feature branches, review them, then merge them into `main`. The fork's former upstream mirror
-is preserved as `upstream/main`; the `origin` remote continues to point to getpaseo/paseo. Integration
-CI retains both `main` and `ryan/preview` triggers, preserving upstream `main` CI too. During the
-rename, release operations accept the exact
-old repository `RyanEwen/paseo` and old integration branch `ryan/preview` as well.
+The [worktree guide](worktree-development.md#fork-branches-and-ownership) owns fork branch roles,
+feature ownership, upstream synchronization, and review integration. Use its canonical integration
+ref for release preparation. Existing workflow allowlists still recognize legacy repository and
+branch names; those entries do not define another active release or integration lane.
 
 The **Fork Preview Release** workflow is manually dispatched on fork `main`. It builds Windows
 and Linux for x64 and ARM64, plus standalone Linux daemon/CLI packages and an Android APK. macOS is
@@ -112,7 +129,7 @@ The desktop uses a fresh installation and profile, without importing legacy prev
 connections. The renderer storage origin stays `paseo://app`. Android uses `sh.paseo.plusplus` and the same OS link scheme. See
 [Android app variants](android.md#app-variants).
 
-The workflow resolves one commit and requires that commit's push CI to have passed. All jobs use
+The workflow resolves one commit and requires that commit's latest push CI to have passed. All jobs use
 that SHA, even if the branch moves during the build. Its run number identifies each preview; reruns
 reuse that number. Android gets a separate increasing version code so upstream beta numbering
 cannot leave later previews with the same native version. Never recreate the workflow under another
@@ -125,10 +142,65 @@ parallelism or moving native compilation and Hermes onto a smaller runner.
 
 Windows installers and Linux AppImages update exclusively from this fork's `preview` channel.
 The Stable/Beta selector is omitted in preview builds. The optional desktop CLI installs as `paseo-plus-plus-desktop`
-so it can coexist with the official `paseo` command. Android previews also update from published
+so it can coexist with the official `paseo` command. Android builds also update from published
 fork releases; see [Android update controls](android.md#app-variants). Other Linux packages can
 be downloaded from the release. Official tag-triggered release, deployment, and changelog workflows
 exclude preview tags. The preview workflow does not publish npm packages to a registry.
+
+### Final prerelease bridge and normal Latest releases
+
+This transition is planned. The source change does not publish the bridge or open normal publication.
+
+Publish one final prerelease containing the Android and standalone-host updater bridge, then use
+normal GitHub releases marked **Latest**. This changes GitHub's release classification. Keep
+`v<upstream-version>-preview.<workflow-run-number>`, the `preview` desktop channel and its three
+manifest filenames, package identities, profiles, signing keys, and workflow sequence unchanged.
+Do not assume the next run number: draft, failed and verification runs also consume the sequence.
+
+Older Android apps and standalone hosts only discover prereleases. Keep the final bridge published
+as a prerelease with all its original assets so they can update to it before discovering normal
+releases. Bridge clients accept either classification within the same exact fork tag namespace.
+Drafts, unrelated tags, incomplete newest builds and noncanonical asset URLs remain ineligible.
+Checksums, Android package/signing-key checks, installer approval and version checks still apply.
+
+The shipped Paseo++ `.27`, `.29` and `.30` Android and host selectors request 100 releases per page
+and continue until a page contains fewer than 100. They have no fixed page-count limit, so normal
+releases do not push the retained bridge outside their search. Each page still needs a successful
+API request; growing history adds latency and rate-limit exposure. Retain the bridge and legacy
+repository redirect without a calendar or release-count expiry. Removing them needs a separate
+compatibility decision after reviewing installed-client support.
+
+Desktop's installed electron-updater reads the Atom feed and selects the `preview` channel from
+the tag; it does not use GitHub's prerelease flag on this path. Legacy desktop installs can move
+directly to a normal release with the retained tag and manifests. Keep `allowPrerelease=true` and
+set `allowDowngrade=false` after assigning the channel. Changing the tag to an unsuffixed version,
+switching to `latest.yml`, or clearing that flag would change this update contract. The packager's
+`releaseType: prerelease` is retained for compatibility; packaging runs with `--publish never`,
+and the reviewed publisher controls GitHub classification.
+
+Normal publication is closed while `scripts/preview-release/qualified-bridge.json` is `null`.
+After the bridge is published and its real updater paths pass qualification, review a source change
+that replaces `null` with its `schemaVersion: 1`, exact `releaseId`, `tag`, full source `commit`,
+`assetFingerprint`, and repository-relative `qualificationEvidence` Markdown path under
+`docs/qa-evidence/`. Compute the fingerprint with `fingerprintBridgeAssets` from the published
+release's complete API asset inventory. It pins IDs, names, sizes and SHA-256 digests, independent
+of API ordering. Record the raw inventory and qualification evidence before reviewing the receipt.
+A successful build or a marker in release notes is insufficient qualification.
+
+Qualify legacy Android to bridge, then bridge discovery of normal-classified fixture releases;
+verify retained settings, checksum/signing rejection, newer version enforcement and installer
+approval. Qualify real standalone-host updates on Linux x64 and ARM64, including reconnection
+and retained state. Use the existing desktop provider suite for feed parsing, redirects and hashes,
+then verify signed Windows updates and Linux AppImage update/install paths separately. Record what is
+fixture evidence and what ran on installed packages. First normal publication needs fresh exact-source
+CI and complete asset validation as well as the reviewed bridge receipt.
+
+The publisher rechecks the bridge before builds, before draft changes and immediately before
+publication. It requires the pinned prerelease and assets to remain public and unchanged, a source
+descended from the bridge, and a higher workflow counter without a lower desktop core version
+than any published fork build.
+It refuses another bridge after one is published. If bridge qualification fails, hold normal
+publication and review the repair plan; do not delete, reclassify or replace published bridge bytes.
 
 ### Standalone fork daemon
 
@@ -142,9 +214,9 @@ and host identity in `~/.paseo-plus-plus`, with the default listen address `127.
 The desktop app keeps its bundled daemon in `~/.paseo-plus-plus-desktop` on port 6790. Upstream Paseo,
 the desktop daemon, and the standalone daemon can run side by side with their defaults.
 
-The app's host update action installs the newest published fork preview for the host's platform
+The app's host update action installs the newest published fork build for the host's platform
 and architecture, after checking its SHA256SUMS entry. It keeps the original npm prefix and
-refuses linked or mismatched installs. Draft previews remain invisible. Desktop-owned daemons
+refuses linked or mismatched installs. Draft releases remain invisible. Desktop-owned daemons
 update with Desktop; source checkouts and Nix installations need their existing deployment flow.
 Daemon packages are part of the complete release gate, so missing daemon builds keep the release
 in draft. The existing supervisor restarts its worker after a successful update; the supervisor itself
@@ -202,135 +274,49 @@ Select fork `main` when running it. Wait for push CI on the exact source commit 
 
 ```bash
 gh workflow run preview-release.yml --repo RyanEwen/paseo-plus-plus --ref main \
-  -f notes="Describe what users can do in this preview." -F publish=false
+  -f release_kind=bridge -f notes="Describe what users can do in this release." -F publish=false
 ```
 
 The default creates a draft only after every build passes. It validates the complete platform set,
 checks updater hashes against the binaries, merges Windows architecture manifests, and generates
 `SHA256SUMS` plus source provenance. Review the draft's notes and downloads before publishing it.
-Use `publish=true` only with authorization to publish that preview; publication remains gated on
+Use `release_kind=bridge` for the final prerelease. After the
+[bridge qualification gate](#final-prerelease-bridge-and-normal-latest-releases) opens, use
+`release_kind=latest` for normal releases. Drafts stay prereleases until publication: the final
+publish call sets `prerelease=true, make_latest=false` for the bridge or
+`prerelease=false, make_latest=true` for normal releases.
+Use `publish=true` only with authorization to publish that release; publication remains gated on
 every build and asset check. A failed build or upload never makes an update discoverable.
 
-A published preview is immutable. Rerunning its upload is refused rather than replacing files
+A published fork release is immutable. Rerunning its upload is refused rather than replacing files
 that clients may already have downloaded. Start a new workflow run for a corrected release.
 
-### Repository and integration branch cutover
+### Completed repository migration and updater compatibility
 
-When the user has authorized the named repository and branch renames, carry out that cutover after
-qualification, source review, approval of the concrete source commit/push/integration, and green
-exact-source push CI. Do not ask again for the same external renames. This preparation does not
-authorize a release or local workspace changes. Keep active review workspace branches, paths,
-project membership, and workspace identities stable. A directory named `preview-distribution` does
-not identify a maintained release branch. Local branch and directory cleanup are separate,
-authorized actions after unique work is preserved.
+The repository and integration branch migration completed on October 14, 2026. The former
+`RyanEwen/paseo` repository now redirects to RyanEwen/paseo-plus-plus, with the same repository,
+release, asset, and preview workflow identities. Current branch roles are in the
+[worktree guide](worktree-development.md#fork-branches-and-ownership). The old cutover sequence is
+complete; do not repeat its rename or local-ref operations when continuing feature work.
 
-Installed Android, standalone daemon, and desktop builds keep discovering updates through
-`RyanEwen/paseo`. Their existing bridges accept exact old and new release asset URLs. Keep that
-discovery endpoint and the GitHub redirect working. User-facing repository and release-note links
-use the new name. Do not create another repository at the old name; doing so takes over the redirect.
-Do not change app IDs, profiles, package names, link schemes, signing keys, checksum rules, or updater
-channels during the cutover.
+A branch-rename push can retain the removed default branch in its event payload. Fresh manual CI
+on `main` checks the current ref context; it does not replace the preview publisher's latest-push-CI
+requirement. Keep that event-routing failure separate from actual test failures when judging source
+qualification.
 
-Follow these steps in order under the existing authorization for the named external renames:
+Installed Android, standalone daemon, and desktop builds still discover releases through
+`RyanEwen/paseo`. Their existing bridges accept exact old and new release asset URLs. Preserve the
+old endpoint and GitHub redirect; creating another repository at the old name takes over that
+redirect. User-facing repository and release-note links use the new name.
 
-1. **Record and preserve the starting state.** Read GitHub repository ID, default branch, all branch
-   heads, protections/rulesets, Actions permissions, workflow IDs/run counters, environments,
-   secret names, variable names, GitHub App access, open PR bases, and the published asset inventory.
-   Preserve release IDs, asset IDs, sizes, checksums, and provenance. Inspect Azure/Expo/Firebase and
-   any external rules that bind to a repository slug; update only a confirmed slug constraint with
-   approval. Do not print secret or variable values. Record the published source SHA, preview number,
-   and current remote integration SHA. Re-read every head immediately before a mutation and stop if
-   it differs from the approved snapshot.
-2. **Preserve local work separately.** Record each worktree's path, branch, HEAD, dirty status, remotes,
-   and Paseo workspace/baseRef. Save dirty source and untracked review artifacts outside disposable
-   caches. Compare local `ryan/preview` and `main` with their fork remote heads; preserve unpublished
-   commits and divergence with full SHAs and durable refs before any later local cleanup. Keep the
-   unpublished integration commits on their existing local integration/review refs until reviewed
-   reconciliation. A transition commit based on the published remote head can diverge from that
-   local history; only the published source and reviewed transition belong in the new remote `main`.
-   Do not push the unpublished commits, rename local branches, move worktrees,
-   or modify project/workspace metadata as a side effect of the GitHub cutover.
-3. **Land only the reviewed transition source.** Record the owner patch's exact base and file hashes.
-   After explicit commit/push authorization, integrate it into remote `ryan/preview` from a clean
-   checkout of that remote head, never from the local branch with unpublished work. Require complete
-   green push CI, including browser checks, for the resulting exact SHA. Record that SHA as the
-   approved integration head. The inherited Cloudflare deployment and automatic Nix bot jobs must
-   be restricted to `getpaseo/paseo` before the branch becomes `main`. Fork preview publishing and
-   ordinary CI remain enabled. No npm publication or upstream write is part of this transition.
-   Commit/push/integration approval covers source preparation, which must reach GitHub before its
-   CI can run. New canonical user links are unavailable before the repository rename, so do not
-   release an app from this source until cutover; this does not block the approved source push.
-4. **Rename the existing GitHub branches.** Require that `upstream/main` is absent, then rename fork
-   `main` to `upstream/main` using GitHub's branch rename operation. Verify the mirror's full SHA is
-   unchanged. Rename `ryan/preview` to `main`, then verify its SHA equals the approved integration
-   head and the default branch is `main`. Set the default explicitly only if needed. Restore or
-   retarget protection/ruleset branch patterns and required checks deliberately. Review open PR
-   bases; do not treat automatic retargeting as proof. A preserved mirror retains its original
-   workflow source: integration-branch trigger edits do not enable push CI on `upstream/main`.
-   Use its existing manual CI dispatch where available; do not patch the mirror and change its
-   preserved SHA to enable automation. Do not dispatch a preview during these steps.
-5. **Rename the same GitHub repository.** Rename `RyanEwen/paseo` to `RyanEwen/paseo-plus-plus`, keeping
-   its repository ID. Verify default branch and both heads again, workflow file/ID and durable run
-   counter, releases/assets, Actions settings, credentials by name, environments, and app access.
-   This changes an existing repository, rather than copying it to a fresh one. Retain the workflow
-   path and name; recreating it can reset preview numbering and Android version codes.
-6. **Verify discovery without releasing.** Check old API discovery redirects to this same repository
-   and previously published download URLs still resolve to unchanged assets. Check new repository/release
-   links and the canonical release-note API. Confirm exact old/new asset selection, checksum and
-   signature protections, and installed Android/desktop/daemon discovery before calling update
-   compatibility verified. HTTP redirects alone do not qualify installed update behavior. If live
-   installed-client access is unavailable, record that limit and keep the release gate pending.
-7. **Keep local reconciliation separate.** The GitHub cutover does not require pruning refs, deleting
-   aliases, or updating active local branches. Retain existing local refs and baseRefs until explicit
-   owner comparison-ref migration. If separately authorized, change only the `fork` remote URL to
-   the new slug; `origin` remains upstream. Git remote configuration is shared by all worktrees.
-   Fetch new tracking branches without pruning the old ones. Record each preserved full local and
-   remote mirror head and the intended tracking target before any later reconciliation. Do not
-   silently fast-forward local `main` from its old mirror head to either remote mirror or new fork
-   integration history. Resolve an old `fork/ryan/preview` comparison target deliberately, preserving
-   the owner's original base SHA; do not replace it with upstream `origin/main` or unrelated local
-   `main`. Local branch names, active paths, and Paseo metadata remain stable until separately
-   coordinated. Keep all workspaces under the existing project.
-8. **Qualify the next release separately.** Require fresh full push CI on fork `main` at the intended
-   release SHA before dispatch. The workflow checks repository, integration ref, and successful push
-   CI for that SHA, then pins every build and provenance file to it. Confirm preview run number and
-   Android version code increase, and no release at its tag is already published. Use a draft first
-   unless publication is explicitly authorized. Verify the complete platform/assets gate and
-   installed update paths before publication; never replace a published release.
-
-Useful read-only preflight commands (save outputs in the coordinator's cutover evidence):
-
-```bash
-gh api repos/RyanEwen/paseo --jq '{id,full_name,default_branch,permissions}'
-gh api repos/RyanEwen/paseo/branches --paginate --jq '.[] | {name,sha:.commit.sha,protected}'
-gh api repos/RyanEwen/paseo/rulesets --paginate
-gh api repos/RyanEwen/paseo/actions/permissions
-gh api repos/RyanEwen/paseo/actions/workflows --jq '.workflows[] | {id,name,path,state}'
-gh secret list --repo RyanEwen/paseo
-gh api repos/RyanEwen/paseo/actions/variables --jq '.variables[].name'
-gh api repos/RyanEwen/paseo/environments --jq '.environments[].name'
-gh api 'repos/RyanEwen/paseo/releases?per_page=100' --paginate
-git worktree list --porcelain
-git show-ref --heads
-git remote -v
-```
-
-For branch-specific protection endpoints, URL-encode slash-containing branch names. Record 404s as
-absent settings only after checking access; a permission error is not proof that no protection exists.
-Inspect environment-scoped credentials and external integration access separately from repo secrets.
-
-**Rollback:** Stop dispatch/publication if any head, identity, credentials, redirect, asset, or required
-check fails verification. Before the repository rename, reverse only completed branch renames,
-checking the preserved full heads and resetting the default to `ryan/preview`. Do not reset source
-history or unpublished local work. After the repository rename, prefer holding the new name and
-repairing configuration without a release. Renaming back requires a new explicit decision and fresh
-old/new discovery checks; reverse-rename redirect behavior is not assumed. Once a new-name release
-is published, preserve its assets and clients' URLs and repair forward. Never create a replacement
-old-name repository, recreate a workflow, or overwrite a published release as rollback.
+Keep published assets immutable and retain the existing preview workflow path, ID, and increasing
+run sequence. Do not change app IDs, profiles, package names, link schemes, signing keys, checksum
+rules, or updater channels as part of repository housekeeping. The inherited website deployment
+and automatic Nix bot writes remain restricted to upstream; fork preview publishing is separate.
 
 ## ACP catalog updates
 
-ACP catalog work enters a release through an explicit user request:
+In the upstream flow, ACP catalog work enters a release through an explicit user request:
 
 - **Check ACP drift** — run `npm run acp:version-drift:check`. When drift exists,
   run `npm run acp:version-drift:update`, verify the catalog, and include the
@@ -343,7 +329,7 @@ release push as the changelog and version commit.
 
 ## Two paths
 
-There are two supported release paths:
+Upstream npm and store publication has two supported release paths. Fork previews use the [fork workflow](#fork-preview-distribution):
 
 1. **Direct stable release**: you are ready to ship the resolved release source to everyone immediately (default `origin/main`).
 2. **Beta flow**: release candidates on the `beta` channel. Each beta folds into the series' single changelog entry, publishes npm only on the explicit `beta` dist-tag, and stays behind the Stable/Beta switch on `/download`.
@@ -358,7 +344,7 @@ pointers. The npm invariant is:
 
 ## Release version decision
 
-Every fresh release starts by classifying the full diff from the previous
+Every fresh upstream release starts by classifying the full diff from the previous
 stable to the resolved release source. The highest-impact change determines the
 version:
 
@@ -612,9 +598,35 @@ Do not treat `build_ios: SUCCESS` or `submit_ios: SUCCESS` as a completed iOS re
 
 To confirm the submission landed, inspect the EAS workflow with `npx eas workflow:view <workflow-run-id> --json`. App Store Connect (review state for the matching version/build) and the Play Console track are the final ground truth.
 
+## Released feature workspaces
+
+For `RyanEwen/paseo-plus-plus`, Ryan has authorized archiving completed feature workspaces after their
+changes are published. This is a post-release coordination step, not an automatic archive hook.
+Do not archive the main coordination or integration workspace.
+
+Before archiving an owner:
+
+- The exact published release passed every applicable completion gate and contains the owner's
+  released work. Record the release, source commit, workspace ID, branch, and branch head.
+- The branch and source repository remain available for recovery. Keep the branch; archival does
+  not authorize deleting refs, making commits, or pushing changes.
+- No unfinished source changes, new user work, running validation, or active dependency references
+  need that directory. Skip the owner if its next feature iteration has already started.
+- Required handoff and release evidence is retained outside any directory that archive will remove.
+  Explicitly protected backups and unfinished review evidence must remain untouched.
+
+Archive the eligible workspace through Paseo and verify the result. Record whether its directory
+was removed; manually adopted directories may remain and need separate approved cleanup. Do not
+call a visibility change a disk-space saving.
+
+When Ryan requests more work on that feature, inspect recovery, restore or unarchive the existing
+workspace, and resume its existing agent. Qualify its dependency and runtime environment again
+before checks. Do not assume restoration runs dependency setup or recovers unsaved files; see
+[archive and recovery limits](agent-lifecycle.md#archive).
+
 ## Release completion and heartbeat
 
-A release is **in progress** after npm publication and tag push. Report it as
+An upstream release is **in progress** after npm publication and tag push. Report it as
 **shipped** only after every applicable build, publication, asset, manifest, and
 store submission passes the completion checklist.
 
@@ -656,9 +668,11 @@ later transitions and stops itself when the release is complete.
 
 ## Release notes on GitHub
 
-The GitHub Release body is populated automatically by the `Release Notes Sync` workflow (`.github/workflows/release-notes-sync.yml`). It triggers on every `v*` tag push and on any push to `main` that touches `CHANGELOG.md`, then runs `scripts/sync-release-notes-from-changelog.mjs` to mirror the matching changelog entry into the release body. You don't need to write release notes on GitHub manually — keep `CHANGELOG.md` correct and the workflow will sync it. To force a re-sync, dispatch the workflow with the tag input.
+For upstream releases, the GitHub Release body is populated automatically by the `Release Notes Sync` workflow (`.github/workflows/release-notes-sync.yml`). It triggers on every `v*` tag push and on any push to `main` that touches `CHANGELOG.md`, then runs `scripts/sync-release-notes-from-changelog.mjs` to mirror the matching changelog entry into the release body. You don't need to write release notes on GitHub manually; keep `CHANGELOG.md` correct and the workflow will sync it. To force a re-sync, dispatch the workflow with the tag input.
 
 ## Website behavior
+
+This section describes the upstream website and its stable/beta distribution. Fork preview downloads and notes follow the [fork workflow](#fork-preview-distribution).
 
 - The website download page defaults to GitHub's latest published **stable** release.
 - A published beta prerelease is offered behind the Stable/Beta switch on `/download` (`?channel=beta`), never as the default. The switch only appears while the newest prerelease leads stable on its core version, so promoting `X.Y.Z-beta.N` to `X.Y.Z` retires the beta channel from the page until the next beta line opens.
@@ -768,9 +782,13 @@ Release notes depend on the changelog heading format. The heading **must** be st
 
 No prefix (`v`), no extra text. `Release Notes Sync` matches the `## X.Y.Z` (or `## X.Y.Z-beta.N`) line for the pushed tag to extract the version. A malformed heading breaks the release-notes sync for that tag.
 
-`CHANGELOG.md` on `main` is also what the app's **What's new** sheet fetches and renders, so the file is a shipped product surface, not just a release input. `##` starts a release and `###` starts a section; the app reads section titles from the document, so renaming or adding one needs no app change. Everything under a section is rendered as Markdown: prose, lists, links, inline code, fenced code, block quotes, tables, and images. Raw HTML does not render — the shared Markdown parser runs with `html: false`, so a `<video>`, `<iframe>` or `<embed>` tag reaches the reader as visible markup. Keep media out of the changelog, or link to it. A GitHub callout renders as a block quote with its `[!NOTE]` marker still in the text. A release entry is what a user reads on a phone the moment they are offered the update — write it for them.
+For the upstream Paseo app, `CHANGELOG.md` on upstream `main` is what the **What's new** sheet fetches and renders, so the file is a shipped product surface, not just a release input. `##` starts a release and `###` starts a section; the app reads section titles from the document, so renaming or adding one needs no app change. Everything under a section is rendered as Markdown: prose, lists, links, inline code, fenced code, block quotes, tables, and images. Raw HTML does not render: the shared Markdown parser runs with `html: false`, so a `<video>`, `<iframe>` or `<embed>` tag reaches the reader as visible markup. Keep media out of the changelog, or link to it. A GitHub callout renders as a block quote with its `[!NOTE]` marker still in the text. A release entry is what a user reads on a phone the moment they are offered the update; write it for them.
+
+Paseo++ uses [published fork release notes](#prepare-and-publish) for **What's new**.
 
 ## Changelog policy
+
+This policy governs the upstream `CHANGELOG.md` and stable/beta entries. Fork previews use the reviewed notes in the [fork workflow](#prepare-and-publish).
 
 - `CHANGELOG.md` holds stable releases and at most one entry for the current beta series.
 - The first beta of a version inserts a top entry like `## 0.1.60-beta.1 - YYYY-MM-DD`.
@@ -888,6 +906,8 @@ Changelog scope follows the release being described:
 Every entry covers `previous stable release → release source`: first beta, later beta, direct stable release, and promotion alike. The beta entry always reads as the stable entry would if the beta were promoted today.
 
 ## Completion checklist
+
+These beta/stable checklists apply to upstream publication. Fork previews use the complete build and asset gate in [Prepare and publish](#prepare-and-publish).
 
 ### Beta release
 

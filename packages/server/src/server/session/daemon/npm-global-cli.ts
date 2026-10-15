@@ -1,5 +1,6 @@
 import { lstatSync } from "node:fs";
-import { downloadForkPreview } from "./fork-preview.js";
+import semver from "semver";
+import { downloadForkPreview, resolveForkPreview } from "./fork-preview.js";
 import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import { z } from "zod";
 import { execCommand } from "../../../utils/spawn.js";
@@ -54,6 +55,7 @@ export interface NpmGlobalPaseoInstall {
 }
 
 export interface NpmGlobalPaseoCli {
+  getNewerVersion(currentVersion: string): Promise<string | null>;
   inspect(options?: NpmGlobalOptions): Promise<NpmGlobalPaseoInstall>;
   installLatest(options?: NpmGlobalOptions): Promise<CommandResult>;
 }
@@ -153,6 +155,38 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
     return install;
   }
 
+  /** Use the same release channel as installation; fork builds have a durable preview counter. */
+  async getNewerVersion(currentVersion: string): Promise<string | null> {
+    if (this.packageName === FORK_DAEMON_PACKAGE) {
+      const preview = await resolveForkPreview();
+      return isNewerDaemonVersion({
+        current: currentVersion,
+        candidate: preview.version,
+        distribution: "fork",
+      })
+        ? preview.version
+        : null;
+    }
+    const result = await this.runCommand(
+      "npm",
+      ["view", `${this.packageName}@latest`, "version", "--json"],
+      {
+        timeout: NPM_PROBE_TIMEOUT_MS,
+        maxBuffer: NPM_MAX_BUFFER_BYTES,
+      },
+    );
+    if (result.exitCode !== 0)
+      throw new Error(result.stderr.trim() || "Unable to check npm update");
+    const version = z.string().parse(JSON.parse(result.stdout));
+    return isNewerDaemonVersion({
+      current: currentVersion,
+      candidate: version,
+      distribution: "upstream",
+    })
+      ? version
+      : null;
+  }
+
   async installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
     if (this.packageName === FORK_DAEMON_PACKAGE) {
@@ -174,3 +208,26 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
 }
 
 export const npmGlobalPaseoCli = new DefaultNpmGlobalPaseoCli();
+
+interface DaemonVersionComparison {
+  current: string;
+  candidate: string;
+  distribution: "fork" | "upstream";
+}
+
+/** Compare only known channel versions; unknown versions cannot establish update eligibility. */
+export function isNewerDaemonVersion({
+  current,
+  candidate,
+  distribution,
+}: DaemonVersionComparison): boolean {
+  if (distribution === "fork") {
+    const pattern = /^\d+\.\d+\.\d+-preview\.(\d+)$/;
+    const currentBuild = pattern.exec(current);
+    const candidateBuild = pattern.exec(candidate);
+    if (!currentBuild || !candidateBuild) return false;
+    return BigInt(candidateBuild[1]) > BigInt(currentBuild[1]);
+  }
+  if (!semver.valid(current) || !semver.valid(candidate)) return false;
+  return semver.gt(candidate, current);
+}

@@ -7,12 +7,12 @@ import type { LayoutChangeEvent, TextLayoutEvent } from "react-native";
 import { describe, expect, it, vi } from "vitest";
 import { readMeasuredWidth, useContainerWidthBelow } from "./use-container-width";
 
-function layoutEvent(width: number): LayoutChangeEvent {
+function layoutEvent(width: number, height = 48): LayoutChangeEvent {
   return {
     nativeEvent: {
       layout: {
         width,
-        height: 48,
+        height,
         x: 0,
         y: 0,
       },
@@ -107,12 +107,19 @@ describe("native clamped text overflow", () => {
     const { result } = renderHook(() => useTextOverflow("measured content", 1));
     act(() => {
       result.current.onLayout(layoutEvent(240));
+      result.current.onFullLayout?.(layoutEvent(240));
       result.current.onFullTextLayout(textLines(1));
     });
     expect(result.current.overflowing).toBe(false);
-    act(() => result.current.onFullTextLayout(textLines(2)));
+    act(() => {
+      result.current.onFullLayout?.(layoutEvent(240, 96));
+      result.current.onFullTextLayout(textLines(2));
+    });
     expect(result.current.overflowing).toBe(true);
-    act(() => result.current.onFullTextLayout(textLines(1)));
+    act(() => {
+      result.current.onFullLayout?.(layoutEvent(240));
+      result.current.onFullTextLayout(textLines(1));
+    });
     expect(result.current.overflowing).toBe(false);
   });
   it("fits the exact desktop boundary and updates when its line policy changes", () => {
@@ -121,16 +128,20 @@ describe("native clamped text overflow", () => {
     });
     act(() => {
       result.current.onLayout(layoutEvent(180));
+      result.current.onFullLayout?.(layoutEvent(180));
       result.current.onFullTextLayout(textLines(2));
     });
     expect(result.current.overflowing).toBe(false);
     rerender({ lines: 1 });
-    act(() => result.current.onLayout(layoutEvent(180)));
+    act(() => result.current.onLayout(layoutEvent(180, 24)));
     expect(result.current.overflowing).toBe(true);
   });
   it("accepts full text layout arriving before visible layout", () => {
     const { result } = renderHook(() => useTextOverflow("full layout first", 1));
-    act(() => result.current.onFullTextLayout(textLines(3)));
+    act(() => {
+      result.current.onFullLayout?.(layoutEvent(160, 144));
+      result.current.onFullTextLayout(textLines(3));
+    });
     expect(result.current.overflowing).toBe(false);
     act(() => result.current.onLayout(layoutEvent(160)));
     expect(result.current.overflowing).toBe(true);
@@ -139,15 +150,30 @@ describe("native clamped text overflow", () => {
     const { result } = renderHook(() => useTextOverflow("retained prompt", 1));
     act(() => {
       result.current.onLayout(layoutEvent(160));
+      result.current.onFullLayout?.(layoutEvent(160, 144));
       result.current.onFullTextLayout(textLines(3));
     });
     expect(result.current.overflowing).toBe(true);
     act(() => {
       result.current.onLayout(layoutEvent(0));
+      result.current.onFullLayout?.(layoutEvent(0));
       result.current.onFullTextLayout(textLines(1));
     });
     expect(result.current.overflowing).toBe(true);
-    act(() => result.current.onLayout(layoutEvent(500)));
+    act(() => {
+      result.current.onLayout(layoutEvent(500));
+      result.current.onFullLayout?.(layoutEvent(500));
+    });
+    expect(result.current.overflowing).toBe(false);
+  });
+  it("does not disclose a fitting message when native line reporting wraps it again", () => {
+    const { result } = renderHook(() => useTextOverflow("I have WSL set to keep running", 1));
+    act(() => {
+      result.current.onLayout(layoutEvent(240, 24));
+      // Native event handlers are optional on Text; the old probe had no layout handler.
+      result.current.onFullLayout?.(layoutEvent(240, 24));
+      result.current.onFullTextLayout(textLines(2));
+    });
     expect(result.current.overflowing).toBe(false);
   });
 });
