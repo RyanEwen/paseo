@@ -68,11 +68,15 @@ Follow workspaces as status changes move them to new positions with quick transi
 
 Check for published Paseo++ releases on startup and resume. Available updates appear in the sidebar. Follow download progress and verification in the sidebar or Settings, then approve installation in Android. Turning automatic checks off keeps manual checking and installation available.
 
+### Sidebar host updates
+
+Update a host from the sidebar when it confirms update support and a compatible release is available. Older hosts can use the manual update flow without a release-availability check. This sidebar action starts enabled; turn **Host updates in the sidebar** off in Paseo++ settings to hide it while keeping the ordinary update action in Host Settings.
+
 ## Display and reading preferences
 
 ### Mobile workspace tabs
 
-Switch between workspace tabs directly on your phone. Scroll the tab strip horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. The selected tab stays in view.
+Switch between workspace tabs directly on your phone with the tab strip enabled by default. Scroll it horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. Turn **Mobile workspace tabs** off in Paseo++ settings to restore the earlier chooser while preserving your selected tab and drafts.
 
 ### Accent colors
 
@@ -118,7 +122,7 @@ Open the fork repository and published release notes from the app. Upstream issu
 
 ### Workspace browser links
 
-On desktop, open HTTP and HTTPS links from workspace chat in a Paseo browser tab. Right-click a link to open it in your external browser. Workspace repository, pull request, check, and Markdown links also offer **Open in Paseo browser**, while their usual action stays the same.
+On desktop, HTTP and HTTPS links from workspace chat open in a Paseo browser tab by default. Turn **Open chat links in Paseo** off in Paseo++ settings to open primary clicks externally; **Open in Paseo browser** remains available in the link menu. When enabled, right-click a link to choose your external browser. Workspace repository, pull request, check, and Markdown links also offer **Open in Paseo browser**, while their usual action stays the same.
 
 Mobile and browser clients, and links outside a workspace, continue opening links externally.
 
