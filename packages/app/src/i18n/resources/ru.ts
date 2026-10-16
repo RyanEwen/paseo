@@ -39,7 +39,7 @@ export const ru: TranslationResources = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Сохранить",
-      title: "Список рабочих пространств",
+      title: "Ограничения рабочих пространств",
       label: "Показывать в каждой группе сначала",
       limited: "Ограниченное число",
       all: "Показать все",

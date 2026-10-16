@@ -34,7 +34,7 @@ export const en = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Save",
-      title: "Workspace list",
+      title: "Workspace limits",
       label: "Initially show per group",
       limited: "Limited",
       all: "Show all",
@@ -1407,7 +1407,7 @@ export const en = {
       oneProjectAtATime: "One project at a time",
       reorderGuidance:
         "Drag to reorder only with Custom sorting. Filtered project moves keep the same before/after neighbor when all projects are shown. Pins always use manual ordering.",
-      showBackground: "Show background",
+      showBackground: "Show background workspaces",
       trigger: "Display preferences",
       heading: "Display",
       grouping: {

@@ -37,7 +37,7 @@ export const ko: TranslationResources = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "저장",
-      title: "작업 공간 목록",
+      title: "작업 공간 표시 제한",
       label: "그룹별 초기 표시",
       limited: "개수 지정",
       all: "모두 표시",
@@ -1406,7 +1406,7 @@ export const ko: TranslationResources = {
       oneProjectAtATime: "한 번에 하나의 프로젝트",
       reorderGuidance:
         "사용자 지정 정렬에서만 끌어서 순서를 바꿀 수 있습니다. 필터링한 프로젝트를 이동해도 전체 표시 시 같은 프로젝트의 앞뒤에 유지됩니다. 고정 항목은 항상 수동으로 정렬됩니다.",
-      showBackground: "백그라운드 표시",
+      showBackground: "백그라운드 작업 공간 표시",
       trigger: "표시 설정",
       heading: "표시",
       grouping: {

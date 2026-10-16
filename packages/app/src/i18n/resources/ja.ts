@@ -37,7 +37,7 @@ export const ja: TranslationResources = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "保存",
-      title: "ワークスペース一覧",
+      title: "ワークスペースの表示制限",
       label: "グループごとの初期表示",
       limited: "件数を指定",
       all: "すべて表示",
@@ -1414,7 +1414,7 @@ export const ja: TranslationResources = {
       oneProjectAtATime: "一度に1つのプロジェクト",
       reorderGuidance:
         "並べ替えのドラッグはカスタム順でのみ使えます。絞り込んだプロジェクトの移動は、すべて表示した後も同じ隣接プロジェクトの前後を維持します。ピン留めは常に手動順です。",
-      showBackground: "バックグラウンドを表示",
+      showBackground: "バックグラウンドのワークスペースを表示",
       trigger: "表示設定",
       heading: "表示",
       grouping: {
