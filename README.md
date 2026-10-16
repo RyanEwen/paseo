@@ -74,6 +74,10 @@ Update a host from the sidebar when it confirms update support and a compatible 
 
 ## Display and reading preferences
 
+### Tool call display
+
+New preferences start in **Summary**. Choose **Full detail** in **Settings → Chat**; saved choices are preserved.
+
 ### Mobile workspace tabs
 
 Switch between workspace tabs directly on your phone with the tab strip enabled by default. Scroll it horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. Turn **Mobile workspace tabs** off in Paseo++ settings to restore the earlier chooser while preserving your selected tab and drafts.
