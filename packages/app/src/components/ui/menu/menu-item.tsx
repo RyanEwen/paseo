@@ -223,10 +223,25 @@ function resolveItemLabel(input: {
   return children;
 }
 
+function resolveItemTrailing(
+  trailing: ReactElement | null | undefined,
+  showSelectedCheck: boolean,
+  selected: boolean | undefined,
+): ReactElement | null {
+  return (
+    trailing ??
+    (!showSelectedCheck && selected ? <ThemedCheck size={16} uniProps={mutedMapping} /> : null)
+  );
+}
+
 export interface MenuItemProps {
   description?: string;
   accessibilityLabel?: string;
   secondaryToggle?: MenuItemSecondaryToggle;
+  /** Independent sibling control, such as a creation row’s split-layout menu. */
+  secondaryAction?: ReactElement;
+  /** Compact menu action for an icon-only submenu trigger. */
+  iconOnly?: boolean;
   onSelect?: () => void;
   disabled?: boolean;
   muted?: boolean;
@@ -262,6 +277,8 @@ export function MenuItem({
   description,
   accessibilityLabel,
   secondaryToggle,
+  secondaryAction,
+  iconOnly = false,
   onSelect,
   disabled,
   muted = false,
@@ -292,9 +309,7 @@ export function MenuItem({
 
   const label = resolveItemLabel({ children, isPending, isSuccess, pendingLabel, successLabel });
 
-  const trailingContent =
-    trailing ??
-    (!showSelectedCheck && selected ? <ThemedCheck size={16} uniProps={mutedMapping} /> : null);
+  const trailingContent = resolveItemTrailing(trailing, showSelectedCheck, selected);
 
   const handleItemPress = useCallback(() => {
     if (isDisabled) return;
@@ -316,7 +331,8 @@ export function MenuItem({
       focused = false,
     }: PressableStateCallbackType & { hovered?: boolean; focused?: boolean }) => [
       styles.item,
-      secondaryToggle ? styles.splitPrimary : null,
+      secondaryToggle || secondaryAction ? styles.splitPrimary : null,
+      iconOnly ? styles.iconOnly : null,
       active ? styles.itemActive : null,
       isDisabled ? styles.itemDisabled : null,
       muted && !isDisabled ? styles.itemMuted : null,
@@ -324,7 +340,7 @@ export function MenuItem({
       focused && !isDisabled ? styles.itemHovered : null,
       pressed && !isDisabled ? styles.itemPressed : null,
     ],
-    [active, isDisabled, muted, secondaryToggle],
+    [active, isDisabled, muted, secondaryToggle, secondaryAction, iconOnly],
   );
 
   const itemTextStyle = useMemo(
@@ -360,7 +376,7 @@ export function MenuItem({
         </View>
       ) : null}
       {leadingContent ? <View style={styles.leadingSlot}>{leadingContent}</View> : null}
-      <View style={styles.itemContent}>
+      <View style={iconOnly ? styles.hiddenLabel : styles.itemContent}>
         <Text numberOfLines={1} style={itemTextStyle}>
           {label}
         </Text>
@@ -375,7 +391,11 @@ export function MenuItem({
   );
 
   return (
-    <MenuItemActions toggle={secondaryToggle} disabled={Boolean(isDisabled)}>
+    <MenuItemActions
+      toggle={secondaryToggle}
+      action={secondaryAction}
+      disabled={Boolean(isDisabled)}
+    >
       <MenuItemTooltip tooltip={tooltip}>{primaryContent}</MenuItemTooltip>
     </MenuItemActions>
   );
@@ -497,6 +517,13 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: 0,
     paddingHorizontal: 0,
   },
+  iconOnly: {
+    marginHorizontal: 0,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+    minWidth: MENU_ITEM_HEIGHT,
+  },
+  hiddenLabel: { display: "none" },
   splitPrimary: {
     flex: 1,
     minWidth: 0,

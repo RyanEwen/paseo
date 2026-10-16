@@ -78,6 +78,10 @@ export const es: TranslationResources = {
         label: "Actualizaciones de hosts en la barra lateral",
         hint: "Mostrar acciones de actualización en el menú de hosts. Los ajustes del host siguen disponibles al desactivar esta opción.",
       },
+      splitLayoutPresets: {
+        label: "Controles de división",
+        hint: "Haz clic en la región del diagrama donde quieras abrir o mover una pestaña. En 60/40, la región derecha o inferior ocupa el 40%. Los ajustes del divisor cambian el tamaño de los paneles existentes. Desactiva la opción para ocultar estos controles sin cambiar la distribución.",
+      },
       mobileWorkspaceTabs: {
         label: "Pestañas de espacios en móvil",
         hint: "Mostrar una barra de pestañas desplazable en espacios compactos. Desactiva para usar el selector anterior sin cambiar la pestaña seleccionada.",
@@ -651,6 +655,22 @@ export const es: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Abrir {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Mover pestaña: {{side}}, {{percent}}%",
+      openToSide: "Abrir {{item}} a un lado",
+      chooseRatio: "Elegir proporción",
+      ratio: "Usar {{ratio}}",
+      moveTab: "Mover pestaña",
+      left: "Izquierda",
+      right: "Derecha",
+      top: "Arriba",
+      bottom: "Abajo",
+      columns: "Izquierda / derecha",
+      rows: "Arriba / abajo",
+      pane: "Panel {{index}}",
+    },
+
     route: {
       loading: "Cargando espacio de trabajo",
       connecting: "Conectando",

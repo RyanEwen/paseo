@@ -78,6 +78,10 @@ export const fr: TranslationResources = {
         label: "Mises à jour des hôtes dans la barre latérale",
         hint: "Afficher les actions de mise à jour dans le menu des hôtes. Les réglages des hôtes restent accessibles si cette option est désactivée.",
       },
+      splitLayoutPresets: {
+        label: "Contrôles de disposition",
+        hint: "Cliquez sur la zone du schéma où ouvrir ou déplacer un onglet. Avec 60/40, la zone de droite ou du bas occupe 40 %. Les préréglages du séparateur redimensionnent les panneaux existants. Désactivez cette option pour masquer les commandes sans modifier la disposition.",
+      },
       mobileWorkspaceTabs: {
         label: "Onglets des espaces sur mobile",
         hint: "Afficher une barre d’onglets défilante dans les espaces compacts. Désactivez pour retrouver le sélecteur précédent sans changer l’onglet actif.",
@@ -651,6 +655,22 @@ export const fr: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Ouvrir {{item}} : {{side}}, {{percent}} %",
+      moveRegion: "Déplacer l’onglet : {{side}}, {{percent}} %",
+      openToSide: "Ouvrir {{item}} sur le côté",
+      chooseRatio: "Choisir les proportions",
+      ratio: "Utiliser {{ratio}}",
+      moveTab: "Déplacer l’onglet",
+      left: "Gauche",
+      right: "Droite",
+      top: "Haut",
+      bottom: "Bas",
+      columns: "Gauche / droite",
+      rows: "Haut / bas",
+      pane: "Volet {{index}}",
+    },
+
     route: {
       loading: "Chargement de l’espace de travail…",
       connecting: "Connexion…",

@@ -1,3 +1,4 @@
+import { WorkspaceSplitMenuScope } from "@/screens/workspace/workspace-tab-split-menu";
 import {
   Fragment,
   useCallback,
@@ -123,6 +124,7 @@ interface SplitContainerProps {
     tabId: string;
     targetPaneId: string;
     position: "left" | "right" | "top" | "bottom";
+    firstPaneFraction?: number;
   }) => void;
   onSplitPaneEmpty: (input: {
     targetPaneId: string;
@@ -629,123 +631,130 @@ export function SplitContainer({
   );
 
   return (
-    <RenderProfile id="SplitContainer">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={dropCollisionDetection}
-        onDragStart={handleDragStart}
-        onDragMove={updateDropPreview}
-        onDragOver={updateDropPreview}
-        onDragCancel={handleDragCancel}
-        onDragEnd={handleDragEnd}
-      >
-        <View style={styles.workspaceShell} onLayout={handleWorkspaceShellLayout}>
-          <WindowChromeRegion corners={mainColumnWindowChromeCorners}>
-            <View style={mainColumnStyle}>
-              {renderMainHeader?.()}
-              {splitRoot.usesFallbackStrip && <WindowChromeSafeArea placement="below" />}
-              {renderRoot ? (
-                <SplitNodeView
-                  node={renderRoot}
-                  workspaceKey={workspaceKey}
-                  uiTabs={uiTabs}
-                  focusedPaneId={layout.focusedPaneId}
-                  normalizedServerId={normalizedServerId}
-                  normalizedWorkspaceId={normalizedWorkspaceId}
-                  isWorkspaceFocused={isWorkspaceFocused}
-                  hoveredCloseTabKey={hoveredCloseTabKey}
-                  setHoveredCloseTabKey={setHoveredCloseTabKey}
-                  closingTabIds={closingTabIds}
-                  onNavigateTab={onNavigateTab}
-                  onCloseTab={onCloseTab}
-                  onCopyResumeCommand={onCopyResumeCommand}
-                  onCopyAgentId={onCopyAgentId}
-                  onCopyTerminalId={onCopyTerminalId}
-                  onCopyFilePath={onCopyFilePath}
-                  onReloadAgent={onReloadAgent}
-                  onRenameTab={onRenameTab}
-                  onCloseTabsToLeft={onCloseTabsToLeft}
-                  onCloseTabsToRight={onCloseTabsToRight}
-                  onCloseOtherTabs={onCloseOtherTabs}
-                  onCreateNewTab={onCreateNewTab}
-                  buildPaneContentModel={buildPaneContentModel}
-                  onFocusPane={onFocusPane}
-                  onSplitPane={onSplitPane}
-                  onSplitPaneEmpty={onSplitPaneEmpty}
-                  onResizeSplit={onResizeSplit}
-                  onReorderTabsInPane={onReorderTabsInPane}
-                  activeDragTabId={activeDragTabId}
-                  showDropZones={activeDragTabId !== null}
-                  dropPreview={dropPreview}
-                  tabDropPreview={tabDropPreview}
-                  windowChromeCorners={splitRoot.usesFallbackStrip ? "none" : windowChromeCorners}
-                  maximizedPaneId={maximizedPaneId}
-                  workspaceHasMultiplePanes={workspaceHasMultiplePanes}
-                  onTogglePaneMaximized={handleTogglePaneMaximized}
-                  focusModeEnabled={focusModeEnabled}
-                  onExitFocusMode={onExitFocusMode}
-                />
-              ) : null}
-            </View>
-          </WindowChromeRegion>
-          {renderExplorerSidebarDock && explorerSidebarPane ? (
-            <>
-              <ResizeHandle
-                testID="workspace-explorer-sidebar-resize-handle"
-                direction="horizontal"
-                hitAreaAlignment="end"
-                groupId={EXPLORER_SIDEBAR_RESIZE_GROUP_ID}
-                index={0}
-                sizes={explorerSidebarDockSizes}
-                containerSize={workspaceShellWidth}
-                onPreviewResizeSplit={previewExplorerSidebarResize}
-                onResizeSplit={commitExplorerSidebarResize}
-              />
-              <View style={explorerSidebarDockStyle}>
-                <ExplorerSidebarDock
-                  pane={explorerSidebarPane}
-                  uiTabs={uiTabs}
-                  normalizedServerId={normalizedServerId}
-                  normalizedWorkspaceId={normalizedWorkspaceId}
-                  isWorkspaceFocused={isWorkspaceFocused}
-                  closingTabIds={closingTabIds}
-                  onSelectTab={onSelectTabInPane}
-                  onCloseTab={onCloseTab}
-                  onCreateNewTab={onCreateNewTab}
-                  hoveredCloseTabKey={hoveredCloseTabKey}
-                  setHoveredCloseTabKey={setHoveredCloseTabKey}
-                  onCopyResumeCommand={onCopyResumeCommand}
-                  onCopyAgentId={onCopyAgentId}
-                  onCopyTerminalId={onCopyTerminalId}
-                  onCopyFilePath={onCopyFilePath}
-                  onReloadAgent={onReloadAgent}
-                  onRenameTab={onRenameTab}
-                  onCloseTabsToLeft={onCloseTabsToLeft}
-                  onCloseTabsToRight={onCloseTabsToRight}
-                  onCloseOtherTabs={onCloseOtherTabs}
-                  onExitFocusMode={onExitFocusMode}
-                  buildPaneContentModel={buildPaneContentModel}
-                  onReorderTabsInPane={onReorderTabsInPane}
-                  activeDragTabId={activeDragTabId}
-                  tabDropPreview={tabDropPreview}
-                  headerAction={renderExplorerSidebarHeaderAction?.()}
-                />
+    <WorkspaceSplitMenuScope
+      root={mainRoot}
+      enabled={!focusModeEnabled}
+      onSplit={onSplitPane}
+      onMove={onMoveTabToPane}
+    >
+      <RenderProfile id="SplitContainer">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={dropCollisionDetection}
+          onDragStart={handleDragStart}
+          onDragMove={updateDropPreview}
+          onDragOver={updateDropPreview}
+          onDragCancel={handleDragCancel}
+          onDragEnd={handleDragEnd}
+        >
+          <View style={styles.workspaceShell} onLayout={handleWorkspaceShellLayout}>
+            <WindowChromeRegion corners={mainColumnWindowChromeCorners}>
+              <View style={mainColumnStyle}>
+                {renderMainHeader?.()}
+                {splitRoot.usesFallbackStrip && <WindowChromeSafeArea placement="below" />}
+                {renderRoot ? (
+                  <SplitNodeView
+                    node={renderRoot}
+                    workspaceKey={workspaceKey}
+                    uiTabs={uiTabs}
+                    focusedPaneId={layout.focusedPaneId}
+                    normalizedServerId={normalizedServerId}
+                    normalizedWorkspaceId={normalizedWorkspaceId}
+                    isWorkspaceFocused={isWorkspaceFocused}
+                    hoveredCloseTabKey={hoveredCloseTabKey}
+                    setHoveredCloseTabKey={setHoveredCloseTabKey}
+                    closingTabIds={closingTabIds}
+                    onNavigateTab={onNavigateTab}
+                    onCloseTab={onCloseTab}
+                    onCopyResumeCommand={onCopyResumeCommand}
+                    onCopyAgentId={onCopyAgentId}
+                    onCopyTerminalId={onCopyTerminalId}
+                    onCopyFilePath={onCopyFilePath}
+                    onReloadAgent={onReloadAgent}
+                    onRenameTab={onRenameTab}
+                    onCloseTabsToLeft={onCloseTabsToLeft}
+                    onCloseTabsToRight={onCloseTabsToRight}
+                    onCloseOtherTabs={onCloseOtherTabs}
+                    onCreateNewTab={onCreateNewTab}
+                    buildPaneContentModel={buildPaneContentModel}
+                    onFocusPane={onFocusPane}
+                    onSplitPane={onSplitPane}
+                    onSplitPaneEmpty={onSplitPaneEmpty}
+                    onResizeSplit={onResizeSplit}
+                    onReorderTabsInPane={onReorderTabsInPane}
+                    activeDragTabId={activeDragTabId}
+                    showDropZones={activeDragTabId !== null}
+                    dropPreview={dropPreview}
+                    tabDropPreview={tabDropPreview}
+                    windowChromeCorners={splitRoot.usesFallbackStrip ? "none" : windowChromeCorners}
+                    maximizedPaneId={maximizedPaneId}
+                    workspaceHasMultiplePanes={workspaceHasMultiplePanes}
+                    onTogglePaneMaximized={handleTogglePaneMaximized}
+                    focusModeEnabled={focusModeEnabled}
+                    onExitFocusMode={onExitFocusMode}
+                  />
+                ) : null}
               </View>
-            </>
-          ) : null}
-        </View>
-        <DragOverlay dropAnimation={null}>
-          {activeDragTabId ? (
-            <DragOverlayTabChip
-              tabId={activeDragTabId}
-              uiTabs={uiTabs}
-              normalizedServerId={normalizedServerId}
-              normalizedWorkspaceId={normalizedWorkspaceId}
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-    </RenderProfile>
+            </WindowChromeRegion>
+            {renderExplorerSidebarDock && explorerSidebarPane ? (
+              <>
+                <ResizeHandle
+                  testID="workspace-explorer-sidebar-resize-handle"
+                  direction="horizontal"
+                  hitAreaAlignment="end"
+                  groupId={EXPLORER_SIDEBAR_RESIZE_GROUP_ID}
+                  index={0}
+                  sizes={explorerSidebarDockSizes}
+                  containerSize={workspaceShellWidth}
+                  onPreviewResizeSplit={previewExplorerSidebarResize}
+                  onResizeSplit={commitExplorerSidebarResize}
+                />
+                <View style={explorerSidebarDockStyle}>
+                  <ExplorerSidebarDock
+                    pane={explorerSidebarPane}
+                    uiTabs={uiTabs}
+                    normalizedServerId={normalizedServerId}
+                    normalizedWorkspaceId={normalizedWorkspaceId}
+                    isWorkspaceFocused={isWorkspaceFocused}
+                    closingTabIds={closingTabIds}
+                    onSelectTab={onSelectTabInPane}
+                    onCloseTab={onCloseTab}
+                    onCreateNewTab={onCreateNewTab}
+                    hoveredCloseTabKey={hoveredCloseTabKey}
+                    setHoveredCloseTabKey={setHoveredCloseTabKey}
+                    onCopyResumeCommand={onCopyResumeCommand}
+                    onCopyAgentId={onCopyAgentId}
+                    onCopyTerminalId={onCopyTerminalId}
+                    onCopyFilePath={onCopyFilePath}
+                    onReloadAgent={onReloadAgent}
+                    onRenameTab={onRenameTab}
+                    onCloseTabsToLeft={onCloseTabsToLeft}
+                    onCloseTabsToRight={onCloseTabsToRight}
+                    onCloseOtherTabs={onCloseOtherTabs}
+                    onExitFocusMode={onExitFocusMode}
+                    buildPaneContentModel={buildPaneContentModel}
+                    onReorderTabsInPane={onReorderTabsInPane}
+                    activeDragTabId={activeDragTabId}
+                    tabDropPreview={tabDropPreview}
+                    headerAction={renderExplorerSidebarHeaderAction?.()}
+                  />
+                </View>
+              </>
+            ) : null}
+          </View>
+          <DragOverlay dropAnimation={null}>
+            {activeDragTabId ? (
+              <DragOverlayTabChip
+                tabId={activeDragTabId}
+                uiTabs={uiTabs}
+                normalizedServerId={normalizedServerId}
+                normalizedWorkspaceId={normalizedWorkspaceId}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </RenderProfile>
+    </WorkspaceSplitMenuScope>
   );
 }
 
@@ -1104,6 +1113,7 @@ function SplitNodeView({
           !isSplitNodeHiddenForPresentation(node.group.children[index + 1], maximizedPaneId) ? (
             <ResizeHandle
               testID="workspace-split-resize-handle"
+              showPresets
               direction={node.group.direction}
               groupId={node.group.id}
               index={index}

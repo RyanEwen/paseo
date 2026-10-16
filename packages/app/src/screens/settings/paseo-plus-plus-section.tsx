@@ -17,6 +17,7 @@ const OPTIONAL_FEATURES: readonly PaseoPlusPlusFeature[] = [
   "workspaceChatLinks",
   "sidebarHostUpdates",
   "mobileWorkspaceTabs",
+  "splitLayoutPresets",
   "descriptiveToolCalls",
   "stickyUserPrompts",
   "previousAgents",

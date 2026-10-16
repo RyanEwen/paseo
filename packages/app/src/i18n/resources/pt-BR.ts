@@ -79,6 +79,10 @@ export const ptBR: TranslationResources = {
         label: "Atualizações de hosts na barra lateral",
         hint: "Mostrar ações de atualização no menu de hosts. As configurações do host continuam disponíveis quando esta opção está desativada.",
       },
+      splitLayoutPresets: {
+        label: "Controles de divisão",
+        hint: "Clique na região do diagrama onde deseja abrir ou mover uma aba. Em 60/40, a região direita ou inferior ocupa 40%. As opções do divisor redimensionam os painéis existentes. Desative para ocultar os controles sem alterar o layout.",
+      },
       mobileWorkspaceTabs: {
         label: "Abas de espaços no celular",
         hint: "Mostrar uma barra de abas rolável em espaços compactos. Desative para usar o seletor anterior sem mudar a aba selecionada.",
@@ -651,6 +655,22 @@ export const ptBR: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Abrir {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Mover aba: {{side}}, {{percent}}%",
+      openToSide: "Abrir {{item}} ao lado",
+      chooseRatio: "Escolher proporção",
+      ratio: "Usar {{ratio}}",
+      moveTab: "Mover aba",
+      left: "Esquerda",
+      right: "Direita",
+      top: "Acima",
+      bottom: "Abaixo",
+      columns: "Esquerda / direita",
+      rows: "Acima / abaixo",
+      pane: "Painel {{index}}",
+    },
+
     route: {
       loading: "Carregando workspace",
       connecting: "Conectando",
