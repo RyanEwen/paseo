@@ -63,8 +63,8 @@ export const ptBR: TranslationResources = {
     title: "Paseo++",
     optional: "Recursos opcionais",
     optionalHint:
-      "As opções seguem o host de configurações selecionado quando a sincronização está ativada. Desativar um recurso preserva seus dados e preferências.",
-    preferences: "Mais controles da barra lateral",
+      "Os interruptores dos recursos opcionais começam ativados. As preferências de Exibição têm padrões independentes; Expandir um projeto por vez começa desativado. As opções seguem o host de configurações selecionado ao sincronizar. Desativar um recurso preserva seus dados e preferências.",
+    preferences: "Controles da barra lateral de espaços de trabalho",
     fixes: "Correções e itens essenciais",
     fixesHint: "Estas melhorias permanecem ativas",
     additions: "Outras melhorias",
@@ -90,8 +90,8 @@ export const ptBR: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "Seletor de projeto na barra lateral",
-        hint: "Escolha um projeto no título dos espaços; desativar restaura o filtro Projeto",
+        label: "Projeto selecionado no título",
+        hint: "Mostre o nome do projeto selecionado no título dos espaços de trabalho. Ao desativar, aparece Espaços de trabalho; as opções de host e projeto continuam disponíveis.",
       },
       stickyUserPrompts: {
         label: "Manter mensagens visíveis",
@@ -128,8 +128,8 @@ export const ptBR: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Ordem e detalhes dos espaços de trabalho",
-        hint: "Ordene projetos e espaços de trabalho separadamente por nome, status ou ordem personalizada. Mostre a última atividade e os totais de alterações de código juntos; os rótulos de projeto estão ativados por padrão. Os rótulos de branch são opcionais e estão desativados por padrão. Ajuste essas opções em Exibição, na barra lateral dos espaços de trabalho.",
+        label: "Modos, filtros e exibição",
+        hint: "Use o sino da barra lateral para alternar entre Projeto e Status. O ícone de filtro abre o filtro rápido de texto. Em Exibição, Limites de espaços de trabalho ajusta a quantidade e a idade separadamente; Projetos vazios permite mostrar, agrupar ou ocultar. Cada modo mantém suas preferências.",
       },
     },
     fixesList: {

@@ -57,8 +57,8 @@ export const en = {
     title: "Paseo++",
     optional: "Optional features",
     optionalHint:
-      "Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
-    preferences: "More sidebar controls",
+      "Optional feature switches start on. Display preferences have independent defaults; Expand one project at a time starts off. Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
+    preferences: "Workspace sidebar controls",
     fixes: "Fixes and fork essentials",
     fixesHint: "These improvements stay enabled",
     additions: "Other additions",
@@ -84,8 +84,8 @@ export const en = {
       },
 
       sidebarProjectSelector: {
-        label: "Project selector in sidebar",
-        hint: "Choose a project from the workspace heading; turning this off restores the Project filter menu",
+        label: "Selected project in heading",
+        hint: "Show the selected project name in the workspace heading. Off uses Workspaces; host and project choices remain available.",
       },
       stickyUserPrompts: {
         label: "Keep user prompts in view",
@@ -122,8 +122,8 @@ export const en = {
     },
     links: {
       sidebar: {
-        label: "Workspace order and details",
-        hint: "Sort projects and workspaces independently by name, status or custom order. Show last activity and code-change totals together; project labels are on by default. Branch labels are optional and off by default. Adjust these in Display in the workspace sidebar.",
+        label: "Modes, filters and display",
+        hint: "Use the bell in the workspace sidebar to switch Project and Status modes. The filter icon opens quick text filtering. In Display, Workspace limits sets count and age independently, and Empty projects offers Show, Group or Hide. Each mode keeps its own preferences.",
       },
     },
     fixesList: {
