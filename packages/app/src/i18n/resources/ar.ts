@@ -1349,6 +1349,7 @@ export const ar: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "لا توجد مشاريع معروفة لهذا المضيف بعد.",
       selectOnlyProject: "عرض {{project}} فقط",
       includeProject: "تضمين {{project}}",
       workspaces: "مساحات العمل",
@@ -1369,6 +1370,18 @@ export const ar: TranslationResources = {
       done: "تم",
     },
     display: {
+      modeToggle: "عرض {{current}}. التبديل إلى عرض {{next}}.",
+      workspaceList: {
+        updatedWithin: "تم التحديث خلال",
+        day: "يوم واحد",
+        threeDays: "3 أيام",
+        fiveDays: "5 أيام",
+        week: "أسبوع واحد",
+        twoWeeks: "أسبوعين",
+        month: "شهر واحد",
+        twoMonths: "شهرين",
+        threeMonths: "3 أشهر",
+      },
       expandAll: "توسيع الكل",
       collapseAll: "طي الكل",
       showBackground: "إظهار مساحات العمل في الخلفية",

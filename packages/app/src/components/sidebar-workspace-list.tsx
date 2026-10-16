@@ -1660,12 +1660,17 @@ function ProjectBlock({
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
 }) {
   const positionTransitionDuration = useSidebarPositionTransitionDuration();
+  const getStatusEnteredAt = useCallback(
+    (workspace: SidebarWorkspacePlacement) =>
+      workspaceEntriesByKey.get(workspace.workspaceKey)?.statusEnteredAt ?? null,
+    [workspaceEntriesByKey],
+  );
   const {
     visibleItems: visibleWorkspaces,
     expanded: workspacesExpanded,
     canToggle: canToggleWorkspaces,
     toggleExpanded: toggleWorkspacesExpanded,
-  } = useLimitedSidebarGroup(project.workspaces);
+  } = useLimitedSidebarGroup(project.workspaces, getStatusEnteredAt);
   const rowModel = useMemo(
     () =>
       buildSidebarProjectRowModel({
@@ -2288,12 +2293,17 @@ function ProjectModeList({
   const selectionEnabled = isWorkspaceRoute;
   const activeWorkspaceSelection = useActiveWorkspaceSelection();
   const { pinnedChats, unpinnedProjects } = pinnedGroups;
+  const getStatusEnteredAt = useCallback(
+    (workspace: SidebarWorkspacePlacement) =>
+      workspaceEntriesByKey.get(workspace.workspaceKey)?.statusEnteredAt ?? null,
+    [workspaceEntriesByKey],
+  );
   const {
     visibleItems: visiblePinnedChats,
     expanded: pinnedChatsExpanded,
     canToggle: canTogglePinnedChats,
     toggleExpanded: togglePinnedChatsExpanded,
-  } = useLimitedSidebarGroup(pinnedChats);
+  } = useLimitedSidebarGroup(pinnedChats, getStatusEnteredAt);
   const nativeScrollGestureProps = useMemo(
     () =>
       parentGestureRef

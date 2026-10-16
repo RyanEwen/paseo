@@ -30,7 +30,7 @@ Reopen conversations with closed tabs or archived agents from the workspace **+*
 
 ### Project selector
 
-Choose projects from the **Workspaces** heading. Click a project name to show only that project and close the menu, or use its checkbox to include several projects while keeping the menu open.
+Choose hosts and projects from the **Workspaces** heading. Open a host to choose its projects, click a project name to show only that project, or use checkboxes to include several. **All** clears both local filters. The chooser remains available when the project selector feature is off.
 
 The workspace heading, project selector, and display controls stay visible while you scroll the workspace list. Desktop expand and collapse controls stay with the heading.
 
@@ -84,9 +84,9 @@ Choose an accent color in Appearance for primary controls and your messages, inc
 
 ### Sidebar display options
 
-Choose filtering, grouping, and sorting independently, including project, workspace, status, and custom order. Show agent activity and code-change totals together. Project labels start visible; branch labels are optional and start hidden. Saved choices are preserved. Find these controls in the sidebar's **Display** menu.
+Switch between Project and Status views with the bell beside the workspace heading. Each view keeps its own Display preferences and device-local host/project filters. Display includes sorting, labels, background workspaces, row details and activity. Project labels start visible; branch labels start hidden. A selected settings host must support separate sidebar modes before these synchronized controls can be edited.
 
-Choose how many workspaces each sidebar group shows before **Show more**, or choose **Show all**, in Paseo++ settings. The default is 20.
+In **Display → Workspace list**, choose each view’s workspace count and updated-within limit independently. The count defaults to 20 and the age limit to All. **Show more** reveals the remaining workspaces in that group.
 
 ### Explorer and Changes
 

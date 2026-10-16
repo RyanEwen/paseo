@@ -1358,6 +1358,7 @@ export const ko: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "이 호스트의 알려진 프로젝트가 아직 없습니다.",
       selectOnlyProject: "{{project}}만 표시",
       includeProject: "{{project}} 포함",
       workspaces: "워크스페이스",
@@ -1378,6 +1379,18 @@ export const ko: TranslationResources = {
       done: "완료",
     },
     display: {
+      modeToggle: "{{current}} 보기. {{next}} 보기로 전환.",
+      workspaceList: {
+        updatedWithin: "최근 업데이트 기간",
+        day: "1일",
+        threeDays: "3일",
+        fiveDays: "5일",
+        week: "1주",
+        twoWeeks: "2주",
+        month: "1개월",
+        twoMonths: "2개월",
+        threeMonths: "3개월",
+      },
       expandAll: "모두 펼치기",
       collapseAll: "모두 접기",
       showBackground: "백그라운드 표시",

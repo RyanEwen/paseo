@@ -1382,6 +1382,7 @@ export const fr: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Aucun projet connu pour cet hôte pour le moment.",
       selectOnlyProject: "Afficher uniquement {{project}}",
       includeProject: "Inclure {{project}}",
       workspaces: "Espaces de travail",
@@ -1402,6 +1403,18 @@ export const fr: TranslationResources = {
       done: "Terminé",
     },
     display: {
+      modeToggle: "Vue {{current}}. Passer à la vue {{next}}.",
+      workspaceList: {
+        updatedWithin: "Mis à jour depuis",
+        day: "1 jour",
+        threeDays: "3 jours",
+        fiveDays: "5 jours",
+        week: "1 semaine",
+        twoWeeks: "2 semaines",
+        month: "1 mois",
+        twoMonths: "2 mois",
+        threeMonths: "3 mois",
+      },
       expandAll: "Tout déplier",
       collapseAll: "Tout replier",
       showBackground: "Afficher les espaces en arrière-plan",

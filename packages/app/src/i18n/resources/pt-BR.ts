@@ -1382,6 +1382,7 @@ export const ptBR: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Ainda não há projetos conhecidos neste host.",
       selectOnlyProject: "Mostrar apenas {{project}}",
       includeProject: "Incluir {{project}}",
       workspaces: "Espaços de trabalho",
@@ -1402,6 +1403,18 @@ export const ptBR: TranslationResources = {
       done: "Concluído",
     },
     display: {
+      modeToggle: "Visualização {{current}}. Alternar para {{next}}.",
+      workspaceList: {
+        updatedWithin: "Atualizado nos últimos",
+        day: "1 dia",
+        threeDays: "3 dias",
+        fiveDays: "5 dias",
+        week: "1 semana",
+        twoWeeks: "2 semanas",
+        month: "1 mês",
+        twoMonths: "2 meses",
+        threeMonths: "3 meses",
+      },
       expandAll: "Expandir tudo",
       collapseAll: "Recolher tudo",
       showBackground: "Mostrar espaços em segundo plano",

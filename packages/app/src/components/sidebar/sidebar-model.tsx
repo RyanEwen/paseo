@@ -1,3 +1,4 @@
+import { SidebarRecencyClockProvider } from "./workspace-recency-clock";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useTranslation } from "react-i18next";
 import React, { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
@@ -62,8 +63,9 @@ export function SidebarModelProvider({
   const { t } = useTranslation();
   const list = useSidebarWorkspacesList({ enabled: active });
   const {
-    settings: { workspaceTitleSource, paseoPlusPlus },
+    settings: { paseoPlusPlus },
   } = useAppSettings();
+  const workspaceTitleSource = useSidebarViewStore((state) => state.workspaceTitleSource);
   const workspaceSortMode = useSidebarViewStore((state) => state.workspaceSortMode);
   const statusWorkspaceOrder = useSidebarOrderStore((state) => state.statusWorkspaceOrder);
   const sortMode = useSidebarViewStore((state) => state.sortMode);
@@ -241,7 +243,11 @@ export function SidebarModelProvider({
     ],
   );
 
-  return <SidebarModelContext.Provider value={value}>{children}</SidebarModelContext.Provider>;
+  return (
+    <SidebarModelContext.Provider value={value}>
+      <SidebarRecencyClockProvider active={active}>{children}</SidebarRecencyClockProvider>
+    </SidebarModelContext.Provider>
+  );
 }
 
 export function useSidebarModel(): SidebarModel {

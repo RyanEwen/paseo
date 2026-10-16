@@ -1359,6 +1359,7 @@ export const en = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "No known projects for this host yet.",
       selectOnlyProject: "Show only {{project}}",
       includeProject: "Include {{project}}",
       workspaces: "Workspaces",
@@ -1379,6 +1380,18 @@ export const en = {
       done: "Done",
     },
     display: {
+      modeToggle: "{{current}} view. Switch to {{next}} view.",
+      workspaceList: {
+        updatedWithin: "Updated within",
+        day: "1 day",
+        threeDays: "3 days",
+        fiveDays: "5 days",
+        week: "1 week",
+        twoWeeks: "2 weeks",
+        month: "1 month",
+        twoMonths: "2 months",
+        threeMonths: "3 months",
+      },
       expandAll: "Expand all",
       collapseAll: "Collapse all",
       showBackground: "Show background",

@@ -1366,6 +1366,7 @@ export const ja: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "このホストの既知のプロジェクトはまだありません。",
       selectOnlyProject: "{{project}} のみ表示",
       includeProject: "{{project}} を含める",
       workspaces: "ワークスペース",
@@ -1386,6 +1387,18 @@ export const ja: TranslationResources = {
       done: "完了",
     },
     display: {
+      modeToggle: "{{current}}表示。{{next}}表示に切り替え。",
+      workspaceList: {
+        updatedWithin: "更新期間",
+        day: "1日",
+        threeDays: "3日",
+        fiveDays: "5日",
+        week: "1週間",
+        twoWeeks: "2週間",
+        month: "1か月",
+        twoMonths: "2か月",
+        threeMonths: "3か月",
+      },
       expandAll: "すべて展開",
       collapseAll: "すべて折りたたむ",
       showBackground: "バックグラウンドを表示",

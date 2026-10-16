@@ -1336,6 +1336,7 @@ export const zhCN: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "尚无此主机的已知项目。",
       selectOnlyProject: "仅显示 {{project}}",
       includeProject: "包含 {{project}}",
       workspaces: "工作区",
@@ -1356,6 +1357,18 @@ export const zhCN: TranslationResources = {
       done: "已完成",
     },
     display: {
+      modeToggle: "当前为{{current}}视图。切换到{{next}}视图。",
+      workspaceList: {
+        updatedWithin: "最近更新时间",
+        day: "1天",
+        threeDays: "3天",
+        fiveDays: "5天",
+        week: "1周",
+        twoWeeks: "2周",
+        month: "1个月",
+        twoMonths: "2个月",
+        threeMonths: "3个月",
+      },
       expandAll: "全部展开",
       collapseAll: "全部折叠",
       showBackground: "显示后台工作区",

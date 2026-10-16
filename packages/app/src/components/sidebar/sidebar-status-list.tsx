@@ -1,4 +1,4 @@
-import { useAppSettings } from "@/hooks/use-settings";
+import { useSidebarRecencyClock } from "./workspace-recency-clock";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
 import { mergeWithRemainder, hasVisibleOrderChanged } from "@/utils/sidebar-reorder";
@@ -77,6 +77,7 @@ import { isDragGroupOrderValid } from "@/components/drag-reorder/reorder-items";
 import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press-drag-interaction";
 
 const EMPTY_SHORTCUT_INDEX = new Map<string, number>();
+const getStatusEnteredAt = (workspace: SidebarWorkspaceEntry) => workspace.statusEnteredAt;
 
 function statusWorkspaceKeyExtractor(workspace: SidebarWorkspaceEntry): string {
   return workspace.workspaceKey;
@@ -130,7 +131,7 @@ export function SidebarStatusWorkspaceList({
     expanded: pinnedWorkspacesExpanded,
     canToggle: canTogglePinnedWorkspaces,
     toggleExpanded: togglePinnedWorkspacesExpanded,
-  } = useLimitedSidebarGroup(pinnedWorkspaces);
+  } = useLimitedSidebarGroup(pinnedWorkspaces, getStatusEnteredAt);
 
   const statusShortcutIndex = showShortcutBadges
     ? shortcutIndexByWorkspaceKey
@@ -276,8 +277,9 @@ function StatusGroupList({
   parentGestureRef?: MutableRefObject<GestureType | undefined>;
   dragGestureHostActive?: boolean;
 }) {
-  const { settings } = useAppSettings();
-  const initialCount = settings.sidebarInitialWorkspaceCount;
+  const initialCount = useSidebarViewStore((state) => state.initialWorkspaceCount);
+  const days = useSidebarViewStore((state) => state.workspaceUpdatedWithinDays);
+  const now = useSidebarRecencyClock();
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<ReadonlySet<string>>(new Set());
   const positionTransitionDuration = useSidebarPositionTransitionDuration();
   const items = useMemo(
@@ -287,8 +289,9 @@ function StatusGroupList({
         collapsedGroupKeys: collapsedWorkspaceGroupKeys,
         expandedGroupKeys,
         initialCount,
+        updatedWithin: days === null ? undefined : { days, now },
       }),
-    [groups, collapsedWorkspaceGroupKeys, expandedGroupKeys, initialCount],
+    [groups, collapsedWorkspaceGroupKeys, expandedGroupKeys, initialCount, days, now],
   );
 
   const destinationGroupKeys = useMemo(() => {

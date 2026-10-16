@@ -1372,6 +1372,7 @@ export const ru: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Для этого хоста пока нет известных проектов.",
       selectOnlyProject: "Показать только {{project}}",
       includeProject: "Включить {{project}}",
       workspaces: "Рабочие области",
@@ -1392,6 +1393,18 @@ export const ru: TranslationResources = {
       done: "Готово",
     },
     display: {
+      modeToggle: "Вид «{{current}}». Переключить на «{{next}}».",
+      workspaceList: {
+        updatedWithin: "Обновлено за",
+        day: "1 день",
+        threeDays: "3 дня",
+        fiveDays: "5 дней",
+        week: "1 неделю",
+        twoWeeks: "2 недели",
+        month: "1 месяц",
+        twoMonths: "2 месяца",
+        threeMonths: "3 месяца",
+      },
       expandAll: "Развернуть всё",
       collapseAll: "Свернуть всё",
       showBackground: "Показать фоновые пространства",
