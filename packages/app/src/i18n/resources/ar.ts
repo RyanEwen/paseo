@@ -51,7 +51,7 @@ export const ar: TranslationResources = {
     },
     workspaceLimit: {
       save: "حفظ",
-      title: "قائمة مساحات العمل",
+      title: "حدود مساحات العمل",
       label: "العرض الأولي لكل مجموعة",
       limited: "محدود",
       all: "عرض الكل",

@@ -54,7 +54,7 @@ export const es: TranslationResources = {
     },
     workspaceLimit: {
       save: "Guardar",
-      title: "Lista de espacios de trabajo",
+      title: "Límites de espacios de trabajo",
       label: "Mostrar inicialmente por grupo",
       limited: "Limitado",
       all: "Mostrar todo",

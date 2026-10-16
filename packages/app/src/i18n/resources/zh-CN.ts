@@ -49,7 +49,7 @@ export const zhCN: TranslationResources = {
     },
     workspaceLimit: {
       save: "保存",
-      title: "工作区列表",
+      title: "工作区显示限制",
       label: "每组初始显示",
       limited: "限制数量",
       all: "显示全部",

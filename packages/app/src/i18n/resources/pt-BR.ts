@@ -54,7 +54,7 @@ export const ptBR: TranslationResources = {
     },
     workspaceLimit: {
       save: "Salvar",
-      title: "Lista de espaços de trabalho",
+      title: "Limites de espaços de trabalho",
       label: "Exibir inicialmente por grupo",
       limited: "Limitado",
       all: "Mostrar todos",
