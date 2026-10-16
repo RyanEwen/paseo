@@ -2,13 +2,18 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { describe, expect, it } from "vitest";
 import {
+  addedAgo,
+  featuredPlugins,
   formatInstalls,
   installCommand,
   mostInstalled,
   newestFirst,
   type Plugin,
   readmeBody,
+  recentlyUpdated,
+  reportBugUrl,
   searchPlugins,
+  updatedAgo,
 } from "./registry";
 import { readInstallCounts, recordInstall } from "./installs";
 import { handlePluginRegistryRequest, loadRegistryIndex, loadRegistryPlugin } from "./published";
@@ -26,7 +31,7 @@ const plugin: Plugin = {
     resolved: "https://registry.npmjs.org/example.tgz",
     integrity: "sha512-YWJj",
   },
-  screenshots: [],
+  media: [],
   submittedAt: "2026-10-03",
   reviewedAt: "2026-10-03",
   updatedAt: "2026-10-03",
@@ -40,6 +45,7 @@ describe("plugin registry", () => {
       registry: { name: "Internal", url: "https://example.test" },
       categories: [],
       plugins: [plugin],
+      featured: [plugin.id],
       generatedAt: "2026-10-03",
     };
     const detail = { ...plugin, readme: "# Example" };
@@ -60,8 +66,70 @@ describe("plugin registry", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
-  it("orders by submission date and by installs in a window, keeping index order for ties", () => {
-    const older = { ...plugin, id: "acme/older", submittedAt: "2026-09-01" };
+  it("features listed plugins once each, in the registry's order, dropping IDs that are not listed", () => {
+    const listed = [
+      { ...plugin, id: "acme/first" },
+      { ...plugin, id: "acme/second" },
+      { ...plugin, id: "acme/third" },
+    ];
+    const featured = ["acme/third", "acme/not-published", "acme/first", "acme/third"];
+    expect(featuredPlugins(listed, featured).map((p) => p.id)).toEqual([
+      "acme/third",
+      "acme/first",
+    ]);
+    expect(featuredPlugins(listed, ["acme/not-published"])).toEqual([]);
+  });
+  it("lists what's new by first listing time, so neither a slow review nor an update moves a plugin", () => {
+    const listedFirst = {
+      ...plugin,
+      id: "acme/listed-first",
+      submittedAt: "2026-09-30T00:00:00.000Z",
+      publishedAt: "2026-09-30T06:00:00.000Z",
+      reviewedAt: "2026-10-02T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+    };
+    const listedLater = {
+      ...plugin,
+      id: "acme/listed-later",
+      submittedAt: "2026-09-02T00:00:00.000Z",
+      publishedAt: "2026-09-30T08:00:00.000Z",
+      reviewedAt: "2026-09-30T08:00:00.000Z",
+      updatedAt: "2026-09-30T08:00:00.000Z",
+    };
+    expect(newestFirst([listedFirst, listedLater]).map((p) => p.id)).toEqual([
+      "acme/listed-later",
+      "acme/listed-first",
+    ]);
+    const now = "2026-10-03T12:00:00.000Z";
+    expect(addedAgo(listedLater, now)).toBe("3d ago");
+    expect(updatedAgo(listedFirst, now)).toBe("yesterday");
+  });
+  it("lists only plugins updated after their first listing as recently updated, latest update first", () => {
+    const bumped = {
+      ...plugin,
+      id: "acme/bumped",
+      publishedAt: "2026-09-10T00:00:00.000Z",
+      updatedAt: "2026-10-01T09:00:00.000Z",
+    };
+    const bumpedLater = {
+      ...plugin,
+      id: "acme/bumped-later",
+      publishedAt: "2026-09-20T00:00:00.000Z",
+      updatedAt: "2026-10-01T17:00:00.000Z",
+    };
+    const neverUpdated = {
+      ...plugin,
+      id: "acme/never-updated",
+      publishedAt: "2026-10-02T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+    };
+    expect(recentlyUpdated([bumped, neverUpdated, bumpedLater]).map((p) => p.id)).toEqual([
+      "acme/bumped-later",
+      "acme/bumped",
+    ]);
+  });
+  it("orders by first listing time and by installs in a window, keeping index order for ties", () => {
+    const older = { ...plugin, id: "acme/older", publishedAt: "2026-09-01" };
     const twin = { ...plugin, id: "acme/twin" };
     expect(newestFirst([older, plugin, twin]).map((p) => p.id)).toEqual([
       "acme/example",
@@ -155,6 +223,7 @@ describe("plugin registry", () => {
           registry: { name: "Internal", url: base },
           categories: [],
           plugins: [plugin],
+          featured: [],
           generatedAt: "2026-10-03",
         },
       }),
@@ -186,6 +255,32 @@ describe("plugin registry", () => {
     expect(searchPlugins(plugins, "  ")).toEqual(plugins);
     expect(searchPlugins(plugins, "nothing")).toEqual([]);
   });
+  it("ranks name, then author, then description matches, keeping the given order on ties", () => {
+    const named = (id: string, name: string, description: string, github = "acme"): Plugin => ({
+      ...plugin,
+      id,
+      name,
+      description,
+      author: { github },
+    });
+    // Given in install order: description-only matches first, the exact name last.
+    const plugins = [
+      named("acme/editor", "Remote Editor", "Composer pill to open a workspace"),
+      named("acme/kit", "PromptKit", "Rewrite prompts"),
+      named("omp/tools", "Tools", "Helpers", "omp"),
+      named("acme/history", "History", "Inspect raw composer records"),
+      named("acme/omp", "OMP", "Paseo integration for OMP"),
+    ];
+    expect(searchPlugins(plugins, "omp").map((p) => p.id)).toEqual([
+      "acme/omp",
+      "acme/kit",
+      "omp/tools",
+      "acme/editor",
+      "acme/history",
+    ]);
+    expect(searchPlugins(plugins, "prompt").map((p) => p.id)).toEqual(["acme/kit"]);
+    expect(searchPlugins(plugins, "tools omp").map((p) => p.id)).toEqual(["omp/tools"]);
+  });
 
   it("strips the README title and quoted description that the page already shows", () => {
     expect(readmeBody("# Example\n\n> An example\n> plugin\n\n## Usage\n")).toBe("## Usage\n");
@@ -195,8 +290,22 @@ describe("plugin registry", () => {
     );
   });
   it("offers a registry install command", () => {
-    expect(installCommand(plugin)).toBe("paseo plugin install acme/example");
+    expect(installCommand(plugin)).toBe("paseo plugin add acme/example");
     expect(formatInstalls(1250)).toBe("1.3k");
+  });
+  it("reports bugs on the source repository's GitHub issue tracker", () => {
+    const at = (url: string) => reportBugUrl({ ...plugin, repository: { url } });
+    expect(at("https://github.com/acme/example")).toBe(
+      "https://github.com/acme/example/issues/new",
+    );
+    expect(at("https://github.com/acme/plugins.git")).toBe(
+      "https://github.com/acme/plugins/issues/new",
+    );
+    expect(at("https://github.com/acme/plugins/tree/HEAD/packages/example")).toBe(
+      "https://github.com/acme/plugins/issues/new",
+    );
+    expect(at("https://gitlab.com/acme/example")).toBeUndefined();
+    expect(at("javascript:alert(1)")).toBeUndefined();
   });
 });
 
