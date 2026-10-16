@@ -106,7 +106,7 @@ export const zhCN: TranslationResources = {
       },
       projectPinning: {
         label: "在项目内置顶工作区",
-        hint: "优先显示选定工作区。重新启用时会恢复已保存的置顶。",
+        hint: "将选定的工作区保留在项目顶部，并在名称旁显示图钉。重新启用后会恢复已保存的置顶状态。",
       },
       sidebarWorkspaceTransitions: {
         label: "工作区移动动画",

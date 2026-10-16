@@ -1,3 +1,4 @@
+import { WorkspaceProjectPinGutter } from "./project-pin-gutter";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
 import { WorkspaceBrowserOpeningProvider } from "@/workspace/browser/context";
 import { useWorkspaceBrowserOpening } from "@/workspace/browser/use-opening";
@@ -158,6 +159,7 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
             reserveIdleSpace={reserveIdleStatusIndicatorSpace}
           />
         )}
+        <WorkspaceProjectPinGutter workspace={workspace} />
         <View style={styles.workspaceContentColumn}>
           <View style={styles.workspaceTitleRow}>
             <Text style={workspaceBranchTextStyle} numberOfLines={1}>

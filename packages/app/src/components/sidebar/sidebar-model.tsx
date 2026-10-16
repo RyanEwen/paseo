@@ -1,5 +1,6 @@
 import { useSidebarQuickFilterStore } from "@/stores/sidebar-quick-filter-store";
 import { filterSidebarByText } from "./sidebar-text-filter";
+import { ProjectPinGutterProvider } from "./project-pin-gutter";
 import { useSidebarProjectActivity } from "./use-sidebar-project-activity";
 import { useSessionStore } from "@/stores/session-store";
 import { selectWorkspaceStructureProjects } from "@/stores/session-store-hooks/selectors";
@@ -293,7 +294,9 @@ export function SidebarModelProvider({
 
   return (
     <SidebarModelContext.Provider value={value}>
-      <SidebarRecencyClockProvider active={active}>{children}</SidebarRecencyClockProvider>
+      <ProjectPinGutterProvider value={paseoPlusPlus.projectPinning}>
+        <SidebarRecencyClockProvider active={active}>{children}</SidebarRecencyClockProvider>
+      </ProjectPinGutterProvider>
     </SidebarModelContext.Provider>
   );
 }

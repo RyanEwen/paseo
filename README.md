@@ -56,7 +56,7 @@ Expand or collapse visible sidebar groups together while retaining hidden groups
 
 ### Pin workspaces within projects
 
-Keep selected workspaces at the top of their project, alongside the existing option to pin at the top of the whole sidebar. Saved project pins return when the feature is re-enabled.
+Keep selected workspaces at the top of their project, alongside the existing option to pin at the top of the whole sidebar. Project-pinned workspaces show a pin in the gutter to the left of their name. The shared pin rail keeps workspace names aligned and leaves project icons, status indicators, and shortcuts in place. A global sidebar pin alone does not show this project-pin marker. Turning the feature off hides the rail; saved project pins return when it is re-enabled.
 
 [View example](packages/app/assets/settings-examples/annotated/projectPinning-project-pin.svg)
 

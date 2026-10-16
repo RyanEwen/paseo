@@ -112,7 +112,7 @@ export const ja: TranslationResources = {
       },
       projectPinning: {
         label: "プロジェクト内で固定",
-        hint: "選択したワークスペースを先頭に表示します。再度有効にすると保存済みの固定が戻ります。",
+        hint: "選択したワークスペースをプロジェクト内の先頭に置き、名前の横にピンを表示します。再度有効にすると保存済みのピンが戻ります。",
       },
       sidebarWorkspaceTransitions: {
         label: "移動をアニメーション表示",
