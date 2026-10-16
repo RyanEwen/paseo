@@ -1446,6 +1446,7 @@ export const ja: TranslationResources = {
     display: {
       modeToggle: "{{current}}表示。{{next}}表示に切り替え。",
       workspaceList: {
+        countLimit: "表示件数の上限",
         updatedWithin: "更新期間",
         day: "1日",
         threeDays: "3日",
@@ -1458,7 +1459,7 @@ export const ja: TranslationResources = {
       },
       expandAll: "すべて展開",
       collapseAll: "すべて折りたたむ",
-      oneProjectAtATime: "一度に1つのプロジェクト",
+      oneProjectAtATime: "一度に1つのプロジェクトを展開",
       reorderGuidance:
         "並べ替えのドラッグはカスタム順でのみ使えます。絞り込んだプロジェクトの移動は、すべて表示した後も同じ隣接プロジェクトの前後を維持します。ピン留めは常に手動順です。",
       showBackground: "バックグラウンドのワークスペースを表示",

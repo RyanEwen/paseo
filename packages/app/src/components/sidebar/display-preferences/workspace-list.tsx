@@ -1,13 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  MenuHint,
-  MenuItem,
-  MenuLabel,
-  MenuSeparator,
-  MenuSubTrigger,
-  MenuTextField,
-} from "@/components/ui/menu";
+import { MenuHint, MenuItem, MenuLabel, MenuSubTrigger, MenuTextField } from "@/components/ui/menu";
 import { parseSidebarWorkspaceCount } from "@/components/sidebar/workspace-limit";
 
 /** These ports are supplied by the parent-owned active-mode preferences hook. */
@@ -59,6 +52,27 @@ export function WorkspaceUpdatedWithinPage({
   );
 }
 export function WorkspaceListPage({ preferences }: { preferences: WorkspaceListPreferences }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <MenuSubTrigger
+        disabled={preferences.preferencesDisabled}
+        id="workspaceCount"
+        testID="sidebar-workspace-count-limit"
+      >
+        {t("sidebar.display.workspaceList.countLimit")}
+      </MenuSubTrigger>
+      <MenuSubTrigger
+        disabled={preferences.preferencesDisabled}
+        id="workspaceUpdatedWithin"
+        testID="sidebar-workspace-updated-within"
+      >
+        {t("sidebar.display.workspaceList.updatedWithin")}
+      </MenuSubTrigger>
+    </>
+  );
+}
+export function WorkspaceCountPage({ preferences }: { preferences: WorkspaceListPreferences }) {
   const lastNumeric = useRef<Record<"project" | "status", number>>({ project: 20, status: 20 });
   if (preferences.initialWorkspaceCount !== null)
     lastNumeric.current[preferences.grouping] = preferences.initialWorkspaceCount;
@@ -124,14 +138,6 @@ function WorkspaceListEditor({
       >
         {t("paseoPlusPlus.workspaceLimit.save")}
       </MenuItem>
-      <MenuSeparator />
-      <MenuSubTrigger
-        disabled={preferences.preferencesDisabled}
-        id="workspaceUpdatedWithin"
-        testID="sidebar-workspace-updated-within"
-      >
-        {t("sidebar.display.workspaceList.updatedWithin")}
-      </MenuSubTrigger>
     </>
   );
 }

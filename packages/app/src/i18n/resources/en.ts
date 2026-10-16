@@ -1439,6 +1439,7 @@ export const en = {
     display: {
       modeToggle: "{{current}} view. Switch to {{next}} view.",
       workspaceList: {
+        countLimit: "Count limit",
         updatedWithin: "Updated within",
         day: "1 day",
         threeDays: "3 days",
@@ -1451,7 +1452,7 @@ export const en = {
       },
       expandAll: "Expand all",
       collapseAll: "Collapse all",
-      oneProjectAtATime: "One project at a time",
+      oneProjectAtATime: "Expand one project at a time",
       reorderGuidance:
         "Drag to reorder only with Custom sorting. Filtered project moves keep the same before/after neighbor when all projects are shown. Pins always use manual ordering.",
       showBackground: "Show background workspaces",

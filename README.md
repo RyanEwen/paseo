@@ -34,9 +34,9 @@ Choose hosts and their projects from the **Workspaces** heading. Click a project
 
 The workspace heading, project selector, and display controls stay visible while you scroll the workspace list. Desktop expand and collapse controls stay with the heading. The bell beside them toggles Project and Status modes, each with its own sorting, filters and display preferences. Adding a project includes it in an active project selection without clearing the projects you already chose.
 
-In Project mode, enable **Display preferences → One project at a time** to collapse other known project groups when you expand one. It starts off. The Pinned section and Status groups keep their existing behavior; **Expand all** still expands all visible groups.
+In Project mode, enable **Display preferences → Expand one project at a time** to collapse other known project groups when you expand one. It starts off. The Pinned section and Status groups keep their existing behavior; **Expand all** still expands all visible groups.
 
-In **Display preferences → Workspace limits**, limit each group by count and status updates within
+In **Display preferences → Workspace limits**, use **Count limit** and **Updated within** to limit each group by count and status updates within
 a chosen number of days. **Show more** reveals every workspace in that group, including older
 or undated entries. These controls replace the Workspace limits setting in Paseo++.
 

@@ -1462,6 +1462,7 @@ export const ptBR: TranslationResources = {
     display: {
       modeToggle: "Visualização {{current}}. Alternar para {{next}}.",
       workspaceList: {
+        countLimit: "Limite de quantidade",
         updatedWithin: "Atualizado nos últimos",
         day: "1 dia",
         threeDays: "3 dias",
@@ -1474,7 +1475,7 @@ export const ptBR: TranslationResources = {
       },
       expandAll: "Expandir tudo",
       collapseAll: "Recolher tudo",
-      oneProjectAtATime: "Um projeto por vez",
+      oneProjectAtATime: "Expandir um projeto por vez",
       reorderGuidance:
         "Arraste para reordenar apenas na ordenação Personalizada. Projetos filtrados mantêm o mesmo vizinho anterior ou posterior ao mostrar todos os projetos. Itens fixados sempre usam ordem manual.",
       showBackground: "Mostrar espaços em segundo plano",

@@ -1462,6 +1462,7 @@ export const fr: TranslationResources = {
     display: {
       modeToggle: "Vue {{current}}. Passer à la vue {{next}}.",
       workspaceList: {
+        countLimit: "Limite du nombre",
         updatedWithin: "Mis à jour depuis",
         day: "1 jour",
         threeDays: "3 jours",
@@ -1474,7 +1475,7 @@ export const fr: TranslationResources = {
       },
       expandAll: "Tout déplier",
       collapseAll: "Tout replier",
-      oneProjectAtATime: "Un projet à la fois",
+      oneProjectAtATime: "Déplier un projet à la fois",
       reorderGuidance:
         "Le déplacement nécessite le tri Personnalisé. Les projets filtrés gardent le même voisin avant ou après lorsque tous les projets sont affichés. Les éléments épinglés restent ordonnés manuellement.",
       showBackground: "Afficher les espaces en arrière-plan",
