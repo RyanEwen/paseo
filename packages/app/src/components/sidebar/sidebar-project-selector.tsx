@@ -64,6 +64,25 @@ export function SidebarProjectSelector(): ReactElement {
     () => updateLocalFilters(() => ({ hostFilters: [], projectFilters: [] })),
     [updateLocalFilters],
   );
+  const visibleProjects = projects.filter(
+    (project) =>
+      hostFilters.length === 0 || project.hosts.some((host) => hostFilters.includes(host.serverId)),
+  );
+  const selectProject = useCallback(
+    (viewKey: string) =>
+      updateLocalFilters((current) => ({ ...current, projectFilters: [viewKey] })),
+    [updateLocalFilters],
+  );
+  const toggleProject = useCallback(
+    (viewKey: string) =>
+      updateLocalFilters((current) => ({
+        ...current,
+        projectFilters: current.projectFilters.includes(viewKey)
+          ? current.projectFilters.filter((key) => key !== viewKey)
+          : [...current.projectFilters, viewKey],
+      })),
+    [updateLocalFilters],
+  );
   const hostPreferences = useMemo(
     () => ({ hostFilters, toggleHostFilter, clearHostFilters }),
     [hostFilters, toggleHostFilter, clearHostFilters],
@@ -162,6 +181,24 @@ export function SidebarProjectSelector(): ReactElement {
         >
           {t("sidebar.display.hostFilter.label")}
         </MenuSubTrigger>
+        <MenuSeparator />
+        {visibleProjects.map((project) => (
+          <SidebarProjectMenuItem
+            key={project.viewKey}
+            viewKey={project.viewKey}
+            label={labels.get(project.viewKey) ?? project.projectName}
+            iconDataUri={icons.get(project.viewKey) ?? null}
+            selected={projectFilters.includes(project.viewKey)}
+            activity={
+              settings.paseoPlusPlus.sidebarActivityChips
+                ? activity.get(project.viewKey)
+                : undefined
+            }
+            onSelect={selectProject}
+            onToggle={toggleProject}
+            testID={`sidebar-project-selector-root-${project.viewKey}`}
+          />
+        ))}
       </MenuSurface>
     </MenuRoot>
   );

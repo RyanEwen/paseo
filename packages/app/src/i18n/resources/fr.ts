@@ -1449,6 +1449,12 @@ export const fr: TranslationResources = {
         custom: "Ordre personnalisé",
         emptyProjects: "Trier les projets vides",
       },
+      emptyWorkspaces: {
+        label: "Espaces de travail vides",
+        show: "Afficher",
+        group: "Regrouper",
+        hide: "Masquer",
+      },
       projectVisibility: {
         label: "Filtre",
         all: "Tous les projets",

@@ -159,7 +159,11 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
             reserveIdleSpace={reserveIdleStatusIndicatorSpace}
           />
         )}
-        <WorkspaceProjectPinGutter workspace={workspace} />
+        <WorkspaceProjectPinGutter
+          workspace={workspace}
+          occupied={Boolean(leadingProjectName) || isLoading}
+          outside={!leadingProjectName && !reserveIdleStatusIndicatorSpace}
+        />
         <View style={styles.workspaceContentColumn}>
           <View style={styles.workspaceTitleRow}>
             <Text style={workspaceBranchTextStyle} numberOfLines={1}>

@@ -1426,6 +1426,12 @@ export const en = {
         custom: "Custom order",
         emptyProjects: "Sort empty projects",
       },
+      emptyWorkspaces: {
+        label: "Empty workspaces",
+        show: "Show",
+        group: "Group",
+        hide: "Hide",
+      },
       projectVisibility: {
         label: "Filter",
         all: "All projects",

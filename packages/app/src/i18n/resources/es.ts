@@ -1458,6 +1458,12 @@ export const es: TranslationResources = {
         custom: "Orden personalizado",
         emptyProjects: "Ordenar proyectos vacíos",
       },
+      emptyWorkspaces: {
+        label: "Espacios de trabajo vacíos",
+        show: "Mostrar",
+        group: "Agrupar",
+        hide: "Ocultar",
+      },
       projectVisibility: {
         label: "Filtro",
         all: "Todos los proyectos",

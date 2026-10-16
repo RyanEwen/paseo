@@ -1425,6 +1425,12 @@ export const ko: TranslationResources = {
         custom: "사용자 지정 순서",
         emptyProjects: "빈 프로젝트 정렬",
       },
+      emptyWorkspaces: {
+        label: "빈 작업 공간",
+        show: "표시",
+        group: "그룹화",
+        hide: "숨기기",
+      },
       projectVisibility: {
         label: "필터",
         all: "모든 프로젝트",

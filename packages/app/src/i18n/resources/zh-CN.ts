@@ -1403,6 +1403,12 @@ export const zhCN: TranslationResources = {
         custom: "自定义顺序",
         emptyProjects: "空项目排序",
       },
+      emptyWorkspaces: {
+        label: "空工作区",
+        show: "显示",
+        group: "分组",
+        hide: "隐藏",
+      },
       projectVisibility: {
         label: "筛选",
         all: "所有项目",

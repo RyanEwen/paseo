@@ -316,7 +316,7 @@ const ORDINARY_PIN_RAIL_FIXTURE = {
   pinnedAt: null,
 };
 
-it("reserves the same name rail for project-pinned and ordinary/global-pinned rows only while enabled", async () => {
+it("paints only project pins without reserving another name rail", async () => {
   await act(() =>
     root?.render(
       <ProjectPinGutterProvider value={true}>
@@ -326,7 +326,12 @@ it("reserves the same name rail for project-pinned and ordinary/global-pinned ro
       </ProjectPinGutterProvider>,
     ),
   );
-  expect(container!.querySelectorAll('[data-testid^="sidebar-project-pin-rail-"]')).toHaveLength(3);
+  expect(container!.querySelectorAll('[data-testid^="sidebar-project-pin-rail-"]')).toHaveLength(1);
+  expect(
+    container!
+      .querySelector('[data-testid="sidebar-project-pin-rail-srv:project-pin"]')
+      ?.getAttribute("style"),
+  ).toContain("position: absolute");
   expect(
     container!.querySelector('[data-testid="sidebar-project-pin-icon-srv:project-pin"]'),
   ).not.toBeNull();
