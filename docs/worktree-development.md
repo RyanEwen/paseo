@@ -22,11 +22,19 @@ Inspect actual remote URLs and full heads when adopting a checkout. A ref's name
 its destination or that two mirrors are synchronized. Do not retarget `origin` to make an inherited
 upstream command operate on the fork.
 
-Start each new feature from an explicitly resolved, freshly fetched `fork/main`, in its own branch
-and workspace under the existing Paseo project, with one accountable owner. Resume that owner for
-follow-up work. Record the base SHA and exact comparison ref; do not inherit unpublished work from
-a local branch by accident. The app's starting-ref behavior is described in
+Start fork-specific work from an explicitly resolved, freshly fetched `fork/main`. For a feature
+intended for upstream review, start a separate contribution branch from the exact current
+`origin/main`, including only that feature and its named prerequisites. Keep one accountable owner
+and workspace under the existing Paseo project, and resume that owner for follow-up work. Record
+the base SHA and exact comparison ref; do not inherit unpublished work from a local branch by
+accident. The app's starting-ref behavior is described in
 [development](development.md#worktree-starting-refs).
+
+Merge an upstream contribution into the fork owner and integration branches. Keep fork branding,
+release channels, ports and fork-only settings in separate commits. A fork-based feature branch
+can include unrelated accepted features in an upstream pull request; merging upstream into it
+does not remove that ancestry. Preserve published history and create an upstream-based counterpart
+when needed, recording which feature commits or hunks it contains.
 
 Review and qualify the owner's change before integrating it into `main`. Use the states below to
 distinguish prepared source, a qualified owner patch, combined review, integration, and publication.
@@ -47,6 +55,12 @@ do not reset fork `main` to upstream. Review the
 [fork overview](release.md#fork-overview-review) for additions that upstream now provides. A pure
 mirror retains upstream's workflow source, so changing triggers on fork `main` does not enable
 automatic CI on the mirror.
+
+After accepting an upstream update in `main`, merge that `main` into active fork owners and
+`integration`. Update upstream contribution branches from `origin/main` directly. Preserve dirty
+source and published heads before resolving conflicts; record remaining work and exact old/new
+heads per owner. Unpublished legacy branches with mixed checkpoints need reviewed recovery rather
+than replaying unrelated checkpoint commits.
 
 Release only the exact validated fork integration SHA through
 [fork preview distribution](release.md#fork-preview-distribution). Temporary release coordination
