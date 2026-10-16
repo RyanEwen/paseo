@@ -7,6 +7,8 @@ export const SidebarModePreferencesSchema = z.object({
   workspaceSortMode: z.enum(["name", "status", "custom"]),
   projectVisibility: z.enum(["all", "unarchived"]),
   groupEmptyProjects: z.boolean(),
+  // COMPAT(sidebarOneProject): existing mode profiles predate this leaf; remove after 2027-10-16.
+  oneProjectAtATime: z.boolean().default(false),
   emptyProjectSortMode: z.enum(["project", "custom"]),
   showBackground: z.boolean(),
   labelFilter: z.object({ labels: z.array(z.string()) }),
@@ -46,6 +48,7 @@ export function defaultSidebarModePreferences(mode: "project" | "status"): Sideb
     workspaceSortMode: mode === "status" ? "status" : "custom",
     projectVisibility: mode === "status" ? "unarchived" : "all",
     groupEmptyProjects: true,
+    oneProjectAtATime: false,
     emptyProjectSortMode: "custom",
     showBackground: false,
     labelFilter: { labels: [] },

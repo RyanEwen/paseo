@@ -1384,6 +1384,7 @@ export const ar: TranslationResources = {
       },
       expandAll: "توسيع الكل",
       collapseAll: "طي الكل",
+      oneProjectAtATime: "مشروع واحد في كل مرة",
       showBackground: "إظهار مساحات العمل في الخلفية",
       trigger: "تفضيلات العرض",
       heading: "العرض",

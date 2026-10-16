@@ -688,6 +688,29 @@ describe("sidebar mode command transactions", () => {
       },
     };
   }
+  it("syncs the accordion choice only in the project profile and retains it on remote normalization", async () => {
+    const harness = sidebarHarness();
+    const remote = host(snapshot("dark"));
+    await harness.model.load();
+    await harness.model.selectHost("A");
+    await harness.model.connect("A", remote.transport);
+    await harness.save((current) => ({ oneProjectAtATime: !current.oneProjectAtATime }), "project");
+    expect(remote.read().values).toMatchObject({
+      sidebar: {
+        modeProfiles: {
+          project: { oneProjectAtATime: true },
+          status: { oneProjectAtATime: false },
+        },
+      },
+    });
+    const normalized = normalizeRemoteSidebarModes(
+      remote.read().values.sidebar,
+      DEFAULT_CLIENT_SETTINGS,
+    );
+    expect(normalized.modeProfiles.project.oneProjectAtATime).toBe(true);
+    expect(normalized.modeProfiles.status.oneProjectAtATime).toBe(false);
+  });
+
   it("keeps queued old-visible-mode preferences attached to their original mode", async () => {
     const { model, save, store } = sidebarHarness();
     await model.load();

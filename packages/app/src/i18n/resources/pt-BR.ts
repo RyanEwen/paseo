@@ -1417,6 +1417,7 @@ export const ptBR: TranslationResources = {
       },
       expandAll: "Expandir tudo",
       collapseAll: "Recolher tudo",
+      oneProjectAtATime: "Um projeto por vez",
       showBackground: "Mostrar espaços em segundo plano",
       trigger: "Preferências de exibição",
       heading: "Exibição",

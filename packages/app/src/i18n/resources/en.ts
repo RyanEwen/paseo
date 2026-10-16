@@ -1394,6 +1394,7 @@ export const en = {
       },
       expandAll: "Expand all",
       collapseAll: "Collapse all",
+      oneProjectAtATime: "One project at a time",
       showBackground: "Show background",
       trigger: "Display preferences",
       heading: "Display",

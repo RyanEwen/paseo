@@ -1,3 +1,5 @@
+import { useSessionStore } from "@/stores/session-store";
+import { selectWorkspaceStructureProjects } from "@/stores/session-store-hooks/selectors";
 import { SidebarRecencyClockProvider } from "./workspace-recency-clock";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useTranslation } from "react-i18next";
@@ -53,6 +55,23 @@ interface SidebarModel extends SidebarWorkspacesListResult {
 
 const SidebarModelContext = createContext<SidebarModel | null>(null);
 
+/** Read the current mode, preference and cached catalog at the action boundary. */
+function toggleSidebarProjectCollapsed(projectViewKey: string) {
+  const view = useSidebarViewStore.getState();
+  const session = useSessionStore.getState();
+  const projectKeys =
+    view.groupMode === "project" && view.oneProjectAtATime
+      ? selectWorkspaceStructureProjects(session, Object.keys(session.sessions)).map(
+          (project) => project.viewKey,
+        )
+      : [];
+  useSidebarCollapsedSectionsStore.getState().toggleProjectCollapsed(projectViewKey, {
+    mode: view.groupMode,
+    oneProjectAtATime: view.oneProjectAtATime,
+    projectKeys,
+  });
+}
+
 export function SidebarModelProvider({
   active,
   children,
@@ -84,9 +103,7 @@ export function SidebarModelProvider({
   );
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
   const pinnedWorkspaceOrder = useSidebarOrderStore((state) => state.pinnedWorkspaceOrder);
-  const toggleProjectCollapsed = useSidebarCollapsedSectionsStore(
-    (state) => state.toggleProjectCollapsed,
-  );
+  const toggleProjectCollapsed = toggleSidebarProjectCollapsed;
   const availableLabelNames = useMemo(
     () => labelHosts.flatMap((host) => host.labels.map((label) => label.name)),
     [labelHosts],

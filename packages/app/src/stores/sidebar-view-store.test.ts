@@ -738,3 +738,80 @@ it("retains both queued empty-project toggles on the captured mode after the vis
     uninstall();
   }
 });
+
+it("defaults the new profile leaf off in existing profiles and persists it independently by mode", async () => {
+  setSettingsHostSelected(false);
+  setSettingsEditingBlocked(false);
+  const profiles = defaultSidebarModeProfiles();
+  const { oneProjectAtATime: _project, ...oldProject } = profiles.project;
+  const { oneProjectAtATime: _status, ...oldStatus } = profiles.status;
+  const migrated = normalizeSidebarModeState({
+    groupMode: "project",
+    modeProfiles: { project: oldProject, status: oldStatus },
+  });
+  expect(migrated.modeProfiles.project.oneProjectAtATime).toBe(false);
+  expect(migrated.modeProfiles.status.oneProjectAtATime).toBe(false);
+  useSidebarViewStore.setState({ ...migrated, modeProfilesInitialized: true });
+  useSidebarViewStore.getState().setModePreferences({ oneProjectAtATime: true }, "project");
+  useSidebarViewStore.getState().setGroupMode("status");
+  expect(useSidebarViewStore.getState().oneProjectAtATime).toBe(false);
+  const storage = createSidebarPersistStorage(createMemoryStorage({}));
+  const state = useSidebarViewStore.getState();
+  const persisted = {
+    groupMode: state.groupMode,
+    modeProfiles: state.modeProfiles,
+    localModeFilters: state.localModeFilters,
+  };
+  await storage.setItem("sidebar-view", { state: persisted, version: 12 });
+  const restored = await storage.getItem("sidebar-view");
+  expect(normalizeSidebarModeState(restored?.state).modeProfiles).toMatchObject({
+    project: { oneProjectAtATime: true },
+    status: { oneProjectAtATime: false },
+  });
+});
+
+it("serializes rapid functional accordion toggles against the rendered project profile", async () => {
+  setSettingsHostSelected(false);
+  setSettingsEditingBlocked(false);
+  useSidebarViewStore.setState({
+    ...projectSidebarMode({
+      groupMode: "project",
+      modeProfiles: defaultSidebarModeProfiles(),
+      localModeFilters: defaultSidebarLocalModeFilters(),
+    }),
+    modeProfilesInitialized: true,
+  });
+  const pending: Array<{ patch: SidebarPreferencePatch; mode: SidebarGroupMode; resolve(): void }> =
+    [];
+  const uninstall = installSidebarPreferenceCommitter(
+    (patch, mode) =>
+      new Promise<void>((resolve) => {
+        pending.push({ patch, mode, resolve });
+      }),
+  );
+  try {
+    const commit = useSidebarViewStore.getState().setModePreferences;
+    commit((current) => ({ oneProjectAtATime: !current.oneProjectAtATime }), "project");
+    commit((current) => ({ oneProjectAtATime: !current.oneProjectAtATime }), "project");
+    useSidebarViewStore.setState(
+      projectSidebarMode({ ...useSidebarViewStore.getState(), groupMode: "status" }),
+    );
+    const observed: boolean[] = [];
+    for (const command of pending) {
+      useSidebarViewStore.setState(
+        reduceSidebarPreferences(useSidebarViewStore.getState(), command.patch, command.mode),
+      );
+      observed.push(useSidebarViewStore.getState().modeProfiles.project.oneProjectAtATime);
+      command.resolve();
+      await Promise.resolve();
+    }
+    expect(observed).toEqual([true, false]);
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      groupMode: "status",
+      oneProjectAtATime: false,
+    });
+    expect(useSidebarViewStore.getState().modeProfiles.status.oneProjectAtATime).toBe(false);
+  } finally {
+    uninstall();
+  }
+});

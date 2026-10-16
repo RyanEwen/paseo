@@ -1371,6 +1371,7 @@ export const zhCN: TranslationResources = {
       },
       expandAll: "全部展开",
       collapseAll: "全部折叠",
+      oneProjectAtATime: "一次展开一个项目",
       showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",

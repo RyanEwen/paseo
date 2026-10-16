@@ -1426,6 +1426,7 @@ export const es: TranslationResources = {
       },
       expandAll: "Expandir todo",
       collapseAll: "Contraer todo",
+      oneProjectAtATime: "Un proyecto a la vez",
       showBackground: "Mostrar espacios en segundo plano",
       trigger: "Preferencias de visualización",
       heading: "Visualización",

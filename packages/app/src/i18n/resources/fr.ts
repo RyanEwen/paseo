@@ -1417,6 +1417,7 @@ export const fr: TranslationResources = {
       },
       expandAll: "Tout déplier",
       collapseAll: "Tout replier",
+      oneProjectAtATime: "Un projet à la fois",
       showBackground: "Afficher les espaces en arrière-plan",
       trigger: "Préférences d’affichage",
       heading: "Affichage",

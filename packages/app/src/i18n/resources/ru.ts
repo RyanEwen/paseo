@@ -1407,6 +1407,7 @@ export const ru: TranslationResources = {
       },
       expandAll: "Развернуть всё",
       collapseAll: "Свернуть всё",
+      oneProjectAtATime: "Один проект за раз",
       showBackground: "Показать фоновые пространства",
       trigger: "Настройки отображения",
       heading: "Отображение",

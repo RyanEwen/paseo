@@ -84,6 +84,8 @@ Choose an accent color in Appearance for primary controls and your messages, inc
 
 ### Sidebar display options
 
+In Project mode, enable **Display → One project at a time** to collapse other known project groups when you expand one. It starts off. Pinned and Status groups retain their existing behavior; **Expand all** still expands all visible groups.
+
 Switch between Project and Status views with the bell beside the workspace heading. Each view keeps its own Display preferences and device-local host/project filters. Display includes sorting, labels, background workspaces, row details and activity. Project labels start visible; branch labels start hidden. A selected settings host must support separate sidebar modes before these synchronized controls can be edited.
 
 In **Display → Workspace list**, choose each view’s workspace count and updated-within limit independently. The count defaults to 20 and the age limit to All. **Show more** reveals the remaining workspaces in that group.

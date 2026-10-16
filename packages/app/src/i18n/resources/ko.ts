@@ -1393,6 +1393,7 @@ export const ko: TranslationResources = {
       },
       expandAll: "모두 펼치기",
       collapseAll: "모두 접기",
+      oneProjectAtATime: "한 번에 하나의 프로젝트",
       showBackground: "백그라운드 표시",
       trigger: "표시 설정",
       heading: "표시",

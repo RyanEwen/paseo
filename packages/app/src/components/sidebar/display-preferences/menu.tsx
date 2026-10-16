@@ -404,6 +404,17 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
             >
               {t("sidebar.display.showBackground")}
             </MenuItem>
+            {preferences.grouping === "project" ? (
+              <MenuItem
+                disabled={preferences.preferencesDisabled}
+                selected={preferences.oneProjectAtATime}
+                closeOnSelect={false}
+                onSelect={preferences.toggleOneProjectAtATime}
+                testID="sidebar-one-project-at-a-time"
+              >
+                {t("sidebar.display.oneProjectAtATime")}
+              </MenuItem>
+            ) : null}
             <MenuSubTrigger
               disabled={preferences.preferencesDisabled}
               id="workspaceList"

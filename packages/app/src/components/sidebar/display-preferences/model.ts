@@ -39,6 +39,8 @@ export interface SidebarDisplayPreferences {
   setProjectVisibility: (visibility: SidebarProjectVisibility) => void;
   emptyProjectSorting: SidebarEmptyProjectSortMode;
   setEmptyProjectSorting: (mode: SidebarEmptyProjectSortMode) => void;
+  oneProjectAtATime: boolean;
+  toggleOneProjectAtATime: () => void;
   groupEmptyProjects: boolean;
   setGroupEmptyProjects: (enabled: boolean) => void;
   toggleGroupEmptyProjects: () => void;
@@ -81,6 +83,7 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
   const sorting = useSidebarViewStore((state) => state.sortMode);
   const projectVisibility = useSidebarViewStore((state) => state.projectVisibility);
   const emptyProjectSorting = useSidebarViewStore((state) => state.emptyProjectSortMode);
+  const oneProjectAtATime = useSidebarViewStore((state) => state.oneProjectAtATime);
   const groupEmptyProjects = useSidebarViewStore((state) => state.groupEmptyProjects);
   const showBackground = useSidebarViewStore((state) => state.showBackground);
   const grouping = useSidebarViewStore((state) => state.groupMode);
@@ -129,6 +132,10 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
   const toggleGroupEmptyProjects = useCallback(
     () => toggleEmptyProjects(grouping),
     [toggleEmptyProjects, grouping],
+  );
+  const toggleOneProjectAtATime = useCallback(
+    () => update((current) => ({ oneProjectAtATime: !current.oneProjectAtATime })),
+    [update],
   );
   const toggleBackground = useCallback(
     () => update((current) => ({ showBackground: !current.showBackground })),
@@ -230,6 +237,8 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setProjectVisibility,
       emptyProjectSorting,
       setEmptyProjectSorting,
+      oneProjectAtATime,
+      toggleOneProjectAtATime,
       groupEmptyProjects,
       setGroupEmptyProjects,
       toggleGroupEmptyProjects,
@@ -271,6 +280,8 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setProjectVisibility,
       emptyProjectSorting,
       setEmptyProjectSorting,
+      oneProjectAtATime,
+      toggleOneProjectAtATime,
       groupEmptyProjects,
       setGroupEmptyProjects,
       toggleGroupEmptyProjects,

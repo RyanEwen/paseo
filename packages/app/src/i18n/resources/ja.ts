@@ -1401,6 +1401,7 @@ export const ja: TranslationResources = {
       },
       expandAll: "すべて展開",
       collapseAll: "すべて折りたたむ",
+      oneProjectAtATime: "一度に1つのプロジェクト",
       showBackground: "バックグラウンドを表示",
       trigger: "表示設定",
       heading: "表示",
