@@ -1406,7 +1406,7 @@ export const zhCN: TranslationResources = {
         emptyProjects: "空项目排序",
       },
       emptyWorkspaces: {
-        label: "空工作区",
+        label: "空项目",
         show: "显示",
         group: "分组",
         hide: "隐藏",

@@ -1452,7 +1452,7 @@ export const ptBR: TranslationResources = {
         emptyProjects: "Ordenar projetos vazios",
       },
       emptyWorkspaces: {
-        label: "Espaços de trabalho vazios",
+        label: "Projetos vazios",
         show: "Mostrar",
         group: "Agrupar",
         hide: "Ocultar",

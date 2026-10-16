@@ -1461,7 +1461,7 @@ export const es: TranslationResources = {
         emptyProjects: "Ordenar proyectos vacíos",
       },
       emptyWorkspaces: {
-        label: "Espacios de trabajo vacíos",
+        label: "Proyectos vacíos",
         show: "Mostrar",
         group: "Agrupar",
         hide: "Ocultar",

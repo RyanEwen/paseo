@@ -1429,7 +1429,7 @@ export const en = {
         emptyProjects: "Sort empty projects",
       },
       emptyWorkspaces: {
-        label: "Empty workspaces",
+        label: "Empty projects",
         show: "Show",
         group: "Group",
         hide: "Hide",

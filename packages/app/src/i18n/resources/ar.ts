@@ -1419,7 +1419,7 @@ export const ar: TranslationResources = {
         emptyProjects: "ترتيب المشاريع الفارغة",
       },
       emptyWorkspaces: {
-        label: "مساحات العمل الفارغة",
+        label: "المشاريع الفارغة",
         show: "إظهار",
         group: "تجميع",
         hide: "إخفاء",

@@ -94,7 +94,7 @@ Dragging is available only when the applicable project or workspace sort is **Cu
 
 The filter icon beside the bell opens a quick text filter for the current mode. Match project or workspace names, titles and visible branches without changing the active workspace, saved order or sort. Project-name matches retain their scoped children; other matches retain the matching workspace and its project. Each mode keeps its own text for the current app session. Clear, close or press Escape to restore the list; collapsed sections keep their existing state.
 
-In **Display → Empty workspaces**, choose **Show**, **Group**, or **Hide** for project groups with no visible workspaces.
+In **Display → Empty projects**, choose **Show**, **Group**, or **Hide** for project groups with no visible workspaces.
 
 In **Display → Workspace limits**, open **Count limit** or **Updated within** to choose each view’s limits independently. The count defaults to 20 and the age limit to All. Quick text matching runs before the count window, so a match beyond the first 20 can still appear. **Show more** reveals every matching workspace in that group, including older entries.
 

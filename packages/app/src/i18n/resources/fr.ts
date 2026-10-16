@@ -1452,7 +1452,7 @@ export const fr: TranslationResources = {
         emptyProjects: "Trier les projets vides",
       },
       emptyWorkspaces: {
-        label: "Espaces de travail vides",
+        label: "Projets vides",
         show: "Afficher",
         group: "Regrouper",
         hide: "Masquer",
