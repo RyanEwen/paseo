@@ -135,7 +135,7 @@ export const ko: TranslationResources = {
       },
       projectPinning: {
         label: "프로젝트 안에 고정",
-        hint: "선택한 워크스페이스를 먼저 표시합니다. 다시 켜면 저장된 고정이 복원됩니다.",
+        hint: "선택한 워크스페이스를 프로젝트 맨 위에 두고 이름 옆에 핀을 표시합니다. 다시 켜면 저장된 고정 상태가 복원됩니다.",
       },
       sidebarWorkspaceTransitions: {
         label: "이동 애니메이션",

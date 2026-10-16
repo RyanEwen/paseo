@@ -138,7 +138,7 @@ export const ptBR: TranslationResources = {
       },
       projectPinning: {
         label: "Fixar espaços nos projetos",
-        hint: "Coloca os espaços escolhidos primeiro. As posições salvas voltam ao reativar.",
+        hint: "Mantenha os espaços de trabalho selecionados no início do projeto e marque-os com um alfinete ao lado do nome. As fixações salvas retornam ao reativar.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animar movimentos",

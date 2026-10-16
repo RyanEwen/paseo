@@ -137,7 +137,7 @@ export const es: TranslationResources = {
       },
       projectPinning: {
         label: "Fijar espacios dentro de proyectos",
-        hint: "Coloca primero los espacios elegidos. Las fijaciones guardadas vuelven al reactivar.",
+        hint: "Mantén los espacios de trabajo seleccionados al principio de su proyecto, con una chincheta junto al nombre. Las fijaciones guardadas vuelven al reactivar.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animar movimientos",

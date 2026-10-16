@@ -3,6 +3,7 @@
  */
 import { SidebarPinnedList } from "@/components/sidebar/pinned-list";
 import { useSidebarQuickFilterStore } from "@/stores/sidebar-quick-filter-store";
+import { ProjectPinGutterProvider, WorkspaceProjectPinGutter } from "./sidebar/project-pin-gutter";
 import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
 import type { Active, ClientRect, Over, DragEndEvent, DragStartEvent } from "@dnd-kit/core";
@@ -299,3 +300,48 @@ it.each(["project", "status"] as const)(
     }
   },
 );
+const PROJECT_PIN_RAIL_FIXTURE = {
+  workspaceKey: "srv:project-pin",
+  projectPinnedAt: "2026-10-16T00:00:00Z",
+  pinnedAt: null,
+};
+const GLOBAL_PIN_RAIL_FIXTURE = {
+  workspaceKey: "srv:global-pin",
+  projectPinnedAt: null,
+  pinnedAt: "2026-10-16T00:00:00Z",
+};
+const ORDINARY_PIN_RAIL_FIXTURE = {
+  workspaceKey: "srv:ordinary",
+  projectPinnedAt: null,
+  pinnedAt: null,
+};
+
+it("reserves the same name rail for project-pinned and ordinary/global-pinned rows only while enabled", async () => {
+  await act(() =>
+    root?.render(
+      <ProjectPinGutterProvider value={true}>
+        <WorkspaceProjectPinGutter workspace={PROJECT_PIN_RAIL_FIXTURE} />
+        <WorkspaceProjectPinGutter workspace={GLOBAL_PIN_RAIL_FIXTURE} />
+        <WorkspaceProjectPinGutter workspace={ORDINARY_PIN_RAIL_FIXTURE} />
+      </ProjectPinGutterProvider>,
+    ),
+  );
+  expect(container!.querySelectorAll('[data-testid^="sidebar-project-pin-rail-"]')).toHaveLength(3);
+  expect(
+    container!.querySelector('[data-testid="sidebar-project-pin-icon-srv:project-pin"]'),
+  ).not.toBeNull();
+  expect(
+    container!.querySelector('[data-testid="sidebar-project-pin-icon-srv:global-pin"]'),
+  ).toBeNull();
+  expect(
+    container!.querySelector('[data-testid="sidebar-project-pin-icon-srv:ordinary"]'),
+  ).toBeNull();
+  await act(() =>
+    root?.render(
+      <ProjectPinGutterProvider value={false}>
+        <WorkspaceProjectPinGutter workspace={PROJECT_PIN_RAIL_FIXTURE} />
+      </ProjectPinGutterProvider>,
+    ),
+  );
+  expect(container!.querySelector('[data-testid^="sidebar-project-pin-rail-"]')).toBeNull();
+});

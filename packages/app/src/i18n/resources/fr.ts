@@ -137,7 +137,7 @@ export const fr: TranslationResources = {
       },
       projectPinning: {
         label: "Épingler dans les projets",
-        hint: "Place les espaces choisis en premier. Les épingles conservées reviennent à la réactivation.",
+        hint: "Gardez les espaces de travail choisis en tête de leur projet, avec une épingle à côté du nom. Les épingles enregistrées reviennent à la réactivation.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animer les déplacements",

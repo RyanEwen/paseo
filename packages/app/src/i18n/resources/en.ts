@@ -132,7 +132,7 @@ export const en = {
       },
       projectPinning: {
         label: "Pin workspaces within projects",
-        hint: "Keep selected workspaces first in their project. Saved pins return when re-enabled.",
+        hint: "Keep selected workspaces first in their project and mark them with a pin beside the name. Saved pins return when re-enabled.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animate workspace moves",
