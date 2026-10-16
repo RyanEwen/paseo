@@ -18,6 +18,7 @@ import {
   closeMobileAgentSidebar,
   expectMobileAgentSidebarHidden,
   selectSidebarStatusGrouping,
+  selectSidebarProjectGrouping,
   closeSidebarDisplayPreferences,
 } from "../support/helpers/sidebar";
 import { waitForSidebarHydration } from "../support/helpers/workspace-ui";
@@ -72,6 +73,20 @@ async function quickDragFirstRowAfterSecond(
   await expect.poll(() => rowTestIds(rows)).toEqual([before[1], before[0]]);
 }
 
+/** Attempt the same physical gesture while sorting owns order; disabled rows have no drag feedback. */
+async function expectSortedDragBlocked(rows: Locator) {
+  await expect(rows).toHaveCount(2);
+  const before = await rowTestIds(rows);
+  const source = await visibleBoundingBox(rows.nth(0));
+  const target = await visibleBoundingBox(rows.nth(1));
+  const page = rows.page();
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => rowTestIds(rows)).toEqual(before);
+}
+
 test("projects, workspaces, and pinned chats reorder with an immediate mouse drag", async ({
   page,
 }) => {
@@ -109,6 +124,8 @@ test("projects, workspaces, and pinned chats reorder with an immediate mouse dra
       pressWorkspaceRow,
     );
 
+    await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+    await page.getByTestId("sidebar-workspace-sorting-name").click();
     await firstProject.client.setWorkspacePinned(firstProject.workspaceId, true);
     await secondProject.client.setWorkspacePinned(secondProject.workspaceId, true);
     const secondProjectWorkspaceTestId = `sidebar-workspace-row-${getServerId()}:${secondProject.workspaceId}`;
@@ -141,6 +158,15 @@ test("project sorting restores custom drag order and is hidden in status groupin
     await openSidebarDisplayPage(page, "sidebar-display-sorting");
     await page.getByTestId("sidebar-sorting-project").click();
     await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
+    await expectSortedDragBlocked(rows);
+    await page.getByTestId("sidebar-display-preferences-menu").click();
+    await expect(page.getByTestId("sidebar-display-sorting")).toContainText("Project name");
+    await closeSidebarDisplayPreferences(page);
+    await openSidebarDisplayPage(page, "sidebar-display-sorting");
+    await page.getByTestId("sidebar-sorting-custom").click();
+    if ((await rowTestIds(rows))[0] !== alphaId)
+      await quickDragFirstRowAfterSecond(rows, pressProjectRow);
+    await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
     await quickDragFirstRowAfterSecond(rows, pressProjectRow);
     await page.getByTestId("sidebar-display-preferences-menu").click();
     await expect(page.getByTestId("sidebar-display-sorting")).toContainText("Custom order");
@@ -155,8 +181,7 @@ test("project sorting restores custom drag order and is hidden in status groupin
     await page.getByTestId("sidebar-display-preferences-menu").click();
     await expect(page.getByTestId("sidebar-display-sorting")).toHaveCount(0);
     await closeSidebarDisplayPreferences(page);
-    await openSidebarDisplayPage(page, "sidebar-display-grouping");
-    await page.getByTestId("sidebar-grouping-project").click();
+    await selectSidebarProjectGrouping(page);
     await page.reload();
     await expect.poll(() => rowTestIds(rows)).toEqual([zetaId, alphaId]);
     await page.getByTestId("sidebar-display-preferences-menu").click();
@@ -184,6 +209,8 @@ test("empty-project sorting is contextual and restores custom drag order in stat
     await gotoAppShell(page);
     await waitForSidebarHydration(page);
     await selectSidebarStatusGrouping(page);
+    await openSidebarDisplayPage(page, "sidebar-display-empty-workspaces");
+    await page.getByTestId("sidebar-empty-workspaces-group").click();
     const rows = page.locator(`[data-testid="${alphaId}"], [data-testid="${zetaId}"]`);
     await expect(rows).toHaveCount(2);
     const statusRows = page
@@ -193,6 +220,17 @@ test("empty-project sorting is contextual and restores custom drag order in stat
     await openSidebarDisplayPage(page, "sidebar-display-empty-project-sorting");
     await expect(page.getByTestId("sidebar-empty-project-sorting-status")).toHaveCount(0);
     await page.getByTestId("sidebar-empty-project-sorting-project").click();
+    await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
+    await expectSortedDragBlocked(rows);
+    await page.getByTestId("sidebar-display-preferences-menu").click();
+    await expect(page.getByTestId("sidebar-display-empty-project-sorting")).toContainText(
+      "Project name",
+    );
+    await closeSidebarDisplayPreferences(page);
+    await openSidebarDisplayPage(page, "sidebar-display-empty-project-sorting");
+    await page.getByTestId("sidebar-empty-project-sorting-custom").click();
+    if ((await rowTestIds(rows))[0] !== alphaId)
+      await quickDragFirstRowAfterSecond(rows, pressProjectRow);
     await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
     await quickDragFirstRowAfterSecond(rows, pressProjectRow);
     await page.getByTestId("sidebar-display-preferences-menu").click();
@@ -210,17 +248,16 @@ test("empty-project sorting is contextual and restores custom drag order in stat
     await page.getByTestId("sidebar-empty-project-sorting-custom").click();
     await expect.poll(() => rowTestIds(rows)).toEqual([zetaId, alphaId]);
     await expect.poll(() => rowTestIds(statusRows)).toEqual(initialWorkspaceOrder);
-    await openSidebarDisplayPage(page, "sidebar-display-grouping");
-    await page.getByTestId("sidebar-grouping-empty-projects").click();
-    await closeSidebarDisplayPreferences(page);
+    await openSidebarDisplayPage(page, "sidebar-display-empty-workspaces");
+    await page.getByTestId("sidebar-empty-workspaces-show").click();
     await page.getByTestId("sidebar-display-preferences-menu").click();
     await expect(page.getByTestId("sidebar-display-empty-project-sorting")).toHaveCount(0);
     await closeSidebarDisplayPreferences(page);
-    await openSidebarDisplayPage(page, "sidebar-display-grouping");
-    await page.getByTestId("sidebar-grouping-empty-projects").click();
-    await closeSidebarDisplayPreferences(page);
-    await openSidebarDisplayPage(page, "sidebar-display-project-visibility");
-    await page.getByTestId("sidebar-project-visibility-unarchived").click();
+    await openSidebarDisplayPage(page, "sidebar-display-empty-workspaces");
+    await page.getByTestId("sidebar-empty-workspaces-group").click();
+    await expect.poll(() => rowTestIds(rows)).toEqual([zetaId, alphaId]);
+    await openSidebarDisplayPage(page, "sidebar-display-empty-workspaces");
+    await page.getByTestId("sidebar-empty-workspaces-hide").click();
     await page.getByTestId("sidebar-display-preferences-menu").click();
     await expect(page.getByTestId("sidebar-display-empty-project-sorting")).toHaveCount(0);
     await closeSidebarDisplayPreferences(page);
@@ -264,6 +301,17 @@ async function expectWorkspaceSortingRestoresCustomOrder(
   await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
   await page.getByTestId("sidebar-workspace-sorting-name").click();
   await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
+  await expectSortedDragBlocked(rows);
+  await page.getByTestId("sidebar-display-preferences-menu").click();
+  await expect(page.getByTestId("sidebar-display-workspace-sorting")).toContainText(
+    "Workspace name",
+  );
+  await closeSidebarDisplayPreferences(page);
+  await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+  await page.getByTestId("sidebar-workspace-sorting-custom").click();
+  if ((await rowTestIds(rows))[0] !== alphaId)
+    await quickDragFirstRowAfterSecond(rows, pressWorkspaceRow);
+  await expect.poll(() => rowTestIds(rows)).toEqual([alphaId, zetaId]);
   await quickDragFirstRowAfterSecond(rows, pressWorkspaceRow);
   await page.getByTestId("sidebar-display-preferences-menu").click();
   await expect(page.getByTestId("sidebar-display-workspace-sorting")).toContainText("Custom order");
@@ -302,11 +350,15 @@ test("status sorting puts the newest matching workspace first in project groupin
 }, testInfo) => {
   const seeded = await seedSortableWorkspaceRows(page);
   try {
-    await openSidebarDisplayPage(page, "sidebar-display-grouping");
-    await page.getByTestId("sidebar-grouping-project").click();
+    await selectSidebarProjectGrouping(page);
     // Alpha was created second. Save the older Zeta first to distinguish recency from drag order.
     await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
     await page.getByTestId("sidebar-workspace-sorting-name").click();
+    await expect.poll(() => rowTestIds(seeded.rows)).toEqual([seeded.alphaId, seeded.zetaId]);
+    await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
+    await page.getByTestId("sidebar-workspace-sorting-custom").click();
+    if ((await rowTestIds(seeded.rows))[0] !== seeded.alphaId)
+      await quickDragFirstRowAfterSecond(seeded.rows, pressWorkspaceRow);
     await expect.poll(() => rowTestIds(seeded.rows)).toEqual([seeded.alphaId, seeded.zetaId]);
     await quickDragFirstRowAfterSecond(seeded.rows, pressWorkspaceRow);
     await openSidebarDisplayPage(page, "sidebar-display-workspace-sorting");
@@ -689,6 +741,8 @@ test("project and child status moves count ancestor motion once, including a lat
       `[data-testid="${subjectProjectId}"], [data-testid="${otherProjectId}"]`,
     );
     await expect(projects).toHaveCount(2);
+    await openSidebarDisplayPage(page, "sidebar-display-sorting");
+    await page.getByTestId("sidebar-sorting-custom").click();
     if ((await rowTestIds(projects))[0] === subjectProjectId)
       await quickDragFirstRowAfterSecond(projects, pressProjectRow);
     await openSidebarDisplayPage(page, "sidebar-display-sorting");
