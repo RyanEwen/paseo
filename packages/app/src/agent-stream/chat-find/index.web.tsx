@@ -129,7 +129,7 @@ export function ChatFind({
       ? t("paneFind.position", { current: state.occurrence + 1, total: state.count })
       : t("paneFind.noMatches");
   return (
-    <div ref={root} tabIndex={-1} style={ROOT_STYLE}>
+    <div ref={root} tabIndex={-1} style={ROOT_STYLE} data-chat-find-root="true">
       <style>{`::highlight(${highlightName}) { background-color: ${styles.highlight.backgroundColor}; color: ${styles.highlight.color}; }`}</style>
       <SelectedMessage.Provider value={state.selectedItemId}>{children}</SelectedMessage.Provider>
       {state.open && (

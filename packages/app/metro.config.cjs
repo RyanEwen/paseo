@@ -16,6 +16,24 @@ const customWebPlatform = (process.env.PASEO_WEB_PLATFORM ?? "")
   .toLowerCase();
 
 const config = getDefaultConfig(projectRoot);
+// Prepared worktrees may reuse immutable dependency directories outside their root.
+// Admit only explicitly supplied inputs; keep Metro's writable caches checkout-local.
+const reusedDependencyRoots = (process.env.PASEO_METRO_REUSED_DEPENDENCY_ROOTS ?? "")
+  .split(path.delimiter)
+  .filter(Boolean)
+  .map((directory) => path.resolve(directory));
+config.watchFolders = [...new Set([...(config.watchFolders ?? []), ...reusedDependencyRoots])];
+if (process.env.PASEO_METRO_CACHE_ROOT) {
+  const { FileStore } = require("metro-cache");
+  const cacheRoot = path.resolve(process.env.PASEO_METRO_CACHE_ROOT);
+  config.cacheStores = [new FileStore({ root: path.join(cacheRoot, "transform") })];
+  config.fileMapCacheDirectory = path.join(cacheRoot, "file-map");
+}
+if (process.env.PASEO_METRO_MAX_WORKERS) {
+  const workers = Number(process.env.PASEO_METRO_MAX_WORKERS);
+  if (!Number.isInteger(workers) || workers < 1) throw new Error("Invalid Metro worker count");
+  config.maxWorkers = workers;
+}
 const defaultResolveRequest = config.resolver.resolveRequest ?? resolve;
 
 // Keep app exports deterministic across dev machines and CI. Metro's Watchman
@@ -75,6 +93,26 @@ function resolveWithCustomWebOverlay(context, moduleName, platform) {
 }
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (
+    reusedDependencyRoots.some((directory) =>
+      context.originModulePath.startsWith(directory + path.sep),
+    )
+  ) {
+    // Reused source is an input, not another application dependency universe.
+    context = {
+      ...context,
+      disableHierarchicalLookup: true,
+      nodeModulesPaths: [appNodeModulesRoot, path.resolve(projectRoot, "../../node_modules")],
+    };
+  }
+  // Reused package source must share the app's React instance, even when its
+  // original checkout has a different nearest node_modules directory.
+  if (
+    reusedDependencyRoots.length > 0 &&
+    Object.hasOwn(config.resolver.extraNodeModules, moduleName)
+  ) {
+    return defaultResolveRequest(context, config.resolver.extraNodeModules[moduleName], platform);
+  }
   if (isFdroidBuild && platform === "android" && fdroidModuleOverrides[moduleName]) {
     return resolveWithCustomWebOverlay(context, fdroidModuleOverrides[moduleName], platform);
   }

@@ -1,4 +1,14 @@
 import {
+  AttachmentReadCancelRequestSchema,
+  AttachmentReadCancelResponseSchema,
+  AttachmentListRequestSchema,
+  AttachmentGetRequestSchema,
+  AttachmentReadRequestSchema,
+  AttachmentListResponseSchema,
+  AttachmentGetResponseSchema,
+  AttachmentReadResponseSchema,
+} from "./attachments.js";
+import {
   AppSettingsGetRequestSchema,
   AppSettingsPatchRequestSchema,
   AppSettingsGetResponseSchema,
@@ -2195,6 +2205,7 @@ const CheckoutErrorSchema = z.object({
 });
 
 const CheckoutDiffCompareSchema = z.object({
+  filePath: z.string().optional(),
   mode: z.enum(["uncommitted", "base"]),
   baseRef: z.string().optional(),
   ignoreWhitespace: z.boolean().optional(),
@@ -3214,6 +3225,10 @@ export const SubscriptionReleaseResponseSchema = z.object({
 });
 
 export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
+  AttachmentListRequestSchema,
+  AttachmentGetRequestSchema,
+  AttachmentReadRequestSchema,
+  AttachmentReadCancelRequestSchema,
   AppSettingsGetRequestSchema,
   AppSettingsPatchRequestSchema,
   BrowserHostRegisterRequestSchema,
@@ -3591,8 +3606,16 @@ export const ServerInfoStatusPayloadSchema = z
     desktopManaged: z.boolean().optional(),
     capabilities: ServerCapabilitiesFromUnknownSchema.optional(),
     // COMPAT(providersSnapshot): added in v0.1.48, remove gating when all clients use snapshot
+    attachmentStorage: z
+      .object({
+        writable: z.boolean(),
+        originalReads: z.boolean(),
+        writeError: z.string().max(512).nullable(),
+      })
+      .optional(),
     features: z
       .object({
+        durableAttachments: z.boolean().optional(),
         // COMPAT(agentRequestReceipts): added in v0.8.0; remove gate after 2027-03-05.
         agentRequestReceipts: z.boolean().optional(),
         // COMPAT(workspaceRequestReceipts): added in v0.8.0; remove gate after 2027-03-07.
@@ -3617,6 +3640,10 @@ export const ServerInfoStatusPayloadSchema = z
         appSettingsSync: z.boolean().optional(),
         // COMPAT(appSettingsAccentColor): added in v0.11.2, remove gate after 2027-10-14.
         appSettingsAccentColor: z.boolean().optional(),
+        // COMPAT(appSettingsSidebarModeProfiles): added in v0.11.2, remove after 2027-10-16.
+        appSettingsSidebarModeProfiles: z.boolean().optional(),
+        // COMPAT(checkoutFileDiff): added in v0.11.2, remove after 2027-10-16.
+        checkoutFileDiff: z.boolean().optional(),
         // COMPAT(workspaceSetupRun): added in v0.8.0, remove gate after 2027-09-02.
         workspaceSetupRun: z.boolean().optional(),
         // COMPAT(workspaceTerminals): added in v0.8.0, remove gate after 2027-09-05.
@@ -6888,6 +6915,10 @@ export const AgentSkillsImportLegacySelectionResponseSchema = z.object({
 });
 
 export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
+  AttachmentListResponseSchema,
+  AttachmentGetResponseSchema,
+  AttachmentReadResponseSchema,
+  AttachmentReadCancelResponseSchema,
   AppSettingsGetResponseSchema,
   AppSettingsPatchResponseSchema,
   AppSettingsChangedSchema,

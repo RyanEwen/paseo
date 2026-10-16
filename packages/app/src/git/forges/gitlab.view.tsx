@@ -1,3 +1,4 @@
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import React, { useCallback, useMemo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -11,7 +12,6 @@ import {
   type ClientForgeViewModule,
   type PaneChecksSlotContext,
 } from "@/git/client-forge-module";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { formatDuration } from "@/utils/time";
 import { COUNTED_CHECK_PRESENTATIONS } from "@/git/check-presentation";
 import { CheckPresentationIcon } from "@/git/check-presentation.view";
@@ -116,6 +116,7 @@ function GitLabPipelineSection({
   onToggle: () => void;
   canFetchCheckDetails: boolean;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const { pipeline, isLoading, isPlaceholderData, error } = useGitLabPipeline({
     serverId,
@@ -137,9 +138,9 @@ function GitLabPipelineSection({
 
   const handleOpenPipeline = useCallback(() => {
     if (summary.url) {
-      void openExternalUrl(summary.url);
+      void openPrimary(summary.url);
     }
-  }, [summary.url]);
+  }, [summary.url, openPrimary]);
 
   const sectionSummary = (
     <>
@@ -222,12 +223,13 @@ function PipelineStageGroup({ stage }: { stage: CheckoutPipelineStage }) {
 }
 
 function PipelineJobRow({ job }: { job: CheckoutPipelineJob }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const handlePress = useCallback(() => {
     if (job.url) {
-      void openExternalUrl(job.url);
+      void openPrimary(job.url);
     }
-  }, [job.url]);
+  }, [job.url, openPrimary]);
   const duration = formatPipelineDuration(job.durationSeconds);
   return (
     <WorkspaceHttpLinkMenu url={job.url}>

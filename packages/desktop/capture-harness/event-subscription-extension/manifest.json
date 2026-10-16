@@ -1,0 +1,7 @@
+{
+  "manifest_version": 3,
+  "name": "Paseo event subscription fixture",
+  "version": "1.0.0",
+  "permissions": ["tabs", "storage"],
+  "background": { "service_worker": "background.js" }
+}

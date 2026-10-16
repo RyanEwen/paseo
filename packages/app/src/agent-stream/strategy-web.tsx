@@ -1,7 +1,12 @@
+import { PROMPT_JUMP_TOP_INSET_PX } from "./prompt-jump-settle";
+import { uniqueStreamSegments, precedingPromptIndex } from "./actual-row-collection";
+import { ActualPinnedRowContext, ActualPromptRowsContext } from "./actual-prompt-rows";
+import { getOriginalPromptTop, syncActualPromptPin } from "./actual-prompt-pin.web";
 import { resolvePromptHandoffProgress, type PromptHandoff } from "./prompt-handoff";
 import React, {
   type CSSProperties,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -296,6 +301,14 @@ const StreamRowContent = React.memo(function StreamRowContent({
   return render(item, index, items);
 });
 
+function ActualRowContent({ pinned, children }: { pinned: boolean; children: React.ReactNode }) {
+  return (
+    <div data-actual-prompt-content style={streamRowStyle}>
+      <ActualPinnedRowContext.Provider value={pinned}>{children}</ActualPinnedRowContext.Provider>
+    </div>
+  );
+}
+
 function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: boolean }) {
   const {
     segments: inputSegments,
@@ -324,9 +337,13 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
   );
   const historyMounted = useRevisedHistoryRows(inputSegments.historyMounted, historyRowRevision);
   const segments = useMemo(
-    () => ({ ...inputSegments, historyVirtualized, historyMounted }),
+    () => uniqueStreamSegments({ ...inputSegments, historyVirtualized, historyMounted }),
     [historyMounted, historyVirtualized, inputSegments],
   );
+  const actualRows = useContext(ActualPromptRowsContext);
+  const expandActualMessage = actualRows?.expand;
+  const registerActualViewport = actualRows?.registerViewport;
+  const [pinnedRowId, setPinnedRowId] = useState<string | null>(null);
   const isActive = useRetainedPanelActive();
   const isActiveRef = useRef(isActive);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
@@ -403,6 +420,13 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     );
     return indexes.length > 0 ? indexes : null;
   }, [chatFindMessageId, segments.historyVirtualized]);
+  const virtualUserIndices = useMemo(
+    () =>
+      segments.historyVirtualized.flatMap((item, index) =>
+        item.kind === "user_message" ? [index] : [],
+      ),
+    [segments.historyVirtualized],
+  );
   const rowVirtualizerRef = useRef<Virtualizer<HTMLElement, Element> | null>(null);
   const rangeExtractor = useCallback(
     (range: VirtualRange): number[] => {
@@ -434,15 +458,28 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
         if (first && last)
           visibleRange = { ...range, startIndex: first.index, endIndex: last.index };
       }
+      // Retain only the one preceding actual user row outside the ordinary
+      // virtual range. Its outer measurement stays at its original position.
+      const retainedPrompt =
+        actualRows && correctedOffset !== undefined
+          ? precedingPromptIndex(virtualUserIndices, virtualizer.measurementsCache, correctedOffset)
+          : -1;
       return [
         ...new Set([
           ...defaultRangeExtractor(visibleRange),
+          ...(retainedPrompt < 0 ? [] : [retainedPrompt]),
           ...(chatFindRowIndexes ?? []),
           ...(anchorIndex < 0 ? [] : [anchorIndex]),
         ]),
       ].sort((left, right) => left - right);
     },
-    [chatFindRowIndexes, readingAnchor, segments.historyVirtualized],
+    [
+      actualRows,
+      chatFindRowIndexes,
+      readingAnchor,
+      segments.historyVirtualized,
+      virtualUserIndices,
+    ],
   );
   const virtualOffsetListener = useRef<((offset: number, scrolling: boolean) => void) | null>(null);
   const observeVirtualOffset = useCallback<typeof observeElementOffset>((instance, onOffset) => {
@@ -702,7 +739,23 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
 
   // Rows are laid out in DOM order, virtualized block first, so the first row whose bottom
   // clears the reading line is the one the reader is looking at.
+  const updatePinnedRow = useStableEvent(() => {
+    const container = scrollContainerRef.current;
+    const content = contentRef.current;
+    if (!container || !content || !isActiveRef.current) return;
+    const widget = content
+      .closest('[data-chat-find-root="true"]')
+      ?.querySelector<HTMLElement>('[data-chat-find-widget="true"]');
+    const clearance = widget ? widget.getBoundingClientRect().height + 8 : 0;
+    actualRows?.reportViewportHeight(
+      Math.max(0, container.clientHeight - clearance - PROMPT_JUMP_TOP_INSET_PX),
+    );
+    const next = syncActualPromptPin(content, container, actualRows !== null);
+    setPinnedRowId((current) => (current === next ? current : next));
+  });
+
   const reportReadingPosition = useStableEvent(() => {
+    updatePinnedRow();
     if (!isActiveRef.current) {
       return;
     }
@@ -729,7 +782,16 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       ? []
       : contentNode.querySelectorAll<HTMLElement>('[data-testid="user-message"]')) {
       const body = bubble.querySelector<HTMLElement>('[data-testid="user-message-bubble"]');
-      const bounds = (body ?? bubble).getBoundingClientRect();
+      const renderedBounds = (body ?? bubble).getBoundingClientRect();
+      const originalTop = getOriginalPromptTop(body ?? bubble);
+      const bounds = {
+        ...renderedBounds,
+        top: originalTop,
+        bottom: originalTop + renderedBounds.height,
+        width: renderedBounds.width,
+        height: renderedBounds.height,
+        left: renderedBounds.left,
+      };
       const id = bubble.closest<HTMLElement>("[data-message-id]")?.dataset.messageId;
       if (id && bounds.width > 0 && bounds.height > 0) {
         if (bounds.bottom > viewport.top && bounds.top < viewport.bottom) visibleUsers.push(id);
@@ -835,7 +897,10 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     // Child layout can change during this commit, ahead of ResizeObserver delivery.
     if (!isActive || measureVirtualizedRows()) return;
     reconcileReadingPosition();
+    updatePinnedRow();
   }, [
+    updatePinnedRow,
+    actualRows,
     contentWidth,
     isActive,
     segments,
@@ -843,6 +908,17 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     measureVirtualizedRows,
     reconcileReadingPosition,
   ]);
+
+  useLayoutEffect(
+    () =>
+      registerActualViewport?.(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        if (followOutputRef.current) scheduleStickToBottom();
+        else readingAnchor.scroll(container.scrollTop, container.clientHeight);
+      }),
+    [registerActualViewport, readingAnchor, scheduleStickToBottom],
+  );
 
   const stopFollowingOutputFromUserIntent = useStableEvent(() => {
     manualReadingRef.current = true;
@@ -1247,6 +1323,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
         }
         scheduleStickToBottom();
       },
+      expandMessageForFind: (id, signal) => {
+        if (!signal.aborted) expandActualMessage?.(id);
+      },
       scrollToMessage,
       cancelMessageScroll: cancelScrollToMessage,
     };
@@ -1260,6 +1339,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
   }, [
     cancelPendingStickToBottom,
     forceStickToBottom,
+    expandActualMessage,
     cancelScrollToMessage,
     scheduleStickToBottom,
     scrollToMessage,
@@ -1327,35 +1407,41 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
         key={item.id}
         data-history-row-id={item.id}
         data-message-id={getStreamItemMessageId(item)}
+        data-actual-prompt-row={item.kind === "user_message" ? "" : undefined}
         style={streamRowStyle}
       >
-        <StreamRowContent
-          item={item}
-          index={index}
-          items={segments.historyMounted}
-          render={renderHistoryMountedRow}
-        />
+        <ActualRowContent pinned={pinnedRowId === item.id}>
+          <StreamRowContent
+            item={item}
+            index={index}
+            items={segments.historyMounted}
+            render={renderHistoryMountedRow}
+          />
+        </ActualRowContent>
       </div>
     ));
-  }, [renderHistoryMountedRow, segments.historyMounted]);
+  }, [pinnedRowId, renderHistoryMountedRow, segments.historyMounted]);
   const liveHeadRows = useMemo(() => {
     return segments.liveHead.map((item, index) => (
       <div
         key={item.id}
         data-history-row-id={item.id}
         data-message-id={getStreamItemMessageId(item)}
+        data-actual-prompt-row={item.kind === "user_message" ? "" : undefined}
         style={streamRowStyle}
       >
-        <StreamRowContent
-          item={item}
-          index={index}
-          items={segments.liveHead}
-          revision={liveHeadRowRevision}
-          render={renderLiveHeadRow}
-        />
+        <ActualRowContent pinned={pinnedRowId === item.id}>
+          <StreamRowContent
+            item={item}
+            index={index}
+            items={segments.liveHead}
+            revision={liveHeadRowRevision}
+            render={renderLiveHeadRow}
+          />
+        </ActualRowContent>
       </div>
     ));
-  }, [liveHeadRowRevision, renderLiveHeadRow, segments.liveHead]);
+  }, [pinnedRowId, liveHeadRowRevision, renderLiveHeadRow, segments.liveHead]);
   const mountedRows = useMemo(
     () => [...mountedHistoryRows, ...liveHeadRows],
     [liveHeadRows, mountedHistoryRows],
@@ -1400,19 +1486,22 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
                 if (!item) return null;
                 return (
                   <div
-                    key={virtualRow.key}
+                    key={item.id}
                     data-index={virtualRow.index}
                     data-history-row-id={item.id}
                     data-message-id={getStreamItemMessageId(item)}
+                    data-actual-prompt-row={item.kind === "user_message" ? "" : undefined}
                     ref={measureVirtualizedRowElement}
                     style={renderVirtualRowStyle(virtualRow.start)}
                   >
-                    <StreamRowContent
-                      item={item}
-                      index={virtualRow.index}
-                      items={segments.historyVirtualized}
-                      render={renderHistoryVirtualizedRow}
-                    />
+                    <ActualRowContent pinned={pinnedRowId === item.id}>
+                      <StreamRowContent
+                        item={item}
+                        index={virtualRow.index}
+                        items={segments.historyVirtualized}
+                        render={renderHistoryVirtualizedRow}
+                      />
+                    </ActualRowContent>
                   </div>
                 );
               }),

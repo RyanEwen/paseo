@@ -1,3 +1,5 @@
+import { useWorkspaceBrowserOpening } from "@/workspace/browser/use-opening";
+import { resolveWorkspaceTabLaunchDestination } from "@/workspace-tabs/launcher/internal/destination";
 import type { OpenWorkspaceBrowserUrl } from "@/workspace/browser/use-opening";
 import { WorkspaceBrowserScope } from "@/workspace/browser/context";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -108,7 +110,7 @@ import type { CheckoutStatusPayload } from "@/git/use-status-query";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { useArchiveAgent } from "@/hooks/use-archive-agent";
 import { useStableEvent } from "@/hooks/use-stable-event";
-import { removeResidentBrowserWebview } from "@/desktop/browser/resident-webviews";
+import { removeResidentNativeBrowser } from "@/desktop/browser/resident-native-pages.electron";
 import { createWorkspaceBrowser, useBrowserStore } from "@/desktop/browser/store";
 import { getDesktopHost } from "@/desktop/host";
 import { buildProviderCommand } from "@/utils/provider-command-templates";
@@ -1473,8 +1475,13 @@ function WorkspaceScreenContent({
       if (input.target?.kind === "browser") {
         const { browserId } = input.target;
         useBrowserStore.getState().removeBrowser(browserId);
-        removeResidentBrowserWebview(browserId);
-        void getDesktopHost()?.browser?.unregisterWorkspaceBrowser?.(browserId);
+        void removeResidentNativeBrowser(browserId)
+          .then((closedNative) => {
+            if (!closedNative)
+              return getDesktopHost()?.browser?.unregisterWorkspaceBrowser?.(browserId);
+            return undefined;
+          })
+          .catch(console.error);
       }
       closeWorkspaceTab(persistenceKey, normalizedTabId);
     },
@@ -1965,11 +1972,21 @@ function WorkspaceScreenContent({
       if (!persistenceKey) {
         return;
       }
+      const resolvedDestination = resolveWorkspaceTabLaunchDestination(
+        persistenceKey,
+        destination,
+        useWorkspaceLayoutStore,
+      );
+      if (!resolvedDestination) return;
       const openTarget = (target: WorkspaceTab["target"]) => {
-        if (destination.kind === "replace") {
-          replaceWorkspaceTabTarget(persistenceKey, destination.tabId, target);
+        if (resolvedDestination.kind === "replace") {
+          replaceWorkspaceTabTarget(persistenceKey, resolvedDestination.tabId, target);
         } else {
-          createWorkspaceTab(persistenceKey, target, paneLocalPlacement(destination.paneId));
+          createWorkspaceTab(
+            persistenceKey,
+            target,
+            paneLocalPlacement(resolvedDestination.paneId),
+          );
         }
       };
       if (selection.kind === "target") {
@@ -1986,7 +2003,7 @@ function WorkspaceScreenContent({
       if (selection.kind === "terminal") {
         createTerminal({
           profile: selection.profile,
-          destination,
+          destination: resolvedDestination,
         });
         return;
       }
@@ -1996,19 +2013,14 @@ function WorkspaceScreenContent({
     [createTerminal, createWorkspaceTab, persistenceKey, replaceWorkspaceTabTarget],
   );
 
+  const openOwnedBrowser = useWorkspaceBrowserOpening(normalizedServerId, normalizedWorkspaceId);
   const handleOpenUrlInBrowserTab = useCallback(
     (url: string) => {
-      if (!persistenceKey || !getIsElectron()) {
-        return;
+      if (openOwnedBrowser) {
+        return openOwnedBrowser(url);
       }
-      const { browserId } = createWorkspaceBrowser({ initialUrl: url });
-      openWorkspaceTabFocused(
-        persistenceKey,
-        { kind: "browser", browserId },
-        FOCUSED_PANE_PLACEMENT,
-      );
     },
-    [openWorkspaceTabFocused, persistenceKey],
+    [openOwnedBrowser],
   );
 
   useDesktopBrowserNewTabRequests({
@@ -3389,6 +3401,7 @@ function WorkspaceScreenContent({
       showPullRequest: hasPullRequest,
       showBrowser: showCreateBrowserTab,
       terminalDisabled: createTerminalDisabled,
+      canSplit: !syncFocusedPaneOnly,
       launch: launchWorkspaceTab,
     }),
     [
@@ -3399,6 +3412,7 @@ function WorkspaceScreenContent({
       isGitCheckout,
       launchWorkspaceTab,
       showCreateBrowserTab,
+      syncFocusedPaneOnly,
     ],
   );
   const focusedPaneIdOrUndefined = useMemo(() => focusedPaneId ?? undefined, [focusedPaneId]);

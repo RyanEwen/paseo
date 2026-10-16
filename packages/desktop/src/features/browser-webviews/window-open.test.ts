@@ -1,6 +1,44 @@
 import { describe, expect, it } from "vitest";
 
 import { decideBrowserWindowOpenRequest, PendingBrowserWindowOpenRequests } from ".";
+import { isAllowedBrowserFrameNavigation } from "./window-open.js";
+
+describe("browser frame navigation", () => {
+  it("allows extension resources only inside the browser profile's subframes", () => {
+    for (const url of [
+      `chrome-extension://${"a".repeat(32)}/overlay/menu.html`,
+      "chrome-extension://82f29e3d-9be5-42dc-96f7-725e09aac7c4/overlay/menu.html",
+    ]) {
+      expect(
+        isAllowedBrowserFrameNavigation({ url, isMainFrame: false, isBrowserProfile: true }),
+      ).toBe(true);
+      expect(
+        isAllowedBrowserFrameNavigation({ url, isMainFrame: true, isBrowserProfile: true }),
+      ).toBe(false);
+      expect(
+        isAllowedBrowserFrameNavigation({ url, isMainFrame: false, isBrowserProfile: false }),
+      ).toBe(false);
+    }
+  });
+
+  it("retains browser URL rules for main frames and blocks unsafe subframe schemes", () => {
+    for (const url of ["https://example.com", "http://localhost:8080", "about:blank"]) {
+      expect(
+        isAllowedBrowserFrameNavigation({ url, isMainFrame: true, isBrowserProfile: true }),
+      ).toBe(true);
+    }
+    for (const url of [
+      "file:///etc/passwd",
+      "javascript:alert(1)",
+      "paseo://settings",
+      "invalid URL",
+    ]) {
+      expect(
+        isAllowedBrowserFrameNavigation({ url, isMainFrame: false, isBrowserProfile: true }),
+      ).toBe(false);
+    }
+  });
+});
 
 describe("browser webview window-open requests", () => {
   it("routes foreground tabs to a Paseo workspace tab", () => {

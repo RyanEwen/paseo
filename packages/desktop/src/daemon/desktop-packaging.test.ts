@@ -11,12 +11,42 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolveDaemonDistribution } from "../../../server/src/server/daemon-distribution.js";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
-import { resolveDesktopDistribution, resolveDesktopUpdateChannel } from "../distribution.js";
+import {
+  resolveDesktopDistribution,
+  resolveDesktopUpdateChannel,
+  shouldEnableDesktopUpdates,
+} from "../distribution.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+it.each([{ paseoPreview: true }, { paseoDebug: true }, { paseoPreview: true, paseoDebug: true }])(
+  "agrees with the bundled daemon defaults for %j",
+  (metadata) => {
+    const root = mkdtempSync(join(tmpdir(), "paseo-desktop-defaults-"));
+    try {
+      const asar = join(root, "app.asar");
+      const server = join(asar, "node_modules", "@getpaseo", "server");
+      mkdirSync(server, { recursive: true });
+      writeFileSync(
+        join(asar, "package.json"),
+        JSON.stringify({ name: "paseo-plus-plus", ...metadata }),
+      );
+      const daemon = resolveDaemonDistribution(
+        pathToFileURL(join(server, "dist", "daemon-distribution.js")).href,
+      );
+      const desktop = resolveDesktopDistribution(metadata);
+      expect(`127.0.0.1:${daemon.defaultPort}`).toBe(desktop.daemonListen);
+      expect(daemon.defaultHome).toBe(`~/${desktop.daemonHomeName}`);
+      expect(daemon.cliPackage).toBe("@getpaseo/cli");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
 const require = createRequire(import.meta.url);
 const {
   createIsolatedHomeEnv,
@@ -153,6 +183,20 @@ describe("desktop packaging", () => {
     }
   });
 
+  it("isolates the debug artifact even when launched without its logging shortcut", () => {
+    expect(resolveDesktopDistribution({ paseoPreview: true, paseoDebug: true })).toEqual({
+      isPreview: true,
+      appName: "Paseo++ Debug",
+      userDataName: "Paseo++ Debug",
+      desktopName: "paseo-plus-plus-debug.desktop",
+      daemonHomeName: ".paseo-plus-plus-debug-desktop",
+      daemonListen: "127.0.0.1:6791",
+    });
+    expect(shouldEnableDesktopUpdates(true, true)).toBe(false);
+    expect(shouldEnableDesktopUpdates(true, false)).toBe(true);
+    expect(shouldEnableDesktopUpdates(false, false)).toBe(false);
+  });
+
   it("keeps fork settings and the local daemon isolated while pinning preview updates", () => {
     expect(resolveDesktopDistribution({ paseoPreview: true })).toEqual({
       isPreview: true,
@@ -194,7 +238,7 @@ describe("desktop packaging", () => {
       writeFileSync(join(resources, "paseo-daemon-home-name"), ".paseo-plus-plus-desktop\n");
       writeFileSync(join(resources, "paseo-daemon-listen"), "127.0.0.1:6790\n");
       const printEnvironment =
-        "console.log(JSON.stringify([process.env.PASEO_HOME, process.env.PASEO_LISTEN]));";
+        "require('node:fs').writeSync(1, JSON.stringify([process.env.PASEO_HOME, process.env.PASEO_LISTEN]));";
       if (isWindows) {
         // Use a real PE with a tiny runner so this exercises cmd.exe's bundled shim.
         copyFileSync(process.execPath, join(root, "Paseo++.exe"));

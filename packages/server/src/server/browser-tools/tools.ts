@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  AttachmentStoreError,
+  type AttachmentStore,
+  type AttachmentWriter,
+} from "../attachments/store.js";
 import { BrowserAutomationBrowserIdSchema } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import type { BrowserToolsBroker } from "./broker.js";
 import type { BrowserToolsResponsePayload } from "./errors.js";
@@ -27,6 +32,7 @@ export interface RegisterBrowserToolsOptions {
   broker: Pick<BrowserToolsBroker, "execute">;
   callerAgentId?: string;
   resolveCallerAgent: () => CallerAgentContext | null;
+  attachmentStore?: Pick<AttachmentStore, "reserve">;
 }
 
 const HTTP_URL_ONLY_MESSAGE = "URL must use http/https only";
@@ -397,22 +403,67 @@ export function registerBrowserTools(options: RegisterBrowserToolsOptions): void
         fullPage: z.boolean().default(false),
       },
     },
-    async ({ browserId, fullPage }) => {
+    async ({ browserId, fullPage }, execution) => {
       const context = resolveBrowserToolContext(options);
-      const payload = await options.broker.execute({
-        agentId: context.agentId,
-        cwd: context.cwd,
-        ...(context.workspaceId ? { workspaceId: context.workspaceId } : {}),
+      const owner = options.resolveCallerAgent();
+      if (!owner || owner.id !== options.callerAgentId || !options.attachmentStore) {
+        return screenshotStorageFailure(
+          "Durable screenshot storage requires a registered caller and execution-host storage.",
+        );
+      }
+      let reservation: AttachmentWriter | null = null;
+      try {
+        reservation = await options.attachmentStore.reserve(
+          { agentId: owner.id, workspaceId: owner.workspaceId },
+          execution.signal,
+        );
+        execution.signal?.throwIfAborted();
+        const payload = await options.broker.execute({
+          agentId: context.agentId,
+          cwd: context.cwd,
+          ...(context.workspaceId ? { workspaceId: context.workspaceId } : {}),
 
-        command: {
-          command: "screenshot",
-          args: {
-            browserId,
-            fullPage: fullPage ?? false,
+          command: {
+            command: "screenshot",
+            args: {
+              browserId,
+              fullPage: fullPage ?? false,
+            },
           },
-        },
-      });
-      return browserToolResult({ payload, context: { ...context, browserId } });
+        });
+        execution.signal?.throwIfAborted();
+        if (!payload.ok || payload.result.command !== "screenshot")
+          return browserToolResult({ payload, context: { ...context, browserId } });
+        const reference = await reservation.commit(
+          { data: payload.result.dataBase64, mimeType: payload.result.mimeType },
+          execution.signal,
+        );
+        const result = browserToolResult({ payload, context: { ...context, browserId } });
+        return {
+          ...result,
+          content: [
+            ...result.content,
+            {
+              type: "text",
+              text: `Original screenshot reference: ${reference.id} (agent ${reference.agentId}).`,
+            },
+          ],
+          structuredContent: {
+            ok: true,
+            result: browserToolStructuredResult(payload.result),
+            context: { ...context, browserId },
+            attachment: reference,
+          },
+        };
+      } catch (error) {
+        const message =
+          error instanceof AttachmentStoreError
+            ? error.message
+            : "Screenshot could not be saved to durable storage. Existing originals remain retained.";
+        return screenshotStorageFailure(message);
+      } finally {
+        await reservation?.release();
+      }
     },
   );
 
@@ -703,6 +754,14 @@ export function registerBrowserTools(options: RegisterBrowserToolsOptions): void
       return browserToolResult({ payload, context: { ...context, browserId } });
     },
   );
+}
+
+function screenshotStorageFailure(message: string): PaseoToolResult {
+  return {
+    isError: true,
+    content: [{ type: "text", text: message }],
+    structuredContent: { ok: false, error: { code: "screenshot_storage_unavailable", message } },
+  };
 }
 
 function resolveBrowserToolContext(options: RegisterBrowserToolsOptions): {

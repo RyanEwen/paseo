@@ -1,46 +1,39 @@
 # Native browser replacement feasibility
 
-## Deferred release scope
+Research reviewed October 14, 2026 in `feat/bundled-chromium-browser`, based on
+`ca7b208057bf90fe85b7eaee6df867358ed99905`. This is source research, not a qualified
+browser implementation. Preserve the [existing native prototype and receipts](qa-evidence/native-chromium-embedding/verification.md).
 
-The selected release retains the resident Electron `<webview>` browser. It excludes
-the WebContentsView replacement, separate-engine experiments and practical Chrome
-extension support. Electron and its bundled Chromium remain part of the desktop app.
-The [architecture](architecture.md) and [capture harness](browser-capture-harness.md)
-describe the retained browser; this document records deferred research.
+## Approved direction
 
-Research was reviewed October 14, 2026 in `feat/bundled-chromium-browser`, based on
-`ca7b208057bf90fe85b7eaee6df867358ed99905`. The prototype record is
-`qa-evidence/native-chromium-embedding/verification.md`.
+Ryan approved the proposal to make VS Code-style **WebContentsView** the preferred
+direction and prepare focused background-rendering and extension checks. Electron
+and its bundled Chromium remain the shell and browser engine. x64 desktop and
+native ARM64 coverage remain required. A separately managed Chromium process,
+CEF and OWL are now research alternatives, not the selected architecture.
 
-Historical receipt identifiers below refer to owner-local records unavailable in
-this release source. Their reported results and failures concern deferred research
-and do not establish current release qualification.
+Use Microsoft's complete ownership, geometry, visibility, keyboard, session and
+CDP implementation as the reference. Ryan's experience establishes VS Code as the
+chosen working model for background activity and focus. Qualification tests Paseo's
+adaptation and extra contracts; the earlier partial native-view fixtures do not
+establish that VS Code's complete implementation fails.
 
-## Previously approved research direction
+Keep Paseo's existing pane appearance, tab/workspace identity and human/agent
+ownership. Native views are not DOM webviews. No platform WebView2 switch, shell
+rewrite or screenshot/video pane is approved. Microsoft's temporary screenshot
+placeholder during overlapping menus is a separate presentation choice; do not
+adopt it implicitly under the native-view approval.
 
-Ryan approved VS Code-style **WebContentsView** as the research direction, with
-focused background-rendering and practical-extension checks. That approval does not
-select its source for this release. A separately managed Chromium process, CEF and
-OWL remain research alternatives.
+Ryan's practical extension target is broad compatibility, not literally every
+extension. Audit and reuse Paseo's installed-extension catalog, native hooks and
+compatibility support. Keep worker/storage/restart/install/update and ordinary
+extension UI in acceptance. Record individual incompatibilities instead of
+claiming that a new view type removes Electron's extension API limitations.
 
-Before any later integration, preserve Paseo's pane appearance, tab/workspace identity,
-human/agent ownership, x64 and native ARM64 support. Use Microsoft's ownership,
-geometry, visibility, keyboard, session and CDP implementation as the reference.
-The earlier partial fixtures do not establish that VS Code's complete implementation
-fails. No WebView2 switch, shell rewrite or screenshot/video pane is approved.
-A temporary screenshot placeholder during overlapping menus requires its own decision.
+The sections below preserve the source research and distribution alternatives.
+CEF artifact metadata is not a selected or downloaded product dependency.
 
-The deferred extension target is broad practical compatibility. Installation, worker
-and storage behavior, restart, updates, popups and ordinary extension UI need separate
-acceptance. Record individual incompatibilities; changing the view type does not
-remove Electron's extension API limits. The research catalog and compatibility hooks
-are excluded from the selected release along with the native-view source.
-
-The remaining sections preserve source research and distribution alternatives.
-CEF artifact metadata is not a selected or downloaded product dependency. Proposed
-experiments and resource estimates below are historical plans, not execution grants.
-
-## Architectural findings from the research review
+## Verified architectural facts
 
 | Claim                                                                              | Evidence and consequence                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -99,7 +92,7 @@ uses WebContentsView and `capturePage` with `stayHidden`, a hidden-view visibili
 pulse and bounded UnknownVizError retries. Its focus method normally refuses to
 focus a view unless the host window is focused. This is relevant implementation
 practice, not a guarantee for all minimized/background conditions. The owner's
-earlier native comparisons (`qa-evidence/browser-focus/verification.md`) already
+[earlier native comparisons](qa-evidence/browser-focus/verification.md) already
 record Windows hidden resize/reload failures; those fixtures were not tests of
 VS Code itself.
 
@@ -114,13 +107,14 @@ inspected paths. VS Code extensions that receive browser/CDP APIs are not Chrome
 extensions. Browser automation success therefore does not qualify password-manager
 popups, MV3 workers, Web Store installation or extension updates.
 
-WebContentsView plus the deferred catalog and compatibility hooks was the
-lower-complexity comparison candidate. It could cover a useful subset of
+WebContentsView plus Paseo's existing extension catalog and compatibility hooks
+is the lower-complexity comparison candidate. It could cover a useful subset of
 the practical corpus, but source inspection cannot establish how much, and it
 continues using Electron's engine and documented extension subset. It also needs
-background capture and popup/overlay qualification. A later integration must test
-the practical corpus rather than infer compatibility from the view type or an API
-list. The proposed first implementation did not require a separately distributed engine.
+background capture and popup/overlay qualification. Ryan has now selected this direction. Test the practical extension corpus rather
+than inferring compatibility from either the view type or a generic API list.
+No CEF maintenance cost or separate-browser distribution is needed for the chosen
+first implementation.
 
 ## Platform and distribution matrix
 
@@ -170,7 +164,7 @@ architectures. Unpacked footprint, bootstrap inventory and signed binary content
 remain unknown. Do not infer an admission budget from compressed size alone.
 
 Exact URLs, registry entries, HEAD receipts and pinned API-source hashes are in
-metadata receipts (`qa-evidence/native-chromium-embedding/cef-metadata-2026-10-14.json`).
+[metadata receipts](qa-evidence/native-chromium-embedding/cef-metadata-2026-10-14.json).
 Source headers read at CEF revision `c1a097e` confirm the same runtime-style,
 macOS parent restriction and DevTools observer/method API used in this report.
 The experiment should use that version's API instead of mixing master headers
@@ -184,7 +178,7 @@ No compiler/CMake command ran. Environment activation, linking, sandbox bootstra
 compatibility and executable output are not qualified. Existing BuildTools has
 version 17.14.37411.7; do not silently mix that instance with Community inputs.
 
-A future separate-engine release would need one pinned engine manifest with platform, native architecture,
+Each release needs one pinned engine manifest with platform, native architecture,
 version, source URL, upstream digest and independently recorded SHA-256. Package
 the engine/resources physically outside asar, with no first-run download or
 system-browser fallback. Verify signed/notarized final bundles and subprocess
@@ -198,7 +192,7 @@ licenses instead of assuming one BSD file covers every binary component.
 
 Before the native-view approval, the bounded candidate was a separate CEF
 **Chrome-style component**, retaining Electron. Preserve this as research history;
-no CEF experiment is included in this release. On
+no CEF experiment is selected under the current direction. On
 Windows ARM64 it offers a documented native-parent and extension runtime route
 without immediately building a custom Chromium fork. Cross-platform approval
 cannot follow from that one-platform pass, particularly on macOS.
@@ -209,7 +203,7 @@ interfaces. That preserves upstream browser semantics but adds browser-fork,
 per-platform composition, signing and security-update maintenance. Ordinary OS
 reparenting remains a diagnostic technique with a recorded keyboard failure.
 
-The earlier component proposal required these steps; they are not admitted for this release:
+After staging and resources are approved:
 
 1. Pin one current native ARM64 standard CEF distribution and its exact API source.
    Use its Windows sandbox bootstrap plus a small client DLL. Create one native
@@ -239,7 +233,7 @@ stock `--remote-debugging-pipe` is automatically the right CEF transport. Custom
 Mojo is justified only when new engine-side services are needed, not just to
 rename CDP. [DevTools API](https://github.com/chromiumembedded/cef/blob/master/include/cef_browser.h).
 
-## Deferred integration acceptance gates
+## Acceptance gates
 
 | Area                 | Required evidence                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -260,14 +254,14 @@ alongside the page when agents need them, while preventing agent shortcuts from
 controlling privileged host/browser UI. Ordinary compatibility failures remain
 visible for Ryan to judge.
 
-## Historical resource admission
+## Resource admission and current status
 
 No builds, browser runtime, binary downloads, installs or dependency copies ran
 in this research pass. Read-only registry/HEAD/API-source metadata and existing
 Windows file versions were verified under the later bounded allowance. Existing prototype, files and live tabs are untouched.
-The original research did not qualify a release candidate. The resource proposal
-below is not an active allowance. Follow the current
-[worktree guide](worktree-development.md) for source selection and admission.
+Typecheck/lint qualification is deferred under the root resource hold; this doc
+changes no executable behaviour. The referenced worktree strategy is the root's
+`/home/rewen/development/paseo/.dev/worktrees/preview-distribution/docs/worktree-development.md`.
 
 For the first prebuilt-component experiment, propose a **4 GiB maximum growth**
 and one two-CPU validation slot. This is an admission ceiling, not an observed
@@ -291,17 +285,18 @@ maintenance for a custom browser-service fork. Re-estimate after artifact,
 sandbox, native surface and input gates; do not commit to production costs from
 this source review.
 
-The deferred native-view owner recorded focused static qualification and a basic
-Linux ARM64 actual React pane milestone. The historical evidence below does not
-qualify the retained webview candidate or clear the remaining cross-platform gates.
+The selected native-view source has focused static qualification and a basic Linux
+ARM64 actual React pane milestone. Continue the independent acceptance gates below
+through the existing isolated desktop harness. CEF archives and a shell replacement
+are not the selected direction; native ARM64 and live in-app rendering remain required.
 
-## Historical native pane qualification
+## Current native pane qualification
 
 The basic Linux ARM64 milestone passed with Electron 44.5.1, Chromium
-152.0.7977.130, host zoom 1 and device pixel ratio 1. The owner connected its main-owned
-WebContentsView to the actual React browser pane. That recorded milestone preceded
-the later combined preview assembly. This release candidate excludes that source;
-the receipts do not establish installed-app or current candidate behavior.
+152.0.7977.130, host zoom 1 and device pixel ratio 1. The production main-owned
+WebContentsView is connected to the actual React browser pane. All changes remain
+uncommitted on `feat/bundled-chromium-browser`; no root integration, live profile
+control or installed-app replacement occurred.
 
 | Area                      | Qualified evidence                                                                                | Boundary                                                                   |
 | ------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -313,9 +308,9 @@ the receipts do not establish installed-app or current candidate behavior.
 | Return and close          | Same contents 2 and draft on return; original and background tab closure/destruction              | One isolated journey, no live tab recreation                               |
 | Hidden host baseline      | Fresh oversized 672 by 1497 and 1008 by 2246 frames, draft/cookie retained                        | Separate earlier fixture; restart and true minimization remain open        |
 
-See the frozen real-pane qualification (`qa-evidence/native-react-pane/receiver-admission/split-runtime/qualification.json`),
-source hashes (`qa-evidence/native-react-pane/receiver-admission/split-runtime/source-manifest.json`)
-and exact owned teardown (`qa-evidence/native-react-pane/receiver-admission/split-runtime/teardown.json`).
+See the [frozen real-pane qualification](qa-evidence/native-react-pane/receiver-admission/split-runtime/qualification.json),
+[source hashes](qa-evidence/native-react-pane/receiver-admission/split-runtime/source-manifest.json)
+and [exact owned teardown](qa-evidence/native-react-pane/receiver-admission/split-runtime/teardown.json).
 Seven recorded processes and five dynamic ports retired, including both observers
 and the authenticated private display. Peak incremental storage was 193,460,688
 bytes, below the admitted 256 MiB ceiling. The source packet is retained under
@@ -334,15 +329,15 @@ These fixtures do not diagnose Ryan's live keyboard-focus losses.
 Keep earlier receipts when reviewing the accepted milestone. They establish the
 limits that the focused changes and fixture admission corrected:
 
-| Evidence                                                                                                                                                                                | Constraint recovered                                                                                                                                      |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Native admission (`qa-evidence/native-view-runtime/qualification.json`)                                                                                                                 | Main must bind the exact creator/view/contents/session identity; Electron reports this WebContentsView as type window                                     |
-| Unprimed geometry (`qa-evidence/native-view-geometry/qualification.json`)                                                                                                               | Assertions before the existing production capture priming overstated a never-presented view failure                                                       |
-| Primed hidden baseline (`qa-evidence/native-view-primed-hidden/qualification.json`)                                                                                                     | Exact dimensions plus changed top/bottom pixels qualify the actual production capture path                                                                |
-| Parent composition failure (`qa-evidence/native-parent-clip/qualification.json`) and reparent pass (`qa-evidence/native-parent-clip-reparent/qualification.json`)                       | Attach the bounded parent before automatic same-widget reparenting; the direct-paint precondition changed too, so ordering alone is not an isolated cause |
-| Real-app setup failures (`qa-evidence/native-react-pane/results.json`)                                                                                                                  | Short private temporary paths avoid Chromium's Unix socket length limit; bundle readiness precedes the unchanged UI readiness gate                        |
-| Inactive native bounds (`qa-evidence/native-react-pane/xlib-admission/qualification.json`)                                                                                              | A resized child wholly outside its retained clip can retain stale renderer size; hidden full viewport placement now intersects its native ancestors       |
-| Failed input gate (`qa-evidence/native-react-pane/hidden-geometry-fix/qualification.json`) and baseline (`qa-evidence/native-react-pane/receiver-admission/runtime/qualification.json`) | Native click/key batching lacked Chromium click-focus settlement; observe actual trusted click and main focus before the one key                          |
+| Evidence                                                                                                                                                                              | Constraint recovered                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Native admission](qa-evidence/native-view-runtime/qualification.json)                                                                                                                | Main must bind the exact creator/view/contents/session identity; Electron reports this WebContentsView as type window                                     |
+| [Unprimed geometry](qa-evidence/native-view-geometry/qualification.json)                                                                                                              | Assertions before the existing production capture priming overstated a never-presented view failure                                                       |
+| [Primed hidden baseline](qa-evidence/native-view-primed-hidden/qualification.json)                                                                                                    | Exact dimensions plus changed top/bottom pixels qualify the actual production capture path                                                                |
+| [Parent composition failure](qa-evidence/native-parent-clip/qualification.json) and [reparent pass](qa-evidence/native-parent-clip-reparent/qualification.json)                       | Attach the bounded parent before automatic same-widget reparenting; the direct-paint precondition changed too, so ordering alone is not an isolated cause |
+| [Real-app setup failures](qa-evidence/native-react-pane/results.json)                                                                                                                 | Short private temporary paths avoid Chromium's Unix socket length limit; bundle readiness precedes the unchanged UI readiness gate                        |
+| [Inactive native bounds](qa-evidence/native-react-pane/xlib-admission/qualification.json)                                                                                             | A resized child wholly outside its retained clip can retain stale renderer size; hidden full viewport placement now intersects its native ancestors       |
+| [Failed input gate](qa-evidence/native-react-pane/hidden-geometry-fix/qualification.json) and [baseline](qa-evidence/native-react-pane/receiver-admission/runtime/qualification.json) | Native click/key batching lacked Chromium click-focus settlement; observe actual trusted click and main focus before the one key                          |
 
 The earlier separate Chromium X11 prototype and private-pipe foundation remain
 in the branch. Its keyboard containment failure is still recorded. They are
@@ -355,26 +350,26 @@ build. The succeeding receiver journey changed fixtures only; green production
 checks were not repeated. Native crash/shutdown source tests are separate from an
 actual runtime crash/recovery or update test.
 
-## Historical independent remaining gates
+## Independent remaining gates
 
-Next acceptance preparation (`qa-evidence/native-react-pane/next-acceptance.md`)
+[Next acceptance preparation](qa-evidence/native-react-pane/next-acceptance.md)
 owns the source audit and practical extension corpus. Independent page zoom and
-exact device CSS presets are approved. The corrected native zoom fixture (`qa-evidence/native-next/independent-page-zoom-oracle/runtime/qualification.json`)
+exact device CSS presets are approved. The [corrected native zoom fixture](qa-evidence/native-next/independent-page-zoom-oracle/runtime/qualification.json)
 passed at host zoom 1.25 and observed page zoom one: exact 672 by 1497 CSS/native
 DIP/physical pixels, fresh top/bottom markers beyond the host, native crop, painted
 clipping and trusted inside/outside input. Capture preserved host/page focus and
 native identity. This uses a synthetic anchor, so actual React frame centering,
 shadow and draft retention at nonunit zoom remain separate gates.
 
-The source slice (`qa-evidence/native-next/zoom-policy/qualification.json`) passed
+The [source slice](qa-evidence/native-next/zoom-policy/qualification.json) passed
 19 selected native/renderer cases, targeted lint, desktop/app typechecks and owning
-main build. The old 840 by 1871 failure (`qa-evidence/native-next/zoom/qualification.json`)
-and obsolete rounding assertion (`qa-evidence/native-next/independent-page-zoom/runtime/qualification.json`)
+main build. The old [840 by 1871 failure](qa-evidence/native-next/zoom/qualification.json)
+and [obsolete rounding assertion](qa-evidence/native-next/independent-page-zoom/runtime/qualification.json)
 remain preserved. The corrected fixture uses independent inward clip edges and
 rounded absolute origins. No zoom reset, emulation, image rescaling or wider input
 tolerance was introduced. Sampling and cleanup limits are in the runtime receipt.
 
-The native profile restart pair (`qa-evidence/native-next/context-menu/runtime/qualification.json`)
+The [native profile restart pair](qa-evidence/native-next/context-menu/runtime/qualification.json)
 passed through the production native owner on Linux ARM64. Repository-owned MV3
 content scripts, popup documents, local storage, tab/frame identity, resource and
 permission boundaries, worker wake/events, real 110-second worker traffic/idle
@@ -390,11 +385,11 @@ finite focus observations, warnings and cleanup. Earlier document-start selectio
 and hidden-context-input failures remain in the evidence history; their corrected
 fixture ordering/presentation does not establish a product focus defect or fix.
 
-The next native fixture gates (`qa-evidence/native-next/minimized-scale/admission.md`)
+The [next native fixture gates](qa-evidence/native-next/minimized-scale/admission.md)
 separate actual private-WM minimization from flag-based observed DPR 1.5; neither
-has run. The publisher proposal (`qa-evidence/native-next/third-party/proposal.md`)
+has run. The [publisher proposal](qa-evidence/native-next/third-party/proposal.md)
 records one unchanged third-party artifact and concrete API risks before any download.
-The overlap source plan (`qa-evidence/native-next/menu-overlap/source-plan.md`) follows
+The [overlap source plan](qa-evidence/native-next/menu-overlap/source-plan.md) follows
 the canonical overlay registrations and approved blank-on-failure policy.
 
 Source preparation and runtime execution need separate admission. Extend existing

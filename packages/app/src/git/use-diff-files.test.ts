@@ -1,4 +1,4 @@
-import { changedFileDiffTarget, resolveDiffFileScope } from "./diff-scope";
+import { changedFileDiffTarget, resolveDiffFilePath, resolveDiffFileScope } from "./diff-scope";
 import { describe, expect, it } from "vitest";
 import type { CheckoutCommitFile, ParsedDiffFile } from "@getpaseo/protocol/messages";
 import { resolveCommitDiffFiles } from "./use-diff-files";
@@ -111,6 +111,7 @@ describe("changed-file diff scope", () => {
       selectedPath: "b.ts",
       presentation: "diff" as const,
       scope: "single" as const,
+      isCompact: false,
     };
     expect(resolveDiffFileScope(input).files).toEqual(files);
     expect(resolveDiffFileScope({ ...input, filePath: "b.ts" }).files).toEqual([files[1]]);
@@ -124,6 +125,7 @@ describe("changed-file diff scope", () => {
       selectedPath: "b.ts",
       presentation: "combined" as const,
       scope: "single" as const,
+      isCompact: false,
     };
     expect(resolveDiffFileScope(input)).toEqual({ files: [files[1]], treeFiles: files });
     expect(resolveDiffFileScope({ ...input, scope: "all" })).toEqual({ files, treeFiles: files });
@@ -131,6 +133,34 @@ describe("changed-file diff scope", () => {
     expect(resolveDiffFileScope({ ...input, selectedPath: "removed.ts" })).toEqual({
       files: [],
       treeFiles: files,
+    });
+  });
+
+  it("scopes compact Jump to file selections while keeping every file available", () => {
+    const input = {
+      allFiles: files,
+      filePath: undefined,
+      selectedPath: undefined,
+      presentation: "diff" as const,
+      scope: "single" as const,
+      isCompact: true,
+    };
+    expect(resolveDiffFileScope(input)).toEqual({ files, treeFiles: files });
+    expect(resolveDiffFileScope({ ...input, selectedPath: "a.ts" })).toEqual({
+      files: [files[0]],
+      treeFiles: files,
+    });
+    expect(resolveDiffFileScope({ ...input, selectedPath: "b.ts" })).toEqual({
+      files: [files[1]],
+      treeFiles: files,
+    });
+    expect(resolveDiffFileScope({ ...input, selectedPath: "b.ts", scope: "all" })).toEqual({
+      files,
+      treeFiles: files,
+    });
+    expect(resolveDiffFileScope({ ...input, filePath: "a.ts", selectedPath: "b.ts" })).toEqual({
+      files: [files[0]],
+      treeFiles: [files[0]],
     });
   });
 
@@ -146,5 +176,38 @@ describe("changed-file diff scope", () => {
       focusPath: "a.ts",
       focusRequestId: 3,
     });
+  });
+});
+
+describe("single-file acquisition path", () => {
+  it("uses the explicit destination before focus and retains exact filename whitespace", () => {
+    expect(
+      resolveDiffFilePath({
+        filePath: " a.css ",
+        selectedPath: "b.css",
+        presentation: "diff",
+        scope: "all",
+        isCompact: false,
+      }),
+    ).toBe(" a.css ");
+  });
+  it("scopes in-place documents only in single mode while a standalone tree remains an overview", () => {
+    for (const presentation of ["tree", "combined", "diff"] as const) {
+      for (const isCompact of [false, true]) {
+        const input = {
+          filePath: undefined,
+          selectedPath: "b.css",
+          presentation,
+          isCompact,
+          scope: "single" as const,
+        };
+        expect(resolveDiffFilePath(input)).toBe(
+          presentation === "combined" || (isCompact && presentation === "diff")
+            ? "b.css"
+            : undefined,
+        );
+        expect(resolveDiffFilePath({ ...input, scope: "all" })).toBeUndefined();
+      }
+    }
   });
 });

@@ -1,3 +1,6 @@
+import { DockReservationContext } from "./dock-reservation";
+import { usePublishDockReservation } from "./use-dock-reservation";
+import { KeyboardDockDisplacementContext } from "./dock-displacement.ios";
 import { useMemo, type ReactNode } from "react";
 import { Animated, type ViewProps } from "react-native";
 import { useKeyboardAnimation } from "react-native-keyboard-controller";
@@ -17,6 +20,7 @@ export function KeyboardTranslateView({
   style,
   ...props
 }: KeyboardTranslateViewProps) {
+  const reservation = usePublishDockReservation(enabled, bottomClearance);
   const insets = useSafeAreaInsets();
   const { height, progress } = useKeyboardAnimation();
   const translateY = useMemo(
@@ -32,6 +36,12 @@ export function KeyboardTranslateView({
       }),
     [bottomClearance, height, insets.bottom, progress],
   );
+  // Derive the child's visible edge from this exact native graph, including
+  // safe-area/progress and bottom clearance. Do not substitute provider.shift.
+  const displacement = useMemo(
+    () => Animated.multiply(translateY, enabled ? -1 : 0),
+    [enabled, translateY],
+  );
   const keyboardStyle = useMemo(
     () => ({ transform: [{ translateY: enabled ? translateY : 0 }] }),
     [enabled, translateY],
@@ -39,7 +49,11 @@ export function KeyboardTranslateView({
 
   return (
     <Animated.View style={[style, keyboardStyle]} {...props}>
-      {children}
+      <KeyboardDockDisplacementContext.Provider value={displacement}>
+        <DockReservationContext.Provider value={reservation}>
+          {children}
+        </DockReservationContext.Provider>
+      </KeyboardDockDisplacementContext.Provider>
     </Animated.View>
   );
 }

@@ -1,3 +1,4 @@
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import React, {
   useCallback,
@@ -32,7 +33,6 @@ import { markdownNodeContainsType } from "@/utils/markdown-ast";
 import { createMarkdownParser } from "@/utils/markdown-parser";
 import { createCompactMarkdownStyles, createMarkdownStyles } from "@/styles/markdown-styles";
 import type { Theme } from "@/styles/theme";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { isNative } from "@/constants/platform";
 import {
   splitHtmlishMarkdown,
@@ -250,6 +250,7 @@ function MarkdownInlineImage({
   part: Extract<MarkdownDisplayPart, { kind: "inlineImage" }>;
   onLinkPress?: (url: string) => boolean;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { natural: naturalDimensions } = useNaturalImageDimensions(part);
   const explicitDimensions = useMemo(
     () => ({ width: part.width, height: part.height }),
@@ -258,8 +259,8 @@ function MarkdownInlineImage({
   const handlePress = useCallback(() => {
     if (!part.href) return;
     if (onLinkPress?.(part.href) === false) return;
-    void openExternalUrl(part.href);
-  }, [onLinkPress, part.href]);
+    void openPrimary(part.href);
+  }, [onLinkPress, part.href, openPrimary]);
   const source = useMemo(() => ({ uri: part.src }), [part.src]);
   const imageSize = useMemo(
     () => resolveInlineImageSize({ explicit: explicitDimensions, natural: naturalDimensions }),
@@ -296,12 +297,13 @@ function MarkdownFlowImage({
   part: MarkdownInlineImagePart;
   onLinkPress?: (url: string) => boolean;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { natural, failed, setFailed } = useNaturalImageDimensions(part);
   const handlePress = useCallback(() => {
     if (!part.href) return;
     if (onLinkPress?.(part.href) === false) return;
-    void openExternalUrl(part.href);
-  }, [onLinkPress, part.href]);
+    void openPrimary(part.href);
+  }, [onLinkPress, part.href, openPrimary]);
   const handleError = useCallback(() => setFailed(true), [setFailed]);
   const source = useMemo(() => ({ uri: part.src }), [part.src]);
   const imageSize = useMemo(() => {
@@ -471,11 +473,12 @@ function SharedMarkdownLink({
   onLinkPress,
   children,
 }: SharedMarkdownLinkProps) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const handlePress = useCallback(() => {
     if (!href) return;
     if (onLinkPress?.(href) === false) return;
-    void openExternalUrl(href);
-  }, [href, onLinkPress]);
+    void openPrimary(href);
+  }, [href, onLinkPress, openPrimary]);
   const style = useMemo(() => [inheritedStyles, linkStyle], [inheritedStyles, linkStyle]);
 
   if (!isNative) {

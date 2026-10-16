@@ -261,16 +261,20 @@ export function HoverCardTrigger({
   children,
   focusable = false,
   accessibilityLabel,
+  style,
 }: {
   children: ReactNode;
   focusable?: boolean;
   accessibilityLabel?: string;
+  /** Preserve an interactive divider or another sized trigger without a second layout wrapper. */
+  style?: StyleProp<ViewStyle>;
 }): ReactNode {
   const ctx = useContext(HoverCardContext);
-  if (!ctx) return children;
+  if (!ctx) return style ? <View style={style}>{children}</View> : children;
   return (
     <View
       ref={ctx.setTriggerRef}
+      style={style}
       tabIndex={focusable ? 0 : undefined}
       accessibilityRole={focusable ? "button" : undefined}
       accessibilityLabel={accessibilityLabel}

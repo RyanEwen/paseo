@@ -141,6 +141,9 @@ interface UserMessageProps {
   /** Explicit arrow navigation holds actions independently of actual pointer hover. */
   keepActionsVisible?: boolean;
   previewLines?: number;
+  /** Keep the actual Text/attachment body mounted through disclosure. */
+  previewExpanded?: boolean;
+  bodyViewportHeight?: number;
   onPreviewOverflowChange?: (overflowing: boolean) => void;
   serverId?: string;
   agentId?: string;
@@ -395,6 +398,7 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing[4],
     paddingVertical: theme.spacing[4],
     minWidth: 0,
+    minHeight: 0,
     flexShrink: 1,
   },
   pinnedBubble: { borderTopLeftRadius: 0 },
@@ -424,6 +428,8 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     gap: theme.spacing[2],
     marginTop: theme.spacing[2],
   },
+  // The absolute-fill backdrop follows this padding, keeping content inside its edges.
+  trailingRowWithBackdrop: { padding: theme.spacing[2], flexShrink: 0 },
   // Pinned previews already place their controls directly below the compact bubble.
   trailingRowPreview: { marginTop: 0 },
   trailingRowHidden: {
@@ -440,11 +446,16 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
 
 const MESSAGE_TEXT_DATASET = { messageText: "true" };
 
+function ignorePreviewOverflow(_overflowing: boolean): void {
+  return;
+}
+
 /** Keep source text laid out while the pinned copy exclusively paints its measured prefix. */
 function UserMessageText({
   message,
   hasText,
   previewLines,
+  previewExpanded,
   onPreviewOverflowChange,
   hideTextAccessibility,
   onBubbleTextLayout,
@@ -455,6 +466,7 @@ function UserMessageText({
   UserMessageProps,
   | "message"
   | "previewLines"
+  | "previewExpanded"
   | "onPreviewOverflowChange"
   | "hideTextAccessibility"
   | "onBubbleTextLayout"
@@ -487,33 +499,21 @@ function UserMessageText({
   );
   return (
     <View style={userMessageStylesheet.textRegion}>
-      {hasText &&
-        (previewLines !== undefined && onPreviewOverflowChange ? (
-          <TextPreview
-            key={message}
-            selectable
-            numberOfLines={previewLines}
-            onOverflowChange={onPreviewOverflowChange}
-            style={userMessageStylesheet.text}
-            {...textAccessibility}
-            testID="user-message-text"
-            dataSet={MESSAGE_TEXT_DATASET}
-          >
-            {message}
-          </TextPreview>
-        ) : (
-          <Text
-            selectable
-            {...textAccessibility}
-            testID="user-message-text"
-            onTextLayout={onBubbleTextLayout}
-            numberOfLines={previewLines}
-            style={userMessageStylesheet.text}
-            dataSet={MESSAGE_TEXT_DATASET}
-          >
-            {message}
-          </Text>
-        ))}
+      {hasText && (
+        <TextPreview
+          onTextLayout={onBubbleTextLayout}
+          selectable
+          numberOfLines={previewLines ?? 1}
+          expanded={previewExpanded || previewLines === undefined}
+          onOverflowChange={onPreviewOverflowChange ?? ignorePreviewOverflow}
+          style={userMessageStylesheet.text}
+          {...textAccessibility}
+          testID="user-message-text"
+          dataSet={MESSAGE_TEXT_DATASET}
+        >
+          {message}
+        </TextPreview>
+      )}
       {!!copyMask?.prefixHeight && (
         <View
           style={textMaskStyle}
@@ -566,6 +566,8 @@ export const UserMessage = memo(function UserMessage({
   navigationActions,
   keepActionsVisible,
   previewLines,
+  previewExpanded,
+  bodyViewportHeight,
   onPreviewOverflowChange,
   serverId,
   agentId,
@@ -592,9 +594,8 @@ export const UserMessage = memo(function UserMessage({
   );
   const resolvedDisableOuterSpacing = useDisableOuterSpacing(disableOuterSpacing);
   const hasText = message.trim().length > 0;
-  const compactPreview = previewLines !== undefined;
-
-  const showMessageActions = hasText && (previewLines === undefined || !!navigationActions);
+  const compactPreview = previewLines !== undefined && !previewExpanded;
+  const showMessageActions = hasText;
   const hasTrailingRow = showMessageActions || !!navigationActions;
   const showTrailingRow =
     !copyMask &&
@@ -629,19 +630,34 @@ export const UserMessage = memo(function UserMessage({
     ],
     [resolvedDisableOuterSpacing, isFirstInGroup, isLastInGroup, expandedCopy],
   );
+  const contentStyle = useMemo(
+    () => [
+      userMessageStylesheet.content,
+      bodyViewportHeight === undefined
+        ? undefined
+        : inlineUnistylesStyle({ maxHeight: bodyViewportHeight }),
+    ],
+    [bodyViewportHeight],
+  );
   const bubbleStyle = useMemo(
-    () => resolveUserMessageBubbleStyle(bubbleWidth, pinned, compactPreview),
-    [bubbleWidth, pinned, compactPreview],
+    () =>
+      resolveUserMessageBubbleStyle(
+        bubbleWidth,
+        pinned,
+        compactPreview || bodyViewportHeight !== undefined,
+      ),
+    [bubbleWidth, pinned, compactPreview, bodyViewportHeight],
   );
   const trailingRowStyle = useMemo(
     () => [
       userMessageStylesheet.trailingRow,
+      actionRowBackdrop ? userMessageStylesheet.trailingRowWithBackdrop : undefined,
       previewLines === undefined ? undefined : userMessageStylesheet.trailingRowPreview,
       showTrailingRow
         ? userMessageStylesheet.trailingRowVisible
         : userMessageStylesheet.trailingRowHidden,
     ],
-    [showTrailingRow, previewLines],
+    [showTrailingRow, previewLines, actionRowBackdrop],
   );
 
   const attachmentContent = useMemo(
@@ -669,7 +685,7 @@ export const UserMessage = memo(function UserMessage({
       importantForAccessibility={expandedCopy ? "no-hide-descendants" : "auto"}
     >
       <View
-        style={userMessageStylesheet.content}
+        style={contentStyle}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
       >
@@ -692,6 +708,7 @@ export const UserMessage = memo(function UserMessage({
           <UserMessagePreviewContent
             action={inlineContentAction}
             compact={compactPreview}
+            bounded={bodyViewportHeight !== undefined}
             hasText={hasText}
             attachments={attachmentContent}
           >
@@ -699,6 +716,7 @@ export const UserMessage = memo(function UserMessage({
               message={message}
               hasText={hasText}
               previewLines={previewLines}
+              previewExpanded={previewExpanded}
               onPreviewOverflowChange={onPreviewOverflowChange}
               hideTextAccessibility={hideTextAccessibility}
               onBubbleTextLayout={onBubbleTextLayout}

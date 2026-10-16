@@ -18,15 +18,15 @@ interface AccentPair {
   dark: string;
 }
 
-// Dark fills use pale colors with dark text; light fills use deep colors with white text.
+// Low-saturation fills keep message surfaces quiet; separate foregrounds preserve readable text.
 // Keep semantic status and identity palettes independent of this personal preference.
 export const ACCENT_PALETTE: Record<Exclude<AccentColor, "default">, AccentPair> = {
-  blue: { light: "#1d4ed8", dark: "#93c5fd" },
-  green: { light: "#166534", dark: "#86efac" },
-  purple: { light: "#7e22ce", dark: "#d8b4fe" },
-  rose: { light: "#be123c", dark: "#fda4af" },
-  orange: { light: "#9a3412", dark: "#fdba74" },
-  teal: { light: "#115e59", dark: "#5eead4" },
+  blue: { light: "#3e5872", dark: "#9bafc5" },
+  green: { light: "#3f604b", dark: "#a1b9a8" },
+  purple: { light: "#624c71", dark: "#b4a5c2" },
+  rose: { light: "#754f5a", dark: "#c0a2ab" },
+  orange: { light: "#73543c", dark: "#c4ac94" },
+  teal: { light: "#3b625f", dark: "#98b7b5" },
 };
 
 /** Resolve from an authored theme so Default restores its original accent and message colors. */

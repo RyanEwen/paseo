@@ -431,13 +431,15 @@ export function useStickyPrompt(input: Input) {
 
   // The current prompt can be outside the rendered window. Its indexed target
   // uses the same window acceptance and scrolling owner as arrow navigation.
-  const reveal = useStableEvent(() => {
+  const reveal = useStableEvent((messageId?: string) => {
     if (!enabled || busy) return;
     clearNavigationActions();
-    const target = targets[position];
+    const target = messageId
+      ? targets.find((candidate) => candidate.item?.id === messageId)
+      : targets[position];
     if (target) {
-      // Retain the displayed cache copy while the owner loads its original row.
-      setSelected(message ?? null);
+      // Retain the selected prompt while the owner loads its original row.
+      setSelected(target.item ?? message ?? null);
       selectTarget(target, true, { preserveSelection: true, placement: "original" });
     }
   });

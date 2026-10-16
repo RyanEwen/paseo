@@ -152,14 +152,13 @@ export class CheckoutDiffManager {
   }
 
   private normalizeCompare(compare: CheckoutDiffCompareInput): CheckoutDiffCompareInput {
-    const ignoreWhitespace = compare.ignoreWhitespace === true;
-    if (compare.mode === "uncommitted") {
-      return { mode: "uncommitted", ignoreWhitespace };
-    }
-    const trimmedBaseRef = compare.baseRef?.trim();
-    return trimmedBaseRef
-      ? { mode: "base", baseRef: trimmedBaseRef, ignoreWhitespace }
-      : { mode: "base", ignoreWhitespace };
+    const baseRef = compare.mode === "base" ? compare.baseRef?.trim() : undefined;
+    return {
+      mode: compare.mode,
+      ...(baseRef ? { baseRef } : {}),
+      ignoreWhitespace: compare.ignoreWhitespace === true,
+      ...(compare.filePath !== undefined ? { filePath: compare.filePath } : {}),
+    };
   }
 
   private buildTargetKey(cwd: string, compare: CheckoutDiffCompareInput): string {
@@ -168,6 +167,7 @@ export class CheckoutDiffManager {
       compare.mode,
       compare.mode === "base" ? (compare.baseRef ?? "") : "",
       compare.ignoreWhitespace === true,
+      compare.filePath ?? null,
     ]);
   }
 
@@ -264,6 +264,7 @@ export class CheckoutDiffManager {
           baseRef: compare.baseRef,
           ignoreWhitespace: compare.ignoreWhitespace,
           includeStructured: true,
+          filePath: compare.filePath,
         },
         options?.force
           ? { force: true, reason: options.reason ?? "checkout-diff-refresh" }

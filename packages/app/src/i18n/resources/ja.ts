@@ -35,6 +35,21 @@ export const ja: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "アクセントカラー",
+      hint: "主要な操作と自分のメッセージに使用します",
+      updateHost: "アクセントカラーを変更するには、選択した設定ホストを更新してください",
+      preview: "メッセージはこのように表示されます",
+      options: {
+        default: "デフォルト",
+        blue: "ブルー",
+        green: "グリーン",
+        purple: "パープル",
+        rose: "ローズ",
+        orange: "オレンジ",
+        teal: "ティール",
+      },
+    },
     workspaceLimit: {
       save: "保存",
       title: "ワークスペース一覧",
@@ -69,16 +84,24 @@ export const ja: TranslationResources = {
     saveFailed: "保存できませんでした。もう一度お試しください。",
     features: {
       workspaceChatLinks: {
-        label: "チャットのリンクをPaseoで開く",
-        hint: "デスクトップでは、チャットのウェブリンクをそのワークスペースのブラウザーで開きます。オフにすると外部ブラウザーを使います。リンクメニューの「Paseoで開く」は引き続き使えます。",
+        label: "ワークスペースのリンク",
+        hint: "デスクトップでは、ターミナル、チャット、Git のウェブリンクを所属ワークスペースの新しいブラウザータブで開きます。オフにすると外部ブラウザーで開きます。メニューからの明示的な操作は引き続き利用できます。",
       },
       sidebarHostUpdates: {
         label: "サイドバーのホスト更新",
         hint: "ホストメニューに更新操作を表示します。オフにしてもホスト設定は引き続き利用できます。",
       },
+      splitLayoutPresets: {
+        label: "分割レイアウト操作",
+        hint: "区切りで比率を選択し、メニューからタブを移動します。オフにすると操作を非表示にします。",
+      },
       mobileWorkspaceTabs: {
         label: "モバイルのワークスペースタブ",
         hint: "コンパクト表示でスクロール可能なタブバーを表示します。オフにすると、選択中のタブを変えずに以前のタブ選択に戻ります。",
+      },
+      widerWorkspaceTabs: {
+        label: "ワークスペースのタブを広くする",
+        hint: "長いタブ名の最大幅を50%広げます。短いタブは自然な幅を保ちます。オフにすると以前の最大幅に戻ります。",
       },
 
       descriptiveToolCalls: {
@@ -649,6 +672,20 @@ export const ja: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "{{item}} を横に開く",
+      chooseRatio: "分割比率を選択",
+      ratio: "{{ratio}} に分割",
+      moveTab: "タブを移動",
+      left: "左",
+      right: "右",
+      top: "上",
+      bottom: "下",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "ペイン {{index}}",
+    },
+
     route: {
       loading: "ワークスペースを読み込み中",
       connecting: "接続中",
@@ -787,6 +824,7 @@ export const ja: TranslationResources = {
     browser: {
       openInPaseo: "Paseo ブラウザーで開く",
       openExternally: "外部ブラウザーで開く",
+      copyLink: "リンクをコピー",
       unavailable: {
         title: "ブラウザはデスクトップ専用です",
         subtitle: "組み込みブラウザを使用するには、このワークスペースをElectronで開いてください。",
@@ -814,6 +852,14 @@ export const ja: TranslationResources = {
         placeholder: "この要素についてエージェントへのメッセージ…",
         submit: "添付",
         cancel: "キャンセル",
+      },
+      extensions: {
+        label: "拡張機能",
+        empty: "有効な拡張機能はありません。",
+        noPopup: "ポップアップはありません",
+        loading: "拡張機能を読み込み中...",
+        manage: "拡張機能を管理",
+        openFailed: "拡張機能を開けませんでした",
       },
       devices: {
         label: "デバイスサイズ",
@@ -1138,6 +1184,7 @@ export const ja: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "単一ファイルの差分を開くには、このホストを更新してください。",
         openChangesTab: "変更タブを開く",
         openDiffTab: "差分タブを開く",
         closeChangesTab: "変更タブを閉じる",
@@ -1366,6 +1413,7 @@ export const ja: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "このホストの既知のプロジェクトはまだありません。",
       selectOnlyProject: "{{project}} のみ表示",
       includeProject: "{{project}} を含める",
       workspaces: "ワークスペース",
@@ -1386,8 +1434,21 @@ export const ja: TranslationResources = {
       done: "完了",
     },
     display: {
+      modeToggle: "{{current}}表示。{{next}}表示に切り替え。",
+      workspaceList: {
+        updatedWithin: "更新期間",
+        day: "1日",
+        threeDays: "3日",
+        fiveDays: "5日",
+        week: "1週間",
+        twoWeeks: "2週間",
+        month: "1か月（30日）",
+        twoMonths: "2か月（60日）",
+        threeMonths: "3か月（90日）",
+      },
       expandAll: "すべて展開",
       collapseAll: "すべて折りたたむ",
+      oneProjectAtATime: "一度に1つのプロジェクト",
       showBackground: "バックグラウンドを表示",
       trigger: "表示設定",
       heading: "表示",
@@ -2470,6 +2531,25 @@ export const ja: TranslationResources = {
     general: {
       title: "一般",
       sending: "送信",
+      browserExtensions: {
+        title: "拡張機能",
+        compatibility:
+          "Chrome 拡張機能の一部の機能はサポートされていません。拡張機能は自動更新されません。",
+        store: "Chrome ウェブストア",
+        openStore: "ウェブストアを開く",
+        refresh: "更新",
+        enable: "有効にする",
+        disable: "無効にする",
+        retry: "再試行",
+        remove: "削除",
+        removeTitle: "{{name}} を削除しますか？",
+        removeMessage: "Paseo から拡張機能を削除します。展開済みのソースフォルダーは保持されます。",
+        loading: "拡張機能を読み込み中...",
+        empty: "拡張機能はインストールされていません。",
+        unpackedHint: "manifest.json を含むフォルダーから拡張機能を読み込みます。",
+        loadUnpacked: "展開済みを読み込む",
+        unavailable: "拡張機能を利用できません。デスクトップアプリを更新してください。",
+      },
       browserData: {
         title: "ブラウザーデータ",
         siteData: "Cookie とサイトデータ",
@@ -2594,21 +2674,6 @@ export const ja: TranslationResources = {
       },
     },
     appearance: {
-      accent: {
-        title: "アクセントカラー",
-        hint: "主要な操作と自分のメッセージに使用します",
-        updateHost: "アクセントカラーを変更するには、選択した設定ホストを更新してください",
-        preview: "メッセージはこのように表示されます",
-        options: {
-          default: "デフォルト",
-          blue: "ブルー",
-          green: "グリーン",
-          purple: "パープル",
-          rose: "ローズ",
-          orange: "オレンジ",
-          teal: "ティール",
-        },
-      },
       theme: {
         title: "テーマ",
         accessibilityLabel: "テーマ: {{value}}",

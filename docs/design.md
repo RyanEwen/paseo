@@ -48,7 +48,7 @@ Foreground is for the thing being acted on: row titles, section headings, the se
 
 Accent is the one CTA per surface. A `<Button variant="default">` filled with `accent` appears at most once on a page. Most pages have zero — settings is mostly toggles and text, the workspace pane is mostly content, the chat composer is the input itself.
 
-The Appearance accent choice changes `accent`, `accentBright`, `accentForeground` and the
+The Paseo++ accent choice changes `accent`, `accentBright`, `accentForeground` and the
 `userMessage*` tokens. User-message text, attachment summaries, disclosure controls and prefix
 masks follow those tokens, including pinned copies. Status, identity, terminal and focus-ring
 colors retain their own meaning. Ghost buttons honor an explicit `textStyle` color on hover so

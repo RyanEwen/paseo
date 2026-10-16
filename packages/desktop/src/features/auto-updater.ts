@@ -5,7 +5,12 @@ import { app } from "electron";
 import { UUID } from "builder-util-runtime";
 import log from "electron-log/main";
 import { autoUpdater } from "electron-updater";
-import { desktopDistribution, resolveDesktopUpdateChannel } from "../distribution.js";
+import {
+  desktopDistribution,
+  desktopDebugBuild,
+  resolveDesktopUpdateChannel,
+  shouldEnableDesktopUpdates,
+} from "../distribution.js";
 import {
   createAppUpdateService,
   type AppUpdateCheckResult,
@@ -229,7 +234,7 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
 
 const appUpdateService = createAppUpdateService({
   runtime: new ElectronAppUpdateRuntime(),
-  isPackaged: () => app.isPackaged,
+  isPackaged: () => shouldEnableDesktopUpdates(app.isPackaged, desktopDebugBuild),
   now: () => Date.now(),
   bucket: async () => bucketFromStagingUserId(await getStagingUserId()),
   reportCheckError: (error) => {

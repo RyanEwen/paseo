@@ -1,8 +1,21 @@
+import {
+  defaultSidebarModeProfiles,
+  defaultSidebarLocalModeFilters,
+} from "./sidebar-mode-preferences";
+import { DEFAULT_CLIENT_SETTINGS } from "@/hooks/use-settings/storage";
 import { setSettingsHostSelected, setSettingsEditingBlocked } from "@/settings-sync/save-handler";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { StateStorage } from "zustand/middleware";
 import {
   createSidebarViewStorage,
+  createSidebarPersistStorage,
+  normalizeSidebarModeState,
+  initializeSidebarModePreferences,
+  installSidebarPreferenceCommitter,
+  reduceSidebarPreferences,
+  type SidebarPreferencePatch,
+  type SidebarGroupMode,
+  projectSidebarMode,
   subscribeSidebarPreferenceEdits,
   hasActiveSidebarLabelFilter,
   migrateSidebarViewState,
@@ -36,6 +49,9 @@ describe("sidebar view store", () => {
     setSettingsHostSelected(false);
     setSettingsEditingBlocked(false);
     useSidebarViewStore.setState({
+      modeProfiles: defaultSidebarModeProfiles(),
+      localModeFilters: defaultSidebarLocalModeFilters(),
+      modeProfilesInitialized: true,
       showBackground: false,
       groupMode: "project",
       workspaceSortMode: "custom",
@@ -55,6 +71,11 @@ describe("sidebar view store", () => {
     store.setSortMode("status");
     store.setGroupMode("status");
     expect(useSidebarViewStore.getState()).toMatchObject({
+      workspaceSortMode: "status",
+      sortMode: "status",
+    });
+    store.setGroupMode("project");
+    expect(useSidebarViewStore.getState()).toMatchObject({
       workspaceSortMode: "name",
       sortMode: "status",
     });
@@ -70,6 +91,11 @@ describe("sidebar view store", () => {
     store.setGroupEmptyProjects(false);
     store.setProjectVisibility("unarchived");
     store.setGroupMode("status");
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      sortMode: "status",
+      emptyProjectSortMode: "custom",
+    });
+    store.setGroupMode("project");
     expect(useSidebarViewStore.getState()).toMatchObject({
       sortMode: "status",
       emptyProjectSortMode: "project",
@@ -268,13 +294,16 @@ describe("sidebar view store", () => {
 
   it("clears only the label facet", () => {
     useSidebarViewStore.setState({
-      groupMode: "status",
-      sortMode: "status",
-      projectVisibility: "unarchived",
-      groupEmptyProjects: true,
-      emptyProjectSortMode: "custom",
-      hostFilters: ["host-a"],
-      labelFilter: { labels: ["urgent", "blocked"] },
+      ...normalizeSidebarModeState({
+        groupMode: "status",
+        sortMode: "status",
+        projectVisibility: "unarchived",
+        groupEmptyProjects: true,
+        emptyProjectSortMode: "custom",
+        hostFilters: ["host-a"],
+        labelFilter: { labels: ["urgent", "blocked"] },
+      }),
+      modeProfilesInitialized: true,
     });
 
     useSidebarViewStore.getState().clearLabelFilter();
@@ -359,14 +388,17 @@ describe("sidebar view store", () => {
 
   it("keeps the other facets when the project filter is cleared", () => {
     useSidebarViewStore.setState({
-      groupMode: "status",
-      sortMode: "status",
-      projectVisibility: "unarchived",
-      groupEmptyProjects: true,
-      emptyProjectSortMode: "custom",
-      hostFilters: ["host-a"],
-      projectFilters: ["project-a"],
-      labelFilter: { labels: ["urgent"] },
+      ...normalizeSidebarModeState({
+        groupMode: "status",
+        sortMode: "status",
+        projectVisibility: "unarchived",
+        groupEmptyProjects: true,
+        emptyProjectSortMode: "custom",
+        hostFilters: ["host-a"],
+        projectFilters: ["project-a"],
+        labelFilter: { labels: ["urgent"] },
+      }),
+      modeProfilesInitialized: true,
     });
 
     useSidebarViewStore.getState().clearProjectFilters();
@@ -498,5 +530,288 @@ it("retains synced label choices when another client's available labels differ",
     expect(useSidebarViewStore.getState().labelFilter.labels).toEqual(["remote-label"]);
   } finally {
     setSettingsHostSelected(false);
+  }
+});
+
+describe("separate sidebar modes", () => {
+  it("atomically restores independent local facets, presentation and count/age preferences", () => {
+    const modeProfiles = defaultSidebarModeProfiles();
+    const localModeFilters = defaultSidebarLocalModeFilters();
+    useSidebarViewStore.setState({
+      ...projectSidebarMode({ groupMode: "project", modeProfiles, localModeFilters }),
+      modeProfilesInitialized: true,
+    });
+    const store = useSidebarViewStore.getState();
+    store.setModePreferences({
+      workspaceTitleSource: "branch",
+      initialWorkspaceCount: 5,
+      workspaceUpdatedWithinDays: 3,
+    });
+    store.toggleHostFilter("offline-host");
+    store.toggleProjectFilter("opaque-project");
+    store.toggleLabelFilter("urgent");
+    const observed: unknown[] = [];
+    const stop = useSidebarViewStore.subscribe((state) =>
+      observed.push([state.groupMode, state.initialWorkspaceCount, state.hostFilters]),
+    );
+    store.setGroupMode("status");
+    stop();
+    expect(observed).toEqual([["status", 20, []]]);
+    store.setModePreferences({ initialWorkspaceCount: null, workspaceUpdatedWithinDays: 14 });
+    store.toggleHostFilter("status-host");
+    store.setGroupMode("project");
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      workspaceTitleSource: "branch",
+      initialWorkspaceCount: 5,
+      workspaceUpdatedWithinDays: 3,
+      hostFilters: ["offline-host"],
+      projectFilters: ["opaque-project"],
+      labelFilter: { labels: ["urgent"] },
+    });
+    store.setGroupMode("status");
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      initialWorkspaceCount: null,
+      workspaceUpdatedWithinDays: 14,
+      hostFilters: ["status-host"],
+      projectFilters: [],
+    });
+  });
+  it("migrates only the active mode once after the legacy app preferences are available", () => {
+    useSidebarViewStore.setState(
+      normalizeSidebarModeState({
+        groupMode: "status",
+        workspaceSortMode: "name",
+        hostFilters: ["host"],
+      }),
+    );
+    initializeSidebarModePreferences({
+      ...DEFAULT_CLIENT_SETTINGS,
+      sidebarInitialWorkspaceCount: 37,
+      workspaceTitleSource: "branch",
+    });
+    expect(useSidebarViewStore.getState().modeProfiles.status).toMatchObject({
+      initialWorkspaceCount: 37,
+      workspaceTitleSource: "branch",
+      workspaceSortMode: "name",
+    });
+    expect(useSidebarViewStore.getState().modeProfiles.project).toMatchObject({
+      initialWorkspaceCount: 20,
+      workspaceTitleSource: "title",
+      workspaceSortMode: "custom",
+    });
+    initializeSidebarModePreferences(DEFAULT_CLIENT_SETTINGS);
+    expect(useSidebarViewStore.getState().initialWorkspaceCount).toBe(37);
+    const saved = normalizeSidebarModeState({
+      groupMode: "status",
+      modeProfiles: useSidebarViewStore.getState().modeProfiles,
+      localModeFilters: useSidebarViewStore.getState().localModeFilters,
+      sortMode: "project",
+    });
+    expect(saved.initialWorkspaceCount).toBe(37);
+    expect(saved.localModeFilters.status.hostFilters).toEqual(["host"]);
+    expect(saved.localModeFilters.project.hostFilters).toEqual([]);
+  });
+});
+
+it("hydrates a real version-11 envelope once and preserves the intermediate restart before app settings arrive", async () => {
+  const initial = {
+    groupMode: "status",
+    sortMode: "project",
+    workspaceSortMode: "name",
+    hostFilters: ["offline"],
+    projectFilters: ["opaque"],
+    labelFilter: { labels: ["urgent"] },
+  };
+  const entries: Record<string, string | null> = {
+    "sidebar-view": JSON.stringify({ version: 11, state: initial }),
+  };
+  const storage = createMemoryStorage(entries);
+  const original = useSidebarViewStore.persist.getOptions().storage;
+  useSidebarViewStore.persist.setOptions({ storage: createSidebarPersistStorage(storage) });
+  try {
+    await useSidebarViewStore.persist.rehydrate();
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      ...initial,
+      modeProfilesInitialized: false,
+    });
+    useSidebarViewStore.getState().setSortMode("status");
+    expect(useSidebarViewStore.getState().sortMode).toBe("project");
+    const intermediate = entries["sidebar-view"]!;
+    expect(JSON.parse(intermediate)).toMatchObject({
+      version: 12,
+      state: {
+        groupMode: "status",
+        localModeFilters: { status: { hostFilters: ["offline"], projectFilters: ["opaque"] } },
+      },
+    });
+    expect(JSON.parse(intermediate).state.modeProfiles).toBeUndefined();
+    await useSidebarViewStore.persist.rehydrate();
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      ...initial,
+      modeProfilesInitialized: false,
+    });
+    initializeSidebarModePreferences({
+      ...DEFAULT_CLIENT_SETTINGS,
+      sidebarInitialWorkspaceCount: 37,
+      workspaceTitleSource: "branch",
+    });
+    expect(useSidebarViewStore.getState().modeProfiles.status).toMatchObject({
+      sortMode: "project",
+      workspaceSortMode: "name",
+      initialWorkspaceCount: 37,
+      workspaceTitleSource: "branch",
+    });
+    expect(useSidebarViewStore.getState().modeProfiles.project).toMatchObject({
+      sortMode: "custom",
+      initialWorkspaceCount: 20,
+      workspaceTitleSource: "title",
+    });
+    await useSidebarViewStore.persist.rehydrate();
+    initializeSidebarModePreferences(DEFAULT_CLIENT_SETTINGS);
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      groupMode: "status",
+      initialWorkspaceCount: 37,
+      hostFilters: ["offline"],
+      projectFilters: ["opaque"],
+    });
+  } finally {
+    useSidebarViewStore.persist.setOptions({ storage: original });
+  }
+});
+
+it("does not bypass a selected settings authority while its command owner is unavailable", () => {
+  const before = useSidebarViewStore.getState().groupMode;
+  setSettingsHostSelected(true);
+  try {
+    useSidebarViewStore.getState().setGroupMode(before === "project" ? "status" : "project");
+    expect(useSidebarViewStore.getState().groupMode).toBe(before);
+    expect(useSidebarViewStore.getState().preferenceError).toBe(
+      "Settings synchronization is unavailable",
+    );
+  } finally {
+    setSettingsHostSelected(false);
+  }
+});
+
+it("retains both queued empty-project toggles on the captured mode after the visible mode changes", async () => {
+  useSidebarViewStore.setState({
+    ...projectSidebarMode({
+      groupMode: "project",
+      modeProfiles: defaultSidebarModeProfiles(),
+      localModeFilters: defaultSidebarLocalModeFilters(),
+    }),
+    modeProfilesInitialized: true,
+  });
+  const pending: Array<{ patch: SidebarPreferencePatch; mode: SidebarGroupMode; resolve(): void }> =
+    [];
+  const uninstall = installSidebarPreferenceCommitter(
+    (patch, mode) =>
+      new Promise<void>((resolve) => {
+        pending.push({ patch, mode, resolve });
+      }),
+  );
+  try {
+    const toggle = useSidebarViewStore.getState().toggleModeEmptyProjects;
+    toggle("project");
+    toggle("project");
+    expect(pending).toHaveLength(2);
+    useSidebarViewStore.setState(
+      projectSidebarMode({ ...useSidebarViewStore.getState(), groupMode: "status" }),
+    );
+    const values: boolean[] = [];
+    for (const command of pending) {
+      useSidebarViewStore.setState(
+        reduceSidebarPreferences(useSidebarViewStore.getState(), command.patch, command.mode),
+      );
+      values.push(useSidebarViewStore.getState().modeProfiles.project.groupEmptyProjects);
+      command.resolve();
+      await Promise.resolve();
+    }
+    expect(values).toEqual([false, true]);
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      groupMode: "status",
+      groupEmptyProjects: true,
+      preferencePendingCount: 0,
+    });
+    expect(useSidebarViewStore.getState().modeProfiles.status.groupEmptyProjects).toBe(true);
+  } finally {
+    uninstall();
+  }
+});
+
+it("defaults the new profile leaf off in existing profiles and persists it independently by mode", async () => {
+  setSettingsHostSelected(false);
+  setSettingsEditingBlocked(false);
+  const profiles = defaultSidebarModeProfiles();
+  const { oneProjectAtATime: _project, ...oldProject } = profiles.project;
+  const { oneProjectAtATime: _status, ...oldStatus } = profiles.status;
+  const migrated = normalizeSidebarModeState({
+    groupMode: "project",
+    modeProfiles: { project: oldProject, status: oldStatus },
+  });
+  expect(migrated.modeProfiles.project.oneProjectAtATime).toBe(false);
+  expect(migrated.modeProfiles.status.oneProjectAtATime).toBe(false);
+  useSidebarViewStore.setState({ ...migrated, modeProfilesInitialized: true });
+  useSidebarViewStore.getState().setModePreferences({ oneProjectAtATime: true }, "project");
+  useSidebarViewStore.getState().setGroupMode("status");
+  expect(useSidebarViewStore.getState().oneProjectAtATime).toBe(false);
+  const storage = createSidebarPersistStorage(createMemoryStorage({}));
+  const state = useSidebarViewStore.getState();
+  const persisted = {
+    groupMode: state.groupMode,
+    modeProfiles: state.modeProfiles,
+    localModeFilters: state.localModeFilters,
+  };
+  await storage.setItem("sidebar-view", { state: persisted, version: 12 });
+  const restored = await storage.getItem("sidebar-view");
+  expect(normalizeSidebarModeState(restored?.state).modeProfiles).toMatchObject({
+    project: { oneProjectAtATime: true },
+    status: { oneProjectAtATime: false },
+  });
+});
+
+it("serializes rapid functional accordion toggles against the rendered project profile", async () => {
+  setSettingsHostSelected(false);
+  setSettingsEditingBlocked(false);
+  useSidebarViewStore.setState({
+    ...projectSidebarMode({
+      groupMode: "project",
+      modeProfiles: defaultSidebarModeProfiles(),
+      localModeFilters: defaultSidebarLocalModeFilters(),
+    }),
+    modeProfilesInitialized: true,
+  });
+  const pending: Array<{ patch: SidebarPreferencePatch; mode: SidebarGroupMode; resolve(): void }> =
+    [];
+  const uninstall = installSidebarPreferenceCommitter(
+    (patch, mode) =>
+      new Promise<void>((resolve) => {
+        pending.push({ patch, mode, resolve });
+      }),
+  );
+  try {
+    const commit = useSidebarViewStore.getState().setModePreferences;
+    commit((current) => ({ oneProjectAtATime: !current.oneProjectAtATime }), "project");
+    commit((current) => ({ oneProjectAtATime: !current.oneProjectAtATime }), "project");
+    useSidebarViewStore.setState(
+      projectSidebarMode({ ...useSidebarViewStore.getState(), groupMode: "status" }),
+    );
+    const observed: boolean[] = [];
+    for (const command of pending) {
+      useSidebarViewStore.setState(
+        reduceSidebarPreferences(useSidebarViewStore.getState(), command.patch, command.mode),
+      );
+      observed.push(useSidebarViewStore.getState().modeProfiles.project.oneProjectAtATime);
+      command.resolve();
+      await Promise.resolve();
+    }
+    expect(observed).toEqual([true, false]);
+    expect(useSidebarViewStore.getState()).toMatchObject({
+      groupMode: "status",
+      oneProjectAtATime: false,
+    });
+    expect(useSidebarViewStore.getState().modeProfiles.status.oneProjectAtATime).toBe(false);
+  } finally {
+    uninstall();
   }
 });

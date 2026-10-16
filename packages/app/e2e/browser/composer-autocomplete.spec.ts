@@ -9,10 +9,7 @@ import { expectWorkspaceTabVisible, openSessions } from "../support/helpers/arch
 import { daemonWsRoutePattern } from "../support/helpers/daemon-port";
 import { getServerId } from "../support/helpers/server-id";
 import { switchWorkspaceViaSidebar } from "../support/helpers/workspace-ui";
-import {
-  expectMobileAgentSidebarVisible,
-  openMobileAgentSidebar,
-} from "../support/helpers/sidebar";
+import { expectMobileAgentSidebarVisible } from "../support/helpers/sidebar";
 import { expectNewWorkspaceProjectSelected } from "../support/helpers/new-workspace";
 import { buildDefaultSettingsRoute } from "@/utils/host-routes";
 import { expectAppRoute } from "../support/helpers/route-assertions";
@@ -706,7 +703,7 @@ test.describe("Composer autocomplete", () => {
           timeout: 30_000,
         });
 
-        await openMobileAgentSidebar(page);
+        await page.getByRole("button", { name: "Open menu" }).click();
         await expectMobileAgentSidebarVisible(page);
 
         const popoverBox = await popover.boundingBox();

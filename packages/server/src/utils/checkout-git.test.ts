@@ -397,40 +397,44 @@ describe("checkout git utilities", () => {
     expect(branch).toBeNull();
   });
 
-  it("returns untracked files in an uncommitted diff before the first commit", async () => {
-    const unbornRepo = join(tempDir, "unborn-repo");
-    mkdirSync(unbornRepo, { recursive: true });
-    execFileSync("git", ["init", "-b", "main"], { cwd: unbornRepo });
-    writeFileSync(join(unbornRepo, "greeting.txt"), "hello\n");
+  it.each([undefined, "greeting.txt"])(
+    "returns untracked files in an uncommitted diff before the first commit (scope %s)",
+    async (filePath) => {
+      const unbornRepo = join(tempDir, "unborn-repo");
+      mkdirSync(unbornRepo, { recursive: true });
+      execFileSync("git", ["init", "-b", "main"], { cwd: unbornRepo });
+      writeFileSync(join(unbornRepo, "greeting.txt"), "hello\n");
 
-    const diff = await getCheckoutDiff(unbornRepo, {
-      mode: "uncommitted",
-      includeStructured: true,
-    });
+      const diff = await getCheckoutDiff(unbornRepo, {
+        mode: "uncommitted",
+        includeStructured: true,
+        filePath,
+      });
 
-    expect(diff.structured).toEqual([
-      {
-        path: "greeting.txt",
-        isNew: true,
-        isDeleted: false,
-        additions: 1,
-        deletions: 0,
-        hunks: [
-          {
-            oldStart: 0,
-            oldCount: 0,
-            newStart: 1,
-            newCount: 1,
-            lines: [
-              { type: "header", content: "@@ -0,0 +1 @@" },
-              { type: "add", content: "hello" },
-            ],
-          },
-        ],
-        status: "ok",
-      },
-    ]);
-  });
+      expect(diff.structured).toEqual([
+        {
+          path: "greeting.txt",
+          isNew: true,
+          isDeleted: false,
+          additions: 1,
+          deletions: 0,
+          hunks: [
+            {
+              oldStart: 0,
+              oldCount: 0,
+              newStart: 1,
+              newCount: 1,
+              lines: [
+                { type: "header", content: "@@ -0,0 +1 @@" },
+                { type: "add", content: "hello" },
+              ],
+            },
+          ],
+          status: "ok",
+        },
+      ]);
+    },
+  );
 
   it("returns the branch being rebased when HEAD is detached during a rebase", async () => {
     execFileSync("git", ["checkout", "-b", "feature/rebase-test"], { cwd: repoDir });
@@ -1544,6 +1548,168 @@ const x = 1;
     expect(diff.diff).toContain("budget-2.txt");
     expect(diff.diff).toContain("# budget-3.txt: diff too large omitted");
     expect(diff.diff).toContain("# budget-4.txt: diff too large omitted");
+  });
+
+  it("gives a selected small file its own budget without lifting checkout or per-file caps", async () => {
+    for (const path of ["a-large.txt", "b-large.txt", "z-small.css"]) {
+      writeFileSync(join(repoDir, path), "old\n");
+    }
+    execFileSync("git", ["add", "."], { cwd: repoDir });
+    execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", "budget fixture"], {
+      cwd: repoDir,
+    });
+    for (const path of ["a-large.txt", "b-large.txt"]) {
+      writeFileSync(join(repoDir, path), "x".repeat(1_048_000) + "\n");
+    }
+    writeFileSync(join(repoDir, "z-small.css"), ".account { color: red; }\n".repeat(150));
+    const whole = await getCheckoutDiff(repoDir, { mode: "uncommitted", includeStructured: true });
+    expect(whole.structured?.find((file) => file.path === "z-small.css")?.status).toBe("too_large");
+    const scoped = await getCheckoutDiff(repoDir, {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: "z-small.css",
+    });
+    expect(scoped.structured?.map((file) => ({ path: file.path, status: file.status }))).toEqual([
+      { path: "z-small.css", status: "ok" },
+    ]);
+    expect(scoped.diff).toContain("+.account { color: red; }");
+    expect(scoped.diff).not.toContain("a-large.txt");
+    writeFileSync(join(repoDir, "z-small.css"), "x".repeat(1_100_000));
+    const oversized = await getCheckoutDiff(repoDir, {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: "z-small.css",
+    });
+    expect(oversized.structured?.[0]?.status).toBe("too_large");
+  });
+
+  it("uses repository-relative destination scope for a staged rename from a subdirectory", async () => {
+    mkdirSync(join(repoDir, "nested"), { recursive: true });
+    writeFileSync(join(repoDir, "before.css"), ".account { color: red; }\n".repeat(20));
+    execFileSync("git", ["add", "."], { cwd: repoDir });
+    execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", "rename fixture"], {
+      cwd: repoDir,
+    });
+    execFileSync("git", ["mv", "before.css", "after.css"], { cwd: repoDir });
+    const scoped = await getCheckoutDiff(join(repoDir, "nested"), {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: "after.css",
+    });
+    expect(scoped.structured?.map((file) => ({ path: file.path, oldPath: file.oldPath }))).toEqual([
+      { path: "after.css", oldPath: "before.css" },
+    ]);
+    expect(scoped.structured?.[0]?.status).toBe("ok");
+    const source = await getCheckoutDiff(repoDir, {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: "before.css",
+    });
+    expect(source.structured).toEqual([]);
+  });
+
+  it("keeps a scoped base comparison on its requested ref and excludes untracked neighbors", async () => {
+    writeFileSync(join(repoDir, "base.css"), "old\n");
+    execFileSync("git", ["add", "."], { cwd: repoDir });
+    execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", "base fixture"], {
+      cwd: repoDir,
+    });
+    const baseRef = "scoped-base";
+    execFileSync("git", ["branch", baseRef], { cwd: repoDir });
+    writeFileSync(join(repoDir, "base.css"), "committed\n");
+    execFileSync("git", ["add", "."], { cwd: repoDir });
+    execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", "change fixture"], {
+      cwd: repoDir,
+    });
+    writeFileSync(join(repoDir, "base.css"), "working-only\n");
+    const scoped = await getCheckoutDiff(repoDir, {
+      mode: "base",
+      baseRef,
+      includeStructured: true,
+      filePath: "base.css",
+    });
+    expect(scoped.diff).toContain("+committed");
+    expect(scoped.diff).not.toContain("working-only");
+    writeFileSync(join(repoDir, "untracked.css"), "untracked\n");
+    const untracked = await getCheckoutDiff(repoDir, {
+      mode: "base",
+      baseRef,
+      includeStructured: true,
+      filePath: "untracked.css",
+    });
+    expect(untracked.structured).toEqual([]);
+  });
+
+  it.each(["tab\tname.css", 'quote"name.css'])(
+    "keeps structured changed lines for C-quoted tracked path %s",
+    async (filePath) => {
+      writeFileSync(join(repoDir, filePath), ".account { color: red; }\n");
+      execFileSync("git", ["add", "."], { cwd: repoDir });
+      execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", "quoted path fixture"], {
+        cwd: repoDir,
+      });
+      writeFileSync(join(repoDir, filePath), ".account { color: blue; }\n");
+      const diff = await getCheckoutDiff(repoDir, {
+        mode: "uncommitted",
+        includeStructured: true,
+        filePath,
+      });
+      expect(diff.structured?.map((file) => file.path)).toEqual([filePath]);
+      const file = diff.structured![0];
+      expect(file.status).toBe("ok");
+      expect(file.hunks.length).toBeGreaterThan(0);
+      const lines = file.hunks.flatMap((hunk) => hunk.lines);
+      expect(lines).toContainEqual(
+        expect.objectContaining({ type: "remove", content: ".account { color: red; }" }),
+      );
+      expect(lines).toContainEqual(
+        expect.objectContaining({ type: "add", content: ".account { color: blue; }" }),
+      );
+    },
+  );
+
+  it("preserves literal tracked pathspec names and binary classification", async () => {
+    const path = " [literal].css";
+    writeFileSync(join(repoDir, path), "old\n");
+    writeFileSync(join(repoDir, " literal.bin"), Buffer.from([0, 1, 2]));
+    execFileSync("git", ["add", "."], { cwd: repoDir });
+    execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", "literal fixture"], {
+      cwd: repoDir,
+    });
+    writeFileSync(join(repoDir, path), "new\n");
+    writeFileSync(join(repoDir, " literal.bin"), Buffer.from([0, 3, 4]));
+    const scoped = await getCheckoutDiff(repoDir, {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: path,
+    });
+    expect(scoped.structured?.map((file) => file.path)).toEqual([path]);
+    expect(scoped.diff).toContain("+new");
+    const binary = await getCheckoutDiff(repoDir, {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: " literal.bin",
+    });
+    expect(binary.structured?.[0]?.status).toBe("binary");
+  });
+
+  it("matches scoped untracked paths literally, including whitespace and pathspec characters", async () => {
+    const path = " :(glob)*.css ";
+    writeFileSync(join(repoDir, path), "a { color: red; }\n");
+    writeFileSync(join(repoDir, "neighbor.css"), "b { color: blue; }\n");
+    const scoped = await getCheckoutDiff(repoDir, {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: path,
+    });
+    expect(scoped.structured?.map((file) => file.path)).toEqual([path]);
+    expect(scoped.structured?.[0]?.status).toBe("ok");
+    const absent = await getCheckoutDiff(repoDir, {
+      mode: "uncommitted",
+      includeStructured: true,
+      filePath: "*.css",
+    });
+    expect(absent.structured).toEqual([]);
   });
 
   it("short-circuits tracked binary files", async () => {

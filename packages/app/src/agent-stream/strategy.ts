@@ -58,6 +58,8 @@ export interface StreamViewportHandle {
   prepareForViewportChange: () => void;
   /** Cancel only message navigation, leaving bottom anchoring and delivery intact. */
   cancelMessageScroll?: () => void;
+  /** Expand the actual row for a current find request without moving the viewport. */
+  expandMessageForFind?: (messageId: string, signal: AbortSignal) => void;
   scrollToMessage?: (
     messageId: string,
     occurrence?: ScrollToMessageOccurrence,
@@ -79,6 +81,7 @@ export interface StreamHistoryRowRevision {
 }
 
 export interface StreamRenderInput {
+  nativeViewportPlacement?: "docked" | "standalone";
   agentId: string;
   segments: StreamRenderSegments;
   historyRowRevision?: StreamHistoryRowRevision;

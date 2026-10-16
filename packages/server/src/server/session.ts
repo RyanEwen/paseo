@@ -1,3 +1,5 @@
+import { AttachmentSession } from "./attachments/session.js";
+import type { AttachmentStore } from "./attachments/store.js";
 import { AppSettingsSession } from "./app-settings/session.js";
 import { AppSettingsStore } from "./app-settings/index.js";
 import { AgentDirectory } from "./agent/directory.js";
@@ -443,6 +445,8 @@ const nodeSessionFileSystem: SessionFileSystem = {
 type AgentMcpTransportFactory = () => Promise<unknown>;
 
 export interface SessionOptions {
+  attachmentStore?: AttachmentStore;
+  supportsAttachmentOriginals?: (source: object) => boolean;
   browserToolsBroker?: BrowserToolsBroker | null;
   clientId: string;
   permissions: readonly DaemonPermission[];
@@ -676,6 +680,7 @@ interface ClientActivity {
 }
 
 export class Session {
+  private readonly attachmentSession: AttachmentSession;
   readonly delivery = new SessionDelivery(
     (source, message) => {
       if (!this.authorization.allowsOutbound(message)) return;
@@ -889,6 +894,7 @@ export class Session {
       clientId: this.clientId,
       sessionId: this.sessionId,
     });
+    this.attachmentSession = this.createAttachmentSession(options);
     this.workspaceFilesSession = new WorkspaceFilesSession({
       host: {
         emit: (msg, source) => this.emitForSource(msg, source),
@@ -1240,6 +1246,31 @@ export class Session {
     );
 
     this.sessionLogger.trace({}, "agent.session.lifecycle.created");
+  }
+
+  private createAttachmentSession(options: SessionOptions): AttachmentSession {
+    const supportsOriginals = options.supportsAttachmentOriginals ?? (() => false);
+    return new AttachmentSession(options.attachmentStore, {
+      emit: (message, source) => this.emitForSource(message, source),
+      send: async (frame, source) => {
+        if (
+          !this.authorization.allowsPermission("workspace.read") ||
+          !supportsOriginals(source) ||
+          !this.onBinaryMessageToSource
+        )
+          throw new Error("Attachment source is unavailable");
+        this.delivery.authorizeFileReply(frame, source);
+        await this.onBinaryMessageToSource(source, frame);
+      },
+      supportsOriginals,
+      mayRead: () => this.authorization.allowsPermission("workspace.read"),
+      requestSignal: () => this.delivery.requestSignal,
+      reportFailure: (error) =>
+        this.sessionLogger.warn(
+          { failure: error instanceof Error ? error.name : "UnknownError" },
+          "attachment_request_failed",
+        ),
+    });
   }
 
   updateAppVersion(appVersion: string | null): void {
@@ -2216,6 +2247,8 @@ export class Session {
 
   public setPermissions(permissions: readonly DaemonPermission[]): void {
     this.authorization.replacePermissions(permissions);
+    if (!this.authorization.allowsPermission("workspace.read"))
+      this.attachmentSession.revokeReads();
     if (!this.authorization.allowsPermission("workspace.write")) {
       void this.delivery
         .releaseFamily("browser-host")
@@ -3006,6 +3039,12 @@ export class Session {
     source?: object,
   ): Promise<void> | undefined {
     switch (msg.type) {
+      case "attachments.list.request":
+      case "attachments.get.request":
+      case "attachments.read.request":
+      case "attachments.read.cancel.request":
+        if (!source) throw new Error("Attachment operations require a physical request source");
+        return this.attachmentSession.handle(msg, source);
       case "file_explorer_request":
         return this.workspaceFilesSession.handleFileExplorerRequest(msg, source);
       case "fs.file.subscribe.request":

@@ -1,9 +1,13 @@
+import { useNativeReadingRefresh } from "../native-sticky-viewport";
+import { resolveActualNativeReading } from "../native-actual-row-model";
+import { ActualPromptRowsContext, ActualPromptRowsProvider } from "../actual-prompt-rows";
+import React, { useContext, type ReactNode } from "react";
 import { useNavigationActionVisibility } from "../use-navigation-action-visibility";
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createRef } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StreamViewportHandle } from "../strategy";
 import { PROMPT_DISCOVERY_PAGE_BUDGET } from "../use-prompt-discovery";
 import { createPromptReadingPublisher } from "../prompt-reading-position";
@@ -727,8 +731,7 @@ describe("prompt jump acceptance and cancellation", () => {
     fixture.rerender({ tail: [stickyUser("old", 1), stickyUser("latest", 3)] });
     await act(async () => fixture.page.resolve());
     await waitFor(() => expect(fixture.result.current.isJumping).toBe(false));
-    expect(fixture.scrollToMessage).toHaveBeenCalledWith("old");
-    expect(fixture.scrollToMessage).toHaveBeenCalledTimes(1);
+    expect(fixture.scrollToMessage).toHaveBeenCalledWith("old", "original");
     expect(fixture.result.current.jumpError).toBe(false);
     expect(fixture.onJumpError).not.toHaveBeenCalled();
   });
@@ -2149,5 +2152,215 @@ describe("arrow destination action visibility", () => {
     expect(remove).toHaveBeenCalledWith("pointermove", expect.any(Function), true);
     expect(remove).toHaveBeenCalledWith("wheel", expect.any(Function), true);
     remove.mockRestore();
+  });
+});
+
+describe("actual prompt disclosure ownership", () => {
+  beforeEach(() => vi.stubGlobal("React", React));
+  afterEach(() => vi.unstubAllGlobals());
+  it("reveals the clicked actual row rather than a different current selection", () => {
+    const first = stickyUser("first", 1);
+    const latest = stickyUser("latest", 3);
+    const input = stickyInput([first, latest], stickyOutline([1, 3]));
+    const { result } = renderHook(useStickyPrompt, { initialProps: input });
+    expect(result.current.message?.id).toBe("latest");
+    act(() => result.current.reveal("first"));
+    expect(input.jumpToLoaded).toHaveBeenCalledExactlyOnceWith("first", "original");
+    expect(result.current.message?.id).toBe("first");
+    expect(input.outline.jumpToPrompt).not.toHaveBeenCalled();
+  });
+
+  it("retains expansion through row unmount and clears it across epoch changes without remounting the owner", () => {
+    let scope = "session:epoch-1";
+    const prepare = vi.fn();
+    function Wrapper({ children }: { children: ReactNode }) {
+      return (
+        <ActualPromptRowsProvider enabled scope={scope} availableHeight={500}>
+          {children}
+        </ActualPromptRowsProvider>
+      );
+    }
+    const { result, rerender } = renderHook(() => useContext(ActualPromptRowsContext), {
+      wrapper: Wrapper,
+    });
+    let release: (() => void) | undefined;
+    act(() => {
+      release = result.current!.registerViewport(prepare);
+    });
+    act(() => result.current!.toggleExpanded("original"));
+    expect(prepare).toHaveBeenCalledExactlyOnceWith("original");
+    expect(result.current!.expandedIds.has("original")).toBe(true);
+    rerender();
+    expect(result.current!.expandedIds.has("original")).toBe(true);
+    scope = "session:epoch-2";
+    rerender();
+    expect(result.current!.expandedIds.size).toBe(0);
+    scope = "session:epoch-1";
+    rerender();
+    expect(result.current!.expandedIds.size).toBe(0);
+    act(() => release?.());
+  });
+
+  it("provides no collapse or pin policy when the feature is disabled", () => {
+    function Wrapper({ children }: { children: ReactNode }) {
+      return (
+        <ActualPromptRowsProvider enabled={false} scope="session:epoch" availableHeight={500}>
+          {children}
+        </ActualPromptRowsProvider>
+      );
+    }
+    const { result } = renderHook(() => useContext(ActualPromptRowsContext), { wrapper: Wrapper });
+    expect(result.current).toBeNull();
+  });
+});
+
+interface NativeKeyboardEndpointHandlers {
+  onStart(event: { height: number; progress: number }): void;
+  onEnd(event: { height: number; progress: number }): void;
+}
+const endpointHarness = {
+  handlers: null as NativeKeyboardEndpointHandlers | null,
+  queue: [] as Array<() => void>,
+};
+function flushNativeEndpointQueue() {
+  while (endpointHarness.queue.length) endpointHarness.queue.shift()!();
+}
+async function nativeEndpointReadingFixture() {
+  vi.doMock("react-native-keyboard-controller", () => ({
+    KeyboardController: { isVisible: () => false, state: () => ({ height: 0 }) },
+    useGenericKeyboardHandler: (handlers: NativeKeyboardEndpointHandlers) => {
+      endpointHarness.handlers = handlers;
+    },
+  }));
+  vi.doMock("react-native-safe-area-context", () => ({
+    useSafeAreaInsets: () => ({ bottom: 34, top: 0, left: 0, right: 0 }),
+  }));
+  vi.doMock("react-native-worklets", () => ({
+    scheduleOnRN: (callback: (...args: unknown[]) => void, ...args: unknown[]) => {
+      endpointHarness.queue.push(() => callback(...args));
+    },
+  }));
+  const { usePublishDockReservation } =
+    await import("@/keyboard/shift/internal/use-dock-reservation");
+  let edge = 0;
+  const items: StreamItem[] = [
+    stickyUser("old", 1000),
+    {
+      id: "answer",
+      kind: "assistant_message",
+      text: "answer",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch-1", seq: 1100 },
+    },
+    stickyUser("later", 1250),
+  ];
+  const geometry = new Map([
+    ["old", { index: 0, y: 1000, height: 100 }],
+    ["answer", { index: 1, y: 1100, height: 150 }],
+    ["later", { index: 2, y: 1250, height: 53 }],
+  ]);
+  const mounted = new Set(items.map((item) => item.id));
+  const readings: ReturnType<typeof resolveActualNativeReading>[] = [];
+  const refresh = () =>
+    readings.push(
+      resolveActualNativeReading({
+        items,
+        geometry,
+        mounted,
+        offset: 1000,
+        viewportHeight: 600,
+        clippedLeading: edge,
+        stickyEnabled: true,
+      }),
+    );
+  const invalidate = vi.fn();
+  const rendered = renderHook(() => {
+    const snapshot = usePublishDockReservation(true, 0);
+    useNativeReadingRefresh(snapshot, refresh, invalidate);
+    return snapshot;
+  });
+  return {
+    ...rendered,
+    readings,
+    invalidate,
+    setEdge(value: number) {
+      edge = value;
+    },
+    handlers: () => endpointHarness.handlers!,
+  };
+}
+describe("native keyboard settlement reading refresh", () => {
+  beforeEach(() => {
+    endpointHarness.handlers = null;
+    endpointHarness.queue = [];
+  });
+  afterEach(() => {
+    vi.doUnmock("react-native-keyboard-controller");
+    vi.doUnmock("react-native-safe-area-context");
+    vi.doUnmock("react-native-worklets");
+  });
+  it("remeasures the final effective edge on end even when opening R is unchanged and no scroll/layout occurs", async () => {
+    const fixture = await nativeEndpointReadingFixture();
+    fixture.setEdge(100);
+    act(() => {
+      fixture.handlers().onStart({ height: 334, progress: 1 });
+      flushNativeEndpointQueue();
+    });
+    expect(fixture.result.current).toEqual({ extent: 300, settledRevision: 0 });
+    expect(fixture.readings.at(-1)?.rowId).toBe("answer");
+    fixture.setEdge(300);
+    act(() => {
+      fixture.handlers().onEnd({ height: 334, progress: 1 });
+      flushNativeEndpointQueue();
+    });
+    expect(fixture.result.current).toEqual({ extent: 300, settledRevision: 1 });
+    expect(fixture.readings.map((reading) => reading.seq)).toEqual([1000, 1100, 1250]);
+    expect(fixture.readings.at(-1)?.visibleUserIds).toEqual(["later"]);
+    expect(fixture.invalidate).toHaveBeenCalledTimes(2);
+    fixture.unmount();
+  });
+  it("refreshes once at closing completion and also publishes a cancelled zero-height completion", async () => {
+    const fixture = await nativeEndpointReadingFixture();
+    act(() => {
+      fixture.handlers().onStart({ height: 334, progress: 1 });
+      flushNativeEndpointQueue();
+    });
+    fixture.setEdge(300);
+    act(() => {
+      fixture.handlers().onEnd({ height: 334, progress: 1 });
+      flushNativeEndpointQueue();
+    });
+    const openedCount = fixture.readings.length;
+    act(() => {
+      fixture.handlers().onStart({ height: 0, progress: 0 });
+      flushNativeEndpointQueue();
+    });
+    expect(fixture.readings).toHaveLength(openedCount);
+    fixture.setEdge(0);
+    act(() => {
+      fixture.handlers().onEnd({ height: 0, progress: 0 });
+      flushNativeEndpointQueue();
+    });
+    expect(fixture.readings).toHaveLength(openedCount + 1);
+    expect(fixture.result.current).toEqual({ extent: 0, settledRevision: 2 });
+    act(() => {
+      fixture.handlers().onStart({ height: 334, progress: 1 });
+      flushNativeEndpointQueue();
+    });
+    act(() => {
+      fixture.handlers().onEnd({ height: 0, progress: 0 });
+      flushNativeEndpointQueue();
+    });
+    expect(fixture.result.current).toEqual({ extent: 0, settledRevision: 3 });
+    expect(fixture.readings.at(-1)?.seq).toBe(1000);
+    fixture.unmount();
+  });
+  it("does not refresh an unmounted consumer when queued native completion arrives", async () => {
+    const fixture = await nativeEndpointReadingFixture();
+    act(() => fixture.handlers().onEnd({ height: 334, progress: 1 }));
+    const count = fixture.readings.length;
+    fixture.unmount();
+    act(flushNativeEndpointQueue);
+    expect(fixture.readings).toHaveLength(count);
   });
 });

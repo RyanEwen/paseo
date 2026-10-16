@@ -1,3 +1,4 @@
+import { getOriginalPromptTop } from "./actual-prompt-pin.web";
 import type { PromptJumpPlacement } from "./prompt-jump-placement";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
@@ -76,7 +77,7 @@ export function useScrollToMessage({
               placementRef.current === "pinned"
                 ? target?.querySelector<HTMLElement>('[data-testid="user-message-bubble"]')
                 : target;
-            return measuredTarget ? measuredTarget.getBoundingClientRect().top : null;
+            return measuredTarget ? getOriginalPromptTop(measuredTarget) : null;
           },
           estimateTargetTop(messageId) {
             // Find occurrences own their exact target; a message-row estimate must

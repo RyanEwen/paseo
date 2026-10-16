@@ -504,20 +504,29 @@ export async function checkoutResolvedBranch(
   }
 }
 
-async function listCheckoutFileChanges(
-  cwd: string,
-  refs: CheckoutDiffRefs,
-  ignoreWhitespace = false,
-): Promise<CheckoutFileChange[]> {
+function parseLiteralCheckoutFileChanges(nameStatusOut: string): CheckoutFileChange[] {
   const changes: CheckoutFileChange[] = [];
+  const fields = nameStatusOut.split("\0");
+  for (let i = 0; i < fields.length; ) {
+    const status = fields[i++];
+    if (!status) continue;
+    const firstPath = fields[i++];
+    const renamed = status.startsWith("R") || status.startsWith("C");
+    const path = renamed ? fields[i++] : firstPath;
+    if (!path) continue;
+    changes.push({
+      path,
+      ...(renamed && firstPath ? { oldPath: firstPath } : {}),
+      status,
+      isNew: status[0] === "A",
+      isDeleted: status[0] === "D",
+    });
+  }
+  return changes;
+}
 
-  const { stdout: nameStatusOut } = await runGitCommand(
-    buildGitDiffArgs({
-      ignoreWhitespace,
-      extra: ["--name-status", ...getCheckoutDiffRefArgs(refs)],
-    }),
-    { cwd, envOverlay: READ_ONLY_GIT_ENV },
-  );
+function parseLineCheckoutFileChanges(nameStatusOut: string): CheckoutFileChange[] {
+  const changes: CheckoutFileChange[] = [];
   for (const line of nameStatusOut
     .split("\n")
     .map((l) => l.trim())
@@ -552,19 +561,41 @@ async function listCheckoutFileChanges(
       isDeleted: code === "D",
     });
   }
+  return changes;
+}
+
+async function listCheckoutFileChanges(
+  cwd: string,
+  refs: CheckoutDiffRefs,
+  ignoreWhitespace = false,
+  literalPaths = false,
+): Promise<CheckoutFileChange[]> {
+  const { stdout: nameStatusOut } = await runGitCommand(
+    buildGitDiffArgs({
+      ignoreWhitespace,
+      extra: ["--name-status", ...(literalPaths ? ["-z"] : []), ...getCheckoutDiffRefArgs(refs)],
+    }),
+    { cwd, envOverlay: READ_ONLY_GIT_ENV },
+  );
+  const changes = literalPaths
+    ? parseLiteralCheckoutFileChanges(nameStatusOut)
+    : parseLineCheckoutFileChanges(nameStatusOut);
 
   if (refs.includeUntracked) {
     const { stdout: untrackedOut } = await runGitCommand(
-      ["ls-files", "--others", "--exclude-standard"],
+      ["ls-files", "--others", "--exclude-standard", ...(literalPaths ? ["-z"] : [])],
       {
         cwd,
         envOverlay: READ_ONLY_GIT_ENV,
       },
     );
-    for (const file of untrackedOut
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)) {
+    const untrackedPaths = literalPaths
+      ? untrackedOut.split("\0").filter(Boolean)
+      : untrackedOut
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean);
+    for (const file of untrackedPaths) {
       changes.push({
         path: file,
         status: "U",
@@ -647,20 +678,53 @@ const EMPTY_TREE_OBJECT_ID = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 function isUnbornHeadDiffError(error: unknown): boolean {
   return (
     error instanceof Error &&
-    error.message.includes("--name-status HEAD") &&
+    /--name-status(?: -z)? HEAD/.test(error.message) &&
     error.message.includes("ambiguous argument 'HEAD'")
   );
+}
+
+function parseLiteralTrackedNumstat(stdout: string): Map<string, FileStat> {
+  const stats = new Map<string, FileStat>();
+  const fields = stdout.split("\0");
+  for (let i = 0; i < fields.length; ) {
+    const record = fields[i++];
+    if (!record) continue;
+    const firstTab = record.indexOf("\t");
+    const secondTab = record.indexOf("\t", firstTab + 1);
+    if (firstTab < 0 || secondTab < 0) continue;
+    const additions = record.slice(0, firstTab);
+    const deletions = record.slice(firstTab + 1, secondTab);
+    let path = record.slice(secondTab + 1);
+    if (!path) {
+      i++; // Rename source; comparison paths identify the destination.
+      path = fields[i++] ?? "";
+    }
+    if (!path) continue;
+    const isBinary = additions === "-" || deletions === "-";
+    stats.set(path, {
+      additions: isBinary ? 0 : Number(additions),
+      deletions: isBinary ? 0 : Number(deletions),
+      isBinary,
+    });
+  }
+  return stats;
 }
 
 async function getTrackedNumstatByPath(
   cwd: string,
   refs: CheckoutDiffRefs,
   ignoreWhitespace = false,
+  paths?: string[],
 ): Promise<Map<string, FileStat>> {
   const result = await runGitCommand(
     buildGitDiffArgs({
       ignoreWhitespace,
-      extra: ["--numstat", ...getCheckoutDiffRefArgs(refs)],
+      extra: [
+        "--numstat",
+        ...(paths ? ["-z"] : []),
+        ...getCheckoutDiffRefArgs(refs),
+        ...(paths ? ["--", ...paths.map((path) => `:(literal)${path}`)] : []),
+      ],
     }),
     {
       cwd,
@@ -671,6 +735,8 @@ async function getTrackedNumstatByPath(
   );
 
   const stats = new Map<string, FileStat>();
+  if (paths) return parseLiteralTrackedNumstat(result.stdout);
+
   const lines = result.stdout
     .split("\n")
     .map((line) => line.trim())
@@ -878,6 +944,8 @@ export type CheckoutDiffResult =
   | { diff: ""; structured: []; diffTooLarge: true };
 
 export interface CheckoutDiffCompare {
+  /** Exact repository-relative destination path, including for renames. */
+  filePath?: string;
   mode: "uncommitted" | "base";
   baseRef?: string;
   ignoreWhitespace?: boolean;
@@ -3028,6 +3096,7 @@ export function warmCheckoutShortstatInBackground(
 }
 
 interface AppendStructuredTrackedDiffsInput {
+  filePath?: string;
   cwd: string;
   trackedChanges: CheckoutFileChange[];
   trackedNumstatByPath: Map<string, FileStat>;
@@ -3104,6 +3173,30 @@ function readTrackedDiffContents(
   return readGitFileContents(cwd, specs);
 }
 
+function parseTrackedDiffByPath(
+  input: Pick<
+    AppendStructuredTrackedDiffsInput,
+    "filePath" | "trackedChanges" | "trackedDiffText" | "trackedNumstatByPath"
+  >,
+): Map<string, ParsedDiffFile> {
+  const { filePath, trackedChanges, trackedDiffText, trackedNumstatByPath } = input;
+  const parsed = trackedDiffText.length > 0 ? parseDiff(trackedDiffText) : [];
+  if (filePath === undefined || trackedDiffText.length === 0) {
+    return new Map(parsed.map((file) => [file.path, file]));
+  }
+  // The exact inventory match and literal pathspec own identity in scoped mode.
+  // Git C-quotes patch headers for tabs/quotes even with core.quotepath=false.
+  if (trackedChanges.length !== 1 || trackedChanges[0].path !== filePath || parsed.length !== 1) {
+    throw new Error("Scoped diff did not contain exactly the selected file");
+  }
+  const file = parsed[0];
+  const stat = trackedNumstatByPath.get(filePath);
+  if (stat && (stat.additions > 0 || stat.deletions > 0) && file.hunks.length === 0) {
+    throw new Error("Scoped diff content could not be parsed");
+  }
+  return new Map([[filePath, { ...file, path: filePath }]]);
+}
+
 async function appendStructuredTrackedDiffs(
   input: AppendStructuredTrackedDiffsInput,
 ): Promise<boolean> {
@@ -3112,15 +3205,13 @@ async function appendStructuredTrackedDiffs(
     trackedChanges,
     trackedNumstatByPath,
     trackedPlaceholderByPath,
-    trackedDiffText,
     refsForDiff,
     ignoreWhitespace,
     structured,
     appendTrackedPlaceholderComment,
   } = input;
 
-  const parsedTrackedFiles = trackedDiffText.length > 0 ? parseDiff(trackedDiffText) : [];
-  const parsedTrackedByPath = new Map(parsedTrackedFiles.map((file) => [file.path, file]));
+  const parsedTrackedByPath = parseTrackedDiffByPath(input);
 
   for (let start = 0; start < trackedChanges.length; start += TRACKED_DIFF_BATCH_SIZE) {
     const changes = trackedChanges.slice(start, start + TRACKED_DIFF_BATCH_SIZE);
@@ -3264,6 +3355,7 @@ async function processUntrackedChange(input: ProcessUntrackedChangeInput): Promi
 }
 
 interface ProcessTrackedChangesInput {
+  filePath?: string;
   cwd: string;
   refsForDiff: CheckoutDiffRefs;
   trackedChanges: CheckoutFileChange[];
@@ -3283,7 +3375,20 @@ async function processTrackedChanges(
   const { cwd, refsForDiff, trackedChanges, ignoreWhitespace, appendDiff } = input;
   const trackedNumstatByPath =
     trackedChanges.length > 0
-      ? await getTrackedNumstatByPath(cwd, refsForDiff, ignoreWhitespace)
+      ? await getTrackedNumstatByPath(
+          cwd,
+          refsForDiff,
+          ignoreWhitespace,
+          input.filePath !== undefined
+            ? [
+                ...new Set(
+                  trackedChanges.flatMap((change) =>
+                    change.oldPath ? [change.oldPath, change.path] : [change.path],
+                  ),
+                ),
+              ]
+            : undefined,
+        )
       : new Map<string, FileStat>();
   const trackedDiffPaths: string[] = [];
   const trackedPlaceholderByPath = new Map<
@@ -3389,6 +3494,12 @@ export async function getCheckoutDiff(
   context?: CheckoutContext,
 ): Promise<CheckoutDiffResult> {
   await requireGitRepo(cwd);
+  if (compare.filePath !== undefined) {
+    // Scope names are repository-relative even when a request starts in a subdirectory.
+    const root = await getWorktreeRoot(cwd, context);
+    if (!root) throw new NotGitRepoError(cwd);
+    cwd = root;
+  }
 
   const refsForDiff = await resolveCheckoutDiffRefs(cwd, compare, context);
   if (!refsForDiff) {
@@ -3399,13 +3510,28 @@ export async function getCheckoutDiff(
   let effectiveRefsForDiff = refsForDiff;
   let changes: CheckoutFileChange[];
   try {
-    changes = await listCheckoutFileChanges(cwd, effectiveRefsForDiff, ignoreWhitespace);
+    changes = await listCheckoutFileChanges(
+      cwd,
+      effectiveRefsForDiff,
+      ignoreWhitespace,
+      compare.filePath !== undefined,
+    );
   } catch (error) {
     if (!isUnbornHeadDiffError(error)) {
       throw error;
     }
     effectiveRefsForDiff = { ...refsForDiff, baseRef: EMPTY_TREE_OBJECT_ID };
-    changes = await listCheckoutFileChanges(cwd, effectiveRefsForDiff, ignoreWhitespace);
+    changes = await listCheckoutFileChanges(
+      cwd,
+      effectiveRefsForDiff,
+      ignoreWhitespace,
+      compare.filePath !== undefined,
+    );
+  }
+  if (compare.filePath !== undefined) {
+    // Match inventory paths literally before allocating any patch/content budget.
+    // Do not trim: leading/trailing spaces and Git pathspec punctuation are filenames.
+    changes = changes.filter((change) => change.path === compare.filePath);
   }
   changes.sort((a, b) => {
     if (a.path === b.path) return 0;
@@ -3434,6 +3560,7 @@ export async function getCheckoutDiff(
   const trackedChanges = changes.filter((change) => !change.isUntracked);
   const untrackedChanges = changes.filter((change) => change.isUntracked === true);
   const trackedDiff = await processTrackedChanges({
+    filePath: compare.filePath,
     cwd,
     refsForDiff: effectiveRefsForDiff,
     trackedChanges,
@@ -3454,6 +3581,7 @@ export async function getCheckoutDiff(
 
   if (compare.includeStructured) {
     const didAppendTrackedDiffs = await appendStructuredTrackedDiffs({
+      filePath: compare.filePath,
       cwd,
       trackedChanges,
       trackedNumstatByPath: trackedDiff.trackedNumstatByPath,
