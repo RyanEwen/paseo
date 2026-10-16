@@ -41,6 +41,7 @@ interface HoverCardContextValue {
   triggerRef: RefObject<View | null>;
   contentRef: RefObject<View | null>;
   openNow: () => void;
+  scheduleOpen: () => void;
   scheduleClose: () => void;
 }
 
@@ -59,22 +60,31 @@ const HoverCardContext = createContext<HoverCardContextValue | null>(null);
  * ```
  */
 export function HoverCard({
+  openDelay = 0,
   disabled = false,
   children,
 }: {
   /** Closes the card and keeps it closed, e.g. while its trigger is dragged. */
   disabled?: boolean;
+  /** Pointer dwell before mounting the card; keyboard activation stays immediate. */
+  openDelay?: number;
   children: ReactNode;
 }): ReactNode {
   if (!isWeb) return children;
-  return <WebHoverCard disabled={disabled}>{children}</WebHoverCard>;
+  return (
+    <WebHoverCard disabled={disabled} openDelay={openDelay}>
+      {children}
+    </WebHoverCard>
+  );
 }
 
 function WebHoverCard({
+  openDelay,
   disabled,
   children,
 }: {
   disabled: boolean;
+  openDelay: number;
   children: ReactNode;
 }): ReactElement {
   const layer = useOverlayLayer("floating");
@@ -82,6 +92,8 @@ function WebHoverCard({
   const contentRef = useRef<View>(null);
   const [open, setOpen] = useState(false);
   const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingEscapeRef = useRef<((event: KeyboardEvent) => void) | null>(null);
   // Read when focus arrives: by focusout the element losing focus no longer matches :focus-visible.
   const keyboardFocusedRef = useRef(false);
 
@@ -89,6 +101,17 @@ function WebHoverCard({
     if (graceTimerRef.current) {
       clearTimeout(graceTimerRef.current);
       graceTimerRef.current = null;
+    }
+  }, []);
+
+  const clearOpenTimer = useCallback(() => {
+    if (openTimerRef.current !== null) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+    if (isWeb && pendingEscapeRef.current) {
+      window.removeEventListener("keydown", pendingEscapeRef.current, true);
+      pendingEscapeRef.current = null;
     }
   }, []);
 
@@ -107,6 +130,7 @@ function WebHoverCard({
   }, [focusInside]);
 
   const scheduleClose = useCallback(() => {
+    clearOpenTimer();
     if (keyboardFocusInside()) return;
     if (graceTimerRef.current) return;
     graceTimerRef.current = setTimeout(() => {
@@ -114,14 +138,35 @@ function WebHoverCard({
       if (keyboardFocusInside()) return;
       setOpen(false);
     }, CLOSE_GRACE_MS);
-  }, [keyboardFocusInside]);
+  }, [clearOpenTimer, keyboardFocusInside]);
 
   const openNow = useCallback(() => {
+    clearOpenTimer();
     clearGraceTimer();
     if (!disabled) {
       setOpen(true);
     }
-  }, [clearGraceTimer, disabled]);
+  }, [clearOpenTimer, clearGraceTimer, disabled]);
+
+  const scheduleOpen = useCallback(() => {
+    clearGraceTimer();
+    if (disabled || openTimerRef.current !== null) return;
+    if (openDelay <= 0) {
+      openNow();
+      return;
+    }
+    if (isWeb) {
+      pendingEscapeRef.current = (event: KeyboardEvent) => {
+        if (event.key === "Escape") clearOpenTimer();
+      };
+      // Observe before another overlay handles Escape; never consume its event or focus.
+      window.addEventListener("keydown", pendingEscapeRef.current, true);
+    }
+    openTimerRef.current = setTimeout(() => {
+      openTimerRef.current = null;
+      openNow();
+    }, openDelay);
+  }, [clearOpenTimer, clearGraceTimer, disabled, openDelay, openNow]);
 
   const keyPressed = useCallback(
     (event: KeyboardEvent): boolean => {
@@ -131,6 +176,7 @@ function WebHoverCard({
       if (event.key === "Escape" && open) {
         event.preventDefault();
         if (focusInside()) trigger.focus();
+        clearOpenTimer();
         clearGraceTimer();
         setOpen(false);
         return true;
@@ -152,7 +198,7 @@ function WebHoverCard({
       }
       return false;
     },
-    [clearGraceTimer, focusInside, open, openNow],
+    [clearOpenTimer, clearGraceTimer, focusInside, open, openNow],
   );
 
   const setOverlayScope = useWebOverlayRegistration({
@@ -174,6 +220,7 @@ function WebHoverCard({
     const trigger = triggerRef.current as unknown as HTMLElement | null;
     if (!trigger) return;
     const close = () => {
+      clearOpenTimer();
       clearGraceTimer();
       setOpen(false);
     };
@@ -223,7 +270,7 @@ function WebHoverCard({
       document.removeEventListener("scroll", scrolled, true);
       window.removeEventListener("resize", close);
     };
-  }, [clearGraceTimer, keyPressed, open, openNow, scheduleClose]);
+  }, [clearOpenTimer, clearGraceTimer, keyPressed, open, openNow, scheduleClose]);
 
   // While open, the safe zone covers trigger + content + the bridge between
   // them. Close only fires when the pointer leaves the safe zone; re-entering
@@ -238,16 +285,32 @@ function WebHoverCard({
 
   useEffect(() => {
     if (disabled) {
+      clearOpenTimer();
       clearGraceTimer();
       setOpen(false);
     }
-  }, [clearGraceTimer, disabled]);
+  }, [clearOpenTimer, clearGraceTimer, disabled]);
 
-  useEffect(() => clearGraceTimer, [clearGraceTimer]);
+  useEffect(
+    () => () => {
+      clearOpenTimer();
+      clearGraceTimer();
+    },
+    [clearOpenTimer, clearGraceTimer],
+  );
 
   const value = useMemo<HoverCardContextValue>(
-    () => ({ open, layer, setTriggerRef, triggerRef, contentRef, openNow, scheduleClose }),
-    [open, layer, setTriggerRef, openNow, scheduleClose],
+    () => ({
+      open,
+      layer,
+      setTriggerRef,
+      triggerRef,
+      contentRef,
+      openNow,
+      scheduleOpen,
+      scheduleClose,
+    }),
+    [open, layer, setTriggerRef, openNow, scheduleOpen, scheduleClose],
   );
 
   return (
@@ -275,7 +338,7 @@ export function HoverCardTrigger({
       accessibilityRole={focusable ? "button" : undefined}
       accessibilityLabel={accessibilityLabel}
       collapsable={false}
-      onPointerEnter={ctx.openNow}
+      onPointerEnter={ctx.scheduleOpen}
       onPointerLeave={ctx.scheduleClose}
     >
       {children}
