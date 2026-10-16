@@ -138,6 +138,7 @@ class BrowserAutomationHandlerHarness {
       ...(input.serverId ? { serverId: input.serverId } : {}),
       getHost: () => (input.host === undefined ? { browser: this.browser } : input.host),
       ensureResidentBrowserWebview: this.resident.ensure,
+      resizeResidentBrowser: async ({ width, height }) => ({ width, height }),
       ...(input.registrationWaitTimeoutMs !== undefined
         ? { registrationWaitTimeoutMs: input.registrationWaitTimeoutMs }
         : {}),
@@ -397,7 +398,7 @@ describe("mountBrowserAutomationHandler", () => {
     ]);
   });
 
-  test("browser_resize updates resident webview dimensions", async () => {
+  test("browser_resize updates native viewport after its owner acknowledges", async () => {
     const browser = new BrowserAutomationHandlerHarness();
     browser.mount({ serverId: "server-1" });
 

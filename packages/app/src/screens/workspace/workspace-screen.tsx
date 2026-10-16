@@ -108,7 +108,7 @@ import type { CheckoutStatusPayload } from "@/git/use-status-query";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { useArchiveAgent } from "@/hooks/use-archive-agent";
 import { useStableEvent } from "@/hooks/use-stable-event";
-import { removeResidentBrowserWebview } from "@/desktop/browser/resident-webviews";
+import { removeResidentNativeBrowser } from "@/desktop/browser/resident-native-pages.electron";
 import { createWorkspaceBrowser, useBrowserStore } from "@/desktop/browser/store";
 import { getDesktopHost } from "@/desktop/host";
 import { buildProviderCommand } from "@/utils/provider-command-templates";
@@ -1473,8 +1473,13 @@ function WorkspaceScreenContent({
       if (input.target?.kind === "browser") {
         const { browserId } = input.target;
         useBrowserStore.getState().removeBrowser(browserId);
-        removeResidentBrowserWebview(browserId);
-        void getDesktopHost()?.browser?.unregisterWorkspaceBrowser?.(browserId);
+        void removeResidentNativeBrowser(browserId)
+          .then((closedNative) => {
+            if (!closedNative)
+              return getDesktopHost()?.browser?.unregisterWorkspaceBrowser?.(browserId);
+            return undefined;
+          })
+          .catch(console.error);
       }
       closeWorkspaceTab(persistenceKey, normalizedTabId);
     },

@@ -8,6 +8,20 @@ import { join, relative } from "node:path";
 // workspace root live in their workspace's own node_modules, and patch-package resolves
 // the patch's node_modules/... paths relative to its working directory.
 const patchedPackages = [
+  // 5.2.14 leaves public present's RAF/portal generation alive after pending dismiss.
+  // Remove when the installed modal cancels pre-RAF and pre-commit presentations
+  // and reentrant registration preserves the live queue; the isolated modal
+  // scheduling regressions must then pass with this patch removed.
+  {
+    nodeModulesPath: "node_modules/@gorhom/bottom-sheet",
+    patchPrefix: "@gorhom+bottom-sheet+",
+  },
+  // Keep Chromium's native Web Store bindings from replacing the Electron shim
+  // after the first extension loads. The native status API requires Chrome services.
+  {
+    nodeModulesPath: "node_modules/electron-chrome-web-store",
+    patchPrefix: "electron-chrome-web-store+",
+  },
   {
     nodeModulesPath: "node_modules/react-native-markdown-display",
     patchPrefix: "react-native-markdown-display+",

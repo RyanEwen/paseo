@@ -1,3 +1,4 @@
+import { useWebOverlayPresentationLifetime } from "@/lib/overlay-presentation-lifetime";
 import {
   FlatList,
   Modal,
@@ -341,10 +342,7 @@ function useCommandCenterState(): CommandCenterState {
   useEffect(() => {
     const wasOpen = previousOpenRef.current;
     previousOpenRef.current = open;
-    if (open) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 0);
-      return () => clearTimeout(timer);
-    }
+    if (open) return;
     setQueryState("");
     setActiveId(null);
     if (!wasOpen) return;
@@ -579,6 +577,17 @@ export function CommandCenter() {
   const state = useCommandCenterState();
   const isCompact = useIsCompactFormFactor();
   const showBottomSheet = isCompact && isNative;
+  const { ready: presentationReady, retainNode: retainPresentationNode } =
+    useWebOverlayPresentationLifetime({
+      active: isWeb && state.open && !showBottomSheet,
+      nativeBrowserOverlap: true,
+      onAdmissionFailed: state.close,
+    });
+  useEffect(() => {
+    if (!state.open || showBottomSheet || !presentationReady) return;
+    const timer = setTimeout(() => state.inputRef.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [presentationReady, showBottomSheet, state.inputRef, state.open]);
   const modalLayer = useGlobalWebOverlayLayer("modal", isWeb && state.open && !showBottomSheet);
   const listRef = useRef<FlatList<CommandCenterListRow>>(null);
   const bottomSheetListRef = useRef<BottomSheetFlatListMethods>(null);
@@ -710,7 +719,8 @@ export function CommandCenter() {
     [state],
   );
   const setWebOverlayScope = useWebOverlayRegistration({
-    active: isWeb && state.open && !showBottomSheet,
+    active: isWeb && state.open && !showBottomSheet && presentationReady,
+    restoreFocusOnClose: false,
     layer: modalLayer,
     onKeyDown: handleWebOverlayKeyDown,
   });
@@ -765,11 +775,11 @@ export function CommandCenter() {
       </IsolatedBottomSheetModal>
     );
   }
-  if (!state.open) return null;
+  if (!state.open || !presentationReady) return null;
   return (
     <OverlayLayerProvider layer={isWeb ? modalLayer : 0}>
       <Modal visible transparent animationType="fade" onRequestClose={state.close}>
-        <View style={styles.overlay}>
+        <View ref={retainPresentationNode} style={styles.overlay}>
           <Pressable style={styles.backdrop} onPress={state.close} />
           <View ref={setWebOverlayScope} testID="command-center-panel" style={styles.panel}>
             <View style={[styles.header, styles.searchRow]} testID="command-center-header">

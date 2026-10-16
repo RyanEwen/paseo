@@ -1,3 +1,4 @@
+import { useWebOverlayPresentationLifetime } from "@/lib/overlay-presentation-lifetime";
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
@@ -149,6 +150,13 @@ export function HostChooserModal() {
   const request = useHostChooserStore((state) => state.request);
   const close = useHostChooserStore((state) => state.close);
   const inputRef = useRef<EditingTextInputHandle>(null);
+  const { ready: presentationReady, retainNode: retainPresentationNode } =
+    useWebOverlayPresentationLifetime({
+      active: isWeb && request != null,
+      nativeBrowserOverlap: true,
+      identity: request,
+      onAdmissionFailed: close,
+    });
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const modalLayer = useGlobalWebOverlayLayer("modal", isWeb && request != null);
@@ -173,9 +181,13 @@ export function HostChooserModal() {
     inputRef.current?.replaceText("");
     setQuery("");
     setActiveIndex(0);
+  }, [request]);
+
+  useEffect(() => {
+    if (!request || !presentationReady) return;
     const id = setTimeout(() => inputRef.current?.focus(), 0);
     return () => clearTimeout(id);
-  }, [request]);
+  }, [request, presentationReady]);
 
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);
@@ -234,16 +246,16 @@ export function HostChooserModal() {
     [activeOptionIndex, chooseHost, close, options],
   );
   const setWebOverlayScope = useWebOverlayRegistration({
-    active: isWeb && request != null,
+    active: isWeb && request != null && presentationReady,
     layer: modalLayer,
     onKeyDown: handleWebOverlayKeyDown,
   });
 
-  if (!request) return null;
+  if (!request || !presentationReady) return null;
 
   const modal = (
     <Modal visible transparent animationType="fade" onRequestClose={close} testID="host-chooser">
-      <View style={styles.overlay}>
+      <View ref={retainPresentationNode} style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={close} />
         <View ref={setWebOverlayScope} style={styles.panel}>
           <View style={styles.header}>

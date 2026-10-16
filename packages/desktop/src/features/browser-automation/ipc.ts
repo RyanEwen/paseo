@@ -1,3 +1,4 @@
+import { getNativeBrowserSurface } from "../browser-views/surfaces.js";
 import { ipcMain } from "electron";
 import { BrowserAutomationExecuteRequestSchema } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import type {
@@ -134,11 +135,15 @@ export function adaptWebContents(contents: BrowserAutomationWebContents): TabCon
     goBack: () => contents.goBack(),
     goForward: () => contents.goForward(),
     reload: () => contents.reload(),
-    captureFrame: (signal) => captureViewportFrame(contents, signal),
+    captureFrame: (signal) => {
+      const nativeSurface = getNativeBrowserSurface(contentsId);
+      return nativeSurface ? nativeSurface.capture(signal) : captureViewportFrame(contents, signal);
+    },
     invalidate: () => contents.invalidate(),
     runInput: (task, signal) =>
       getCommandQueue(contentsId, inputQueuesByContentsId).run(task, signal),
-    withFrameProduction: (capture) => withGuestFrameProduction(contents, capture),
+    withFrameProduction: (capture) =>
+      getNativeBrowserSurface(contentsId) ? capture() : withGuestFrameProduction(contents, capture),
     sendInputEvent: (event) => contents.sendInputEvent(event),
     insertText: (text) => contents.insertText(text),
     getConsoleMessages: () => consoleMessagesByContentsId.get(contentsId) ?? [],

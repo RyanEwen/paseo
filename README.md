@@ -94,6 +94,18 @@ Choose whether Explorer starts open in new desktop workspaces and whether openin
 
 ## Other additions
 
+### Native desktop browser and extensions
+
+Desktop browser tabs use Electron's native WebContentsView with the existing shared
+browser profile. Pages stay resident across workspace changes; device presets keep
+page zoom independent of the Paseo UI. Overlapping app menus temporarily freeze the
+browser area, or leave it blank if capture fails, then restore the same page.
+
+Manage Chrome extensions in **Settings → Browser → Extensions**, and open their
+popups from the browser toolbar. Compatibility depends on Electron's APIs; installation
+does not guarantee every extension works. Extensions are not updated automatically.
+See [Browser](public-docs/browser.md) for supported actions and limitations.
+
 ### Sync app settings
 
 Choose a settings host in Paseo++ on Android or desktop to share preferences across your clients, including whether Usage appears in the sidebar. Switching hosts loads their saved settings first; an empty host requires an explicit publish action. Connection details, project filters, workspace order and collapsed groups stay local. Your settings host needs a daemon build with settings sync support.

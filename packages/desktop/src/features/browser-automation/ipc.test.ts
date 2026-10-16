@@ -1,3 +1,4 @@
+import { registerNativeBrowserSurface } from "../browser-views/surfaces.js";
 import { describe, expect, test, vi } from "vitest";
 import { executeAutomationCommand, type BrowserRegistry, type TabImage } from "./service.js";
 import { adaptWebContents, HostSnapshotEngineRegistry } from "./ipc.js";
@@ -1089,5 +1090,28 @@ describe("cancelled CDP queue waiters", () => {
       "Page.getLayoutMetrics",
     ]);
     expect(contents.debugger.attachedProtocolVersions).toEqual(["1.3"]);
+  });
+});
+
+describe("native browser surface adaptation", () => {
+  test("uses native capture without webview subscription or throttling leases", async () => {
+    const contents = new FakeWebContents(9960);
+    const frame = new FakeImage();
+    const throttling = vi.spyOn(contents, "setBackgroundThrottling");
+    const capture = vi.fn(async () => frame);
+    const retire = registerNativeBrowserSurface(contents.id, { capture });
+    const tab = adaptWebContents(contents);
+    const controller = new AbortController();
+    try {
+      await expect(
+        tab.withFrameProduction(() => tab.captureFrame(controller.signal)),
+      ).resolves.toBe(frame);
+      expect(capture).toHaveBeenCalledWith(controller.signal);
+      expect(contents.frameListener).toBeNull();
+      expect(contents.endedFrameSubscriptions).toBe(0);
+      expect(throttling).not.toHaveBeenCalled();
+    } finally {
+      retire();
+    }
   });
 });

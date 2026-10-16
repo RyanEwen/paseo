@@ -1,44 +1,38 @@
 # Native browser replacement feasibility
 
-## Deferred release scope
+## Selected feature and qualification boundary
 
-The selected release retains the resident Electron `<webview>` browser. It excludes
-the WebContentsView replacement, separate-engine experiments and practical Chrome
-extension support. Electron and its bundled Chromium remain part of the desktop app.
-The [architecture](architecture.md) and [capture harness](browser-capture-harness.md)
-describe the retained browser; this document records deferred research.
+The browser feature uses main-owned Electron WebContentsViews and Electron's bundled
+Chromium. It preserves the shared profile, workspace tab identity and independent
+page/UI zoom. Fixed device presets retain their requested page-CSS dimensions.
+A separate Chromium engine, CEF, WebView2 and the old X11 embedding experiment are
+not shipping dependencies of this feature.
 
-Research was reviewed October 14, 2026 in `feat/bundled-chromium-browser`, based on
-`ca7b208057bf90fe85b7eaee6df867358ed99905`. The prototype record is
-`qa-evidence/native-chromium-embedding/verification.md`.
+DOM overlays cannot cover a native view by z-index alone. Canonical blocking overlays
+retain native suppression through actual dismissal/removal, including compact sheet
+portals and nested scopes. The temporary menu still is optional; failed capture opens
+the menu over blank browser content. Failed native-hide acknowledgement does not
+admit interactive DOM over the page. Normal browsing remains a live native view.
 
-Historical receipt identifiers below refer to owner-local records unavailable in
-this release source. Their reported results and failures concern deferred research
-and do not establish current release qualification.
+The Gorhom 5.2.14 tracked patch cancels pending public-present generations and
+reconciles reentrant provider registration. Its removal condition is documented in
+`scripts/postinstall-patches.mjs`; actual modal/provider scheduling regressions must
+pass before removing it. The Microsoft native capture adaptation retains its MIT notice.
 
-## Previously approved research direction
+Practical extension support remains subject to Electron's API behavior. Changing view
+type does not expand that contract. Store installation, popup/worker behavior and
+individual extensions need separate qualification; see [Browser](../public-docs/browser.md).
+Automatic extension updates are disabled. Bitwarden password-login failure remains
+under investigation; no API shim or account-level diagnosis is part of this feature.
 
-Ryan approved VS Code-style **WebContentsView** as the research direction, with
-focused background-rendering and practical-extension checks. That approval does not
-select its source for this release. A separately managed Chromium process, CEF and
-OWL remain research alternatives.
+## Historical research
 
-Before any later integration, preserve Paseo's pane appearance, tab/workspace identity,
-human/agent ownership, x64 and native ARM64 support. Use Microsoft's ownership,
-geometry, visibility, keyboard, session and CDP implementation as the reference.
-The earlier partial fixtures do not establish that VS Code's complete implementation
-fails. No WebView2 switch, shell rewrite or screenshot/video pane is approved.
-A temporary screenshot placeholder during overlapping menus requires its own decision.
-
-The deferred extension target is broad practical compatibility. Installation, worker
-and storage behavior, restart, updates, popups and ordinary extension UI need separate
-acceptance. Record individual incompatibilities; changing the view type does not
-remove Electron's extension API limits. The research catalog and compatibility hooks
-are excluded from the selected release along with the native-view source.
-
-The remaining sections preserve source research and distribution alternatives.
-CEF artifact metadata is not a selected or downloaded product dependency. Proposed
-experiments and resource estimates below are historical plans, not execution grants.
+The sections below preserve the original research and owner-local fixture record.
+Their old source paths, plans, successes and failures do not qualify this reconstructed
+accepted-main source or a Windows build. Linux primitive, profile and partial pane
+results are separate from current Windows input/compositor and extension acceptance.
+The later prepare/decode/commit menu correction is a separate source layer; decoded
+DOM staging alone cannot prove a cross-process compositor presentation fence.
 
 ## Architectural findings from the research review
 

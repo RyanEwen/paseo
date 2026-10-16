@@ -1,3 +1,4 @@
+import { useWebOverlayPresentationLifetime } from "@/lib/overlay-presentation-lifetime";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
 import { router } from "expo-router";
 import type { WorkspaceProjectDescriptorPayload } from "@getpaseo/protocol/messages";
@@ -384,6 +385,13 @@ export function AddProjectFlow({ request, onClose }: AddProjectFlowProps) {
   );
   const setHasHydratedWorkspaces = useSessionStore((store) => store.setHasHydratedWorkspaces);
   const inputRef = useRef<EditingTextInputHandle>(null);
+  const { ready: presentationReady, retainNode: retainPresentationNode } =
+    useWebOverlayPresentationLifetime({
+      active: isWeb,
+      nativeBrowserOverlap: true,
+      identity: request,
+      onAdmissionFailed: onClose,
+    });
   const submissionInFlightRef = useRef(false);
   const browseInFlightRef = useRef(false);
   const query = page.kind === "new-directory-name" || page.kind === "method" ? "" : page.query;
@@ -403,10 +411,11 @@ export function AddProjectFlow({ request, onClose }: AddProjectFlowProps) {
   }, [query]);
 
   useEffect(() => {
+    if (!presentationReady) return;
     inputRef.current?.replaceText(pageInputValueRef.current);
     const timer = setTimeout(() => inputRef.current?.focus(), 0);
     return () => clearTimeout(timer);
-  }, [page.kind]);
+  }, [page.kind, presentationReady]);
 
   const searchesDirectories =
     page.kind === "directory-search" ||
@@ -803,7 +812,7 @@ export function AddProjectFlow({ request, onClose }: AddProjectFlowProps) {
     [handleKey],
   );
   const setWebOverlayScope = useWebOverlayRegistration({
-    active: isWeb,
+    active: isWeb && presentationReady,
     layer: modalLayer,
     onKeyDown: handleWebOverlayKeyDown,
   });
@@ -846,9 +855,11 @@ export function AddProjectFlow({ request, onClose }: AddProjectFlowProps) {
       ? joinDirectoryPath(page.parentPath, page.name.trim())
       : null;
 
+  if (!presentationReady) return null;
+
   const modal = (
     <Modal visible transparent animationType="fade" onRequestClose={isWeb ? undefined : handleBack}>
-      <View style={styles.overlay} testID="add-project-flow">
+      <View ref={retainPresentationNode} style={styles.overlay} testID="add-project-flow">
         <Pressable style={styles.backdrop} onPress={onClose} testID="add-project-flow-backdrop" />
         <View
           ref={setWebOverlayScope}
