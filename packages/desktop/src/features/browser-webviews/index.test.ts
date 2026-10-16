@@ -783,6 +783,12 @@ describe("native menu overlap ownership", () => {
   const nestedToken = "22222222-2222-4222-8222-222222222222";
   const scope = { x: 0, y: 0, width: 1000, height: 800 };
 
+  function admitOverlay(owner: NativeBrowserViewOwner, hostId: number, token: string) {
+    const targets = owner.prepareOverlay(hostId, token);
+    owner.commitOverlay(hostId, token, []);
+    return targets;
+  }
+
   function presentedFixture() {
     const fixture = nativeOwnerFixture();
     const { owner, host, input } = fixture;
@@ -797,12 +803,69 @@ describe("native menu overlap ownership", () => {
     return { ...fixture, identity };
   }
 
+  test("preparation leaves the native page live until matching frame commit", () => {
+    const { owner, host, view, input } = presentedFixture();
+    const targets = owner.prepareOverlay(host.webContents.id, firstToken);
+    expect(view.setVisible).toHaveBeenLastCalledWith(true);
+    expect(owner.snapshot(host.webContents.id, input.browserId).visible).toBe(true);
+    expect(owner.commitOverlay(host.webContents.id, firstToken, targets)).toBe(true);
+    expect(view.setVisible).toHaveBeenLastCalledWith(false);
+    owner.endOverlay(host.webContents.id, firstToken);
+    expect(view.setVisible).toHaveBeenLastCalledWith(true);
+    host.emit("closed");
+  });
+
+  test("stale geometry refuses image commit before hiding and permits explicit blank", () => {
+    const { owner, host, view, input } = presentedFixture();
+    const targets = owner.prepareOverlay(host.webContents.id, firstToken);
+    owner.present(host.webContents.id, {
+      browserId: input.browserId,
+      viewportMode: "fixed",
+      visible: true,
+      bounds: { x: 0, y: 0, width: 412, height: 915 },
+      clip: scope,
+    });
+    expect(owner.commitOverlay(host.webContents.id, firstToken, targets)).toBe(false);
+    expect(view.setVisible).toHaveBeenLastCalledWith(true);
+    expect(owner.commitOverlay(host.webContents.id, firstToken, [])).toBe(true);
+    expect(view.setVisible).toHaveBeenLastCalledWith(false);
+    host.emit("closed");
+  });
+
+  test("host-only zoom changes reject staged geometry without a page revision change", () => {
+    const { owner, host, view } = presentedFixture();
+    const targets = owner.prepareOverlay(host.webContents.id, firstToken);
+    host.webContents.zoomFactor = 1.25;
+    expect(owner.prepareOverlay(host.webContents.id, nestedToken)).toEqual(targets);
+    expect(owner.commitOverlay(host.webContents.id, firstToken, targets)).toBe(false);
+    expect(view.setVisible).toHaveBeenLastCalledWith(true);
+    expect(owner.commitOverlay(host.webContents.id, firstToken, [])).toBe(true);
+    host.emit("closed");
+  });
+
+  test("released preparations and forged frame identities cannot recreate suppression", () => {
+    const { owner, host, view } = presentedFixture();
+    const targets = owner.prepareOverlay(host.webContents.id, firstToken);
+    expect(
+      owner.commitOverlay(
+        host.webContents.id,
+        firstToken,
+        targets.map((target) => ({ ...target, webContentsId: target.webContentsId + 1 })),
+      ),
+    ).toBe(false);
+    expect(view.setVisible).toHaveBeenLastCalledWith(true);
+    owner.endOverlay(host.webContents.id, firstToken);
+    expect(owner.commitOverlay(host.webContents.id, firstToken, targets)).toBe(false);
+    expect(owner.commitOverlay(host.webContents.id, firstToken, [])).toBe(false);
+    host.emit("closed");
+  });
+
   test("nested registrations hide before acknowledgement and restore exact same geometry only after the last release", () => {
     const { owner, host, view, clip, input, identity } = presentedFixture();
     host.focused = true;
     const bounds = view.getBounds();
     const clipBounds = clip.getBounds();
-    const targets = owner.beginOverlay(host.webContents.id, firstToken);
+    const targets = admitOverlay(owner, host.webContents.id, firstToken);
     expect(targets).toEqual([
       expect.objectContaining({
         browserId: input.browserId,
@@ -812,7 +875,7 @@ describe("native menu overlap ownership", () => {
     expect(view.setVisible).toHaveBeenLastCalledWith(false);
     expect(owner.snapshot(host.webContents.id, input.browserId).visible).toBe(false);
     expect(owner.focus(host.webContents.id, input.browserId)).toBe(false);
-    expect(owner.beginOverlay(host.webContents.id, nestedToken)).toEqual(targets);
+    expect(admitOverlay(owner, host.webContents.id, nestedToken)).toEqual(targets);
     owner.endOverlay(host.webContents.id, firstToken);
     expect(view.setVisible).toHaveBeenLastCalledWith(false);
     owner.endOverlay(host.webContents.id, nestedToken);
@@ -826,8 +889,8 @@ describe("native menu overlap ownership", () => {
 
   test("visible resize and scroll updates stay suppressed until the last overlay releases", () => {
     const { owner, host, view, clip, input, identity } = presentedFixture();
-    owner.beginOverlay(host.webContents.id, firstToken);
-    owner.beginOverlay(host.webContents.id, nestedToken);
+    admitOverlay(owner, host.webContents.id, firstToken);
+    admitOverlay(owner, host.webContents.id, nestedToken);
     for (const bounds of [
       { x: -250, y: -100, width: 1920, height: 1080 },
       { x: -300, y: -180, width: 1920, height: 1080 },
@@ -858,7 +921,7 @@ describe("native menu overlap ownership", () => {
   test("a page first presented during an open menu remains hidden until release", () => {
     const { owner, host, view, input } = nativeOwnerFixture();
     const identity = owner.create(host.webContents.id, input);
-    expect(owner.beginOverlay(host.webContents.id, firstToken)).toEqual([]);
+    expect(admitOverlay(owner, host.webContents.id, firstToken)).toEqual([]);
     owner.present(host.webContents.id, {
       browserId: input.browserId,
       visible: true,
@@ -882,7 +945,7 @@ describe("native menu overlap ownership", () => {
     }));
     const retire = registerNativeBrowserSurface(view.webContents.id, { capture });
     try {
-      const [target] = owner.beginOverlay(host.webContents.id, firstToken);
+      const [target] = admitOverlay(owner, host.webContents.id, firstToken);
       const frame = await owner.captureOverlay(host.webContents.id, firstToken, target!);
       expect(capture).toHaveBeenCalledWith(expect.any(AbortSignal), {
         x: 200,
@@ -911,7 +974,7 @@ describe("native menu overlap ownership", () => {
       },
     });
     try {
-      const [target] = owner.beginOverlay(host.webContents.id, firstToken);
+      const [target] = admitOverlay(owner, host.webContents.id, firstToken);
       expect(await owner.captureOverlay(host.webContents.id, firstToken, target!)).toBeNull();
       expect(view.setVisible).toHaveBeenLastCalledWith(false);
       owner.endOverlay(host.webContents.id, firstToken);
@@ -935,7 +998,7 @@ describe("native menu overlap ownership", () => {
         }),
     });
     try {
-      const [target] = owner.beginOverlay(host.webContents.id, firstToken);
+      const [target] = admitOverlay(owner, host.webContents.id, firstToken);
       const pending = owner.captureOverlay(host.webContents.id, firstToken, target!);
       view.webContents.emit("did-start-navigation", {}, "https://example.com/account", false, true);
       owner.close(host.webContents.id, input.browserId);
@@ -952,8 +1015,8 @@ describe("native menu overlap ownership", () => {
   test("inactive pages stay hidden, foreign hosts cannot acquire tokens, and UI failure cannot restore presentation", () => {
     const { owner, host, view, input } = nativeOwnerFixture();
     owner.create(host.webContents.id, input);
-    expect(() => owner.beginOverlay(1234567, firstToken)).toThrow("not an application host");
-    expect(owner.beginOverlay(host.webContents.id, firstToken)).toEqual([]);
+    expect(() => admitOverlay(owner, 1234567, firstToken)).toThrow("not an application host");
+    expect(admitOverlay(owner, host.webContents.id, firstToken)).toEqual([]);
     owner.endOverlay(host.webContents.id, firstToken);
     expect(view.setVisible).toHaveBeenLastCalledWith(false);
     owner.present(host.webContents.id, {
@@ -962,7 +1025,7 @@ describe("native menu overlap ownership", () => {
       viewportMode: "fixed",
       bounds: scope,
     });
-    owner.beginOverlay(host.webContents.id, firstToken);
+    admitOverlay(owner, host.webContents.id, firstToken);
     host.webContents.emit("render-process-gone");
     owner.endOverlay(host.webContents.id, firstToken);
     expect(view.setVisible).toHaveBeenLastCalledWith(false);
@@ -985,7 +1048,7 @@ describe("native menu overlap ownership", () => {
       },
     });
     try {
-      const [target] = owner.beginOverlay(host.webContents.id, firstToken);
+      const [target] = admitOverlay(owner, host.webContents.id, firstToken);
       const pending = owner.captureOverlay(host.webContents.id, firstToken, target!);
       await vi.advanceTimersByTimeAsync(251);
       expect(await pending).toBeNull();
@@ -1004,7 +1067,7 @@ describe("native menu overlap ownership", () => {
 
   test("hidden workspace updates do not revive on release", () => {
     const { owner, host, view, input } = presentedFixture();
-    owner.beginOverlay(host.webContents.id, firstToken);
+    admitOverlay(owner, host.webContents.id, firstToken);
     owner.present(host.webContents.id, {
       browserId: input.browserId,
       visible: false,
@@ -1033,7 +1096,7 @@ describe("native menu overlap ownership", () => {
     }));
     const retire = registerNativeBrowserSurface(view.webContents.id, { capture });
     try {
-      const [target] = owner.beginOverlay(host.webContents.id, firstToken);
+      const [target] = admitOverlay(owner, host.webContents.id, firstToken);
       const frame = await owner.captureOverlay(host.webContents.id, firstToken, target!);
       expect(frame?.bounds).toEqual({ x: 100, y: 150.4, width: 600, height: 479.2 });
       expect(capture).toHaveBeenCalledWith(expect.any(AbortSignal), {
@@ -1054,7 +1117,7 @@ describe("native menu overlap ownership", () => {
 
   test("foreign host/target commands cannot capture or release a menu's native ownership", () => {
     const { owner, host, view, input } = presentedFixture();
-    const [target] = owner.beginOverlay(host.webContents.id, firstToken);
+    const [target] = admitOverlay(owner, host.webContents.id, firstToken);
     expect(() => owner.captureOverlay(1234567, firstToken, target!)).toThrow(
       "not an application host",
     );

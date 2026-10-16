@@ -478,8 +478,14 @@ describe("blocking web presentation lifetime", () => {
 });
 
 describe("native menu still lifetime", () => {
+  const originalDecode = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "decode");
   async function adapterFixture(initialize = true) {
     vi.resetModules();
+    const decode = vi.fn<() => Promise<void>>().mockResolvedValue();
+    Object.defineProperty(HTMLImageElement.prototype, "decode", {
+      configurable: true,
+      value: decode,
+    });
     const host = await import("@/desktop/host");
     const presentation = await import("./overlay-presentation");
     const target = { browserId: "menu-page", webContentsId: 123, revision: 4 };
@@ -489,7 +495,8 @@ describe("native menu still lifetime", () => {
       dataUrl: "data:image/png;base64,AQID",
     };
     const views = {
-      beginOverlay: vi.fn(async (_token: string) => [target]),
+      prepareOverlay: vi.fn(async (_token: string) => [target]),
+      commitOverlay: vi.fn(async (_input: { token: string; frames: (typeof target)[] }) => true),
       captureOverlay: vi.fn(async () => frame as typeof frame | null),
       endOverlay: vi.fn(async (_token: string) => {}),
     };
@@ -514,6 +521,7 @@ describe("native menu still lifetime", () => {
     scope.inert = false;
     document.body.append(scope);
     return {
+      decode,
       presentation,
       native,
       views,
@@ -527,8 +535,207 @@ describe("native menu still lifetime", () => {
   }
 
   afterEach(() => {
+    vi.useRealTimers();
+    if (originalDecode) Object.defineProperty(HTMLImageElement.prototype, "decode", originalDecode);
+    else Reflect.deleteProperty(HTMLImageElement.prototype, "decode");
     vi.restoreAllMocks();
     document.body.replaceChildren();
+  });
+
+  it("decodes a staged frame before hide ACK admits interactive content", async () => {
+    const { presentation, views, scope, decode, target } = await adapterFixture();
+    let finishDecode!: () => void;
+    decode.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishDecode = resolve;
+        }),
+    );
+    let finishCommit!: (ready: boolean) => void;
+    views.commitOverlay.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishCommit = resolve;
+        }),
+    );
+    const lease = presentation.prepareWebOverlayPresentation(scope)!;
+    try {
+      await vi.waitFor(() => expect(decode).toHaveBeenCalledOnce());
+      expect(document.querySelector("img")).not.toBeNull();
+      expect(views.commitOverlay).not.toHaveBeenCalled();
+      expect(scope.inert).toBe(true);
+      finishDecode();
+      await vi.waitFor(() => expect(views.commitOverlay).toHaveBeenCalledOnce());
+      expect(views.commitOverlay.mock.calls[0]![0].frames).toEqual([target]);
+      expect(scope.inert).toBe(true);
+      finishCommit(true);
+      expect(await lease.ready).toBe(true);
+      expect(scope.inert).toBe(false);
+    } finally {
+      lease.release();
+    }
+  });
+
+  it("keeps one decoded frame and distinct canonical tokens until the last nested scope releases", async () => {
+    const { presentation, views, scope } = await adapterFixture();
+    const nested = document.createElement("div");
+    document.body.append(nested);
+    const first = presentation.prepareWebOverlayPresentation(scope)!;
+    const second = presentation.prepareWebOverlayPresentation(nested)!;
+    try {
+      expect(await first.ready).toBe(true);
+      expect(await second.ready).toBe(true);
+      expect(views.prepareOverlay).toHaveBeenCalledTimes(2);
+      expect(views.prepareOverlay.mock.calls[0]![0]).not.toBe(
+        views.prepareOverlay.mock.calls[1]![0],
+      );
+      expect(views.captureOverlay).toHaveBeenCalledOnce();
+      first.release();
+      expect(views.endOverlay).not.toHaveBeenCalled();
+      expect(document.querySelector("img")).not.toBeNull();
+      second.release();
+      expect(views.endOverlay).toHaveBeenCalledTimes(2);
+      expect(document.querySelector("img")).toBeNull();
+    } finally {
+      first.release();
+      second.release();
+    }
+  });
+
+  it("removes a rejected stale frame before explicit blank commit", async () => {
+    const { presentation, views, scope } = await adapterFixture();
+    views.commitOverlay.mockResolvedValueOnce(false).mockImplementationOnce(async (input) => {
+      expect(input.frames).toEqual([]);
+      expect(document.querySelector("img")).toBeNull();
+      return true;
+    });
+    const lease = presentation.prepareWebOverlayPresentation(scope)!;
+    try {
+      expect(await lease.ready).toBe(true);
+    } finally {
+      lease.release();
+    }
+  });
+
+  it("admits blank after decode timeout and cannot paint the late decoded result", async () => {
+    const { presentation, views, scope, decode } = await adapterFixture();
+    vi.useFakeTimers();
+    let finishDecode!: () => void;
+    decode.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishDecode = resolve;
+        }),
+    );
+    const lease = presentation.prepareWebOverlayPresentation(scope)!;
+    try {
+      await vi.advanceTimersByTimeAsync(250);
+      expect(await lease.ready).toBe(true);
+      expect(views.commitOverlay.mock.calls[0]![0].frames).toEqual([]);
+      expect(document.querySelector("img")).toBeNull();
+      finishDecode();
+      await Promise.resolve();
+      expect(document.querySelector("img")).toBeNull();
+    } finally {
+      lease.release();
+    }
+  });
+
+  it("fails closed on hide rejection and retires the staged image", async () => {
+    const { presentation, views, scope } = await adapterFixture();
+    views.commitOverlay.mockRejectedValueOnce(new Error("host closed"));
+    const lease = presentation.prepareWebOverlayPresentation(scope)!;
+    expect(await lease.ready).toBe(false);
+    expect(scope.inert).toBe(true);
+    expect(document.querySelector("img")).toBeNull();
+    expect(views.commitOverlay).toHaveBeenCalledOnce();
+    expect(views.endOverlay).toHaveBeenCalledOnce();
+    lease.release();
+  });
+
+  it("cancels a decoded-frame preparation without committing after scope removal", async () => {
+    const { presentation, views, scope, decode } = await adapterFixture();
+    let finishDecode!: () => void;
+    decode.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishDecode = resolve;
+        }),
+    );
+    const lease = presentation.prepareWebOverlayPresentation(scope)!;
+    await vi.waitFor(() => expect(decode).toHaveBeenCalledOnce());
+    lease.release();
+    finishDecode();
+    expect(await lease.ready).toBe(false);
+    expect(views.commitOverlay).not.toHaveBeenCalled();
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("does not admit a released scope when its hide acknowledgement arrives late", async () => {
+    const { presentation, views, scope } = await adapterFixture();
+    let acknowledge!: (ready: boolean) => void;
+    views.commitOverlay.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
+    const lease = presentation.prepareWebOverlayPresentation(scope)!;
+    await vi.waitFor(() => expect(views.commitOverlay).toHaveBeenCalledOnce());
+    lease.release();
+    acknowledge(true);
+    expect(await lease.ready).toBe(false);
+    expect(views.endOverlay).toHaveBeenCalledOnce();
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("keeps hide timeout fail-closed even if acknowledgement later succeeds", async () => {
+    const { presentation, views, scope } = await adapterFixture();
+    vi.useFakeTimers();
+    let acknowledge!: (ready: boolean) => void;
+    views.commitOverlay.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
+    const lease = presentation.prepareWebOverlayPresentation(scope)!;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(await lease.ready).toBe(false);
+    expect(scope.inert).toBe(true);
+    expect(document.querySelector("img")).toBeNull();
+    acknowledge(true);
+    await Promise.resolve();
+    expect(scope.inert).toBe(true);
+    expect(views.endOverlay).toHaveBeenCalledOnce();
+    lease.release();
+  });
+
+  it("retires a cancelled nested preparation without releasing the active outer token", async () => {
+    const { presentation, views, scope, target } = await adapterFixture();
+    const first = presentation.prepareWebOverlayPresentation(scope)!;
+    expect(await first.ready).toBe(true);
+    let complete!: (targets: (typeof target)[]) => void;
+    views.prepareOverlay.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const nested = document.createElement("div");
+    document.body.append(nested);
+    const second = presentation.prepareWebOverlayPresentation(nested)!;
+    await vi.waitFor(() => expect(views.prepareOverlay).toHaveBeenCalledTimes(2));
+    second.release();
+    complete([target]);
+    expect(await second.ready).toBe(false);
+    expect(views.commitOverlay).toHaveBeenCalledOnce();
+    expect(views.endOverlay).toHaveBeenCalledExactlyOnceWith(
+      views.prepareOverlay.mock.calls[1]![0],
+    );
+    expect(document.querySelector("img")).not.toBeNull();
+    first.release();
+    expect(views.endOverlay).toHaveBeenCalledTimes(2);
   });
 
   it("opens over blank on frame failure, then releases the same token without focus", async () => {
@@ -540,7 +747,7 @@ describe("native menu still lifetime", () => {
       expect(scope.inert).toBe(false);
       expect(document.querySelector("img")).toBeNull();
       lease.release();
-      const token = views.beginOverlay.mock.calls[0]![0];
+      const token = views.prepareOverlay.mock.calls[0]![0];
       expect(views.endOverlay).toHaveBeenCalledExactlyOnceWith(token);
     } finally {
       lease.release();
@@ -580,7 +787,7 @@ describe("native menu still lifetime", () => {
   it("releases admission arriving after unmount without requesting or painting a frame", async () => {
     const { presentation, views, target, scope } = await adapterFixture();
     let admit!: (value: (typeof target)[]) => void;
-    views.beginOverlay.mockImplementationOnce(
+    views.prepareOverlay.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           admit = resolve;

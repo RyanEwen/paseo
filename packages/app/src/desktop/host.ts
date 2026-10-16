@@ -187,7 +187,11 @@ export interface DesktopNativeBrowserOverlayFrame extends DesktopNativeBrowserOv
   dataUrl: string;
 }
 export interface DesktopNativeBrowserBridge {
-  beginOverlay(token: string): Promise<DesktopNativeBrowserOverlayTarget[]>;
+  prepareOverlay(token: string): Promise<DesktopNativeBrowserOverlayTarget[]>;
+  commitOverlay(input: {
+    token: string;
+    frames: DesktopNativeBrowserOverlayTarget[];
+  }): Promise<boolean>;
   captureOverlay(
     input: DesktopNativeBrowserOverlayTarget & { token: string },
   ): Promise<DesktopNativeBrowserOverlayFrame | null>;

@@ -250,10 +250,20 @@ export class NativeBrowserViewOwner {
     return this.state(owned);
   }
 
-  /** Acquire full-window suppression before the renderer exposes its overlay. */
-  public beginOverlay(hostId: number, token: string): NativeBrowserOverlayTarget[] {
+  /** Prepare current frames before full-window suppression. */
+  public prepareOverlay(hostId: number, token: string): NativeBrowserOverlayTarget[] {
     this.assertHost(hostId);
-    return this.overlays.begin(hostId, token);
+    return this.overlays.prepare(hostId, token);
+  }
+
+  /** Validate prepared frame identities and hide before interactive DOM admission. */
+  public commitOverlay(
+    hostId: number,
+    token: string,
+    frames: NativeBrowserOverlayTarget[],
+  ): boolean {
+    this.assertHost(hostId);
+    return this.overlays.commit(hostId, token, frames);
   }
 
   /** Capture only a target admitted by this exact host/token/revision. */

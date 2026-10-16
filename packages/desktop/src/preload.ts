@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import type { NativeBrowserOverlayTarget } from "./features/browser-views/contracts.js";
 import type { BrowserKeyboardPolicy } from "./features/browser-keyboard/index.js";
 import type { DesktopWindowChromeMode } from "./window/chrome.js";
 
@@ -117,8 +118,10 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
   },
   browser: {
     views: {
-      beginOverlay: (token: string) =>
-        ipcRenderer.invoke("paseo:browser-view:overlay-begin", { token }),
+      prepareOverlay: (token: string) =>
+        ipcRenderer.invoke("paseo:browser-view:overlay-prepare", { token }),
+      commitOverlay: (input: { token: string; frames: NativeBrowserOverlayTarget[] }) =>
+        ipcRenderer.invoke("paseo:browser-view:overlay-commit", input),
       captureOverlay: (input: {
         token: string;
         browserId: string;

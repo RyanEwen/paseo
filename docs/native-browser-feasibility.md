@@ -1,39 +1,40 @@
 # Native browser replacement feasibility
 
-Research reviewed October 14, 2026 in `feat/bundled-chromium-browser`, based on
-`ca7b208057bf90fe85b7eaee6df867358ed99905`. This is source research, not a qualified
-browser implementation. Preserve the [existing native prototype and receipts](qa-evidence/native-chromium-embedding/verification.md).
+## Selected feature and qualification boundary
 
-## Approved direction
+The browser feature uses main-owned Electron WebContentsViews and Electron's bundled
+Chromium. It preserves the shared profile, workspace tab identity and independent
+page/UI zoom. Fixed device presets retain their requested page-CSS dimensions.
+A separate Chromium engine, CEF, WebView2 and the old X11 embedding experiment are
+not shipping dependencies of this feature.
 
-Ryan approved the proposal to make VS Code-style **WebContentsView** the preferred
-direction and prepare focused background-rendering and extension checks. Electron
-and its bundled Chromium remain the shell and browser engine. x64 desktop and
-native ARM64 coverage remain required. A separately managed Chromium process,
-CEF and OWL are now research alternatives, not the selected architecture.
+DOM overlays cannot cover a native view by z-index alone. Canonical blocking overlays
+retain native suppression through actual dismissal/removal, including compact sheet
+portals and nested scopes. The temporary menu still is optional; failed capture opens
+the menu over blank browser content. Failed native-hide acknowledgement does not
+admit interactive DOM over the page. Normal browsing remains a live native view.
 
-Use Microsoft's complete ownership, geometry, visibility, keyboard, session and
-CDP implementation as the reference. Ryan's experience establishes VS Code as the
-chosen working model for background activity and focus. Qualification tests Paseo's
-adaptation and extra contracts; the earlier partial native-view fixtures do not
-establish that VS Code's complete implementation fails.
+The Gorhom 5.2.14 tracked patch cancels pending public-present generations and
+reconciles reentrant provider registration. Its removal condition is documented in
+`scripts/postinstall-patches.mjs`; actual modal/provider scheduling regressions must
+pass before removing it. The Microsoft native capture adaptation retains its MIT notice.
 
-Keep Paseo's existing pane appearance, tab/workspace identity and human/agent
-ownership. Native views are not DOM webviews. No platform WebView2 switch, shell
-rewrite or screenshot/video pane is approved. Microsoft's temporary screenshot
-placeholder during overlapping menus is a separate presentation choice; do not
-adopt it implicitly under the native-view approval.
+Practical extension support remains subject to Electron's API behavior. Changing view
+type does not expand that contract. Store installation, popup/worker behavior and
+individual extensions need separate qualification; see [Browser](../public-docs/browser.md).
+Automatic extension updates are disabled. Bitwarden password-login failure remains
+under investigation; no API shim or account-level diagnosis is part of this feature.
 
-Ryan's practical extension target is broad compatibility, not literally every
-extension. Audit and reuse Paseo's installed-extension catalog, native hooks and
-compatibility support. Keep worker/storage/restart/install/update and ordinary
-extension UI in acceptance. Record individual incompatibilities instead of
-claiming that a new view type removes Electron's extension API limitations.
+## Historical research
 
-The sections below preserve the source research and distribution alternatives.
-CEF artifact metadata is not a selected or downloaded product dependency.
+The sections below preserve the original research and owner-local fixture record.
+Their old source paths, plans, successes and failures do not qualify this reconstructed
+accepted-main source or a Windows build. Linux primitive, profile and partial pane
+results are separate from current Windows input/compositor and extension acceptance.
+The later prepare/decode/commit menu correction is a separate source layer; decoded
+DOM staging alone cannot prove a cross-process compositor presentation fence.
 
-## Verified architectural facts
+## Architectural findings from the research review
 
 | Claim                                                                              | Evidence and consequence                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

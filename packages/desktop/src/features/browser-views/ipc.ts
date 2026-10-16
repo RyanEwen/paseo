@@ -3,6 +3,7 @@ import type { NativeBrowserViewOwner } from "./owner.js";
 import {
   BrowserViewOverlaySchema,
   BrowserViewOverlayCaptureSchema,
+  BrowserViewOverlayCommitSchema,
   CreateBrowserViewSchema,
   BrowserViewIdentitySchema,
   BrowserViewPresentationSchema,
@@ -15,9 +16,13 @@ import {
  * Schema failures reject before mutation. Native ownership is checked by the owner.
  */
 export function registerNativeBrowserViewIpc(owner: NativeBrowserViewOwner): void {
-  ipcMain.handle("paseo:browser-view:overlay-begin", (event, input: unknown) => {
+  ipcMain.handle("paseo:browser-view:overlay-prepare", (event, input: unknown) => {
     const { token } = BrowserViewOverlaySchema.parse(input);
-    return owner.beginOverlay(event.sender.id, token);
+    return owner.prepareOverlay(event.sender.id, token);
+  });
+  ipcMain.handle("paseo:browser-view:overlay-commit", (event, input: unknown) => {
+    const { token, frames } = BrowserViewOverlayCommitSchema.parse(input);
+    return owner.commitOverlay(event.sender.id, token, frames);
   });
   ipcMain.handle("paseo:browser-view:overlay-frame", (event, input: unknown) => {
     const { token, ...target } = BrowserViewOverlayCaptureSchema.parse(input);

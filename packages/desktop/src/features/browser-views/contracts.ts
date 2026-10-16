@@ -67,6 +67,9 @@ export const BrowserViewOverlayCaptureSchema = BrowserViewOverlaySchema.extend({
   webContentsId: ContentsId,
   revision: z.number().int().nonnegative(),
 });
+export const BrowserViewOverlayCommitSchema = BrowserViewOverlaySchema.extend({
+  frames: z.array(BrowserViewOverlayCaptureSchema.omit({ token: true })).max(256),
+});
 export interface NativeBrowserOverlayTarget {
   browserId: string;
   webContentsId: number;

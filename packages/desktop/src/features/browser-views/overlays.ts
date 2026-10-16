@@ -22,6 +22,7 @@ interface Snapshot {
 }
 interface Lease {
   readonly snapshots: Map<string, Snapshot>;
+  suppressed: boolean;
 }
 
 /** Hide native pages for a full-window DOM overlay, independently of tab lifetime.
@@ -40,11 +41,11 @@ export class NativeBrowserOverlays {
     // MenuOverlay includes a full-window interactive backdrop. Suppress requested
     // presentations even when their old bounds are outside the host: resizing the
     // window must not reveal them before the next renderer geometry command.
-    return (this.hosts.get(target.hostId)?.size ?? 0) > 0;
+    return [...(this.hosts.get(target.hostId)?.values() ?? [])].some((lease) => lease.suppressed);
   }
 
-  /** Hide synchronously before acknowledging admission of interactive DOM content. */
-  public begin(hostId: number, token: string): NativeBrowserOverlayTarget[] {
+  /** Reserve current identities without hiding the page while its frame is prepared. */
+  public prepare(hostId: number, token: string): NativeBrowserOverlayTarget[] {
     const leases = this.hosts.get(hostId) ?? new Map<string, Lease>();
     const existing = leases.get(token);
     if (existing) return [...existing.snapshots.values()].map((snapshot) => snapshot.identity);
@@ -56,13 +57,37 @@ export class NativeBrowserOverlays {
       const snapshot = this.snapshot(target);
       if (snapshot) snapshots.set(target.browserId, snapshot);
     }
-    leases.set(token, { snapshots });
+    leases.set(token, { snapshots, suppressed: false });
     this.hosts.set(hostId, leases);
-    this.refresh(hostId);
     return [...snapshots.values()].map((snapshot) => snapshot.identity);
   }
 
-  /** Attempt one current frame, after hide acknowledgement. Failure admits blank.
+  /** A stale staged image must be removed before a caller can commit blank instead.
+   * Missing/ended tokens never recreate a lease. No asynchronous gap separates
+   * identity validation from native suppression.
+   */
+  public commit(hostId: number, token: string, frames: NativeBrowserOverlayTarget[]): boolean {
+    const lease = this.hosts.get(hostId)?.get(token);
+    if (!lease) return false;
+    const seen = new Set<string>();
+    for (const frame of frames) {
+      const snapshot = lease.snapshots.get(frame.browserId);
+      if (
+        seen.has(frame.browserId) ||
+        !snapshot ||
+        snapshot.identity.webContentsId !== frame.webContentsId ||
+        snapshot.identity.revision !== frame.revision ||
+        !this.isCurrent(hostId, token, snapshot)
+      )
+        return false;
+      seen.add(frame.browserId);
+    }
+    lease.suppressed = true;
+    this.refresh(hostId);
+    return true;
+  }
+
+  /** Attempt one current frame while the native page is still presented. Failure admits blank.
    * Aborting a timed-out capture does not release the existing native queue early.
    * Its active operation retains ownership until Electron settles it.
    */
@@ -153,7 +178,20 @@ export class NativeBrowserOverlays {
       !target.host.isDestroyed() &&
       !target.view.webContents.isDestroyed() &&
       target.visible &&
-      target.revision === snapshot.identity.revision
+      target.revision === snapshot.identity.revision &&
+      this.matchesViewport(snapshot)
+    );
+  }
+
+  /** Host-only geometry/zoom can change before a renderer presentation IPC arrives. */
+  private matchesViewport(snapshot: Snapshot): boolean {
+    const target = snapshot.target;
+    if (!target.host.isVisible() || target.host.isMinimized()) return false;
+    const current = this.viewport(target);
+    if (!current) return false;
+    return (["x", "y", "width", "height"] as const).every(
+      (key) =>
+        current.rect[key] === snapshot.rect[key] && current.bounds[key] === snapshot.bounds[key],
     );
   }
 
