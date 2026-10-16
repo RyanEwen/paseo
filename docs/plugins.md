@@ -107,6 +107,12 @@ absent from the installed plugin list and source configuration; their client bun
 appear in the plugin catalog. Editing one in development requires a daemon restart.
 Directory, Git, and npm installs cannot use a built-in ID.
 
+A provider registration with `requiresConfiguration: true` participates only while its ID exists
+under `agents.providers`. Hoplite uses this for catalog opt-in. Add writes `{ "enabled": true }`
+without `extends`, so it selects the bundled adapter. Remove deletes the config entry; setting
+`enabled: false` keeps the entry. The bundled JavaScript still loads at startup, but an absent
+provider does not enter executable resolution or catalog discovery.
+
 Provider plugins use separate installation and provider IDs. `muse-provider` registers the
 selectable `muse` provider (Muse Code) and a usage source. Its `status({ launch })` reports
 availability and a diagnostic after the daemon resolves the executable. Configure command,
@@ -122,6 +128,13 @@ Browse published plugins at [paseo.sh/plugins](https://paseo.sh/plugins).
 Use `git:owner/repository` or a full Git URL for a Git source. Registry installs
 keep the registry URL and ID, so update checks use its approved pin. Explicit version/ref
 selection is unavailable for registry installs; install an explicit source to select your own.
+
+Registry overviews are untrusted author content, even before installation. Render them with
+`@getpaseo/protocol/plugin-overview`: no raw HTML, HTTPS-only links and images, no relative
+URLs, and isolated external links. The website adapter and corpus tests live in
+`packages/website/src/plugins/overview.tsx` and `overview.test.tsx`; the reusable corpus is
+`packages/protocol/tests/fixtures/plugin-overview.json`. A future app overview must share
+this policy. Installed-plugin descriptions in the app remain plain text.
 
 Use `host/owner/slug` for a registry at `https://host`, or set
 `PASEO_PLUGIN_REGISTRY` to change the default base (including a path prefix).
@@ -152,8 +165,9 @@ and ask for approval. `ls` reports the installed commit without contacting the r
 ## Managed source ownership
 
 The [public source reference](../public-docs/plugins/reference.md#plugin-sources) owns identifier
-syntax and npm prerequisites; the [publishing guide](../public-docs/plugins/publishing.md) owns distribution. Both clients send the source unchanged
-through `installPluginSource`; only the daemon resolves host paths and acquires sources.
+syntax and npm prerequisites; the [publishing guide](../public-docs/plugins/publishing.md) owns distribution. The CLI resolves directory sources before
+calling `installPluginSource`; see the public source reference for CLI and app path semantics.
+Only the daemon reads plugin files and acquires sources.
 
 `ManagedPluginSources` owns acquisition and offline source description. Config stores the active
 directory; sources.json stores managed kind and the Git acquisition remote. The remote is needed
