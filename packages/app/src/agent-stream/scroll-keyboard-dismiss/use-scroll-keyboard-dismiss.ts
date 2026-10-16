@@ -21,7 +21,7 @@ type ScrollEvent = NativeSyntheticEvent<NativeScrollEvent>;
  * forwards the FlatList scroll lifecycle; removing this hook and those three
  * calls removes the feature completely.
  */
-export function useScrollKeyboardDismiss() {
+export function useScrollKeyboardDismiss(inverted = true) {
   const { shift } = useKeyboardShift();
   const gestureRef = useRef(IDLE_SCROLL_KEYBOARD_DISMISS_GESTURE);
 
@@ -34,7 +34,7 @@ export function useScrollKeyboardDismiss() {
   });
 
   const onScrollEndDrag = useStableEvent((event: ScrollEvent) => {
-    const release = releaseDrag(gestureRef.current, event);
+    const release = releaseDrag(gestureRef.current, event, inverted);
     gestureRef.current = release.gesture;
 
     // `shift` is the app's UI-thread-derived keyboard inset. Besides avoiding a

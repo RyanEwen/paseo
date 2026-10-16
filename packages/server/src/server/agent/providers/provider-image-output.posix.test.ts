@@ -7,7 +7,7 @@ import { materializeProviderImage } from "./provider-image-output.js";
 describe.skipIf(process.platform === "win32")("materializeProviderImage", () => {
   test("writes image attachments under a private temp directory", () => {
     const materialized = materializeProviderImage({
-      data: "YWJjMTIz",
+      data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X1r0AAAAASUVORK5CYII=",
       mimeType: "image/png",
     });
     const attachmentDir = path.dirname(materialized.path);

@@ -320,3 +320,33 @@ const SourceSchema = z.object({
     expect(result.success).toBe(true);
   });
 });
+
+it("generated validation accepts bounded durable reference replies", () => {
+  expect(
+    GeneratedWSOutboundMessageSchema.safeParse({
+      type: "session",
+      message: {
+        type: "attachments.list.response",
+        payload: { references: [], next: null, error: null, requestId: "list" },
+      },
+    }).success,
+  ).toBe(true);
+  expect(
+    GeneratedWSOutboundMessageSchema.safeParse({
+      type: "session",
+      message: {
+        type: "attachments.read.response",
+        payload: { reference: null, error: "Original unavailable", requestId: "read" },
+      },
+    }).success,
+  ).toBe(true);
+  expect(
+    GeneratedWSOutboundMessageSchema.safeParse({
+      type: "session",
+      message: {
+        type: "attachments.read.response",
+        payload: { reference: { id: "../../secret" }, error: null, requestId: "read" },
+      },
+    }).success,
+  ).toBe(false);
+});

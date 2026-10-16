@@ -1,3 +1,5 @@
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { test, expect, type Page } from "../support/fixtures";
 import { openAgentRoute, seedMockAgentWorkspace } from "../support/helpers/mock-agent";
@@ -270,4 +272,38 @@ test.describe("Workspace session rename (compact tabs)", () => {
       await session.cleanup();
     }
   });
+});
+
+test("wider tabs raise only the maximum and restore the earlier ceiling when disabled", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const session = await seedMockAgentWorkspace({
+    repoPrefix: "wider-tabs-",
+    title: "A long workspace conversation title that reaches the configured maximum tab width",
+  });
+  try {
+    await openAgentRoute(page, session);
+    const tab = page.getByTestId(`workspace-tab-agent_${session.agentId}`);
+    await expect(tab).toBeVisible();
+    const width = async () => (await tab.boundingBox())?.width ?? 0;
+    await expect.poll(width).toBe(240);
+    const evidence = resolve("../../docs/qa-evidence/wider-workspace-tabs");
+    mkdirSync(evidence, { recursive: true });
+    await page.screenshot({ path: resolve(evidence, "enabled.png") });
+    const workspacePath = new URL(page.url()).pathname;
+    await page.goto(buildSettingsSectionRoute("paseo-plus-plus"));
+    const control = page.getByTestId("paseo-plus-plus-widerWorkspaceTabs").getByRole("switch");
+    await expect(control).toBeChecked();
+    await control.click();
+    await expect(control).not.toBeChecked();
+    await expect(control).toBeEnabled();
+    await page.goto(workspacePath);
+    await expect.poll(width).toBe(160);
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await page.screenshot({ path: resolve(evidence, "disabled.png") });
+  } finally {
+    await session.cleanup();
+  }
 });

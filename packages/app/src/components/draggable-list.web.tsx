@@ -200,6 +200,7 @@ function SortableItemInner<T>({
 const SortableItem = memo(SortableItemInner) as typeof SortableItemInner;
 
 export function DraggableList<T>({
+  disabled = false,
   data,
   keyExtractor,
   renderItem,
@@ -227,6 +228,7 @@ export function DraggableList<T>({
     onDragEnd,
     onDragBegin,
     getDragGroupKey,
+    disabled,
   });
   const collisionDetection: CollisionDetection = useCallback(
     (args) => {
@@ -317,7 +319,7 @@ export function DraggableList<T>({
                     renderItem={renderItem}
                     activeId={activeId}
                     useDragHandle={useDragHandle}
-                    dragDisabled={getDragGroupKey?.(item) === null}
+                    dragDisabled={disabled || getDragGroupKey?.(item) === null}
                     positionTransitionDuration={
                       positionTransitionDuration === undefined ? undefined : motionDuration
                     }
@@ -353,7 +355,7 @@ export function DraggableList<T>({
                     renderItem={renderItem}
                     activeId={activeId}
                     useDragHandle={useDragHandle}
-                    dragDisabled={getDragGroupKey?.(item) === null}
+                    dragDisabled={disabled || getDragGroupKey?.(item) === null}
                     positionTransitionDuration={
                       positionTransitionDuration === undefined ? undefined : motionDuration
                     }

@@ -1,4 +1,5 @@
-import { ipcMain } from "electron";
+import { getNativeBrowserSurface } from "../browser-views/surfaces.js";
+import { ipcMain, screen } from "electron";
 import { BrowserAutomationExecuteRequestSchema } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import type {
   BrowserAutomationConsoleLogEntry,
@@ -102,6 +103,7 @@ interface BrowserAutomationWebContents extends ConsoleMessageEmitter {
   canGoForward(): boolean;
   isLoading(): boolean;
   isDestroyed(): boolean;
+  getZoomFactor(): number;
   executeJavaScript(code: string): Promise<unknown>;
   loadURL(url: string): Promise<void>;
   goBack(): void;
@@ -116,7 +118,23 @@ interface BrowserAutomationWebContents extends ConsoleMessageEmitter {
   insertText(text: string): Promise<void>;
 }
 
-export function adaptWebContents(contents: BrowserAutomationWebContents): TabContents {
+interface CaptureDisplay {
+  getScaleFactor(): number;
+}
+
+const captureDisplay: CaptureDisplay = {
+  getScaleFactor() {
+    // A guest can move across displays while capture is queued. Reserve for the
+    // largest connected display, and never trust page-overridable devicePixelRatio.
+    const displays = screen.getAllDisplays();
+    return Math.max(1, ...displays.map((display) => display.scaleFactor));
+  },
+};
+
+export function adaptWebContents(
+  contents: BrowserAutomationWebContents,
+  display: CaptureDisplay = captureDisplay,
+): TabContents {
   const contentsId = contents.id;
   observeConsoleMessages(contents, contentsId);
   const cdpQueue = getCdpQueue(contentsId);
@@ -134,11 +152,16 @@ export function adaptWebContents(contents: BrowserAutomationWebContents): TabCon
     goBack: () => contents.goBack(),
     goForward: () => contents.goForward(),
     reload: () => contents.reload(),
-    captureFrame: (signal) => captureViewportFrame(contents, signal),
+    captureFrame: (signal) => {
+      const nativeSurface = getNativeBrowserSurface(contentsId);
+      return nativeSurface ? nativeSurface.capture(signal) : captureViewportFrame(contents, signal);
+    },
+    getCaptureScaleFactor: () => display.getScaleFactor() * Math.max(1, contents.getZoomFactor()),
     invalidate: () => contents.invalidate(),
     runInput: (task, signal) =>
       getCommandQueue(contentsId, inputQueuesByContentsId).run(task, signal),
-    withFrameProduction: (capture) => withGuestFrameProduction(contents, capture),
+    withFrameProduction: (capture) =>
+      getNativeBrowserSurface(contentsId) ? capture() : withGuestFrameProduction(contents, capture),
     sendInputEvent: (event) => contents.sendInputEvent(event),
     insertText: (text) => contents.insertText(text),
     getConsoleMessages: () => consoleMessagesByContentsId.get(contentsId) ?? [],

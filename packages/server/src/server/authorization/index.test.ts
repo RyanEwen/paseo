@@ -150,3 +150,26 @@ describe("SessionAuthorization", () => {
     expect(() => parseDaemonPermissions(["hub.execution.*"])).toThrow("Invalid daemon permission");
   });
 });
+
+test("durable attachment operations require daemon-wide workspace.read in both directions", () => {
+  const viewer = new SessionAuthorization(["workspace.read"]);
+  const denied = new SessionAuthorization(["daemon.read"]);
+  for (const type of [
+    "attachments.list.request",
+    "attachments.get.request",
+    "attachments.read.request",
+    "attachments.read.cancel.request",
+  ] as const) {
+    expect(viewer.allowsInbound(inboundMessage(type))).toBe(true);
+    expect(denied.allowsInbound(inboundMessage(type))).toBe(false);
+  }
+  for (const type of [
+    "attachments.list.response",
+    "attachments.get.response",
+    "attachments.read.response",
+    "attachments.read.cancel.response",
+  ] as const) {
+    expect(viewer.allowsOutbound(outboundMessage(type))).toBe(true);
+    expect(denied.allowsOutbound(outboundMessage(type))).toBe(false);
+  }
+});

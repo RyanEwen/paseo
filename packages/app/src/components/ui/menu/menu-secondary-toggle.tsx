@@ -26,17 +26,19 @@ export interface MenuItemSecondaryToggle {
 export function MenuItemActions({
   children,
   toggle,
+  action,
   disabled,
 }: {
   children: ReactElement;
   toggle?: MenuItemSecondaryToggle;
+  action?: ReactElement;
   disabled: boolean;
 }): ReactElement {
-  if (!toggle) return children;
+  if (!toggle && !action) return children;
   return (
     <View style={styles.splitRow}>
       {children}
-      <MenuSecondaryToggle toggle={toggle} disabled={disabled} />
+      {action ?? (toggle ? <MenuSecondaryToggle toggle={toggle} disabled={disabled} /> : null)}
     </View>
   );
 }

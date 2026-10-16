@@ -33,6 +33,13 @@ zod-aot is exact-pinned and young enough that compiler patches are treated as pa
 - generated runtime imports must keep `.js` extensions for packaged Node ESM
 - the generated WebSocket envelope accepts a minimal valid message and rejects a corrupted one
 
+Attachment reference descriptors stay structural and bounded. List, metadata, read and cancel
+responses participate in generated outbound validation; keep their regression cases in
+`packages/protocol/tests/validation/ws-outbound.test.ts` and the schema cases in
+`packages/protocol/src/messages.test.ts`. Binary original framing has a separate validation boundary
+in the existing client transfer suite. A successful read reply certifies complete framing and host
+hash verification; metadata lookup does not certify the original's content hash.
+
 ## Schema Purity
 
 Message schemas are structural declarations. Do not put `.transform()`, `.catch()`, or `.preprocess()` on WebSocket message schemas. If parsed data needs normalization, put it in an explicit consumer or post-validation pass.

@@ -3,7 +3,12 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { loadAppSettingsFromStorage } from "@/hooks/use-settings";
 import { createSyncedAppSettingsSave } from "./app-edits";
-import { settingsSync, observeSidebarSettingsEdits, saveLocalUsageHost } from "./runtime";
+import {
+  settingsSync,
+  observeSidebarSettingsEdits,
+  saveLocalUsageHost,
+  initializeDeviceSidebarModes,
+} from "./runtime";
 import {
   installSettingsSyncSaveHandler,
   setSettingsEditingBlocked,
@@ -25,18 +30,31 @@ export function SettingsSyncBootstrap() {
     const uninstall = installSettingsSyncSaveHandler(
       createSyncedAppSettingsSave(settingsSync, loadAppSettingsFromStorage, saveLocalUsageHost),
     );
+    let initialized = false;
+    let active = true;
+    const owner = new AbortController();
     const updateGate = () => {
       const state = settingsSync.getState();
       setSettingsHostSelected(state.selectedHost !== null);
       setSettingsEditingBlocked(
-        !state.canWrite || !["local", "ready", "offline"].includes(state.status),
+        !initialized || !state.canWrite || !["local", "ready", "offline"].includes(state.status),
       );
     };
     updateGate();
     const stopGate = settingsSync.subscribe(updateGate);
     const stopSidebar = observeSidebarSettingsEdits();
-    void settingsSync.load();
+    const initialize = async () => {
+      await initializeDeviceSidebarModes();
+      if (!active) return;
+      await settingsSync.load(owner.signal);
+      if (!active) return;
+      initialized = true;
+      updateGate();
+    };
+    void initialize().catch(console.error);
     return () => {
+      active = false;
+      owner.abort();
       uninstall();
       stopGate();
       stopSidebar();

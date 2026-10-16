@@ -1,5 +1,11 @@
 import { CdpSessionQueue } from "./cdp-session-queue.js";
 import { resolve as resolvePath } from "node:path";
+import { PassThrough } from "node:stream";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { CdpPipe } from "../browser-engine/cdp-pipe.js";
+import { ChromiumProcess } from "../browser-engine/process.js";
 
 import { describe, expect, test, vi } from "vitest";
 import type {
@@ -12,12 +18,116 @@ import { waitForActionableTarget } from "./actionability.js";
 import { BrowserSnapshotEngine } from "./snapshot-engine.js";
 import type { BrowserRegistry, TabContents, TabImage, DialogCaptureOperation } from "./service.js";
 import { executeAutomationCommand } from "./service.js";
+import {
+  CAPTURE_MAX_AXIS,
+  CAPTURE_MAX_PIXELS,
+  CAPTURE_MAX_BYTES,
+  CAPTURE_MAX_PENDING,
+  CAPTURE_TIMEOUT_MS,
+} from "./capture-admission.js";
 import type { IsolatedKeyboardInputEvent } from "./trusted-input.js";
 
 const BROWSER_A = "11111111-1111-4111-8111-111111111111";
 const BROWSER_B = "22222222-2222-4222-8222-222222222222";
 const WORKSPACE_A = "workspace-a";
 const WORKSPACE_B = "workspace-b";
+
+describe("Chromium private command transport", () => {
+  test("releases a failed process launch without deleting existing profile data", async () => {
+    const profile = await mkdtemp(join(tmpdir(), "paseo-chromium-failed-launch-"));
+    try {
+      await writeFile(join(profile, "retained-data"), "existing cookies and site data");
+      await expect(
+        ChromiumProcess.launch({
+          executablePath: join(profile, "missing-browser"),
+          profilePath: profile,
+          headless: true,
+        }),
+      ).rejects.toThrow("ENOENT");
+      await expect(stat(join(profile, ".paseo-owner"))).rejects.toMatchObject({ code: "ENOENT" });
+      expect(await readFile(join(profile, "retained-data"), "utf8")).toBe(
+        "existing cookies and site data",
+      );
+    } finally {
+      await rm(profile, { recursive: true, force: true });
+    }
+  });
+
+  test("routes overlapping session replies and preserves split UTF-8 events", async () => {
+    const commands = new PassThrough();
+    const replies = new PassThrough();
+    const pipe = new CdpPipe(commands, replies);
+    const published: string[] = [];
+    commands.on("data", (bytes) => published.push(bytes.toString()));
+    const events: unknown[] = [];
+    pipe.on("event", (event) => events.push(event));
+    try {
+      const first = pipe.send("Runtime.evaluate", {}, { sessionId: "tab-a" });
+      const second = pipe.send("Page.captureScreenshot", {}, { sessionId: "tab-b" });
+      expect(published.map((value) => JSON.parse(value.slice(0, -1)))).toEqual([
+        { id: 1, method: "Runtime.evaluate", params: {}, sessionId: "tab-a" },
+        { id: 2, method: "Page.captureScreenshot", params: {}, sessionId: "tab-b" },
+      ]);
+      const message = Buffer.from(
+        JSON.stringify({ method: "Page.title", params: { title: "café" }, sessionId: "tab-b" }) +
+          '\0{"id":2,"result":{"data":"pixels"}}\0{"id":1,"result":{"value":7}}\0',
+      );
+      const split = message.indexOf(Buffer.from("é")) + 1;
+      replies.write(message.subarray(0, split));
+      replies.write(message.subarray(split));
+      expect(await first).toEqual({ value: 7 });
+      expect(await second).toEqual({ data: "pixels" });
+      expect(events).toEqual([
+        { method: "Page.title", params: { title: "café" }, sessionId: "tab-b" },
+      ]);
+    } finally {
+      pipe.close();
+    }
+  });
+
+  test("does not publish pre-cancelled input or replay input after cancellation", async () => {
+    const commands = new PassThrough();
+    const replies = new PassThrough();
+    const pipe = new CdpPipe(commands, replies);
+    const published: string[] = [];
+    commands.on("data", (bytes) => published.push(bytes.toString()));
+    const before = AbortSignal.abort(new Error("cancelled before publish"));
+    try {
+      await expect(
+        pipe.send("Input.insertText", { text: "no" }, { signal: before }),
+      ).rejects.toThrow("cancelled before publish");
+      expect(published).toEqual([]);
+      const controller = new AbortController();
+      const input = pipe.send("Input.insertText", { text: "once" }, { signal: controller.signal });
+      const rejected = expect(input).rejects.toThrow("cancelled after publish");
+      controller.abort(new Error("cancelled after publish"));
+      await rejected;
+      replies.write('{"id":1,"result":{}}\0');
+      expect(published).toHaveLength(1);
+      const read = pipe.send("Browser.getVersion");
+      replies.write('{"id":2,"result":{"product":"Chromium"}}\0');
+      expect(await read).toEqual({ product: "Chromium" });
+    } finally {
+      pipe.close();
+    }
+  });
+
+  test("rejects outstanding commands on broken framing and releases listeners", async () => {
+    const commands = new PassThrough();
+    const replies = new PassThrough();
+    const pipe = new CdpPipe(commands, replies);
+    const waiting = pipe.send("Page.captureScreenshot");
+    const rejected = expect(waiting).rejects.toThrow();
+    replies.write("broken-json\0");
+    await rejected;
+    await expect(pipe.send("Browser.getVersion")).rejects.toThrow();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(replies.listenerCount("data")).toBe(0);
+    expect(replies.listenerCount("end")).toBe(0);
+    expect(commands.listenerCount("error")).toBe(0);
+    pipe.close();
+  });
+});
 
 class FakeImage implements TabImage {
   public constructor(
@@ -85,6 +195,12 @@ class FakeTab implements TabContents {
   public captureThrows = false;
   public captureErrorMessage = "capture failed";
   public deferCaptures = false;
+  public captureScaleFactor = 1;
+  public viewportImage: TabImage = new FakeImage();
+  public getCaptureScaleFactor(): number {
+    return this.captureScaleFactor;
+  }
+  public fullPageCaptureWait: Promise<void> | null = null;
   public fullPageScreenshotThrows = false;
   public fullPageScreenshotErrorMessage = "UnknownVizError";
   public fullPageCaptureFailuresBeforeSuccess = 0;
@@ -188,14 +304,16 @@ class FakeTab implements TabContents {
       throw new Error(this.captureErrorMessage);
     }
     if (this.captureNeverPaints) {
-      return new Promise<never>(() => {});
+      return new Promise<never>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
     }
     if (this.deferCaptures) {
       return new Promise<TabImage>((resolve) => {
         this.deferredCaptures.push(resolve);
       });
     }
-    return new FakeImage();
+    return this.viewportImage;
   }
 
   public invalidate(): void {
@@ -222,6 +340,7 @@ class FakeTab implements TabContents {
       return this.layoutMetrics;
     }
     if (command === "Page.captureScreenshot") {
+      if (this.fullPageCaptureWait) await this.fullPageCaptureWait;
       if (this.fullPageCaptureFailuresBeforeSuccess > 0) {
         this.fullPageCaptureFailuresBeforeSuccess -= 1;
         throw new Error(this.fullPageScreenshotErrorMessage);
@@ -323,10 +442,11 @@ class BrowserAutomationHarness {
 
   public async execute(
     command: BrowserAutomationCommand,
-    input: { requestId?: string; workspaceId?: string; cwd?: string } = {},
+    input: { requestId?: string; workspaceId?: string; cwd?: string; signal?: AbortSignal } = {},
   ) {
     return executeAutomationCommand(automationRequest(command, input), this.registry, {
       snapshotEngine: this.snapshotEngine,
+      signal: input.signal,
     });
   }
 
@@ -1584,6 +1704,153 @@ describe("executeAutomationCommand", () => {
     expect(containsScript(browser.tab, "resultJson.slice(0, 79000)")).toBe(true);
   });
 
+  test.each([
+    ["axis", CAPTURE_MAX_AXIS + 1, 1, 1],
+    ["area", 4000, Math.floor(CAPTURE_MAX_PIXELS / 4000) + 1, 1],
+    ["device scale", 2000, 2000, 2],
+    ["zero", 0, 100, 1],
+    ["negative", -1, 100, 1],
+    ["non-finite", Infinity, 100, 1],
+    ["NaN", NaN, 100, 1],
+    ["invalid scale", 100, 100, NaN],
+  ])(
+    "rejects %s preflight geometry before viewport or full-page dispatch",
+    async (_name, width, height, scale) => {
+      for (const fullPage of [false, true]) {
+        const browser = new BrowserAutomationHarness();
+        browser.tab.layoutMetrics = {
+          cssLayoutViewport: { clientWidth: width, clientHeight: height },
+          cssContentSize: { width, height },
+        };
+        browser.tab.captureScaleFactor = scale;
+        const result = await browser.execute({
+          command: "screenshot",
+          args: { browserId: BROWSER_A, fullPage },
+        });
+        expect(result).toMatchObject({
+          ok: false,
+          error: { code: "browser_unsupported", retryable: false },
+        });
+        expect(browser.tab.capturedViewports).toHaveLength(0);
+        expect(
+          browser.tab.debugCommands.some((entry) => entry.command === "Page.captureScreenshot"),
+        ).toBe(false);
+      }
+    },
+  );
+
+  test("rejects oversized returned viewport dimensions before PNG encoding", async () => {
+    const browser = new BrowserAutomationHarness();
+    browser.tab.viewportImage = {
+      getSize: () => ({ width: CAPTURE_MAX_AXIS + 1, height: 1 }),
+      toPNG() {
+        throw new Error("Unadmitted image must not be encoded");
+      },
+    };
+    await expect(
+      browser.execute({ command: "screenshot", args: { browserId: BROWSER_A } }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "browser_unsupported" } });
+  });
+
+  test("rejects oversized PNG output before base64 encoding", async () => {
+    const browser = new BrowserAutomationHarness();
+    browser.tab.viewportImage = new FakeImage(new Uint8Array(CAPTURE_MAX_BYTES + 1));
+    await expect(
+      browser.execute({ command: "screenshot", args: { browserId: BROWSER_A } }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "browser_unsupported" } });
+  });
+
+  test("bounds the host queue and removes canceled waiters without capturing", async () => {
+    const browser = new BrowserAutomationHarness();
+    browser.tab.deferCaptures = true;
+    const capture = (signal?: AbortSignal) =>
+      browser.execute({ command: "screenshot", args: { browserId: BROWSER_A } }, { signal });
+    const first = capture();
+    await browser.tab.waitForCaptureStart(1);
+    const controllers = Array.from({ length: CAPTURE_MAX_PENDING }, () => new AbortController());
+    const waiting = controllers.map((controller) => capture(controller.signal));
+    await expect(capture()).resolves.toMatchObject({
+      ok: false,
+      error: { code: "browser_timeout", retryable: true },
+    });
+    for (const controller of controllers) controller.abort();
+    await Promise.all(waiting);
+    expect(browser.tab.capturedViewports).toHaveLength(1);
+    const next = capture();
+    browser.tab.finishNextCapture();
+    await browser.tab.waitForCaptureStart(2);
+    browser.tab.finishNextCapture();
+    await expect(first).resolves.toMatchObject({ ok: true });
+    await expect(next).resolves.toMatchObject({ ok: true });
+    expect(browser.tab.capturedViewports).toHaveLength(2);
+  });
+
+  test("expired queued captures do not dispatch before abort timers run", async () => {
+    vi.useFakeTimers();
+    try {
+      const browser = new BrowserAutomationHarness();
+      browser.tab.deferCaptures = true;
+      const capture = () =>
+        browser.execute({ command: "screenshot", args: { browserId: BROWSER_A } });
+      const first = capture();
+      await browser.tab.waitForCaptureStart(1);
+      const queued = capture();
+      await Promise.resolve();
+      vi.setSystemTime(Date.now() + CAPTURE_TIMEOUT_MS + 1);
+      expect(browser.tab.capturedViewports[0].aborted).toBe(false);
+      browser.tab.finishNextCapture();
+      await expect(first).resolves.toMatchObject({
+        ok: false,
+        error: { code: "screenshot_no_frame" },
+      });
+      await expect(queued).resolves.toMatchObject({
+        ok: false,
+        error: { code: "screenshot_no_frame" },
+      });
+      expect(browser.tab.capturedViewports).toHaveLength(1);
+    } finally {
+      await vi.runAllTimersAsync();
+      vi.useRealTimers();
+    }
+  });
+
+  test.each(["timeout", "cancel"])(
+    "%s retains an unacknowledged CDP capture reservation",
+    async (mode) => {
+      vi.useFakeTimers();
+      let finishCapture = () => {};
+      try {
+        const browser = new BrowserAutomationHarness();
+        browser.tab.fullPageCaptureWait = new Promise<void>((resolve) => {
+          finishCapture = resolve;
+        });
+        const controller = new AbortController();
+        const first = browser.execute(
+          { command: "screenshot", args: { browserId: BROWSER_A, fullPage: true } },
+          { signal: controller.signal },
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        expect(
+          browser.tab.debugCommands.some((entry) => entry.command === "Page.captureScreenshot"),
+        ).toBe(true);
+        if (mode === "timeout") await vi.advanceTimersByTimeAsync(CAPTURE_TIMEOUT_MS);
+        else controller.abort();
+        await expect(first).resolves.toMatchObject({ ok: false });
+        const next = browser.execute({ command: "screenshot", args: { browserId: BROWSER_A } });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(browser.tab.capturedViewports).toHaveLength(0);
+        finishCapture();
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(next).resolves.toMatchObject({ ok: true });
+        expect(browser.tab.capturedViewports).toHaveLength(1);
+      } finally {
+        finishCapture();
+        await vi.runAllTimersAsync();
+        vi.useRealTimers();
+      }
+    },
+  );
+
   test("screenshot captures the painted viewport", async () => {
     const browser = new BrowserAutomationHarness();
 
@@ -1606,7 +1873,7 @@ describe("executeAutomationCommand", () => {
     });
     expect(browser.tab.capturedViewports).toHaveLength(1);
     expect(browser.tab.capturedViewports[0].aborted).toBe(true);
-    expect(browser.tab.actions).toEqual(["invalidate", "capture"]);
+    expect(browser.tab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
   });
 
   test("screenshot returns no-frame when the viewport never paints", async () => {
@@ -1630,7 +1897,7 @@ describe("executeAutomationCommand", () => {
           retryable: true,
         },
       });
-      expect(browser.tab.actions).toEqual(["invalidate", "capture"]);
+      expect(browser.tab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
       expect(browser.tab.capturedViewports[0].aborted).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -1673,7 +1940,7 @@ describe("executeAutomationCommand", () => {
       }),
     ).rejects.toThrow("capture failed");
 
-    expect(browser.tab.actions).toEqual(["invalidate", "capture"]);
+    expect(browser.tab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
   });
 
   test("overlapping screenshots serialize through the shared capture queue", async () => {
@@ -1695,17 +1962,31 @@ describe("executeAutomationCommand", () => {
     );
     await Promise.resolve();
 
-    expect(browser.tab.actions).toEqual(["invalidate", "capture"]);
+    expect(browser.tab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
 
     browser.tab.finishNextCapture();
     await browser.tab.waitForCaptureStart(2);
 
-    expect(browser.tab.actions).toEqual(["invalidate", "capture", "invalidate", "capture"]);
+    expect(browser.tab.actions).toEqual([
+      "debug:Page.getLayoutMetrics",
+      "invalidate",
+      "capture",
+      "debug:Page.getLayoutMetrics",
+      "invalidate",
+      "capture",
+    ]);
 
     browser.tab.finishNextCapture();
     await expect(first).resolves.toMatchObject({ requestId: "req-screenshot", ok: true });
     await expect(second).resolves.toMatchObject({ requestId: "req-screenshot-2", ok: true });
-    expect(browser.tab.actions).toEqual(["invalidate", "capture", "invalidate", "capture"]);
+    expect(browser.tab.actions).toEqual([
+      "debug:Page.getLayoutMetrics",
+      "invalidate",
+      "capture",
+      "debug:Page.getLayoutMetrics",
+      "invalidate",
+      "capture",
+    ]);
   });
 
   test("overlapping screenshots across browser tabs serialize through the shared capture queue", async () => {
@@ -1738,19 +2019,19 @@ describe("executeAutomationCommand", () => {
     );
     await Promise.resolve();
 
-    expect(firstTab.actions).toEqual(["invalidate", "capture"]);
+    expect(firstTab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
     expect(secondTab.actions).toEqual([]);
 
     firstTab.finishNextCapture();
     await secondTab.waitForCaptureStart(1);
 
-    expect(firstTab.actions).toEqual(["invalidate", "capture"]);
-    expect(secondTab.actions).toEqual(["invalidate", "capture"]);
+    expect(firstTab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
+    expect(secondTab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
 
     secondTab.finishNextCapture();
     await expect(first).resolves.toMatchObject({ requestId: "req-screenshot", ok: true });
     await expect(second).resolves.toMatchObject({ requestId: "req-screenshot-2", ok: true });
-    expect(secondTab.actions).toEqual(["invalidate", "capture"]);
+    expect(secondTab.actions).toEqual(["debug:Page.getLayoutMetrics", "invalidate", "capture"]);
   });
 
   test("screenshot with fullPage captures the page content area through CDP", async () => {

@@ -1,3 +1,4 @@
+import { useWorkspaceTabSplitMenu } from "./workspace-tab-split-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import React, {
   useCallback,
@@ -770,6 +771,7 @@ function TabChip({
   dragHandleProps: DraggableListDragHandleProps | undefined;
 }) {
   const { closeButtonTestId, contextMenuTestId, menuEntries } = resolvedTab;
+  const splitMenu = useWorkspaceTabSplitMenu(tab.tabId);
   const { t } = useTranslation();
   const middleClickRef = useMiddleClickClose(
     useCallback(() => void onCloseTab(tab.tabId), [onCloseTab, tab.tabId]),
@@ -959,11 +961,19 @@ function TabChip({
             menuTestIDBase={`workspace-tab-menu-${tab.tabId}`}
             presentationLabel={accessibilityLabel}
             menuEntries={menuEntries}
+            splitMenu={splitMenu}
             touchSized
           />
         ) : null}
 
-        <ContextMenuContent align="start" width={DROPDOWN_WIDTH} testID={contextMenuTestId}>
+        <ContextMenuContent
+          align="start"
+          width={DROPDOWN_WIDTH}
+          testID={contextMenuTestId}
+          pages={splitMenu.pages}
+          minWidth={splitMenu.pages.length > 0 ? 300 : undefined}
+        >
+          {splitMenu.trigger}
           {menuEntries.map((entry) =>
             entry.kind === "separator" ? (
               <ContextMenuSeparator key={entry.key} />

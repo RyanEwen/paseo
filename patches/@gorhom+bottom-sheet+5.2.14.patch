@@ -1,0 +1,1096 @@
+diff --git a/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModal/BottomSheetModal.js b/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModal/BottomSheetModal.js
+--- a/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModal/BottomSheetModal.js
++++ b/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModal/BottomSheetModal.js
+@@ -20,6 +20,10 @@
+   mount: false,
+   data: undefined
+ };
++// Portal elements may outlive their owner generation.
++function PresentationContent({ isLive, render }) {
++  return isLive() ? render() : null;
++}
+ function BottomSheetModalComponent(props, ref) {
+   const {
+     // modal props
+@@ -44,10 +48,10 @@
+   //#region state
+   const [{
+     mount,
+-    data
++    data,
++    operation
+   }, setState] = (0, _react.useState)(INITIAL_STATE);
+-  const mountRef = (0, _react.useRef)(mount);
+-  mountRef.current = mount;
++
+   //#endregion
+ 
+   //#region hooks
+@@ -64,6 +68,11 @@
+   //#endregion
+ 
+   //#region refs
++  const operationRef = (0, _react.useRef)(null);
++  const sequence = (0, _react.useRef)(0);
++  const disposed = (0, _react.useRef)(false);
++  const dismissCallback = (0, _react.useRef)(_providedOnDismiss);
++  dismissCallback.current = _providedOnDismiss;
+   const bottomSheetRef = (0, _react.useRef)(null);
+   const statusRef = (0, _react.useRef)(_constants.MODAL_STATUS.INITIAL);
+   const currentIndexRef = (0, _react.useRef)(!animateOnMount ? index : -1);
+@@ -87,32 +96,51 @@
+     restoreIndexRef.current = -1;
+     statusRef.current = _constants.MODAL_STATUS.INITIAL;
+   }, []);
+-  const unmount = (0, _react.useCallback)(function unmount() {
+-    if (__DEV__) {
+-      (0, _utilities.print)({
+-        component: 'BottomSheetModal',
+-        method: unmount.name
+-      });
+-    }
+-    const hadReactMount = mountRef.current;
+-
+-    // reset variables
++  // An operation survives its RAF until terminal teardown. Portal elements carry
++  // this identity so resetting INITIAL cannot authorize an obsolete publication.
++  const isCurrent = (0, _react.useCallback)((candidate) =>
++    !!candidate && candidate.live && !disposed.current && operationRef.current === candidate, []);
++  const notifyTerminal = (0, _react.useCallback)((candidate) => {
++    if (!candidate.notify || candidate.notified || candidate.registering) return;
++    candidate.notified = true;
++    if (!disposed.current) dismissCallback.current?.();
++  }, []);
++  const retire = (0, _react.useCallback)((candidate, notify) => {
++    if (!candidate.live) return;
++    candidate.live = false;
++    candidate.notify = notify;
++    if (candidate.frame !== null) cancelAnimationFrame(candidate.frame);
++    candidate.frame = null;
++    if (operationRef.current === candidate) {
++      operationRef.current = null;
++      bottomSheetRef.current = null;
++    }
+     resetVariables();
+-
+-    // unmount sheet and portal
+-    unmountSheet(key);
+-    unmountPortal(key);
+-
+-    // unmount the node, if sheet is still mounted in React state
+-    if (hadReactMount) {
+-      setState(INITIAL_STATE);
+-    }
+-
+-    // fire `onDismiss` callback
+-    if (_providedOnDismiss) {
+-      _providedOnDismiss();
+-    }
+-  }, [key, resetVariables, unmountSheet, unmountPortal, _providedOnDismiss]);
++    // Override even a queued, not-yet-committed mount:true update.
++    if (!disposed.current) setState(INITIAL_STATE);
++    unmountPortal(candidate.portalKey);
++    if (candidate.registered) {
++      candidate.registered = false;
++      unmountSheet(candidate.sheetKey);
++    }
++    // mountSheet can synchronously dismiss another sheet. If that callback
++    // cancels us, remove its eventual registration before notifying our caller.
++    notifyTerminal(candidate);
++  }, [notifyTerminal, resetVariables, unmountPortal, unmountSheet]);
++  const unmount = (0, _react.useCallback)(() => {
++    const candidate = operationRef.current;
++    if (candidate) retire(candidate, true);
++  }, [retire]);
++  const dispose = (0, _react.useRef)(retire);
++  dispose.current = retire;
++  (0, _react.useLayoutEffect)(() => {
++    disposed.current = false;
++    return () => {
++      disposed.current = true;
++      const candidate = operationRef.current;
++      if (candidate) dispose.current(candidate, false);
++    };
++  }, []);
+   //#endregion
+ 
+   //#region bottom sheet methods
+@@ -156,30 +184,50 @@
+ 
+   //#region bottom sheet modal methods
+   // biome-ignore lint/correctness/useExhaustiveDependencies(ref): ref is a stable object
+-  const handlePresent = (0, _react.useCallback)(function handlePresent(_data) {
+-    if (__DEV__) {
+-      (0, _utilities.print)({
+-        component: 'BottomSheetModal',
+-        method: handlePresent.name,
+-        params: {
+-          currentIndexRef: currentIndexRef.current,
+-          nextIndexRef: nextIndexRef.current,
+-          status: statusRef.current
+-        }
+-      });
+-    }
+-    requestAnimationFrame(() => {
+-      if (mount && bottomSheetRef.current) {
+-        statusRef.current = _constants.MODAL_STATUS.ANIMATING;
+-        bottomSheetRef.current.snapToIndex(index);
++  const handlePresent = (0, _react.useCallback)(
++    function handlePresent(_data) {
++      if (disposed.current) return;
++      let candidate = operationRef.current;
++      if (!candidate) {
++        candidate = {
++          live: true, frame: null, committed: false, registered: false, registering: false,
++          notified: false, notify: false, data: _data,
++          portalKey: `${key}-${++sequence.current}`, sheetKey: key,
++        };
++        operationRef.current = candidate;
+       }
+-      setState({
+-        mount: true,
+-        data: _data
+-      });
+-      mountSheet(key, ref, stackBehavior);
+-    });
+-  }, [index, key, stackBehavior, mount, mountSheet]);
++      candidate.data = _data;
++      // Pending present calls share one RAF and retain the latest arguments.
++      if (candidate.frame !== null) return;
++      if (!candidate.committed && (candidate.registering || candidate.registered)) {
++        setState({ mount: true, data: candidate.data, operation: candidate });
++        return;
++      }
++      const owned = candidate;
++      owned.frame = requestAnimationFrame(() => {
++        if (!isCurrent(owned)) return;
++        owned.frame = null;
++        if (owned.committed && bottomSheetRef.current) {
++          statusRef.current = _constants.MODAL_STATUS.ANIMATING;
++          bottomSheetRef.current.snapToIndex(index);
++        }
++        setState({ mount: true, data: owned.data, operation: owned });
++        owned.registering = true;
++        try {
++          mountSheet(owned.sheetKey, ref, stackBehavior);
++        } finally {
++          owned.registering = false;
++          owned.registered = true;
++          if (!isCurrent(owned)) {
++            owned.registered = false;
++            unmountSheet(owned.sheetKey);
++            notifyTerminal(owned);
++          }
++        }
++      });
++    },
++    [index, isCurrent, key, mountSheet, notifyTerminal, stackBehavior, unmountSheet]
++  );
+   const handleDismiss = (0, _react.useCallback)(function handleDismiss(animationConfigs) {
+     if (__DEV__) {
+       (0, _utilities.print)({
+@@ -190,6 +238,15 @@
+         }
+       });
+     }
++
++      const pending = operationRef.current;
++      if (!pending) return;
++      if (!pending.committed) {
++        retire(pending, true);
++        return;
++      }
++      if (pending.frame !== null) cancelAnimationFrame(pending.frame);
++      pending.frame = null;
+ 
+     /**
+      * if the modal position is already in a closed position,
+@@ -203,7 +260,7 @@
+     statusRef.current = _constants.MODAL_STATUS.DISMISSING;
+     willUnmountSheet(key);
+     bottomSheetRef.current?.forceClose(animationConfigs);
+-  }, [willUnmountSheet, unmount, key]);
++  }, [willUnmountSheet, unmount, key, retire]);
+   const handleMinimize = (0, _react.useCallback)(function handleMinimize() {
+     if (__DEV__) {
+       (0, _utilities.print)({
+@@ -261,47 +318,22 @@
+   //#endregion
+ 
+   //#region callbacks
+-  const handlePortalOnUnmount = (0, _react.useCallback)(function handlePortalOnUnmount() {
+-    if (__DEV__) {
+-      (0, _utilities.print)({
+-        component: 'BottomSheetModal',
+-        method: 'handlePortalOnUnmount',
+-        params: {
+-          status: statusRef.current
+-        }
+-      });
+-    }
+-    if (statusRef.current === _constants.MODAL_STATUS.INITIAL) {
+-      return;
+-    }
+-
+-    /**
+-     * if modal is already in minimized/closed position, then
+-     * unmount its node and early exit the method.
+-     */
+-    if (statusRef.current === _constants.MODAL_STATUS.MINIMIZED || statusRef.current === _constants.MODAL_STATUS.DISMISSED || currentIndexRef.current === -1) {
++  const handlePortalOnUnmount = (0, _react.useCallback)(() => {
++    if (!isCurrent(operation)) return;
++    if (!bottomSheetRef.current ||
++        statusRef.current === _constants.MODAL_STATUS.MINIMIZED ||
++        statusRef.current === _constants.MODAL_STATUS.DISMISSED || currentIndexRef.current === -1) {
+       unmount();
+       return;
+     }
+     statusRef.current = _constants.MODAL_STATUS.DISMISSING;
+     willUnmountSheet(key);
+-    bottomSheetRef.current?.close();
+-  }, [key, unmount, willUnmountSheet]);
+-  const handlePortalRender = (0, _react.useCallback)(function handlePortalRender(render) {
+-    if (__DEV__) {
+-      (0, _utilities.print)({
+-        component: 'BottomSheetModal',
+-        method: 'handlePortalRender',
+-        params: {
+-          status: statusRef.current
+-        }
+-      });
+-    }
+-    if ([_constants.MODAL_STATUS.DISMISSING].includes(statusRef.current)) {
+-      return;
+-    }
++    bottomSheetRef.current.close();
++  }, [isCurrent, key, operation, unmount, willUnmountSheet]);
++  const handlePortalRender = (0, _react.useCallback)((render) => {
++    if (!isCurrent(operation) || statusRef.current === _constants.MODAL_STATUS.DISMISSING) return;
+     render();
+-  }, []);
++  }, [isCurrent, operation]);
+   const handleBottomSheetOnChange = (0, _react.useCallback)(function handleBottomSheetOnChange(_index, _position, _type) {
+     if (__DEV__) {
+       (0, _utilities.print)({
+@@ -390,31 +422,34 @@
+   //#endregion
+ 
+   // render
+-  return mount ? /*#__PURE__*/(0, _jsxRuntime.jsx)(_portal.Portal, {
+-    name: key,
++  return mount && operation ? /*#__PURE__*/(0, _jsxRuntime.jsx)(_portal.Portal, {
++    name: operation.portalKey,
+     hostName: hostName,
+     handleOnMount: handlePortalRender,
+     handleOnUpdate: handlePortalRender,
+     handleOnUnmount: handlePortalOnUnmount,
+-    children: /*#__PURE__*/(0, _jsxRuntime.jsx)(ContainerComponent, {
++    children: /*#__PURE__*/(0, _jsxRuntime.jsx)(PresentationContent, {
++      isLive: () => isCurrent(operation),
++      render: () => /*#__PURE__*/(0, _jsxRuntime.jsx)(ContainerComponent, {
+       children: /*#__PURE__*/(0, _react.createElement)(_bottomSheet.default, {
+         ...bottomSheetProps,
+-        ref: bottomSheetRef,
++        ref: (instance) => { if (isCurrent(operation)) { bottomSheetRef.current = instance; operation.committed = instance !== null; } },
+         key: key,
+         index: index,
+         snapPoints: snapPoints,
+         enablePanDownToClose: enablePanDownToClose,
+         animateOnMount: animateOnMount,
+         containerLayoutState: containerLayoutState,
+-        onChange: handleBottomSheetOnChange,
+-        onClose: handleBottomSheetOnClose,
+-        onAnimate: handleBottomSheetOnAnimate,
++        onChange: (...args) => { if (isCurrent(operation)) handleBottomSheetOnChange(...args); },
++        onClose: () => { if (isCurrent(operation)) handleBottomSheetOnClose(); },
++        onAnimate: (...args) => { if (isCurrent(operation)) handleBottomSheetOnAnimate(...args); },
+         $modal: true
+       }, typeof Content === 'function' ? Content({
+         data
+       }) : Content)
+-    }, key)
+-  }, key) : null;
++    }, operation.portalKey)
++    })
++  }, operation.portalKey) : null;
+ }
+ const BottomSheetModal = /*#__PURE__*/(0, _react.memo)(/*#__PURE__*/(0, _react.forwardRef)(BottomSheetModalComponent));
+ BottomSheetModal.displayName = 'BottomSheetModal';
+diff --git a/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModalProvider/BottomSheetModalProvider.js b/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModalProvider/BottomSheetModalProvider.js
+--- a/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModalProvider/BottomSheetModalProvider.js
++++ b/node_modules/@gorhom/bottom-sheet/lib/commonjs/components/bottomSheetModalProvider/BottomSheetModalProvider.js
+@@ -63,18 +63,16 @@
+       }
+     }
+ 
+-    /**
+-     * Restore and remove incoming sheet from the queue, if it was registered.
+-     */
+-    if (sheetIndex !== -1) {
+-      _sheetsQueue.splice(sheetIndex, 1);
++    // dismiss/minimize may synchronously retire a pending modal. Reconcile
++    // from the live queue instead of republishing the pre-callback snapshot.
++    const incomingIndex = sheetsQueueRef.current.findIndex(item => item.key === key);
++    if (incomingIndex !== -1) {
+       ref?.current?.restore();
+     }
+-    _sheetsQueue.push({
+-      key,
+-      ref
+-    });
+-    sheetsQueueRef.current = _sheetsQueue;
++    // restore may also invoke caller code; retain its changes and current order.
++    const nextQueue = sheetsQueueRef.current.filter(item => item.key !== key);
++    nextQueue.push({ key, ref });
++    sheetsQueueRef.current = nextQueue;
+   }, []);
+   const handleUnmountSheet = (0, _react.useCallback)(key => {
+     const _sheetsQueue = sheetsQueueRef.current.slice();
+diff --git a/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModal/BottomSheetModal.js b/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModal/BottomSheetModal.js
+--- a/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModal/BottomSheetModal.js
++++ b/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModal/BottomSheetModal.js
+@@ -2,7 +2,7 @@
+ 
+ /** biome-ignore-all lint/correctness/useHookAtTopLevel: random error needs extra time to debug */
+ import { Portal, usePortal } from '@gorhom/portal';
+-import React, { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState, createElement as _createElement } from 'react';
++import React, { forwardRef, memo, useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, createElement as _createElement } from 'react';
+ import { useBottomSheetModalInternal } from '../../hooks';
+ import { print } from '../../utilities';
+ import { id } from '../../utilities/id';
+@@ -13,6 +13,10 @@
+   mount: false,
+   data: undefined
+ };
++// Portal elements may outlive their owner generation.
++function PresentationContent({ isLive, render }) {
++  return isLive() ? render() : null;
++}
+ function BottomSheetModalComponent(props, ref) {
+   const {
+     // modal props
+@@ -37,10 +41,10 @@
+   //#region state
+   const [{
+     mount,
+-    data
++    data,
++    operation
+   }, setState] = useState(INITIAL_STATE);
+-  const mountRef = useRef(mount);
+-  mountRef.current = mount;
++
+   //#endregion
+ 
+   //#region hooks
+@@ -57,6 +61,11 @@
+   //#endregion
+ 
+   //#region refs
++  const operationRef = useRef(null);
++  const sequence = useRef(0);
++  const disposed = useRef(false);
++  const dismissCallback = useRef(_providedOnDismiss);
++  dismissCallback.current = _providedOnDismiss;
+   const bottomSheetRef = useRef(null);
+   const statusRef = useRef(MODAL_STATUS.INITIAL);
+   const currentIndexRef = useRef(!animateOnMount ? index : -1);
+@@ -80,32 +89,51 @@
+     restoreIndexRef.current = -1;
+     statusRef.current = MODAL_STATUS.INITIAL;
+   }, []);
+-  const unmount = useCallback(function unmount() {
+-    if (__DEV__) {
+-      print({
+-        component: 'BottomSheetModal',
+-        method: unmount.name
+-      });
+-    }
+-    const hadReactMount = mountRef.current;
+-
+-    // reset variables
++  // An operation survives its RAF until terminal teardown. Portal elements carry
++  // this identity so resetting INITIAL cannot authorize an obsolete publication.
++  const isCurrent = useCallback((candidate) =>
++    !!candidate && candidate.live && !disposed.current && operationRef.current === candidate, []);
++  const notifyTerminal = useCallback((candidate) => {
++    if (!candidate.notify || candidate.notified || candidate.registering) return;
++    candidate.notified = true;
++    if (!disposed.current) dismissCallback.current?.();
++  }, []);
++  const retire = useCallback((candidate, notify) => {
++    if (!candidate.live) return;
++    candidate.live = false;
++    candidate.notify = notify;
++    if (candidate.frame !== null) cancelAnimationFrame(candidate.frame);
++    candidate.frame = null;
++    if (operationRef.current === candidate) {
++      operationRef.current = null;
++      bottomSheetRef.current = null;
++    }
+     resetVariables();
+-
+-    // unmount sheet and portal
+-    unmountSheet(key);
+-    unmountPortal(key);
+-
+-    // unmount the node, if sheet is still mounted in React state
+-    if (hadReactMount) {
+-      setState(INITIAL_STATE);
+-    }
+-
+-    // fire `onDismiss` callback
+-    if (_providedOnDismiss) {
+-      _providedOnDismiss();
+-    }
+-  }, [key, resetVariables, unmountSheet, unmountPortal, _providedOnDismiss]);
++    // Override even a queued, not-yet-committed mount:true update.
++    if (!disposed.current) setState(INITIAL_STATE);
++    unmountPortal(candidate.portalKey);
++    if (candidate.registered) {
++      candidate.registered = false;
++      unmountSheet(candidate.sheetKey);
++    }
++    // mountSheet can synchronously dismiss another sheet. If that callback
++    // cancels us, remove its eventual registration before notifying our caller.
++    notifyTerminal(candidate);
++  }, [notifyTerminal, resetVariables, unmountPortal, unmountSheet]);
++  const unmount = useCallback(() => {
++    const candidate = operationRef.current;
++    if (candidate) retire(candidate, true);
++  }, [retire]);
++  const dispose = useRef(retire);
++  dispose.current = retire;
++  useLayoutEffect(() => {
++    disposed.current = false;
++    return () => {
++      disposed.current = true;
++      const candidate = operationRef.current;
++      if (candidate) dispose.current(candidate, false);
++    };
++  }, []);
+   //#endregion
+ 
+   //#region bottom sheet methods
+@@ -149,30 +177,50 @@
+ 
+   //#region bottom sheet modal methods
+   // biome-ignore lint/correctness/useExhaustiveDependencies(ref): ref is a stable object
+-  const handlePresent = useCallback(function handlePresent(_data) {
+-    if (__DEV__) {
+-      print({
+-        component: 'BottomSheetModal',
+-        method: handlePresent.name,
+-        params: {
+-          currentIndexRef: currentIndexRef.current,
+-          nextIndexRef: nextIndexRef.current,
+-          status: statusRef.current
+-        }
+-      });
+-    }
+-    requestAnimationFrame(() => {
+-      if (mount && bottomSheetRef.current) {
+-        statusRef.current = MODAL_STATUS.ANIMATING;
+-        bottomSheetRef.current.snapToIndex(index);
++  const handlePresent = useCallback(
++    function handlePresent(_data) {
++      if (disposed.current) return;
++      let candidate = operationRef.current;
++      if (!candidate) {
++        candidate = {
++          live: true, frame: null, committed: false, registered: false, registering: false,
++          notified: false, notify: false, data: _data,
++          portalKey: `${key}-${++sequence.current}`, sheetKey: key,
++        };
++        operationRef.current = candidate;
+       }
+-      setState({
+-        mount: true,
+-        data: _data
+-      });
+-      mountSheet(key, ref, stackBehavior);
+-    });
+-  }, [index, key, stackBehavior, mount, mountSheet]);
++      candidate.data = _data;
++      // Pending present calls share one RAF and retain the latest arguments.
++      if (candidate.frame !== null) return;
++      if (!candidate.committed && (candidate.registering || candidate.registered)) {
++        setState({ mount: true, data: candidate.data, operation: candidate });
++        return;
++      }
++      const owned = candidate;
++      owned.frame = requestAnimationFrame(() => {
++        if (!isCurrent(owned)) return;
++        owned.frame = null;
++        if (owned.committed && bottomSheetRef.current) {
++          statusRef.current = MODAL_STATUS.ANIMATING;
++          bottomSheetRef.current.snapToIndex(index);
++        }
++        setState({ mount: true, data: owned.data, operation: owned });
++        owned.registering = true;
++        try {
++          mountSheet(owned.sheetKey, ref, stackBehavior);
++        } finally {
++          owned.registering = false;
++          owned.registered = true;
++          if (!isCurrent(owned)) {
++            owned.registered = false;
++            unmountSheet(owned.sheetKey);
++            notifyTerminal(owned);
++          }
++        }
++      });
++    },
++    [index, isCurrent, key, mountSheet, notifyTerminal, stackBehavior, unmountSheet]
++  );
+   const handleDismiss = useCallback(function handleDismiss(animationConfigs) {
+     if (__DEV__) {
+       print({
+@@ -183,6 +231,15 @@
+         }
+       });
+     }
++
++      const pending = operationRef.current;
++      if (!pending) return;
++      if (!pending.committed) {
++        retire(pending, true);
++        return;
++      }
++      if (pending.frame !== null) cancelAnimationFrame(pending.frame);
++      pending.frame = null;
+ 
+     /**
+      * if the modal position is already in a closed position,
+@@ -196,7 +253,7 @@
+     statusRef.current = MODAL_STATUS.DISMISSING;
+     willUnmountSheet(key);
+     bottomSheetRef.current?.forceClose(animationConfigs);
+-  }, [willUnmountSheet, unmount, key]);
++  }, [willUnmountSheet, unmount, key, retire]);
+   const handleMinimize = useCallback(function handleMinimize() {
+     if (__DEV__) {
+       print({
+@@ -254,47 +311,22 @@
+   //#endregion
+ 
+   //#region callbacks
+-  const handlePortalOnUnmount = useCallback(function handlePortalOnUnmount() {
+-    if (__DEV__) {
+-      print({
+-        component: 'BottomSheetModal',
+-        method: 'handlePortalOnUnmount',
+-        params: {
+-          status: statusRef.current
+-        }
+-      });
+-    }
+-    if (statusRef.current === MODAL_STATUS.INITIAL) {
+-      return;
+-    }
+-
+-    /**
+-     * if modal is already in minimized/closed position, then
+-     * unmount its node and early exit the method.
+-     */
+-    if (statusRef.current === MODAL_STATUS.MINIMIZED || statusRef.current === MODAL_STATUS.DISMISSED || currentIndexRef.current === -1) {
++  const handlePortalOnUnmount = useCallback(() => {
++    if (!isCurrent(operation)) return;
++    if (!bottomSheetRef.current ||
++        statusRef.current === MODAL_STATUS.MINIMIZED ||
++        statusRef.current === MODAL_STATUS.DISMISSED || currentIndexRef.current === -1) {
+       unmount();
+       return;
+     }
+     statusRef.current = MODAL_STATUS.DISMISSING;
+     willUnmountSheet(key);
+-    bottomSheetRef.current?.close();
+-  }, [key, unmount, willUnmountSheet]);
+-  const handlePortalRender = useCallback(function handlePortalRender(render) {
+-    if (__DEV__) {
+-      print({
+-        component: 'BottomSheetModal',
+-        method: 'handlePortalRender',
+-        params: {
+-          status: statusRef.current
+-        }
+-      });
+-    }
+-    if ([MODAL_STATUS.DISMISSING].includes(statusRef.current)) {
+-      return;
+-    }
++    bottomSheetRef.current.close();
++  }, [isCurrent, key, operation, unmount, willUnmountSheet]);
++  const handlePortalRender = useCallback((render) => {
++    if (!isCurrent(operation) || statusRef.current === MODAL_STATUS.DISMISSING) return;
+     render();
+-  }, []);
++  }, [isCurrent, operation]);
+   const handleBottomSheetOnChange = useCallback(function handleBottomSheetOnChange(_index, _position, _type) {
+     if (__DEV__) {
+       print({
+@@ -383,31 +415,34 @@
+   //#endregion
+ 
+   // render
+-  return mount ? /*#__PURE__*/_jsx(Portal, {
+-    name: key,
++  return mount && operation ? /*#__PURE__*/_jsx(Portal, {
++    name: operation.portalKey,
+     hostName: hostName,
+     handleOnMount: handlePortalRender,
+     handleOnUpdate: handlePortalRender,
+     handleOnUnmount: handlePortalOnUnmount,
+-    children: /*#__PURE__*/_jsx(ContainerComponent, {
++    children: /*#__PURE__*/_jsx(PresentationContent, {
++      isLive: () => isCurrent(operation),
++      render: () => /*#__PURE__*/_jsx(ContainerComponent, {
+       children: /*#__PURE__*/_createElement(BottomSheet, {
+         ...bottomSheetProps,
+-        ref: bottomSheetRef,
++        ref: (instance) => { if (isCurrent(operation)) { bottomSheetRef.current = instance; operation.committed = instance !== null; } },
+         key: key,
+         index: index,
+         snapPoints: snapPoints,
+         enablePanDownToClose: enablePanDownToClose,
+         animateOnMount: animateOnMount,
+         containerLayoutState: containerLayoutState,
+-        onChange: handleBottomSheetOnChange,
+-        onClose: handleBottomSheetOnClose,
+-        onAnimate: handleBottomSheetOnAnimate,
++        onChange: (...args) => { if (isCurrent(operation)) handleBottomSheetOnChange(...args); },
++        onClose: () => { if (isCurrent(operation)) handleBottomSheetOnClose(); },
++        onAnimate: (...args) => { if (isCurrent(operation)) handleBottomSheetOnAnimate(...args); },
+         $modal: true
+       }, typeof Content === 'function' ? Content({
+         data
+       }) : Content)
+-    }, key)
+-  }, key) : null;
++    }, operation.portalKey)
++    })
++  }, operation.portalKey) : null;
+ }
+ const BottomSheetModal = /*#__PURE__*/memo(/*#__PURE__*/forwardRef(BottomSheetModalComponent));
+ BottomSheetModal.displayName = 'BottomSheetModal';
+diff --git a/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModalProvider/BottomSheetModalProvider.js b/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModalProvider/BottomSheetModalProvider.js
+--- a/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModalProvider/BottomSheetModalProvider.js
++++ b/node_modules/@gorhom/bottom-sheet/lib/module/components/bottomSheetModalProvider/BottomSheetModalProvider.js
+@@ -58,18 +58,16 @@
+       }
+     }
+ 
+-    /**
+-     * Restore and remove incoming sheet from the queue, if it was registered.
+-     */
+-    if (sheetIndex !== -1) {
+-      _sheetsQueue.splice(sheetIndex, 1);
++    // dismiss/minimize may synchronously retire a pending modal. Reconcile
++    // from the live queue instead of republishing the pre-callback snapshot.
++    const incomingIndex = sheetsQueueRef.current.findIndex(item => item.key === key);
++    if (incomingIndex !== -1) {
+       ref?.current?.restore();
+     }
+-    _sheetsQueue.push({
+-      key,
+-      ref
+-    });
+-    sheetsQueueRef.current = _sheetsQueue;
++    // restore may also invoke caller code; retain its changes and current order.
++    const nextQueue = sheetsQueueRef.current.filter(item => item.key !== key);
++    nextQueue.push({ key, ref });
++    sheetsQueueRef.current = nextQueue;
+   }, []);
+   const handleUnmountSheet = useCallback(key => {
+     const _sheetsQueue = sheetsQueueRef.current.slice();
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModal/BottomSheetModal.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModal/BottomSheetModal.tsx
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModal/BottomSheetModal.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModal/BottomSheetModal.tsx
+@@ -6,6 +6,7 @@
+   type RefObject,
+   useCallback,
+   useImperativeHandle,
++  useLayoutEffect,
+   useMemo,
+   useRef,
+   useState,
+@@ -32,6 +33,28 @@
+   data: undefined,
+ };
+ 
++interface PresentationOperation<T> {
++  live: boolean;
++  frame: number | null;
++  committed: boolean;
++  registered: boolean;
++  registering: boolean;
++  notified: boolean;
++  notify: boolean;
++  data: T | undefined;
++  portalKey: string;
++  sheetKey: string;
++}
++
++// Portal hosts render stored elements later, outside the modal owner's tree.
++// Check the captured generation again before evaluating Content or mounting refs.
++function PresentationContent({ isLive, render }: {
++  isLive(): boolean;
++  render(): React.ReactNode;
++}) {
++  return isLive() ? render() : null;
++}
++
+ type BottomSheetModal<T = never> = BottomSheetModalMethods<T>;
+ 
+ function BottomSheetModalComponent<T = never>(
+@@ -62,10 +85,8 @@
+   } = props;
+ 
+   //#region state
+-  const [{ mount, data }, setState] =
+-    useState<BottomSheetModalState<T>>(INITIAL_STATE);
+-  const mountRef = useRef(mount);
+-  mountRef.current = mount;
++  const [{ mount, data, operation }, setState] =
++    useState<BottomSheetModalState<T> & { operation?: PresentationOperation<T> }>(INITIAL_STATE);
+   //#endregion
+ 
+   //#region hooks
+@@ -80,6 +101,11 @@
+   //#endregion
+ 
+   //#region refs
++  const operationRef = useRef<PresentationOperation<T> | null>(null);
++  const sequence = useRef(0);
++  const disposed = useRef(false);
++  const dismissCallback = useRef(_providedOnDismiss);
++  dismissCallback.current = _providedOnDismiss;
+   const bottomSheetRef = useRef<BottomSheet>(null);
+   const statusRef = useRef<MODAL_STATUS>(MODAL_STATUS.INITIAL);
+   const currentIndexRef = useRef(!animateOnMount ? index : -1);
+@@ -103,35 +129,51 @@
+     restoreIndexRef.current = -1;
+     statusRef.current = MODAL_STATUS.INITIAL;
+   }, []);
+-  const unmount = useCallback(
+-    function unmount() {
+-      if (__DEV__) {
+-        print({
+-          component: 'BottomSheetModal',
+-          method: unmount.name,
+-        });
+-      }
+-      const hadReactMount = mountRef.current;
+-
+-      // reset variables
+-      resetVariables();
+-
+-      // unmount sheet and portal
+-      unmountSheet(key);
+-      unmountPortal(key);
+-
+-      // unmount the node, if sheet is still mounted in React state
+-      if (hadReactMount) {
+-        setState(INITIAL_STATE);
+-      }
+-
+-      // fire `onDismiss` callback
+-      if (_providedOnDismiss) {
+-        _providedOnDismiss();
+-      }
+-    },
+-    [key, resetVariables, unmountSheet, unmountPortal, _providedOnDismiss]
+-  );
++  // An operation survives its RAF until terminal teardown. Portal elements carry
++  // this identity so resetting INITIAL cannot authorize an obsolete publication.
++  const isCurrent = useCallback((candidate: PresentationOperation<T> | undefined) =>
++    !!candidate && candidate.live && !disposed.current && operationRef.current === candidate, []);
++  const notifyTerminal = useCallback((candidate: PresentationOperation<T>) => {
++    if (!candidate.notify || candidate.notified || candidate.registering) return;
++    candidate.notified = true;
++    if (!disposed.current) dismissCallback.current?.();
++  }, []);
++  const retire = useCallback((candidate: PresentationOperation<T>, notify: boolean) => {
++    if (!candidate.live) return;
++    candidate.live = false;
++    candidate.notify = notify;
++    if (candidate.frame !== null) cancelAnimationFrame(candidate.frame);
++    candidate.frame = null;
++    if (operationRef.current === candidate) {
++      operationRef.current = null;
++      bottomSheetRef.current = null;
++    }
++    resetVariables();
++    // Override even a queued, not-yet-committed mount:true update.
++    if (!disposed.current) setState(INITIAL_STATE);
++    unmountPortal(candidate.portalKey);
++    if (candidate.registered) {
++      candidate.registered = false;
++      unmountSheet(candidate.sheetKey);
++    }
++    // mountSheet can synchronously dismiss another sheet. If that callback
++    // cancels us, remove its eventual registration before notifying our caller.
++    notifyTerminal(candidate);
++  }, [notifyTerminal, resetVariables, unmountPortal, unmountSheet]);
++  const unmount = useCallback(() => {
++    const candidate = operationRef.current;
++    if (candidate) retire(candidate, true);
++  }, [retire]);
++  const dispose = useRef(retire);
++  dispose.current = retire;
++  useLayoutEffect(() => {
++    disposed.current = false;
++    return () => {
++      disposed.current = true;
++      const candidate = operationRef.current;
++      if (candidate) dispose.current(candidate, false);
++    };
++  }, []);
+   //#endregion
+ 
+   //#region bottom sheet methods
+@@ -228,37 +270,47 @@
+   // biome-ignore lint/correctness/useExhaustiveDependencies(ref): ref is a stable object
+   const handlePresent = useCallback(
+     function handlePresent(_data?: T) {
+-      if (__DEV__) {
+-        print({
+-          component: 'BottomSheetModal',
+-          method: handlePresent.name,
+-          params: {
+-            currentIndexRef: currentIndexRef.current,
+-            nextIndexRef: nextIndexRef.current,
+-            status: statusRef.current,
+-          },
+-        });
+-      }
+-
+-      requestAnimationFrame(() => {
+-        if (mount && bottomSheetRef.current) {
++      if (disposed.current) return;
++      let candidate = operationRef.current;
++      if (!candidate) {
++        candidate = {
++          live: true, frame: null, committed: false, registered: false, registering: false,
++          notified: false, notify: false, data: _data,
++          portalKey: `${key}-${++sequence.current}`, sheetKey: key,
++        };
++        operationRef.current = candidate;
++      }
++      candidate.data = _data;
++      // Pending present calls share one RAF and retain the latest arguments.
++      if (candidate.frame !== null) return;
++      if (!candidate.committed && (candidate.registering || candidate.registered)) {
++        setState({ mount: true, data: candidate.data, operation: candidate });
++        return;
++      }
++      const owned = candidate;
++      owned.frame = requestAnimationFrame(() => {
++        if (!isCurrent(owned)) return;
++        owned.frame = null;
++        if (owned.committed && bottomSheetRef.current) {
+           statusRef.current = MODAL_STATUS.ANIMATING;
+           bottomSheetRef.current.snapToIndex(index);
+         }
+-
+-        setState({
+-          mount: true,
+-          data: _data,
+-        });
+-
+-        mountSheet(
+-          key,
+-          ref as unknown as RefObject<BottomSheetModalPrivateMethods>,
+-          stackBehavior
+-        );
++        setState({ mount: true, data: owned.data, operation: owned });
++        owned.registering = true;
++        try {
++          mountSheet(owned.sheetKey, ref as unknown as RefObject<BottomSheetModalPrivateMethods>, stackBehavior);
++        } finally {
++          owned.registering = false;
++          owned.registered = true;
++          if (!isCurrent(owned)) {
++            owned.registered = false;
++            unmountSheet(owned.sheetKey);
++            notifyTerminal(owned);
++          }
++        }
+       });
+     },
+-    [index, key, stackBehavior, mount, mountSheet]
++    [index, isCurrent, key, mountSheet, notifyTerminal, stackBehavior, unmountSheet]
+   );
+   const handleDismiss = useCallback<BottomSheetModalMethods['dismiss']>(
+     function handleDismiss(animationConfigs) {
+@@ -271,6 +323,15 @@
+           },
+         });
+       }
++
++      const pending = operationRef.current;
++      if (!pending) return;
++      if (!pending.committed) {
++        retire(pending, true);
++        return;
++      }
++      if (pending.frame !== null) cancelAnimationFrame(pending.frame);
++      pending.frame = null;
+ 
+       /**
+        * if the modal position is already in a closed position,
+@@ -292,7 +353,7 @@
+       willUnmountSheet(key);
+       bottomSheetRef.current?.forceClose(animationConfigs);
+     },
+-    [willUnmountSheet, unmount, key]
++    [willUnmountSheet, unmount, key, retire]
+   );
+   const handleMinimize = useCallback(
+     function handleMinimize() {
+@@ -361,58 +422,22 @@
+   //#endregion
+ 
+   //#region callbacks
+-  const handlePortalOnUnmount = useCallback(
+-    function handlePortalOnUnmount() {
+-      if (__DEV__) {
+-        print({
+-          component: 'BottomSheetModal',
+-          method: 'handlePortalOnUnmount',
+-          params: {
+-            status: statusRef.current,
+-          },
+-        });
+-      }
+-
+-      if (statusRef.current === MODAL_STATUS.INITIAL) {
+-        return;
+-      }
+-
+-      /**
+-       * if modal is already in minimized/closed position, then
+-       * unmount its node and early exit the method.
+-       */
+-      if (
++  const handlePortalOnUnmount = useCallback(() => {
++    if (!isCurrent(operation)) return;
++    if (!bottomSheetRef.current ||
+         statusRef.current === MODAL_STATUS.MINIMIZED ||
+-        statusRef.current === MODAL_STATUS.DISMISSED ||
+-        currentIndexRef.current === -1
+-      ) {
+-        unmount();
+-        return;
+-      }
+-
+-      statusRef.current = MODAL_STATUS.DISMISSING;
+-      willUnmountSheet(key);
+-      bottomSheetRef.current?.close();
+-    },
+-    [key, unmount, willUnmountSheet]
+-  );
+-  const handlePortalRender = useCallback(function handlePortalRender(
+-    render: () => void
+-  ) {
+-    if (__DEV__) {
+-      print({
+-        component: 'BottomSheetModal',
+-        method: 'handlePortalRender',
+-        params: {
+-          status: statusRef.current,
+-        },
+-      });
+-    }
+-    if ([MODAL_STATUS.DISMISSING].includes(statusRef.current)) {
++        statusRef.current === MODAL_STATUS.DISMISSED || currentIndexRef.current === -1) {
++      unmount();
+       return;
+     }
++    statusRef.current = MODAL_STATUS.DISMISSING;
++    willUnmountSheet(key);
++    bottomSheetRef.current.close();
++  }, [isCurrent, key, operation, unmount, willUnmountSheet]);
++  const handlePortalRender = useCallback((render: () => void) => {
++    if (!isCurrent(operation) || statusRef.current === MODAL_STATUS.DISMISSING) return;
+     render();
+-  }, []);
++  }, [isCurrent, operation]);
+   const handleBottomSheetOnChange = useCallback(
+     function handleBottomSheetOnChange(
+       _index: number,
+@@ -533,33 +558,35 @@
+   //#endregion
+ 
+   // render
+-  return mount ? (
++  return mount && operation ? (
+     <Portal
+-      key={key}
+-      name={key}
++      key={operation.portalKey}
++      name={operation.portalKey}
+       hostName={hostName}
+       handleOnMount={handlePortalRender}
+       handleOnUpdate={handlePortalRender}
+       handleOnUnmount={handlePortalOnUnmount}
+     >
+-      <ContainerComponent key={key}>
++      <PresentationContent isLive={() => isCurrent(operation)} render={() => (
++      <ContainerComponent key={operation.portalKey}>
+         <BottomSheet
+           {...bottomSheetProps}
+-          ref={bottomSheetRef}
++          ref={(instance) => { if (isCurrent(operation)) { bottomSheetRef.current = instance; operation.committed = instance !== null; } }}
+           key={key}
+           index={index}
+           snapPoints={snapPoints}
+           enablePanDownToClose={enablePanDownToClose}
+           animateOnMount={animateOnMount}
+           containerLayoutState={containerLayoutState}
+-          onChange={handleBottomSheetOnChange}
+-          onClose={handleBottomSheetOnClose}
+-          onAnimate={handleBottomSheetOnAnimate}
++          onChange={(...args) => { if (isCurrent(operation)) handleBottomSheetOnChange(...args); }}
++          onClose={() => { if (isCurrent(operation)) handleBottomSheetOnClose(); }}
++          onAnimate={(...args) => { if (isCurrent(operation)) handleBottomSheetOnAnimate(...args); }}
+           $modal={true}
+         >
+           {typeof Content === 'function' ? Content({ data }) : Content}
+         </BottomSheet>
+       </ContainerComponent>
++      )} />
+     </Portal>
+   ) : null;
+ }
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModalProvider/BottomSheetModalProvider.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModalProvider/BottomSheetModalProvider.tsx
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModalProvider/BottomSheetModalProvider.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetModalProvider/BottomSheetModalProvider.tsx
+@@ -82,19 +82,16 @@
+         }
+       }
+ 
+-      /**
+-       * Restore and remove incoming sheet from the queue, if it was registered.
+-       */
+-      if (sheetIndex !== -1) {
+-        _sheetsQueue.splice(sheetIndex, 1);
++      // dismiss/minimize may synchronously retire a pending modal. Reconcile
++      // from the live queue instead of republishing the pre-callback snapshot.
++      const incomingIndex = sheetsQueueRef.current.findIndex(item => item.key === key);
++      if (incomingIndex !== -1) {
+         ref?.current?.restore();
+       }
+-
+-      _sheetsQueue.push({
+-        key,
+-        ref,
+-      });
+-      sheetsQueueRef.current = _sheetsQueue;
++      // restore may also invoke caller code; retain its changes and current order.
++      const nextQueue = sheetsQueueRef.current.filter(item => item.key !== key);
++      nextQueue.push({ key, ref });
++      sheetsQueueRef.current = nextQueue;
+     },
+     []
+   );

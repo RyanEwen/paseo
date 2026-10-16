@@ -163,6 +163,33 @@ describe("CheckoutDiffManager", () => {
     };
   }
 
+  test("file scopes own independent normalized targets and preserve literal paths", async () => {
+    const { manager, workspaceGitService } = createManager();
+    const whole = await manager.subscribe(
+      { cwd: "/tmp/repo", compare: { mode: "base", baseRef: " main " } },
+      () => {},
+    );
+    const file = await manager.subscribe(
+      { cwd: "/tmp/repo", compare: { mode: "base", baseRef: "main", filePath: " a.css " } },
+      () => {},
+    );
+    const other = await manager.subscribe(
+      { cwd: "/tmp/repo", compare: { mode: "base", baseRef: "main", filePath: "a.css" } },
+      () => {},
+    );
+    expect(manager.getMetrics().checkoutDiffTargetCount).toBe(3);
+    expect(workspaceGitService.getCheckoutDiff).toHaveBeenCalledWith(
+      "/tmp/repo",
+      expect.objectContaining({ mode: "base", baseRef: "main", filePath: " a.css " }),
+      undefined,
+    );
+    file.unsubscribe();
+    expect(manager.getMetrics().checkoutDiffTargetCount).toBe(2);
+    whole.unsubscribe();
+    other.unsubscribe();
+    manager.dispose();
+  });
+
   test("subscribe requests a working tree watch with the correct cwd", async () => {
     const { manager, mockRequestWorkingTreeWatch } = createManager();
 

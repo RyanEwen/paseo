@@ -116,6 +116,54 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
       ipcRenderer.invoke("paseo:menu:set-capturing-shortcut", capturing),
   },
   browser: {
+    views: {
+      beginOverlay: (token: string) =>
+        ipcRenderer.invoke("paseo:browser-view:overlay-begin", { token }),
+      captureOverlay: (input: {
+        token: string;
+        browserId: string;
+        webContentsId: number;
+        revision: number;
+      }) => ipcRenderer.invoke("paseo:browser-view:overlay-frame", input),
+      endOverlay: (token: string) =>
+        ipcRenderer.invoke("paseo:browser-view:overlay-end", { token }),
+      create: (input: { browserId: string; workspaceId: string; url: string }) =>
+        ipcRenderer.invoke("paseo:browser-view:create", input),
+      present: (input: {
+        browserId: string;
+        webContentsId: number;
+        visible: boolean;
+        viewportMode: "fixed" | "responsive";
+        bounds: { x: number; y: number; width: number; height: number };
+        clip?: { x: number; y: number; width: number; height: number };
+      }) => ipcRenderer.invoke("paseo:browser-view:present", input),
+      navigate: (browserId: string, webContentsId: number, url: string) =>
+        ipcRenderer.invoke("paseo:browser-view:navigate", { browserId, webContentsId, url }),
+      executeScript: (browserId: string, webContentsId: number, code: string) =>
+        ipcRenderer.invoke("paseo:browser-view:execute-script", { browserId, webContentsId, code }),
+      control: (
+        browserId: string,
+        webContentsId: number,
+        command: "back" | "forward" | "reload" | "stop",
+      ) => ipcRenderer.invoke("paseo:browser-view:control", { browserId, webContentsId, command }),
+      state: (browserId: string, webContentsId: number) =>
+        ipcRenderer.invoke("paseo:browser-view:state", { browserId, webContentsId }),
+      focus: (browserId: string, webContentsId: number) =>
+        ipcRenderer.invoke("paseo:browser-view:focus", { browserId, webContentsId }),
+      close: (browserId: string, webContentsId: number) =>
+        ipcRenderer.invoke("paseo:browser-view:close", { browserId, webContentsId }),
+    },
+    extensions: {
+      list: () => ipcRenderer.invoke("paseo:browser:extensions:list"),
+      actions: () => ipcRenderer.invoke("paseo:browser:extensions:actions"),
+      openPopup: (id: string, browserId: string) =>
+        ipcRenderer.invoke("paseo:browser:extensions:open-popup", { id, browserId }),
+      setEnabled: (id: string, enabled: boolean) =>
+        ipcRenderer.invoke("paseo:browser:extensions:set-enabled", { id, enabled }),
+      remove: (id: string) => ipcRenderer.invoke("paseo:browser:extensions:remove", id),
+      loadUnpacked: () => ipcRenderer.invoke("paseo:browser:extensions:load-unpacked"),
+      openStore: () => ipcRenderer.invoke("paseo:browser:extensions:open-store"),
+    },
     setShortcutPolicy: (input: BrowserKeyboardPolicy) =>
       ipcRenderer.invoke("paseo:browser:set-shortcut-policy", input),
     profilePartition: PASEO_BROWSER_PROFILE_PARTITION,

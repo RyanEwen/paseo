@@ -89,8 +89,13 @@ It defaults to closed. Saved workspace visibility stays as you left it when this
 
 The same section controls whether clicking a file in Changes shows all changed files or only the
 selected file. All changed files is the default. Single-file diffs keep their scope when restored;
-opening workspace Changes directly still shows the full diff. Inline Changes keeps the full file
-tree available when its document shows only the selected file.
+opening workspace Changes directly still shows the full diff. Compact **Jump to file** selections
+honor the same scope preference and keep every changed file available in the picker. Inline Changes
+keeps the full file tree available when its document shows only the selected file.
+
+Single-file acquisition requires the workspace host's `checkoutFileDiff` capability. It applies
+the file's existing size limit before unrelated changes can consume the checkout budget. Older
+hosts show an update instruction. The full overview remains a separate comparison on the same base.
 
 Changes defaults to Uncommitted and remembers the comparison you select per workspace, including
 across reloads and dirty-state changes. **Default comparison** applies where no selection is saved.

@@ -1,4 +1,9 @@
-import { WorkspaceHttpLinkMenu, WorkspaceBrowserMenuItem } from "@/workspace/browser/link-menu";
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
+import {
+  WorkspaceHttpLinkMenu,
+  WorkspaceBrowserMenuItem,
+  WorkspaceExternalBrowserMenuItem,
+} from "@/workspace/browser/link-menu";
 import { useCallback, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View, type ViewStyle } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -18,7 +23,6 @@ import {
 } from "lucide-react-native";
 import type { PressableStateCallbackType } from "react-native";
 import { useTranslation } from "react-i18next";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -137,11 +141,6 @@ const ADD_TO_CHAT_MENU_ICON = (
 const COPY_MENU_ICON = <ThemedCopy size={14} uniProps={foregroundMutedColorMapping} />;
 const OPEN_MENU_ICON = <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />;
 
-function handleMarkdownLinkPress(url: string): boolean {
-  void openExternalUrl(url);
-  return false;
-}
-
 function entryHeaderPressableStyle({ hovered }: { hovered?: boolean }) {
   return [styles.entryHeaderPressable, Boolean(hovered) && styles.hoverable];
 }
@@ -199,6 +198,7 @@ export function PullRequestPane({
   activityLoading: boolean;
   workspaceAttachmentScopeKey?: string;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
   const toolbarRefreshButtonStyle = useCallback(
@@ -228,8 +228,8 @@ export function PullRequestPane({
   const [loadingCheckKeys, setLoadingCheckKeys] = useState<ReadonlySet<string>>(() => new Set());
 
   const handleOpenPrUrl = useCallback(() => {
-    void openExternalUrl(data.url);
-  }, [data.url]);
+    void openPrimary(data.url);
+  }, [data.url, openPrimary]);
 
   const refreshSupported = useSessionStore(
     (state) => state.sessions[serverId]?.serverInfo?.features?.checkoutRefresh === true,
@@ -695,14 +695,15 @@ function ActivityKebab({
   onMenuOpenChange: (open: boolean) => void;
   onAddToChat: (activity: PrPaneActivity) => void;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const handleAddToChat = useCallback(() => onAddToChat(activity), [activity, onAddToChat]);
   const handleCopy = useCallback(() => {
     void writeMarkdownToRichClipboard(activity.body, getDefaultMarkdownClipboardEnvironment());
   }, [activity.body]);
   const handleOpen = useCallback(() => {
-    void openExternalUrl(activity.url);
-  }, [activity.url]);
+    void openPrimary(activity.url);
+  }, [activity.url, openPrimary]);
 
   return (
     <View style={kebabSlotStyle(visible)} pointerEvents={visible ? "auto" : "none"}>
@@ -726,6 +727,7 @@ function ActivityKebab({
             </DropdownMenuItem>
           ) : null}
           <WorkspaceBrowserMenuItem url={activity.url} />
+          <WorkspaceExternalBrowserMenuItem url={activity.url} />
           <DropdownMenuItem leading={OPEN_MENU_ICON} onSelect={handleOpen}>
             {t("workspace.git.pr.actions.openOn", { brand: brandLabel })}
           </DropdownMenuItem>
@@ -825,6 +827,7 @@ function SingleActivityCard({
   entry: Extract<PrTimelineEntry, { kind: "single" }>;
   collapsed: boolean;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const { activity } = entry;
   const { actionsVisible, handlePointerEnter, handlePointerLeave, setMenuOpen } =
@@ -836,8 +839,8 @@ function SingleActivityCard({
       onToggleCollapsed(entry.id, collapsed);
       return;
     }
-    void openExternalUrl(activity.url);
-  }, [activity.url, collapsed, entry.id, hasBody, onToggleCollapsed]);
+    void openPrimary(activity.url);
+  }, [activity.url, collapsed, entry.id, hasBody, onToggleCollapsed, openPrimary]);
 
   if (!hasBody) {
     return (
@@ -887,7 +890,7 @@ function SingleActivityCard({
       {collapsed ? null : (
         <>
           <View style={styles.cardBody}>
-            <MarkdownRenderer text={activity.body} compact onLinkPress={handleMarkdownLinkPress} />
+            <MarkdownRenderer text={activity.body} compact />
           </View>
           {attachEnabled && canAddPullRequestActivityToChat(activity) ? (
             <View style={styles.cardFooter}>
@@ -998,7 +1001,7 @@ function ReviewCard({
         <>
           {hasBody ? (
             <View style={styles.cardBody}>
-              <MarkdownRenderer text={review.body} compact onLinkPress={handleMarkdownLinkPress} />
+              <MarkdownRenderer text={review.body} compact />
             </View>
           ) : null}
           {attachEnabled && canAddPullRequestActivityToChat(review) ? (
@@ -1053,6 +1056,7 @@ function ThreadBlock({
   onAddThreadToChat: (thread: PrThreadEntry) => void;
   onToggleCollapsed: (entryId: string, collapsed: boolean) => void;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const { actionsVisible, handlePointerEnter, handlePointerLeave, setMenuOpen } =
     useRevealOnHover();
@@ -1064,8 +1068,8 @@ function ThreadBlock({
     [onAddThreadToChat, thread],
   );
   const handleOpenThread = useCallback(() => {
-    void openExternalUrl(thread.comments[0].url);
-  }, [thread.comments]);
+    void openPrimary(thread.comments[0].url);
+  }, [thread.comments, openPrimary]);
 
   const [root, ...replies] = thread.comments;
 
@@ -1104,6 +1108,7 @@ function ThreadBlock({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" width={200}>
                 <WorkspaceBrowserMenuItem url={root.url} />
+                <WorkspaceExternalBrowserMenuItem url={root.url} />
                 <DropdownMenuItem leading={OPEN_MENU_ICON} onSelect={handleOpenThread}>
                   {t("workspace.git.pr.actions.openOn", { brand: brandLabel })}
                 </DropdownMenuItem>
@@ -1196,7 +1201,7 @@ function ThreadComment({
       </View>
       {comment.body.trim() !== "" ? (
         <View style={styles.threadCommentBody}>
-          <MarkdownRenderer text={comment.body} compact onLinkPress={handleMarkdownLinkPress} />
+          <MarkdownRenderer text={comment.body} compact />
         </View>
       ) : null}
     </View>

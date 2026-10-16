@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   hasVisibleOrderChanged,
   mergeWithRemainder,
+  moveProjectInFullOrder,
+  canCommitSidebarReorder,
+  sidebarReorderContext,
+  sidebarReorderSort,
   resolveProjectWorkspaceReorder,
 } from "./sidebar-reorder";
 
@@ -100,4 +104,106 @@ it("treats saved project pins as ordinary rows when project pinning is disabled"
     workspaceOrder: ["srv:pin", "srv:ordinary", "srv:hidden"],
   });
   expect(storedWorkspaceOrder).toEqual(["srv:ordinary", "srv:pin", "srv:hidden"]);
+});
+
+describe("anchored filtered project move", () => {
+  const currentOrder = ["unknown", "host:a", "offline:x", "host:b", "hidden:y", "host:c"];
+  it("moves A after the same B anchor when All is restored", () => {
+    const next = moveProjectInFullOrder({
+      currentOrder,
+      knownProjectKeys: [],
+      move: { activeKey: "host:a", overKey: "host:b", from: 0, to: 1 },
+    });
+    expect(next).toEqual(["unknown", "offline:x", "host:b", "host:a", "hidden:y", "host:c"]);
+    expect(next?.filter((key) => key !== "host:a")).toEqual(
+      currentOrder.filter((key) => key !== "host:a"),
+    );
+  });
+  it("moves B before A for the opposite active item in the same visible swap", () => {
+    expect(
+      moveProjectInFullOrder({
+        currentOrder,
+        knownProjectKeys: [],
+        move: { activeKey: "host:b", overKey: "host:a", from: 1, to: 0 },
+      }),
+    ).toEqual(["unknown", "host:b", "host:a", "offline:x", "hidden:y", "host:c"]);
+  });
+  it("materializes missing cached siblings without discarding saved unavailable keys", () => {
+    expect(
+      moveProjectInFullOrder({
+        currentOrder: ["unknown", "host:a"],
+        knownProjectKeys: ["host:a", "offline:x", "host:b"],
+        move: { activeKey: "host:b", overKey: "host:a", from: 1, to: 0 },
+      }),
+    ).toEqual(["unknown", "host:b", "host:a", "offline:x"]);
+  });
+  it("does not persist a cancelled, unchanged or no-longer-known target", () => {
+    expect(
+      moveProjectInFullOrder({
+        currentOrder,
+        knownProjectKeys: [],
+        move: { activeKey: "host:a", overKey: "host:a", from: 0, to: 0 },
+      }),
+    ).toBeNull();
+    expect(
+      moveProjectInFullOrder({
+        currentOrder,
+        knownProjectKeys: [],
+        move: { activeKey: "missing", overKey: "host:a", from: 1, to: 0 },
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("Custom-only sidebar reorder domains", () => {
+  const view = {
+    groupMode: "project" as const,
+    sortMode: "custom" as const,
+    workspaceSortMode: "custom" as const,
+    emptyProjectSortMode: "project" as const,
+    hostFilters: [],
+    projectFilters: [],
+    labelFilter: { labels: [] },
+    showBackground: false,
+    projectVisibility: "all" as const,
+    groupEmptyProjects: true,
+  };
+  it("uses the owning project's sort, Status empty-project sort, and workspace sort independently", () => {
+    expect(sidebarReorderSort(view, "project")).toBe("custom");
+    expect(sidebarReorderSort({ ...view, groupMode: "status" }, "project")).toBe("project");
+    expect(sidebarReorderSort({ ...view, workspaceSortMode: "name" }, "workspace")).toBe("name");
+  });
+  it.each(["project", "name", "status"])(
+    "rejects ordinary drops for %s without changing sort",
+    (sort) => {
+      expect(
+        canCommitSidebarReorder({ startedContext: "same", currentContext: "same", sort }),
+      ).toBe(false);
+      expect(
+        canCommitSidebarReorder({
+          startedContext: "same",
+          currentContext: "same",
+          sort,
+          manualPins: true,
+        }),
+      ).toBe(true);
+    },
+  );
+  it("rejects stale grouping/filter contexts even for manual pins", () => {
+    const startedContext = sidebarReorderContext(view, "project");
+    const currentContext = sidebarReorderContext({ ...view, groupMode: "status" }, "project");
+    expect(
+      canCommitSidebarReorder({ startedContext, currentContext, sort: "custom", manualPins: true }),
+    ).toBe(false);
+    expect(sidebarReorderContext({ ...view, projectFilters: ["other"] }, "project")).not.toBe(
+      startedContext,
+    );
+    expect(
+      canCommitSidebarReorder({
+        startedContext: null,
+        currentContext: startedContext,
+        sort: "custom",
+      }),
+    ).toBe(false);
+  });
 });

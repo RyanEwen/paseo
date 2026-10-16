@@ -37,6 +37,21 @@ export const fr: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "Couleur d’accent",
+      hint: "Utilisée pour les commandes principales et vos messages",
+      updateHost: "Mettez à jour l’hôte de paramètres sélectionné pour changer la couleur d’accent",
+      preview: "Voici l’apparence de vos messages",
+      options: {
+        default: "Par défaut",
+        blue: "Bleu",
+        green: "Vert",
+        purple: "Violet",
+        rose: "Rose",
+        orange: "Orange",
+        teal: "Sarcelle",
+      },
+    },
     workspaceLimit: {
       save: "Enregistrer",
       title: "Liste des espaces de travail",
@@ -71,16 +86,24 @@ export const fr: TranslationResources = {
     saveFailed: "Échec de l’enregistrement. Réessayez.",
     features: {
       workspaceChatLinks: {
-        label: "Ouvrir les liens de discussion dans Paseo",
-        hint: "Sur ordinateur, ouvrir les liens web des discussions dans le navigateur de leur espace. Désactivez pour utiliser votre navigateur externe. Ouvrir dans Paseo reste disponible dans le menu du lien.",
+        label: "Liens de l’espace de travail",
+        hint: "Ouvrir les liens web de l’espace de travail dans de nouveaux onglets de son navigateur sur ordinateur, y compris le terminal, le chat et Git. Désactivez pour les ouvrir dans le navigateur externe. Les choix explicites restent disponibles dans les menus.",
       },
       sidebarHostUpdates: {
         label: "Mises à jour des hôtes dans la barre latérale",
         hint: "Afficher les actions de mise à jour dans le menu des hôtes. Les réglages des hôtes restent accessibles si cette option est désactivée.",
       },
+      splitLayoutPresets: {
+        label: "Contrôles de disposition",
+        hint: "Choisissez les proportions au séparateur et déplacez les onglets depuis leur menu. Désactivez pour masquer ces commandes.",
+      },
       mobileWorkspaceTabs: {
         label: "Onglets des espaces sur mobile",
         hint: "Afficher une barre d’onglets défilante dans les espaces compacts. Désactivez pour retrouver le sélecteur précédent sans changer l’onglet actif.",
+      },
+      widerWorkspaceTabs: {
+        label: "Onglets d’espace de travail plus larges",
+        hint: "Accordez jusqu’à 50 % de largeur supplémentaire aux titres longs. Les onglets courts gardent leur largeur naturelle. Désactivez pour rétablir la limite précédente.",
       },
 
       descriptiveToolCalls: {
@@ -651,6 +674,20 @@ export const fr: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "Ouvrir {{item}} sur le côté",
+      chooseRatio: "Choisir les proportions",
+      ratio: "Utiliser {{ratio}}",
+      moveTab: "Déplacer l’onglet",
+      left: "Gauche",
+      right: "Droite",
+      top: "Haut",
+      bottom: "Bas",
+      columns: "Gauche / droite",
+      rows: "Haut / bas",
+      pane: "Volet {{index}}",
+    },
+
     route: {
       loading: "Chargement de l’espace de travail…",
       connecting: "Connexion…",
@@ -788,6 +825,7 @@ export const fr: TranslationResources = {
     browser: {
       openInPaseo: "Ouvrir dans le navigateur Paseo",
       openExternally: "Ouvrir dans un navigateur externe",
+      copyLink: "Copier le lien",
       unavailable: {
         title: "Le navigateur est réservé à l’app de bureau",
         subtitle: "Ouvrez cet espace de travail dans Electron pour utiliser le navigateur intégré.",
@@ -815,6 +853,14 @@ export const fr: TranslationResources = {
         placeholder: "Message à l’agent à propos de cet élément…",
         submit: "Joindre",
         cancel: "Annuler",
+      },
+      extensions: {
+        label: "Extensions",
+        empty: "Aucune extension activée.",
+        noPopup: "Aucune fenêtre fournie",
+        loading: "Chargement des extensions...",
+        manage: "Gérer les extensions",
+        openFailed: "Impossible d’ouvrir l’extension",
       },
       devices: {
         label: "Taille de l’appareil",
@@ -1151,6 +1197,7 @@ export const fr: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "Mettez cet hôte à jour pour ouvrir le diff d’un seul fichier.",
         openChangesTab: "Ouvrir l’onglet Modifications",
         openDiffTab: "Ouvrir l’onglet Diff",
         closeChangesTab: "Fermer l’onglet Modifications",
@@ -1382,6 +1429,7 @@ export const fr: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Aucun projet connu pour cet hôte pour le moment.",
       selectOnlyProject: "Afficher uniquement {{project}}",
       includeProject: "Inclure {{project}}",
       workspaces: "Espaces de travail",
@@ -1402,8 +1450,23 @@ export const fr: TranslationResources = {
       done: "Terminé",
     },
     display: {
+      modeToggle: "Vue {{current}}. Passer à la vue {{next}}.",
+      workspaceList: {
+        updatedWithin: "Mis à jour depuis",
+        day: "1 jour",
+        threeDays: "3 jours",
+        fiveDays: "5 jours",
+        week: "1 semaine",
+        twoWeeks: "2 semaines",
+        month: "1 mois (30 jours)",
+        twoMonths: "2 mois (60 jours)",
+        threeMonths: "3 mois (90 jours)",
+      },
       expandAll: "Tout déplier",
       collapseAll: "Tout replier",
+      oneProjectAtATime: "Un projet à la fois",
+      reorderGuidance:
+        "Le déplacement nécessite le tri Personnalisé. Les projets filtrés gardent le même voisin avant ou après lorsque tous les projets sont affichés. Les éléments épinglés restent ordonnés manuellement.",
       showBackground: "Afficher les espaces en arrière-plan",
       trigger: "Préférences d’affichage",
       heading: "Affichage",
@@ -2505,6 +2568,27 @@ export const fr: TranslationResources = {
     general: {
       title: "Général",
       sending: "Envoi",
+      browserExtensions: {
+        title: "Extensions",
+        compatibility:
+          "Certaines fonctionnalités des extensions Chrome ne sont pas prises en charge. Les extensions ne sont pas mises à jour automatiquement.",
+        store: "Chrome Web Store",
+        openStore: "Ouvrir le Web Store",
+        refresh: "Actualiser",
+        enable: "Activer",
+        disable: "Désactiver",
+        retry: "Réessayer",
+        remove: "Supprimer",
+        removeTitle: "Supprimer {{name}} ?",
+        removeMessage:
+          "Cette action supprime l’extension de Paseo. Les dossiers sources non empaquetés sont conservés.",
+        loading: "Chargement des extensions...",
+        empty: "Aucune extension installée.",
+        unpackedHint: "Chargez une extension depuis un dossier contenant manifest.json.",
+        loadUnpacked: "Charger un dossier",
+        unavailable:
+          "Les extensions ne sont pas disponibles. Mettez à jour l’application de bureau.",
+      },
       browserData: {
         title: "Données du navigateur",
         siteData: "Cookies et données des sites",
@@ -2634,22 +2718,6 @@ export const fr: TranslationResources = {
       },
     },
     appearance: {
-      accent: {
-        title: "Couleur d’accent",
-        hint: "Utilisée pour les commandes principales et vos messages",
-        updateHost:
-          "Mettez à jour l’hôte de paramètres sélectionné pour changer la couleur d’accent",
-        preview: "Voici l’apparence de vos messages",
-        options: {
-          default: "Par défaut",
-          blue: "Bleu",
-          green: "Vert",
-          purple: "Violet",
-          rose: "Rose",
-          orange: "Orange",
-          teal: "Sarcelle",
-        },
-      },
       theme: {
         title: "Thème",
         accessibilityLabel: "Thème : {{value}}",

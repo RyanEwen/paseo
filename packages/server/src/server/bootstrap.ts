@@ -1,3 +1,4 @@
+import { AttachmentStore } from "./attachments/store.js";
 import type { PluginRegistries } from "@getpaseo/protocol/plugin-registry";
 import { describeHookWorkspace } from "./plugins/lifecycle/index.js";
 import express from "express";
@@ -582,6 +583,27 @@ export async function createPaseoDaemon(
   config: PaseoDaemonConfig,
   rootLogger: Logger,
   dependencies: PaseoDaemonDependencies = {},
+): Promise<PaseoDaemon> {
+  const attachmentStore = await AttachmentStore.create(config.paseoHome);
+  try {
+    return await createOwnedDaemon(config, rootLogger, dependencies, attachmentStore);
+  } catch (error) {
+    await attachmentStore
+      .close()
+      .catch(() =>
+        rootLogger.warn(
+          "Attachment storage ownership could not be released after bootstrap failure.",
+        ),
+      );
+    throw error;
+  }
+}
+
+async function createOwnedDaemon(
+  config: PaseoDaemonConfig,
+  rootLogger: Logger,
+  dependencies: PaseoDaemonDependencies,
+  attachmentStore: AttachmentStore,
 ): Promise<PaseoDaemon> {
   configureGitProcessPolicy(config.git ?? resolveGitProcessPolicy({ env: process.env }));
   const logger = rootLogger.child({ module: "bootstrap" });
@@ -1438,6 +1460,7 @@ export async function createPaseoDaemon(
     createPaseoWorktree: createAgentCommandDependencies.createPaseoWorktree,
     browserToolsEnabled: browserToolsPolicy.isEnabled(),
     browserToolsBroker,
+    attachmentStore,
     paseoToolPolicy:
       runtime.paseoToolPolicy ??
       (runtime.callerAgentId ? agentManager.getPaseoToolPolicy(runtime.callerAgentId) : undefined),
@@ -1744,6 +1767,7 @@ export async function createPaseoDaemon(
               pluginRuntime,
               orchestrationSkills,
               workspaceLabelService,
+              attachmentStore,
             );
             pluginRuntime.bindPaseoSessionHost(wsServer);
             await pluginRuntime.start();
@@ -1801,11 +1825,18 @@ export async function createPaseoDaemon(
         httpServer.closeAllConnections();
         await new Promise<void>((resolve) => httpServer.close(() => resolve()));
       }
+      await attachmentStore
+        .close()
+        .catch(() => logger.warn("Attachment storage ownership retained after start failure."));
       throw error;
     }
   };
 
   const stop = async () => {
+    const attachmentClose = attachmentStore.close();
+    void attachmentClose.catch(() =>
+      logger.warn("Attachment writer ownership retained after shutdown drain failure."),
+    );
     localCredential = null;
     await deleteLocalCredential(config.paseoHome);
     // Stop tracking plugin provider registrations before anything tears plugins
@@ -1849,6 +1880,7 @@ export async function createPaseoDaemon(
     await new Promise<void>((resolve) => {
       httpServer.close(() => resolve());
     });
+    await attachmentClose;
     // Clean up socket files
     if (listenTarget.type === "socket" && existsSync(listenTarget.path)) {
       unlinkSync(listenTarget.path);

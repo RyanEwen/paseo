@@ -1,0 +1,14 @@
+{
+  "reviewHead": "d102f0b89ff876e2dcd51c8937ddde7361eb2973",
+  "snapshotParent": "240f8f87d5a8a957e29cb34d9a2c1b7e2b565ae9",
+  "branch": "debug/windows-review-20261016-185134",
+  "sourceManifestSha256": "9376f047ba07b32dbc4df0ec40ecf158d52417239298dd61736fad56bafafbab",
+  "sourceFiles": 6105,
+  "productionSource": "exact captured review working tree",
+  "ciOnlyDelta": [
+    ".github/workflows/desktop-release.yml",
+    "scripts/debug-artifact/prepare.mjs",
+    "scripts/debug-artifact/verify.mjs",
+    "debug-source-snapshot.json"
+  ]
+}

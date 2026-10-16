@@ -35,6 +35,21 @@ export const ko: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "강조 색상",
+      hint: "주요 컨트롤과 내 메시지에 사용됩니다",
+      updateHost: "강조 색상을 변경하려면 선택한 설정 호스트를 업데이트하세요",
+      preview: "메시지가 이렇게 표시됩니다",
+      options: {
+        default: "기본값",
+        blue: "파랑",
+        green: "초록",
+        purple: "보라",
+        rose: "장미색",
+        orange: "주황",
+        teal: "청록",
+      },
+    },
     workspaceLimit: {
       save: "저장",
       title: "작업 공간 목록",
@@ -69,16 +84,24 @@ export const ko: TranslationResources = {
     saveFailed: "저장하지 못했습니다. 다시 시도하세요.",
     features: {
       workspaceChatLinks: {
-        label: "채팅 링크를 Paseo에서 열기",
-        hint: "데스크톱에서 채팅 웹 링크를 해당 작업공간의 브라우저로 엽니다. 끄면 외부 브라우저를 사용합니다. 링크 메뉴의 Paseo에서 열기는 계속 사용할 수 있습니다.",
+        label: "작업 공간 링크",
+        hint: "데스크톱에서 터미널, 채팅, Git의 웹 링크를 해당 작업 공간 브라우저의 새 탭으로 엽니다. 끄면 외부 브라우저로 엽니다. 메뉴의 명시적인 동작은 계속 사용할 수 있습니다.",
       },
       sidebarHostUpdates: {
         label: "사이드바의 호스트 업데이트",
         hint: "호스트 메뉴에 업데이트 작업을 표시합니다. 꺼도 호스트 설정은 계속 사용할 수 있습니다.",
       },
+      splitLayoutPresets: {
+        label: "분할 레이아웃 제어",
+        hint: "구분선에서 비율을 선택하고 메뉴에서 탭을 이동합니다. 끄면 이 제어가 숨겨집니다.",
+      },
       mobileWorkspaceTabs: {
         label: "모바일 작업공간 탭",
         hint: "작은 화면에서 스크롤 가능한 탭 막대를 표시합니다. 끄면 선택한 탭을 유지하며 이전 탭 선택기를 사용합니다.",
+      },
+      widerWorkspaceTabs: {
+        label: "더 넓은 작업 공간 탭",
+        hint: "긴 탭 제목의 최대 너비를 50% 늘립니다. 짧은 탭은 자연스러운 너비를 유지합니다. 끄면 이전 최대 너비로 돌아갑니다.",
       },
 
       descriptiveToolCalls: {
@@ -643,6 +666,20 @@ export const ko: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "{{item}}을 옆에 열기",
+      chooseRatio: "분할 비율 선택",
+      ratio: "{{ratio}} 분할 사용",
+      moveTab: "탭 이동",
+      left: "왼쪽",
+      right: "오른쪽",
+      top: "위",
+      bottom: "아래",
+      columns: "왼쪽 / 오른쪽",
+      rows: "위 / 아래",
+      pane: "창 {{index}}",
+    },
+
     route: {
       loading: "워크스페이스 불러오는 중",
       connecting: "연결 중",
@@ -780,6 +817,7 @@ export const ko: TranslationResources = {
     browser: {
       openInPaseo: "Paseo 브라우저에서 열기",
       openExternally: "외부 브라우저에서 열기",
+      copyLink: "링크 복사",
       unavailable: {
         title: "브라우저는 데스크톱 전용입니다",
         subtitle: "내장 브라우저를 사용하려면 이 워크스페이스를 Electron에서 여세요.",
@@ -807,6 +845,14 @@ export const ko: TranslationResources = {
         placeholder: "이 요소에 관해 에이전트에게 보낼 메시지…",
         submit: "첨부",
         cancel: "취소",
+      },
+      extensions: {
+        label: "확장 프로그램",
+        empty: "활성화된 확장 프로그램이 없습니다.",
+        noPopup: "팝업이 제공되지 않음",
+        loading: "확장 프로그램 불러오는 중...",
+        manage: "확장 프로그램 관리",
+        openFailed: "확장 프로그램을 열 수 없습니다",
       },
       devices: {
         label: "장치 크기",
@@ -1130,6 +1176,7 @@ export const ko: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "단일 파일 diff를 열려면 이 호스트를 업데이트하세요.",
         openChangesTab: "변경사항 탭 열기",
         openDiffTab: "Diff 탭 열기",
         closeChangesTab: "변경사항 탭 닫기",
@@ -1358,6 +1405,7 @@ export const ko: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "이 호스트의 알려진 프로젝트가 아직 없습니다.",
       selectOnlyProject: "{{project}}만 표시",
       includeProject: "{{project}} 포함",
       workspaces: "워크스페이스",
@@ -1378,8 +1426,23 @@ export const ko: TranslationResources = {
       done: "완료",
     },
     display: {
+      modeToggle: "{{current}} 보기. {{next}} 보기로 전환.",
+      workspaceList: {
+        updatedWithin: "최근 업데이트 기간",
+        day: "1일",
+        threeDays: "3일",
+        fiveDays: "5일",
+        week: "1주",
+        twoWeeks: "2주",
+        month: "1개월 (30일)",
+        twoMonths: "2개월 (60일)",
+        threeMonths: "3개월 (90일)",
+      },
       expandAll: "모두 펼치기",
       collapseAll: "모두 접기",
+      oneProjectAtATime: "한 번에 하나의 프로젝트",
+      reorderGuidance:
+        "사용자 지정 정렬에서만 끌어서 순서를 바꿀 수 있습니다. 필터링한 프로젝트를 이동해도 전체 표시 시 같은 프로젝트의 앞뒤에 유지됩니다. 고정 항목은 항상 수동으로 정렬됩니다.",
       showBackground: "백그라운드 표시",
       trigger: "표시 설정",
       heading: "표시",
@@ -2453,6 +2516,25 @@ export const ko: TranslationResources = {
     general: {
       title: "일반",
       sending: "전송",
+      browserExtensions: {
+        title: "확장 프로그램",
+        compatibility:
+          "일부 Chrome 확장 프로그램 기능은 지원되지 않습니다. 확장 프로그램은 자동으로 업데이트되지 않습니다.",
+        store: "Chrome 웹 스토어",
+        openStore: "웹 스토어 열기",
+        refresh: "새로 고침",
+        enable: "사용",
+        disable: "사용 중지",
+        retry: "다시 시도",
+        remove: "삭제",
+        removeTitle: "{{name}}을(를) 삭제할까요?",
+        removeMessage: "Paseo에서 확장 프로그램을 삭제합니다. 압축 해제된 소스 폴더는 유지됩니다.",
+        loading: "확장 프로그램 로딩 중...",
+        empty: "설치된 확장 프로그램이 없습니다.",
+        unpackedHint: "manifest.json이 있는 폴더에서 확장 프로그램을 로드합니다.",
+        loadUnpacked: "압축 해제된 확장 로드",
+        unavailable: "확장 프로그램을 사용할 수 없습니다. 데스크톱 앱을 업데이트하세요.",
+      },
       browserData: {
         title: "브라우저 데이터",
         siteData: "쿠키 및 사이트 데이터",
@@ -2579,21 +2661,6 @@ export const ko: TranslationResources = {
       },
     },
     appearance: {
-      accent: {
-        title: "강조 색상",
-        hint: "주요 컨트롤과 내 메시지에 사용됩니다",
-        updateHost: "강조 색상을 변경하려면 선택한 설정 호스트를 업데이트하세요",
-        preview: "메시지가 이렇게 표시됩니다",
-        options: {
-          default: "기본값",
-          blue: "파랑",
-          green: "초록",
-          purple: "보라",
-          rose: "장미색",
-          orange: "주황",
-          teal: "청록",
-        },
-      },
       theme: {
         title: "테마",
         accessibilityLabel: "테마: {{value}}",

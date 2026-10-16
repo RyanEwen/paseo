@@ -1,3 +1,7 @@
+import { useSidebarProjectActivity } from "./use-sidebar-project-activity";
+import { useSessionStore } from "@/stores/session-store";
+import { selectWorkspaceStructureProjects } from "@/stores/session-store-hooks/selectors";
+import { SidebarRecencyClockProvider } from "./workspace-recency-clock";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useTranslation } from "react-i18next";
 import React, { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
@@ -52,6 +56,23 @@ interface SidebarModel extends SidebarWorkspacesListResult {
 
 const SidebarModelContext = createContext<SidebarModel | null>(null);
 
+/** Read the current mode, preference and cached catalog at the action boundary. */
+function toggleSidebarProjectCollapsed(projectViewKey: string) {
+  const view = useSidebarViewStore.getState();
+  const session = useSessionStore.getState();
+  const projectKeys =
+    view.groupMode === "project" && view.oneProjectAtATime
+      ? selectWorkspaceStructureProjects(session, Object.keys(session.sessions)).map(
+          (project) => project.viewKey,
+        )
+      : [];
+  useSidebarCollapsedSectionsStore.getState().toggleProjectCollapsed(projectViewKey, {
+    mode: view.groupMode,
+    oneProjectAtATime: view.oneProjectAtATime,
+    projectKeys,
+  });
+}
+
 export function SidebarModelProvider({
   active,
   children,
@@ -62,8 +83,9 @@ export function SidebarModelProvider({
   const { t } = useTranslation();
   const list = useSidebarWorkspacesList({ enabled: active });
   const {
-    settings: { workspaceTitleSource, paseoPlusPlus },
+    settings: { paseoPlusPlus },
   } = useAppSettings();
+  const workspaceTitleSource = useSidebarViewStore((state) => state.workspaceTitleSource);
   const workspaceSortMode = useSidebarViewStore((state) => state.workspaceSortMode);
   const statusWorkspaceOrder = useSidebarOrderStore((state) => state.statusWorkspaceOrder);
   const sortMode = useSidebarViewStore((state) => state.sortMode);
@@ -82,9 +104,7 @@ export function SidebarModelProvider({
   );
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
   const pinnedWorkspaceOrder = useSidebarOrderStore((state) => state.pinnedWorkspaceOrder);
-  const toggleProjectCollapsed = useSidebarCollapsedSectionsStore(
-    (state) => state.toggleProjectCollapsed,
-  );
+  const toggleProjectCollapsed = toggleSidebarProjectCollapsed;
   const availableLabelNames = useMemo(
     () => labelHosts.flatMap((host) => host.labels.map((label) => label.name)),
     [labelHosts],
@@ -163,6 +183,7 @@ export function SidebarModelProvider({
     list.projects,
     visibleWorkspaceKeys,
   ]);
+  const projectActivity = useSidebarProjectActivity(visibleProjects, workspaceEntriesByKey);
   const filteredProjects = useMemo(
     () =>
       groupMode === "project"
@@ -171,9 +192,17 @@ export function SidebarModelProvider({
             mode: sortMode,
             entries: workspaceEntriesByKey,
             projectNames: list.projectNamesByViewKey,
+            projectActivity,
           })
         : visibleProjects,
-    [groupMode, visibleProjects, sortMode, workspaceEntriesByKey, list.projectNamesByViewKey],
+    [
+      groupMode,
+      visibleProjects,
+      sortMode,
+      workspaceEntriesByKey,
+      list.projectNamesByViewKey,
+      projectActivity,
+    ],
   );
   const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
   const projectionInput = useMemo(
@@ -241,7 +270,11 @@ export function SidebarModelProvider({
     ],
   );
 
-  return <SidebarModelContext.Provider value={value}>{children}</SidebarModelContext.Provider>;
+  return (
+    <SidebarModelContext.Provider value={value}>
+      <SidebarRecencyClockProvider active={active}>{children}</SidebarRecencyClockProvider>
+    </SidebarModelContext.Provider>
+  );
 }
 
 export function useSidebarModel(): SidebarModel {

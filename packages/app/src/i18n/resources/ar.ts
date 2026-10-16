@@ -34,6 +34,21 @@ export const ar: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "لون التمييز",
+      hint: "يُستخدم لعناصر التحكم الرئيسية ورسائلك",
+      updateHost: "حدّث مضيف الإعدادات المحدد لتغيير لون التمييز",
+      preview: "هكذا ستظهر رسائلك",
+      options: {
+        default: "الافتراضي",
+        blue: "أزرق",
+        green: "أخضر",
+        purple: "بنفسجي",
+        rose: "وردي",
+        orange: "برتقالي",
+        teal: "فيروزي",
+      },
+    },
     workspaceLimit: {
       save: "حفظ",
       title: "قائمة مساحات العمل",
@@ -66,16 +81,24 @@ export const ar: TranslationResources = {
     saveFailed: "تعذر الحفظ. حاول مرة أخرى.",
     features: {
       workspaceChatLinks: {
-        label: "فتح روابط المحادثة في Paseo",
-        hint: "على سطح المكتب، افتح روابط الويب من المحادثة في متصفح مساحة العمل نفسها. عطّل الخيار لاستخدام المتصفح الخارجي. يبقى خيار الفتح في Paseo متاحًا في قائمة الرابط.",
+        label: "روابط مساحة العمل",
+        hint: "افتح روابط الويب الخاصة بمساحة العمل في علامات تبويب جديدة بمتصفحها على سطح المكتب، بما فيها الطرفية والدردشة وGit. عطّل الخيار لفتحها خارجيًا. تبقى إجراءات المتصفح الصريحة متاحة في القوائم.",
       },
       sidebarHostUpdates: {
         label: "تحديثات المضيف في الشريط الجانبي",
         hint: "اعرض إجراءات التحديث في قائمة المضيفين. تبقى إعدادات المضيف متاحة عند تعطيل هذا الخيار.",
       },
+      splitLayoutPresets: {
+        label: "عناصر تقسيم التخطيط",
+        hint: "اختر النسب عند الفاصل وانقل علامات التبويب من قائمتها. عطّل لإخفاء هذه العناصر.",
+      },
       mobileWorkspaceTabs: {
         label: "علامات تبويب مساحات العمل على الهاتف",
         hint: "اعرض شريط علامات تبويب قابلًا للتمرير في التخطيط المضغوط. عطّل الخيار لاستخدام المحدد السابق مع الاحتفاظ بعلامة التبويب المحددة.",
+      },
+      widerWorkspaceTabs: {
+        label: "علامات تبويب أوسع لمساحة العمل",
+        hint: "اسمح لعناوين علامات التبويب الطويلة بعرض أكبر بنسبة تصل إلى 50٪. تحتفظ العلامات القصيرة بعرضها الطبيعي. عطّل الخيار لاستعادة الحد السابق.",
       },
 
       descriptiveToolCalls: {
@@ -640,6 +663,20 @@ export const ar: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "فتح {{item}} إلى الجانب",
+      chooseRatio: "اختيار نسبة التقسيم",
+      ratio: "استخدام تقسيم {{ratio}}",
+      moveTab: "نقل علامة التبويب",
+      left: "يسار",
+      right: "يمين",
+      top: "أعلى",
+      bottom: "أسفل",
+      columns: "يسار / يمين",
+      rows: "أعلى / أسفل",
+      pane: "اللوحة {{index}}",
+    },
+
     route: {
       loading: "جارٍ تحميل مساحة العمل",
       connecting: "الاتصال",
@@ -777,6 +814,7 @@ export const ar: TranslationResources = {
     browser: {
       openInPaseo: "فتح في متصفح Paseo",
       openExternally: "فتح في متصفح خارجي",
+      copyLink: "نسخ الرابط",
       unavailable: {
         title: "المتصفح مخصص لسطح المكتب فقط",
         subtitle: "افتح مساحة العمل هذه في Electron لاستخدام المتصفح المدمج.",
@@ -804,6 +842,14 @@ export const ar: TranslationResources = {
         placeholder: "رسالة إلى الوكيل حول هذا العنصر…",
         submit: "إرفاق",
         cancel: "إلغاء",
+      },
+      extensions: {
+        label: "الإضافات",
+        empty: "لا توجد إضافات مفعّلة.",
+        noPopup: "لا تتوفر نافذة منبثقة",
+        loading: "جارٍ تحميل الإضافات...",
+        manage: "إدارة الإضافات",
+        openFailed: "تعذر فتح الإضافة",
       },
       devices: {
         label: "حجم الجهاز",
@@ -1121,6 +1167,7 @@ export const ar: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "حدّث هذا المضيف لفتح مقارنة ملف واحد.",
         openChangesTab: "فتح علامة تبويب التغييرات",
         openDiffTab: "فتح علامة تبويب الفرق",
         closeChangesTab: "إغلاق علامة تبويب التغييرات",
@@ -1349,6 +1396,7 @@ export const ar: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "لا توجد مشاريع معروفة لهذا المضيف بعد.",
       selectOnlyProject: "عرض {{project}} فقط",
       includeProject: "تضمين {{project}}",
       workspaces: "مساحات العمل",
@@ -1369,8 +1417,23 @@ export const ar: TranslationResources = {
       done: "تم",
     },
     display: {
+      modeToggle: "عرض {{current}}. التبديل إلى عرض {{next}}.",
+      workspaceList: {
+        updatedWithin: "تم التحديث خلال",
+        day: "يوم واحد",
+        threeDays: "3 أيام",
+        fiveDays: "5 أيام",
+        week: "أسبوع واحد",
+        twoWeeks: "أسبوعين",
+        month: "شهر واحد (30 يومًا)",
+        twoMonths: "شهران (60 يومًا)",
+        threeMonths: "3 أشهر (90 يومًا)",
+      },
       expandAll: "توسيع الكل",
       collapseAll: "طي الكل",
+      oneProjectAtATime: "مشروع واحد في كل مرة",
+      reorderGuidance:
+        "السحب لإعادة الترتيب متاح فقط مع الفرز المخصص. تحتفظ المشاريع المنقولة أثناء التصفية بنفس الجار قبلها أو بعدها عند إظهار جميع المشاريع. ترتيب العناصر المثبتة يدوي دائمًا.",
       showBackground: "إظهار مساحات العمل في الخلفية",
       trigger: "تفضيلات العرض",
       heading: "العرض",
@@ -2442,6 +2505,25 @@ export const ar: TranslationResources = {
     general: {
       title: "عام",
       sending: "الإرسال",
+      browserExtensions: {
+        title: "الإضافات",
+        compatibility: "بعض ميزات إضافات Chrome غير مدعومة. لا يتم تحديث الإضافات تلقائيًا.",
+        store: "Chrome Web Store",
+        openStore: "فتح المتجر",
+        refresh: "تحديث",
+        enable: "تفعيل",
+        disable: "تعطيل",
+        retry: "إعادة المحاولة",
+        remove: "إزالة",
+        removeTitle: "إزالة {{name}}؟",
+        removeMessage:
+          "سيؤدي هذا إلى إزالة الإضافة من Paseo. يتم الاحتفاظ بمجلدات المصدر غير المضغوطة.",
+        loading: "جارٍ تحميل الإضافات...",
+        empty: "لا توجد إضافات مثبتة.",
+        unpackedHint: "حمّل إضافة من مجلد يحتوي على manifest.json.",
+        loadUnpacked: "تحميل إضافة غير مضغوطة",
+        unavailable: "الإضافات غير متاحة. حدّث تطبيق سطح المكتب.",
+      },
       browserData: {
         title: "بيانات المتصفح",
         siteData: "ملفات تعريف الارتباط وبيانات المواقع",
@@ -2567,21 +2649,6 @@ export const ar: TranslationResources = {
       },
     },
     appearance: {
-      accent: {
-        title: "لون التمييز",
-        hint: "يُستخدم لعناصر التحكم الرئيسية ورسائلك",
-        updateHost: "حدّث مضيف الإعدادات المحدد لتغيير لون التمييز",
-        preview: "هكذا ستظهر رسائلك",
-        options: {
-          default: "الافتراضي",
-          blue: "أزرق",
-          green: "أخضر",
-          purple: "بنفسجي",
-          rose: "وردي",
-          orange: "برتقالي",
-          teal: "فيروزي",
-        },
-      },
       theme: {
         title: "سمة",
         accessibilityLabel: "الموضوع:{{value}}",

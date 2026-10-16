@@ -37,6 +37,21 @@ export const es: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "Color de acento",
+      hint: "Se usa en los controles principales y tus mensajes",
+      updateHost: "Actualiza el host de ajustes seleccionado para cambiar el color de acento",
+      preview: "Así se verán tus mensajes",
+      options: {
+        default: "Predeterminado",
+        blue: "Azul",
+        green: "Verde",
+        purple: "Morado",
+        rose: "Rosa",
+        orange: "Naranja",
+        teal: "Verde azulado",
+      },
+    },
     workspaceLimit: {
       save: "Guardar",
       title: "Lista de espacios de trabajo",
@@ -71,16 +86,24 @@ export const es: TranslationResources = {
     saveFailed: "No se pudo guardar. Vuelve a intentarlo.",
     features: {
       workspaceChatLinks: {
-        label: "Abrir enlaces del chat en Paseo",
-        hint: "En escritorio, abrir los enlaces web del chat en el navegador de su espacio. Desactiva para usar el navegador externo. Abrir en Paseo sigue disponible en el menú del enlace.",
+        label: "Enlaces del espacio de trabajo",
+        hint: "Abrir los enlaces web del espacio de trabajo en nuevas pestañas de su navegador en el escritorio, incluidos terminal, chat y Git. Desactiva para abrirlos externamente. Las opciones explícitas siguen disponibles en los menús.",
       },
       sidebarHostUpdates: {
         label: "Actualizaciones de hosts en la barra lateral",
         hint: "Mostrar acciones de actualización en el menú de hosts. Los ajustes del host siguen disponibles al desactivar esta opción.",
       },
+      splitLayoutPresets: {
+        label: "Controles de división",
+        hint: "Elige proporciones en el separador y mueve pestañas desde su menú. Desactiva para ocultar estos controles.",
+      },
       mobileWorkspaceTabs: {
         label: "Pestañas de espacios en móvil",
         hint: "Mostrar una barra de pestañas desplazable en espacios compactos. Desactiva para usar el selector anterior sin cambiar la pestaña seleccionada.",
+      },
+      widerWorkspaceTabs: {
+        label: "Pestañas de espacio de trabajo más anchas",
+        hint: "Permite hasta un 50 % más de ancho para títulos largos. Las pestañas cortas conservan su ancho natural. Desactiva para restaurar el límite anterior.",
       },
 
       descriptiveToolCalls: {
@@ -651,6 +674,20 @@ export const es: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "Abrir {{item}} a un lado",
+      chooseRatio: "Elegir proporción",
+      ratio: "Usar {{ratio}}",
+      moveTab: "Mover pestaña",
+      left: "Izquierda",
+      right: "Derecha",
+      top: "Arriba",
+      bottom: "Abajo",
+      columns: "Izquierda / derecha",
+      rows: "Arriba / abajo",
+      pane: "Panel {{index}}",
+    },
+
     route: {
       loading: "Cargando espacio de trabajo",
       connecting: "Conectando",
@@ -789,6 +826,7 @@ export const es: TranslationResources = {
     browser: {
       openInPaseo: "Abrir en el navegador de Paseo",
       openExternally: "Abrir en un navegador externo",
+      copyLink: "Copiar enlace",
       unavailable: {
         title: "El navegador es solo para escritorio",
         subtitle: "Abra este espacio de trabajo en Electron para usar el navegador integrado.",
@@ -816,6 +854,14 @@ export const es: TranslationResources = {
         placeholder: "Mensaje al agente sobre este elemento…",
         submit: "Adjuntar",
         cancel: "Cancelar",
+      },
+      extensions: {
+        label: "Extensiones",
+        empty: "No hay extensiones habilitadas.",
+        noPopup: "No incluye ventana emergente",
+        loading: "Cargando extensiones...",
+        manage: "Administrar extensiones",
+        openFailed: "No se pudo abrir la extensión",
       },
       devices: {
         label: "Tamaño del dispositivo",
@@ -1160,6 +1206,7 @@ export const es: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "Actualiza este host para abrir la comparación de un solo archivo.",
         openChangesTab: "Abrir la pestaña Cambios",
         openDiffTab: "Abrir la pestaña Diferencia",
         closeChangesTab: "Cerrar la pestaña Cambios",
@@ -1391,6 +1438,7 @@ export const es: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Aún no hay proyectos conocidos de este host.",
       selectOnlyProject: "Mostrar solo {{project}}",
       includeProject: "Incluir {{project}}",
       workspaces: "Espacios de trabajo",
@@ -1411,8 +1459,23 @@ export const es: TranslationResources = {
       done: "Terminado",
     },
     display: {
+      modeToggle: "Vista {{current}}. Cambiar a vista {{next}}.",
+      workspaceList: {
+        updatedWithin: "Actualizado en",
+        day: "1 día",
+        threeDays: "3 días",
+        fiveDays: "5 días",
+        week: "1 semana",
+        twoWeeks: "2 semanas",
+        month: "1 mes (30 días)",
+        twoMonths: "2 meses (60 días)",
+        threeMonths: "3 meses (90 días)",
+      },
       expandAll: "Expandir todo",
       collapseAll: "Contraer todo",
+      oneProjectAtATime: "Un proyecto a la vez",
+      reorderGuidance:
+        "Arrastra para ordenar solo con orden Personalizado. Los proyectos filtrados conservan el mismo vecino anterior o posterior al mostrar todos los proyectos. Los elementos fijados siempre se ordenan manualmente.",
       showBackground: "Mostrar espacios en segundo plano",
       trigger: "Preferencias de visualización",
       heading: "Visualización",
@@ -2507,6 +2570,26 @@ export const es: TranslationResources = {
     general: {
       title: "General",
       sending: "Envío",
+      browserExtensions: {
+        title: "Extensiones",
+        compatibility:
+          "Algunas funciones de las extensiones de Chrome no son compatibles. Las extensiones no se actualizan automáticamente.",
+        store: "Chrome Web Store",
+        openStore: "Abrir Web Store",
+        refresh: "Actualizar",
+        enable: "Activar",
+        disable: "Desactivar",
+        retry: "Reintentar",
+        remove: "Eliminar",
+        removeTitle: "¿Eliminar {{name}}?",
+        removeMessage:
+          "Esto elimina la extensión de Paseo. Se conservan las carpetas de origen sin empaquetar.",
+        loading: "Cargando extensiones...",
+        empty: "No hay extensiones instaladas.",
+        unpackedHint: "Carga una extensión desde una carpeta que contenga manifest.json.",
+        loadUnpacked: "Cargar sin empaquetar",
+        unavailable: "Las extensiones no están disponibles. Actualiza la aplicación de escritorio.",
+      },
       browserData: {
         title: "Datos del navegador",
         siteData: "Cookies y datos de sitios",
@@ -2636,21 +2719,6 @@ export const es: TranslationResources = {
       },
     },
     appearance: {
-      accent: {
-        title: "Color de acento",
-        hint: "Se usa en los controles principales y tus mensajes",
-        updateHost: "Actualiza el host de ajustes seleccionado para cambiar el color de acento",
-        preview: "Así se verán tus mensajes",
-        options: {
-          default: "Predeterminado",
-          blue: "Azul",
-          green: "Verde",
-          purple: "Morado",
-          rose: "Rosa",
-          orange: "Naranja",
-          teal: "Verde azulado",
-        },
-      },
       theme: {
         title: "Tema",
         accessibilityLabel: "Tema:{{value}}",

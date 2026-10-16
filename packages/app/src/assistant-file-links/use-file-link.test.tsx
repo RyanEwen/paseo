@@ -5,9 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import React, { useCallback, useMemo, useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastApiProvider } from "@/contexts/toast-api-context";
 import type { ToastApi } from "@/components/toast-host";
 import type { InlinePathTarget } from "./parse";
 import { AssistantFileLinkResolverProvider, useAssistantFileLinkResolverContext } from "./provider";
+import {
+  WorkspaceBrowserOpeningProvider,
+  useWorkspaceLinkOpeningContext,
+} from "@/workspace/browser/context";
 import { openExternalUrl } from "@/utils/open-external-url";
 import type { DirectorySuggestionResult } from "./resolver";
 import { useFileLink } from "./use-file-link";
@@ -88,6 +93,7 @@ function createWrapper(input: {
   onOpenHttpUrl?: (url: string) => void | Promise<void>;
 }) {
   const queryClient = createQueryClient();
+  const toast = input.toast ?? createToast();
   return function Wrapper({ children }: { children: ReactNode }) {
     const openWorkspaceFile = useCallback(
       (target: InlinePathTarget, disposition: OpenFileDisposition) => {
@@ -98,16 +104,20 @@ function createWrapper(input: {
 
     return (
       <QueryClientProvider client={queryClient}>
-        <AssistantFileLinkResolverProvider
-          client={input.client}
-          serverId="server-1"
-          workspaceRoot="/Users/test/project"
-          onOpenWorkspaceFile={openWorkspaceFile}
-          toast={input.toast}
-          onOpenHttpUrl={input.onOpenHttpUrl}
-        >
-          {children}
-        </AssistantFileLinkResolverProvider>
+        <ToastApiProvider api={toast}>
+          <WorkspaceBrowserOpeningProvider value={input.onOpenHttpUrl}>
+            <AssistantFileLinkResolverProvider
+              client={input.client}
+              serverId="server-1"
+              workspaceRoot="/Users/test/project"
+              onOpenWorkspaceFile={openWorkspaceFile}
+              toast={input.toast}
+              onOpenHttpUrl={input.onOpenHttpUrl}
+            >
+              {children}
+            </AssistantFileLinkResolverProvider>
+          </WorkspaceBrowserOpeningProvider>
+        </ToastApiProvider>
       </QueryClientProvider>
     );
   };
@@ -115,8 +125,61 @@ function createWrapper(input: {
 
 describe("useFileLink", () => {
   beforeEach(() => {
+    vi.stubGlobal("React", React);
     preferenceState.workspaceChatLinks = true;
     vi.clearAllMocks();
+  });
+
+  it("reports a failed owning browser activation once without opening externally", async () => {
+    const toast = createToast();
+    const openedUrls: string[] = [];
+    const wrapper = createWrapper({
+      client: { getDirectorySuggestions: async () => resolvedSuggestions([]) },
+      openedFiles: [],
+      toast,
+      onOpenHttpUrl: async (url) => {
+        openedUrls.push(url);
+        throw new Error("Owning workspace is unavailable");
+      },
+    });
+    const { result, rerender } = renderHook(() => useWorkspaceLinkOpeningContext(), { wrapper });
+    const originalPrimary = result.current.openPrimary;
+    preferenceState.workspaceChatLinks = false;
+    rerender();
+    expect(result.current.openPrimary).toBe(originalPrimary);
+    preferenceState.workspaceChatLinks = true;
+    rerender();
+    await act(async () => {
+      await originalPrimary("https://example.com/owned");
+    });
+    expect(openedUrls).toEqual(["https://example.com/owned"]);
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith("Owning workspace is unavailable");
+    expect(openExternalUrl).not.toHaveBeenCalled();
+  });
+
+  it("keeps the owning error reporter stable for an asynchronous menu failure", async () => {
+    const toast = createToast();
+    const failure = createDeferred<void>();
+    const { result, rerender } = renderHook(() => useWorkspaceLinkOpeningContext(), {
+      wrapper: createWrapper({
+        client: { getDirectorySuggestions: async () => resolvedSuggestions([]) },
+        openedFiles: [],
+        toast,
+        onOpenHttpUrl: async () => {},
+      }),
+    });
+    const reportError = result.current.reportError;
+    expect(reportError).toBeTypeOf("function");
+    const pendingMenuAction = failure.promise.catch(reportError);
+    preferenceState.workspaceChatLinks = false;
+    rerender();
+    expect(result.current.reportError).toBe(reportError);
+    await act(async () => {
+      failure.reject(new Error("Could not open terminal link"));
+      await pendingMenuAction;
+    });
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith("Could not open terminal link");
+    expect(openExternalUrl).not.toHaveBeenCalled();
   });
 
   it.each([true, false])(

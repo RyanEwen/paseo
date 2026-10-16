@@ -88,7 +88,44 @@ async function openWorkspace(
   await expect(page.getByTestId("menu-button")).toBeVisible();
 }
 
+/** Inspect the rendered swatches without changing the selected preference. */
+function readOptionBackgrounds(buttons: Element[]): string[] {
+  return buttons.map((button) => getComputedStyle(button).backgroundColor);
+}
+
 test.describe("Settings sidebar navigation", () => {
+  test("accent choices are previewed only in Paseo++ settings", async ({ page }) => {
+    await gotoAppShell(page);
+    await openSettings(page);
+    await openSettingsSection(page, "appearance");
+    await expect(page.getByTestId("accent-color-settings")).toHaveCount(0);
+    await openSettingsSection(page, "paseo-plus-plus");
+    const accents = page.getByTestId("accent-color-settings");
+    const original = await accents
+      .getByRole("radio", { checked: true })
+      .getAttribute("data-testid");
+    if (!original) throw new Error("Expected original accent choice");
+    const colors = accents.getByRole("radio");
+    await expect(colors).toHaveCount(7);
+    await expect(accents.getByRole("radio", { name: "Blue", exact: true })).toBeEnabled();
+    const fills = await colors.evaluateAll(readOptionBackgrounds);
+    expect(new Set(fills).size).toBe(7);
+    const evidenceDir = resolve("../../docs/qa-evidence/paseo-plus-plus-settings");
+    mkdirSync(evidenceDir, { recursive: true });
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await accents.scrollIntoViewIfNeeded();
+      await expect(colors).toHaveCount(7);
+      await accents.screenshot({ path: resolve(evidenceDir, `accent-options-${width}.png`) });
+    }
+    await accents.getByRole("radio", { name: "Blue", exact: true }).click();
+    await expect(accents.getByRole("radio", { name: "Blue", exact: true })).toBeChecked();
+    await page.reload();
+    await expect(accents.getByRole("radio", { name: "Blue", exact: true })).toBeChecked();
+    await accents.getByTestId(original).click();
+    await expect(accents.getByTestId(original)).toBeChecked();
+  });
+
   test("clicking a sidebar section updates the URL and renders the section", async ({ page }) => {
     await gotoAppShell(page);
     await openSettings(page);
@@ -223,12 +260,9 @@ test.describe("Settings — compact master-detail", () => {
     const workspaceRoute = buildHostWorkspaceRoute(getServerId(), workspace.workspaceId);
 
     await openWorkspace(page, workspace);
-    await openMobileAgentSidebar(page);
+    await page.getByRole("button", { name: "Open menu", exact: true }).click();
     await page.getByTestId("sidebar-hosts-trigger").click();
-    await page
-      .getByTestId(`sidebar-host-row-${getServerId()}`)
-      .getByRole("button", { name: "Open localhost settings", exact: true })
-      .click();
+    await page.getByRole("button", { name: /Open .* settings/ }).click();
 
     await expectAppRoute(page, buildSettingsHostSectionRoute(getServerId(), "host"));
     await expect(page.getByText("Overview", { exact: true })).toBeVisible();

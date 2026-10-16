@@ -37,6 +37,21 @@ export const ru: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "Акцентный цвет",
+      hint: "Используется для основных элементов управления и ваших сообщений",
+      updateHost: "Обновите выбранный хост настроек, чтобы изменить акцентный цвет",
+      preview: "Так будут выглядеть ваши сообщения",
+      options: {
+        default: "По умолчанию",
+        blue: "Синий",
+        green: "Зелёный",
+        purple: "Фиолетовый",
+        rose: "Розовый",
+        orange: "Оранжевый",
+        teal: "Бирюзовый",
+      },
+    },
     workspaceLimit: {
       save: "Сохранить",
       title: "Список рабочих пространств",
@@ -71,16 +86,24 @@ export const ru: TranslationResources = {
     saveFailed: "Не удалось сохранить. Попробуйте ещё раз.",
     features: {
       workspaceChatLinks: {
-        label: "Открывать ссылки чата в Paseo",
-        hint: "На компьютере открывать веб-ссылки чата в браузере его рабочего пространства. Выключите, чтобы использовать внешний браузер. Команда «Открыть в Paseo» останется в меню ссылки.",
+        label: "Ссылки рабочего пространства",
+        hint: "Открывать веб-ссылки рабочего пространства в новых вкладках его браузера на компьютере, включая терминал, чат и Git. Отключите для открытия во внешнем браузере. Явные действия остаются в меню.",
       },
       sidebarHostUpdates: {
         label: "Обновления хостов в боковой панели",
         hint: "Показывать действия обновления в меню хостов. Настройки хоста остаются доступны при выключении.",
       },
+      splitLayoutPresets: {
+        label: "Управление разделением",
+        hint: "Выбирайте пропорции у разделителя и перемещайте вкладки через меню. Отключите, чтобы скрыть эти элементы.",
+      },
       mobileWorkspaceTabs: {
         label: "Вкладки рабочих пространств на мобильном",
         hint: "Показывать прокручиваемую панель вкладок в компактном режиме. Выключите, чтобы вернуть прежний выбор вкладок, сохранив текущую вкладку.",
+      },
+      widerWorkspaceTabs: {
+        label: "Широкие вкладки рабочего пространства",
+        hint: "Увеличивает максимальную ширину длинных заголовков на 50%. Короткие вкладки сохраняют естественную ширину. Отключите, чтобы вернуть прежний предел.",
       },
 
       descriptiveToolCalls: {
@@ -650,6 +673,20 @@ export const ru: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "Открыть {{item}} сбоку",
+      chooseRatio: "Выбрать пропорции",
+      ratio: "Использовать {{ratio}}",
+      moveTab: "Переместить вкладку",
+      left: "Слева",
+      right: "Справа",
+      top: "Сверху",
+      bottom: "Снизу",
+      columns: "Слева / справа",
+      rows: "Сверху / снизу",
+      pane: "Панель {{index}}",
+    },
+
     route: {
       loading: "Загрузка рабочего пространства",
       connecting: "Подключение",
@@ -788,6 +825,7 @@ export const ru: TranslationResources = {
     browser: {
       openInPaseo: "Открыть в браузере Paseo",
       openExternally: "Открыть во внешнем браузере",
+      copyLink: "Копировать ссылку",
       unavailable: {
         title: "Встроенный браузер доступен только в настольном приложении",
         subtitle:
@@ -816,6 +854,14 @@ export const ru: TranslationResources = {
         placeholder: "Сообщение агенту об этом элементе…",
         submit: "Прикрепить",
         cancel: "Отмена",
+      },
+      extensions: {
+        label: "Расширения",
+        empty: "Нет включённых расширений.",
+        noPopup: "Всплывающее окно не предусмотрено",
+        loading: "Загрузка расширений...",
+        manage: "Управление расширениями",
+        openFailed: "Не удалось открыть расширение",
       },
       devices: {
         label: "Размер экрана устройства",
@@ -1144,6 +1190,7 @@ export const ru: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "Обновите этот хост, чтобы открыть изменения одного файла.",
         openChangesTab: "Открыть вкладку «Изменения»",
         openDiffTab: "Открыть вкладку «Дифф»",
         closeChangesTab: "Закрыть вкладку «Изменения»",
@@ -1372,6 +1419,7 @@ export const ru: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Для этого хоста пока нет известных проектов.",
       selectOnlyProject: "Показать только {{project}}",
       includeProject: "Включить {{project}}",
       workspaces: "Рабочие области",
@@ -1392,8 +1440,23 @@ export const ru: TranslationResources = {
       done: "Готово",
     },
     display: {
+      modeToggle: "Вид «{{current}}». Переключить на «{{next}}».",
+      workspaceList: {
+        updatedWithin: "Обновлено за",
+        day: "1 день",
+        threeDays: "3 дня",
+        fiveDays: "5 дней",
+        week: "1 неделю",
+        twoWeeks: "2 недели",
+        month: "1 месяц (30 дней)",
+        twoMonths: "2 месяца (60 дней)",
+        threeMonths: "3 месяца (90 дней)",
+      },
       expandAll: "Развернуть всё",
       collapseAll: "Свернуть всё",
+      oneProjectAtATime: "Один проект за раз",
+      reorderGuidance:
+        "Перетаскивание доступно только при ручной сортировке. После показа всех проектов перемещённый проект остаётся перед или после того же соседа. Закреплённые элементы всегда упорядочиваются вручную.",
       showBackground: "Показать фоновые пространства",
       trigger: "Настройки отображения",
       heading: "Отображение",
@@ -2482,6 +2545,26 @@ export const ru: TranslationResources = {
     general: {
       title: "Основные",
       sending: "Отправка",
+      browserExtensions: {
+        title: "Расширения",
+        compatibility:
+          "Некоторые функции расширений Chrome не поддерживаются. Расширения не обновляются автоматически.",
+        store: "Chrome Web Store",
+        openStore: "Открыть Web Store",
+        refresh: "Обновить",
+        enable: "Включить",
+        disable: "Отключить",
+        retry: "Повторить",
+        remove: "Удалить",
+        removeTitle: "Удалить {{name}}?",
+        removeMessage:
+          "Расширение будет удалено из Paseo. Исходные папки распакованных расширений сохраняются.",
+        loading: "Загрузка расширений...",
+        empty: "Нет установленных расширений.",
+        unpackedHint: "Загрузите расширение из папки, содержащей manifest.json.",
+        loadUnpacked: "Загрузить распакованное",
+        unavailable: "Расширения недоступны. Обновите настольное приложение.",
+      },
       browserData: {
         title: "Данные браузера",
         siteData: "Файлы cookie и данные сайтов",
@@ -2612,21 +2695,6 @@ export const ru: TranslationResources = {
       },
     },
     appearance: {
-      accent: {
-        title: "Акцентный цвет",
-        hint: "Используется для основных элементов управления и ваших сообщений",
-        updateHost: "Обновите выбранный хост настроек, чтобы изменить акцентный цвет",
-        preview: "Так будут выглядеть ваши сообщения",
-        options: {
-          default: "По умолчанию",
-          blue: "Синий",
-          green: "Зелёный",
-          purple: "Фиолетовый",
-          rose: "Розовый",
-          orange: "Оранжевый",
-          teal: "Бирюзовый",
-        },
-      },
       theme: {
         title: "Тема",
         accessibilityLabel: "Тема: {{value}}",

@@ -1,3 +1,9 @@
+import { mkdtemp, rm, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { AttachmentStore, ATTACHMENT_LIMITS } from "../attachments/store.js";
+import { AttachmentStoreError } from "../attachments/store.js";
+import type { AttachmentReference } from "@getpaseo/protocol/attachments";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import type { BrowserToolsBroker, BrowserToolsExecuteInput } from "./broker.js";
@@ -24,6 +30,7 @@ interface RegisteredTool {
 
 class FakeBrowserBroker {
   public readonly calls: BrowserToolsExecuteInput[] = [];
+  public pause: (() => Promise<void>) | null = null;
 
   public constructor(private response: BrowserToolsResponsePayload = listTabsPayload()) {}
 
@@ -33,12 +40,45 @@ class FakeBrowserBroker {
 
   public async execute(input: BrowserToolsExecuteInput): Promise<BrowserToolsResponsePayload> {
     this.calls.push(input);
+    await this.pause?.();
     return this.response;
+  }
+}
+
+const ORIGINAL_REFERENCE: AttachmentReference = {
+  id: "att_11111111-1111-4111-8111-111111111111",
+  agentId: "agent-1",
+  sha256: "a".repeat(64),
+  byteLength: 8,
+  mimeType: "image/png",
+  createdAt: "2026-10-15T00:00:00.000Z",
+};
+class ScreenshotStoragePort implements Pick<AttachmentStore, "reserve"> {
+  public admissions = 0;
+  public commits = 0;
+  public releases = 0;
+  public rejectAdmission = false;
+  public rejectCommit = false;
+  public async reserve() {
+    this.admissions++;
+    if (this.rejectAdmission)
+      throw new AttachmentStoreError("Attachment quota exhausted. No screenshot was captured.");
+    return {
+      commit: async () => {
+        this.commits++;
+        if (this.rejectCommit) throw new AttachmentStoreError("Attachment persistence failed.");
+        return ORIGINAL_REFERENCE;
+      },
+      release: async () => {
+        this.releases++;
+      },
+    };
   }
 }
 
 class BrowserToolHarness {
   public readonly broker = new FakeBrowserBroker();
+  public readonly storage = new ScreenshotStoragePort();
   private readonly tools = new Map<string, RegisteredTool>();
 
   public constructor(
@@ -48,6 +88,7 @@ class BrowserToolHarness {
       workspaceId: "wks_workspace_a",
     },
     private readonly callerAgentId: string | null = "agent-1",
+    attachmentStore?: Pick<AttachmentStore, "reserve">,
   ) {
     registerBrowserTools({
       registerTool: (name, config, handler) => {
@@ -56,6 +97,7 @@ class BrowserToolHarness {
       broker: this.broker as Pick<BrowserToolsBroker, "execute">,
       ...(this.callerAgentId ? { callerAgentId: this.callerAgentId } : {}),
       resolveCallerAgent: () => this.callerAgent,
+      attachmentStore: attachmentStore ?? this.storage,
     });
   }
 
@@ -63,9 +105,13 @@ class BrowserToolHarness {
     return schemaFor(this.get(name).config.inputSchema).safeParse(input);
   }
 
-  public async execute(name: string, input: unknown): Promise<PaseoToolResult> {
+  public async execute(
+    name: string,
+    input: unknown,
+    context: PaseoToolExecutionContext = {},
+  ): Promise<PaseoToolResult> {
     const parsed = schemaFor(this.get(name).config.inputSchema).parse(input);
-    return this.get(name).handler(parsed, {});
+    return this.get(name).handler(parsed, context);
   }
 
   public toolNames(): string[] {
@@ -799,8 +845,19 @@ describe("registerBrowserTools", () => {
           command,
         },
       ]);
-      expect(response.content).toEqual(content);
+      const screenshot = payload.ok && payload.result.command === "screenshot";
+      const expectedContent = screenshot
+        ? [
+            ...content,
+            {
+              type: "text",
+              text: `Original screenshot reference: ${ORIGINAL_REFERENCE.id} (agent ${ORIGINAL_REFERENCE.agentId}).`,
+            },
+          ]
+        : content;
+      expect(response.content).toEqual(expectedContent);
       expect(response.structuredContent).toEqual({
+        ...(screenshot ? { attachment: ORIGINAL_REFERENCE } : {}),
         ok: payload.ok,
         result: structuredResult ?? payload.result,
         context: {
@@ -995,3 +1052,77 @@ describe("registerBrowserTools", () => {
     });
   });
 });
+
+test("owned screenshot admission fails before invoking the broker", async () => {
+  const harness = new BrowserToolHarness();
+  harness.storage.rejectAdmission = true;
+  const result = await harness.execute("browser_screenshot", { browserId: BROWSER_ID });
+  expect(result.isError).toBe(true);
+  expect(harness.broker.calls).toHaveLength(0);
+  expect(harness.storage.commits).toBe(0);
+});
+test("failed screenshot publication never returns inline success or a reference", async () => {
+  const harness = new BrowserToolHarness();
+  harness.broker.setResponse(screenshotPayload());
+  harness.storage.rejectCommit = true;
+  const result = await harness.execute("browser_screenshot", { browserId: BROWSER_ID });
+  expect(result.isError).toBe(true);
+  expect(result.content.every((block) => block.type === "text")).toBe(true);
+  expect(harness.storage.releases).toBe(1);
+  expect(result.structuredContent).not.toHaveProperty("attachment");
+});
+test("screenshot storage never guesses an absent or mismatched registered caller", async () => {
+  for (const harness of [
+    new BrowserToolHarness(null),
+    new BrowserToolHarness({ id: "different", cwd: "/repo" }),
+  ]) {
+    const result = await harness.execute("browser_screenshot", { browserId: BROWSER_ID });
+    expect(result.isError).toBe(true);
+    expect(harness.storage.admissions).toBe(0);
+    expect(harness.broker.calls).toHaveLength(0);
+  }
+});
+
+test.each(["close", "cancel"])(
+  "late broker completion after %s cannot publish a durable original",
+  async (mode) => {
+    const home = await mkdtemp(path.join(tmpdir(), "screenshot-reservation-"));
+    const store = await AttachmentStore.create(home, { ...ATTACHMENT_LIMITS, freeBytes: 0 });
+    let release = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let began = () => {};
+    const started = new Promise<void>((resolve) => {
+      began = resolve;
+    });
+    const harness = new BrowserToolHarness({ id: "agent-1", cwd: "/repo" }, "agent-1", store);
+    harness.broker.setResponse(screenshotPayload());
+    harness.broker.pause = async () => {
+      began();
+      await pending;
+    };
+    const cancel = new AbortController();
+    const capture = harness.execute(
+      "browser_screenshot",
+      { browserId: BROWSER_ID },
+      { signal: cancel.signal },
+    );
+    let closing: Promise<void> | null = null;
+    try {
+      await started;
+      if (mode === "close") closing = store.close();
+      else cancel.abort();
+      release();
+      expect((await capture).isError).toBe(true);
+      await closing;
+      expect(await readdir(path.join(home, "attachments", "references"))).toHaveLength(0);
+      expect(await readdir(path.join(home, "attachments", "blobs"))).toHaveLength(0);
+    } finally {
+      release();
+      await capture;
+      await store.close();
+      await rm(home, { recursive: true, force: true });
+    }
+  },
+);

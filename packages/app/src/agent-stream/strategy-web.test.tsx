@@ -1,3 +1,6 @@
+import { ActualPromptRowsContext, ActualPromptRowsProvider } from "./actual-prompt-rows";
+import { uniqueStreamSegments, precedingPromptIndex } from "./actual-row-collection";
+import { syncActualPromptPin, getOriginalPromptTop } from "./actual-prompt-pin.web";
 /**
  * @vitest-environment jsdom
  */
@@ -97,6 +100,7 @@ describe("createWebStreamStrategy", () => {
   let originalOffsetHeight: PropertyDescriptor | undefined;
 
   beforeEach(() => {
+    vi.stubGlobal("React", React);
     Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
       value: true,
       configurable: true,
@@ -140,6 +144,7 @@ describe("createWebStreamStrategy", () => {
       Reflect.deleteProperty(HTMLElement.prototype, "offsetHeight");
     }
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("mounts virtualized history without recursive row measurement updates", () => {
@@ -440,7 +445,13 @@ describe("createWebStreamStrategy", () => {
         mounted();
         return unmounted;
       }, []);
-      return <div>{item.id}</div>;
+      const rows = React.useContext(ActualPromptRowsContext);
+      const toggle = React.useCallback(() => rows?.toggleExpanded(item.id), [rows]);
+      return (
+        <button type="button" onClick={toggle}>
+          {rows?.expandedIds.has(item.id) ? "Less" : "More"}
+        </button>
+      );
     }
     const renderers: StreamSegmentRenderers = {
       ...createRenderers(vi.fn()),
@@ -471,35 +482,44 @@ describe("createWebStreamStrategy", () => {
 
     act(() => {
       root?.render(
-        strategy.render({
-          ...renderInput,
-          segments: { historyVirtualized: [], historyMounted: [], liveHead: [item] },
-          boundary: {
-            hasVirtualizedHistory: false,
-            hasMountedHistory: false,
-            hasLiveHead: true,
-          },
-        }),
+        <ActualPromptRowsProvider enabled scope="agent:epoch" availableHeight={500}>
+          {strategy.render({
+            ...renderInput,
+            segments: { historyVirtualized: [], historyMounted: [], liveHead: [item] },
+            boundary: {
+              hasVirtualizedHistory: false,
+              hasMountedHistory: false,
+              hasLiveHead: true,
+            },
+          })}
+        </ActualPromptRowsProvider>,
       );
     });
     expect(mounted).toHaveBeenCalledTimes(1);
+    const originalButton = container.querySelector("button")!;
+    act(() => originalButton.click());
+    expect(originalButton.textContent).toBe("Less");
 
     act(() => {
       root?.render(
-        strategy.render({
-          ...renderInput,
-          segments: { historyVirtualized: [], historyMounted: [item], liveHead: [] },
-          boundary: {
-            hasVirtualizedHistory: false,
-            hasMountedHistory: true,
-            hasLiveHead: false,
-          },
-        }),
+        <ActualPromptRowsProvider enabled scope="agent:epoch" availableHeight={500}>
+          {strategy.render({
+            ...renderInput,
+            segments: { historyVirtualized: [], historyMounted: [item], liveHead: [] },
+            boundary: {
+              hasVirtualizedHistory: false,
+              hasMountedHistory: true,
+              hasLiveHead: false,
+            },
+          })}
+        </ActualPromptRowsProvider>,
       );
     });
 
     expect(mounted).toHaveBeenCalledTimes(1);
     expect(unmounted).not.toHaveBeenCalled();
+    expect(container.querySelector("button")).toBe(originalButton);
+    expect(originalButton.textContent).toBe("Less");
   });
 
   it("reports the live-head row as the reading position", () => {
@@ -1618,5 +1638,79 @@ describe("createWebStreamStrategy", () => {
     });
     expect(container.querySelector('[data-testid="agent-chat-scroll"]')).toBe(scrollContainer);
     expect(scrollTo).toHaveBeenCalledWith({ top: 2200, behavior: "auto" });
+  });
+});
+
+describe("actual web prompt cells", () => {
+  it("moves the real cell while preserving its original jump coordinates and selection node", () => {
+    const viewport = document.createElement("div");
+    const content = document.createElement("div");
+    viewport.appendChild(content);
+    document.body.appendChild(viewport);
+    Object.defineProperty(viewport, "getBoundingClientRect", { value: () => ({ top: 100 }) });
+    const source = document.createElement("div");
+    source.dataset.historyRowId = "old";
+    source.dataset.actualPromptRow = "";
+    const body = document.createElement("div");
+    body.dataset.actualPromptContent = "";
+    const text = document.createElement("span");
+    text.textContent = "The same selectable prompt";
+    body.appendChild(text);
+    source.appendChild(body);
+    const next = document.createElement("div");
+    next.dataset.historyRowId = "next";
+    next.dataset.actualPromptRow = "";
+    const nextBody = document.createElement("div");
+    nextBody.dataset.actualPromptContent = "";
+    next.appendChild(nextBody);
+    content.append(source, next);
+    const bounds = (top: number) => ({ top, height: 80, width: 300 });
+    source.getBoundingClientRect = () => bounds(180 - viewport.scrollTop) as DOMRect;
+    next.getBoundingClientRect = () => bounds(500 - viewport.scrollTop) as DOMRect;
+    text.getBoundingClientRect = () =>
+      bounds(180 - viewport.scrollTop + Number(source.dataset.promptTranslation ?? 0)) as DOMRect;
+    try {
+      viewport.scrollTop = 200;
+      expect(syncActualPromptPin(content, viewport, true)).toBe("old");
+      expect(body.style.transform).toBe("translateY(120px)");
+      expect(getOriginalPromptTop(text)).toBe(-20);
+      expect(getOriginalPromptTop(source)).toBe(-20);
+      expect(content.querySelectorAll("span")).toHaveLength(1);
+      expect(source.firstChild?.firstChild).toBe(text);
+      viewport.scrollTop = 350;
+      syncActualPromptPin(content, viewport, true);
+      expect(body.style.transform).toBe("translateY(240px)");
+      viewport.scrollTop = 400;
+      expect(syncActualPromptPin(content, viewport, true)).toBe("next");
+      expect(body.style.transform).toBe("");
+      viewport.scrollTop = 79;
+      expect(syncActualPromptPin(content, viewport, true)).toBeNull();
+      expect(nextBody.style.transform).toBe("");
+      expect(source.firstChild?.firstChild).toBe(text);
+      expect(syncActualPromptPin(content, viewport, false)).toBeNull();
+    } finally {
+      viewport.remove();
+    }
+  });
+
+  it("retains only the preceding prompt index across sparse and unmeasured history", () => {
+    const measurements = Array.from({ length: 1000 }, (_, index) => ({ start: index * 24 }));
+    expect(precedingPromptIndex([0, 200, 600, 900], measurements, 18000)).toBe(600);
+    expect(precedingPromptIndex([200, 600], measurements, 100)).toBe(-1);
+    expect(precedingPromptIndex([0, 200, 600, 900], measurements.slice(0, 800), 24000)).toBe(600);
+  });
+
+  it("renders a canonical live/history handoff once using the current live revision", () => {
+    const history = userMessage(1);
+    const live = { ...history, text: "updated canonical prompt" };
+    const segments = uniqueStreamSegments({
+      historyVirtualized: [history],
+      historyMounted: [history],
+      liveHead: [live],
+    });
+    expect(segments.historyVirtualized).toEqual([]);
+    expect(segments.historyMounted).toEqual([]);
+    expect(segments.liveHead).toEqual([live]);
+    expect(segments.liveHead[0]).toBe(live);
   });
 });

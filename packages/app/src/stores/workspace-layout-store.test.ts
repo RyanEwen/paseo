@@ -1,3 +1,4 @@
+import { resolveWorkspaceTabLaunchDestination } from "@/workspace-tabs/launcher/internal/destination";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@react-native-async-storage/async-storage", () => {
@@ -2040,6 +2041,115 @@ describe("workspace-layout-store actions", () => {
     ]);
   });
 
+  it("captures a split placeholder before asynchronous tab creation and keeps the chosen ratio", () => {
+    const workspaceKey = createWorkspaceKey();
+    const original = workspaceLayoutStore.getState().openTab({
+      workspaceKey,
+      target: { kind: "file", path: "/repo/worktree/original.ts" },
+      intent: "reveal",
+    });
+    const destination = resolveWorkspaceTabLaunchDestination(
+      workspaceKey,
+      { kind: "split", paneId: "main", position: "right", firstPaneFraction: 0.6 },
+      workspaceLayoutStore,
+    );
+    expect(destination?.kind).toBe("replace");
+    if (!destination || destination.kind !== "replace")
+      throw new Error("Expected captured placeholder");
+    const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
+    const pane = findPaneContainingTab(layout.root, destination.tabId);
+    expect(pane?.id).not.toBe("main");
+    workspaceLayoutStore.getState().focusPane(workspaceKey, "main");
+    workspaceLayoutStore.getState().replaceTab(workspaceKey, destination.tabId, {
+      kind: "terminal",
+      terminalId: "created-later",
+    });
+    const after = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
+    expect(findPaneContainingTab(after.root, destination.tabId)?.id).toBe(pane?.id);
+    expect(findPaneContainingTab(after.root, original!)?.id).toBe("main");
+    expect(
+      collectContentTabs(after.root).find((tab) => tab.tabId === destination.tabId)?.target,
+    ).toEqual({ kind: "terminal", terminalId: "created-later" });
+    if (after.root.kind !== "group") throw new Error("Expected split");
+    expect(after.root.group.sizes[0]).toBeCloseTo(0.468);
+    expect(after.root.group.sizes[1]).toBeCloseTo(0.312);
+  });
+
+  it("moves the existing tab into a chosen side ratio without changing tab identity", () => {
+    const workspaceKey = createWorkspaceKey();
+    const store = workspaceLayoutStore.getState();
+    const first = store.openTab({
+      workspaceKey,
+      target: { kind: "file", path: "/repo/worktree/a.ts" },
+      intent: "reveal",
+    });
+    const second = store.openTab({
+      workspaceKey,
+      target: { kind: "file", path: "/repo/worktree/b.ts" },
+      intent: "reveal",
+    });
+    const pane = store.splitPane(workspaceKey, {
+      tabId: second!,
+      targetPaneId: "main",
+      position: "left",
+      firstPaneFraction: 0.6,
+    });
+    const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
+    expect(layout.root.kind).toBe("group");
+    if (layout.root.kind !== "group") throw new Error("Expected split");
+    expect(layout.root.group.sizes[0]).toBeCloseTo(0.78 * 0.6);
+    expect(layout.root.group.sizes[1]).toBeCloseTo(0.78 * 0.4);
+    expect(layout.root.group.sizes[2]).toBeCloseTo(0.22);
+    expect(findPaneContainingTab(layout.root, second!)?.id).toBe(pane);
+    expect(findPaneContainingTab(layout.root, first!)?.id).toBe("main");
+    expect(
+      collectContentTabs(layout.root)
+        .map((tab) => tab.tabId)
+        .sort(),
+    ).toEqual([first, second].sort());
+    expect(layout.focusedPaneId).toBe(pane);
+  });
+
+  it("preserves committed sibling sizes when inserting a split preset", () => {
+    const workspaceKey = createWorkspaceKey();
+    const store = workspaceLayoutStore.getState();
+    store.openTab({
+      workspaceKey,
+      target: { kind: "file", path: "/repo/worktree/a.ts" },
+      intent: "reveal",
+    });
+    const second = store.openTab({
+      workspaceKey,
+      target: { kind: "file", path: "/repo/worktree/b.ts" },
+      intent: "reveal",
+    });
+    store.splitPane(workspaceKey, { tabId: second!, targetPaneId: "main", position: "right" });
+    const before = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
+    if (before.root.kind !== "group") throw new Error("Expected split");
+    store.resizeSplit(workspaceKey, before.root.group.id, [0.7, 0.3]);
+    const third = store.openTab({
+      workspaceKey,
+      target: { kind: "file", path: "/repo/worktree/c.ts" },
+      intent: "reveal",
+    });
+    store.splitPane(workspaceKey, {
+      tabId: third!,
+      targetPaneId: "main",
+      position: "left",
+      firstPaneFraction: 0.6,
+    });
+    const after = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
+    if (after.root.kind !== "group") throw new Error("Expected split");
+    expect(after.root.group.sizes[0]).toBeCloseTo(0.3276);
+    expect(after.root.group.sizes[1]).toBeCloseTo(0.2184);
+    expect(after.root.group.sizes[2]).toBeCloseTo(0.234);
+    expect(after.root.group.sizes[3]).toBeCloseTo(0.22);
+    expect(
+      workspaceLayoutStore.getState().splitSizesByWorkspace[workspaceKey][after.root.group.id],
+    ).toEqual(after.root.group.sizes);
+    expect(collectContentTabs(after.root).length).toBe(3);
+  });
+
   it("opens tabs into the focused pane and focuses duplicate opens instead of creating them", () => {
     useWorkspaceLayoutIds("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     const workspaceKey = createWorkspaceKey();
@@ -3046,6 +3156,95 @@ describe("workspace-layout-store actions", () => {
       "file_/repo/worktree/a.ts",
     ]);
   });
+
+  it.each([
+    {
+      source: "a",
+      destination: "c",
+      surviving: ["b", "c"],
+      sizes: [0.375, 0.625],
+      explorer: false,
+    },
+    {
+      source: "b",
+      destination: "c",
+      surviving: ["a", "c"],
+      sizes: [2 / 7, 5 / 7],
+      explorer: false,
+    },
+    { source: "c", destination: "a", surviving: ["a", "b"], sizes: [0.4, 0.6], explorer: false },
+    { source: "a", destination: "c", surviving: ["b", "c"], sizes: [0.375, 0.625], explorer: true },
+  ])(
+    "preserves resized pane identities when moving the last tab from $source (Explorer: $explorer)",
+    ({ source, destination, surviving, sizes, explorer }) => {
+      const workspaceKey = createWorkspaceKey();
+      const main: SplitNode = {
+        kind: "group",
+        group: {
+          id: "resized-main",
+          direction: "horizontal",
+          sizes: [1 / 3, 1 / 3, 1 / 3],
+          children: ["a", "b", "c"].map((id) => createPane({ id, tabIds: [`tab-${id}`] })),
+        },
+      };
+      const other: SplitNode = {
+        kind: "group",
+        group: {
+          id: "unrelated",
+          direction: "horizontal",
+          sizes: [0.5, 0.5],
+          children: [
+            createPane({
+              id: "draft-pane",
+              tabIds: ["draft-tab"],
+              targetsByTabId: { "draft-tab": { kind: "draft", draftId: "keep-draft" } },
+            }),
+            createPane({ id: "other-pane", tabIds: ["other-tab"] }),
+          ],
+        },
+      };
+      const root: SplitNode = {
+        kind: "group",
+        group: {
+          id: "outer",
+          direction: "vertical",
+          sizes: explorer ? [0.5, 0.3, 0.2] : [0.6, 0.4],
+          children: explorer
+            ? [main, other, createPane({ id: "explorer", tabIds: ["explorer-tab"] })]
+            : [main, other],
+        },
+      };
+      workspaceLayoutStore.setState({
+        layoutByWorkspace: { [workspaceKey]: { root, focusedPaneId: source } },
+        splitSizesByWorkspace: {
+          [workspaceKey]: { "resized-main": [0.2, 0.3, 0.5], unrelated: [0.65, 0.35] },
+        },
+        explorerSidebarPaneIdByWorkspace: explorer ? { [workspaceKey]: "explorer" } : {},
+      });
+      const beforeTabs = collectAllTabs(root);
+      workspaceLayoutStore.getState().moveTabToPane(workspaceKey, `tab-${source}`, destination);
+      const state = workspaceLayoutStore.getState();
+      const after = state.layoutByWorkspace[workspaceKey];
+      expect(after.root.kind).toBe("group");
+      if (after.root.kind !== "group") throw new Error("Expected outer group");
+      const mainAfter = after.root.group.children[0];
+      expect(mainAfter.kind).toBe("group");
+      if (mainAfter.kind !== "group") throw new Error("Expected surviving split");
+      expect(
+        mainAfter.group.children.map((child) => (child.kind === "pane" ? child.pane.id : null)),
+      ).toEqual(surviving);
+      mainAfter.group.sizes.forEach((size, index) => expect(size).toBeCloseTo(sizes[index]));
+      expect(state.splitSizesByWorkspace[workspaceKey]["resized-main"]).toEqual(
+        mainAfter.group.sizes,
+      );
+      expect(state.splitSizesByWorkspace[workspaceKey].unrelated).toEqual([0.65, 0.35]);
+      expect(after.root.group.sizes).toEqual(root.group.sizes);
+      expect(collectAllTabs(after.root).sort((a, b) => a.tabId.localeCompare(b.tabId))).toEqual(
+        beforeTabs.sort((a, b) => a.tabId.localeCompare(b.tabId)),
+      );
+      expect(findPaneContainingTab(after.root, `tab-${source}`)?.id).toBe(destination);
+    },
+  );
 
   it("moving a pane's sole New tab closes that pane instead of moving the tab", () => {
     const workspaceKey = createWorkspaceKey();

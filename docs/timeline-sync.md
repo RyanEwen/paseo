@@ -71,13 +71,21 @@ window, and a loaded row may sit outside the mounted presentation window. Resolv
 rows to authoritative timeline positions before selecting prompts; Markdown blocks and plugin
 cards do not share the canonical row IDs. Child transcripts use their own history pagination.
 
-Keep the original user bubble in the transcript. Its compact copy appears after the bubble leaves
-the viewport, within the same content rail. The copy overlays the viewport so its visibility does
-not shift the reading position. Manual scrolling selects the prompt for the response at the
-reading edge. Arrow navigation retains its selected prompt through the smooth scroll, including
-landings clamped by the end of the conversation. Bottom-following intent starts at the latest
-prompt and resumes when you send or use Jump to bottom. Incoming messages do not move an older
-reading selection. Retained panes keep their own selection; session and epoch changes isolate it.
+The actual user row owns both its one-line collapsed presentation and its expanded body.
+Pinning moves that same row without changing its original measured position or adding a
+second rendered message. Virtualization retains the preceding user row; the next user
+row pushes it away. Stable keys and component ancestry must survive live completion,
+history prepend and virtualization. Disclosure state is scoped to canonical identity and
+epoch. Expanded bodies retain their text and attachments in one bounded scrollable body,
+with disclosure and navigation outside that body.
+
+The viewport owns original row measurements, pinning, reading anchors and explicit prompt
+landings. It must not use a translated bubble as its original scroll target. Manual scrolling
+selects the prompt for the response at the reading edge. Arrow navigation retains its selected
+prompt through the smooth scroll, including landings clamped by the end of the conversation.
+Bottom-following intent starts at the latest prompt and resumes when you send or use Jump to
+bottom. Incoming messages do not move an older reading selection. Retained panes keep their own
+selection; session and epoch changes isolate it.
 
 A content-only read can recover the indexed prompt for an already-visible response without
 applying a transcript window. Index-free history may begin with several pages containing no user

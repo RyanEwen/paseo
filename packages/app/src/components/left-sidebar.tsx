@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useSessionStore, type DaemonServerInfo } from "@/stores/session-store";
 import type { HostProfile } from "@/types/host-connection";
 import { HostUpdateAction, HostUpdateSheet } from "@/components/hosts/host-update-action";
+import { SidebarViewModeButton } from "@/components/sidebar/view-mode-button";
 import { SidebarProjectSelector } from "@/components/sidebar/sidebar-project-selector";
 import { SidebarBulkCollapseControls } from "@/components/sidebar/bulk-collapse-controls";
 import { router } from "expo-router";
@@ -919,6 +920,7 @@ function WorkspacesSectionHeader() {
       <SidebarProjectSelector />
       <View style={styles.workspacesSectionActions}>
         {!isCompact ? <SidebarBulkCollapseControls /> : null}
+        <SidebarViewModeButton />
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <View>

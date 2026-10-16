@@ -1,3 +1,4 @@
+import { useWebOverlayPresentationLifetime } from "@/lib/overlay-presentation-lifetime";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -34,6 +35,13 @@ export function AttachmentLightbox({ source, onClose }: AttachmentLightboxProps)
   const url = source?.type === "uri" ? source.uri : attachmentUrl;
   const contentSize = source?.type === "uri" ? source.contentSize : undefined;
   const [errored, setErrored] = useState(false);
+  const { ready: presentationReady, retainNode: retainPresentationNode } =
+    useWebOverlayPresentationLifetime({
+      active: isWeb && source !== null,
+      nativeBrowserOverlap: true,
+      identity: source?.type === "attachment" ? source.metadata.id : source?.uri,
+      onAdmissionFailed: onClose,
+    });
   const modalLayer = useGlobalWebOverlayLayer("modal", isWeb && source !== null);
 
   useEffect(() => {
@@ -51,7 +59,7 @@ export function AttachmentLightbox({ source, onClose }: AttachmentLightboxProps)
     [onClose],
   );
   const setWebOverlayScope = useWebOverlayRegistration({
-    active: isWeb && source !== null,
+    active: isWeb && source !== null && presentationReady,
     layer: modalLayer,
     onKeyDown: handleWebOverlayKeyDown,
   });
@@ -82,7 +90,15 @@ export function AttachmentLightbox({ source, onClose }: AttachmentLightboxProps)
 
   const handleImageError = useCallback(() => setErrored(true), []);
 
-  if (!source) {
+  const setScope = useCallback(
+    (node: unknown) => {
+      setWebOverlayScope(node);
+      retainPresentationNode(node);
+    },
+    [setWebOverlayScope, retainPresentationNode],
+  );
+
+  if (!source || !presentationReady) {
     return null;
   }
 
@@ -92,7 +108,7 @@ export function AttachmentLightbox({ source, onClose }: AttachmentLightboxProps)
     <Modal transparent animationType="fade" statusBarTranslucent visible onRequestClose={onClose}>
       <ModalRoot style={styles.root}>
         <WindowChromeRootRegion corners="both">
-          <View ref={setWebOverlayScope} style={styles.root}>
+          <View ref={setScope} style={styles.root}>
             <Pressable
               testID="attachment-lightbox-backdrop"
               accessibilityRole="button"

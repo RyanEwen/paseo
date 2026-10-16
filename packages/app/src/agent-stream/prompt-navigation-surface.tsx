@@ -102,6 +102,7 @@ export function PromptMessageSurface({
           variant="ghost"
           size={expanded ? size : "xs"}
           hitSlop={expanded ? undefined : 8}
+          style={expanded ? undefined : styles.inlineDisclosure}
           accessibilityLabel={expanded ? t("stickyPrompt.collapse") : t("stickyPrompt.expand")}
           accessibilityState={disclosureState}
           textStyle={styles.disclosureText}
@@ -275,6 +276,8 @@ const styles = StyleSheet.create((theme) => ({
   discoveryBackground: { backgroundColor: theme.colors.surface0 },
   row: { flexDirection: "row", alignItems: "center", gap: theme.spacing[1] },
   preview: { flex: 1, minWidth: 0 },
+  // An opaque button covers only the preview suffix, not the original text layout.
+  inlineDisclosure: { backgroundColor: theme.colors.surface3 },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
   text: { color: theme.colors.foreground, fontSize: theme.fontSize.base },
 }));

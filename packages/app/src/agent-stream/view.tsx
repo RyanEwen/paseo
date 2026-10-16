@@ -272,7 +272,15 @@ function renderLiveHeadStreamItem(input: {
   if (!layoutItem) {
     return null;
   }
-  return input.renderStreamItem(layoutItem);
+  // Live completion must not insert a different component boundary around an
+  // existing user row: its disclosure, selection and native focus belong to it.
+  return (
+    <HistoryStreamRow
+      item={input.item}
+      layoutItem={layoutItem}
+      renderStreamItem={input.renderStreamItem}
+    />
+  );
 }
 
 export interface AgentStreamViewHandle {
@@ -281,6 +289,7 @@ export interface AgentStreamViewHandle {
 }
 
 export interface AgentStreamViewProps {
+  nativeViewportPlacement?: "docked" | "standalone";
   agentId: string;
   serverId?: string;
   context: AgentScreenAgent;
@@ -355,6 +364,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       toast,
       onOpenWorkspaceFile,
       readOnly = false,
+      nativeViewportPlacement,
       historyPagination,
     },
     ref,
@@ -1194,6 +1204,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               <MessageOuterSpacingProvider disableOuterSpacing>
                 {streamRenderStrategy.render({
                   agentId,
+                  nativeViewportPlacement,
                   segments: renderModel.segments,
                   historyRowRevision,
                   liveHeadRowRevision: expandedToolCallGroupIds,
@@ -1380,6 +1391,8 @@ function agentStreamViewPropsEqual(
   if (left.toast !== right.toast) reasons.push("toast");
   if (left.onOpenWorkspaceFile !== right.onOpenWorkspaceFile) reasons.push("onOpenWorkspaceFile");
   if (left.readOnly !== right.readOnly) reasons.push("readOnly");
+  if (left.nativeViewportPlacement !== right.nativeViewportPlacement)
+    reasons.push("nativeViewportPlacement");
   if (!historyPaginationPropsEqual(left.historyPagination, right.historyPagination)) {
     reasons.push("historyPagination");
   }

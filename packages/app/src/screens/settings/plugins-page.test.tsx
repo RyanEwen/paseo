@@ -61,8 +61,6 @@ vi.mock("@/components/adaptive-modal-sheet", async () => {
 
 vi.mock("react-native-reanimated", () => ({
   default: { View: "div" },
-  FadeIn: { duration: () => undefined },
-  FadeOut: { duration: () => undefined },
   Keyframe: class {
     duration() {
       return this;
