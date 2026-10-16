@@ -80,7 +80,7 @@ Choose whether Explorer starts open in new desktop workspaces and whether openin
 
 ### Sync app settings
 
-Choose a settings host in Paseo++ to share preferences across your clients, including whether Usage appears in the sidebar. Switching hosts loads their saved settings first; an empty host requires an explicit publish action. Connection details, project filters, workspace order and collapsed groups stay local. Your settings host needs a daemon build with settings sync support.
+Choose a settings host in Paseo++ on Android or desktop to share preferences across your clients, including whether Usage appears in the sidebar. Switching hosts loads their saved settings first; an empty host requires an explicit publish action. Connection details, project filters, workspace order and collapsed groups stay local. Your settings host needs a daemon build with settings sync support. Shared settings refresh when the connection’s write permission changes. Read-only connections can retry the read without restarting the app or replacing saved preferences.
 
 ### Android SSH hosts
 

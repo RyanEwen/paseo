@@ -3,7 +3,10 @@ import type { AppSettingsSnapshot } from "@getpaseo/protocol/app-settings";
 import type { SettingsSyncTransport } from "./model";
 
 interface SettingsHostTransportInput {
-  client: DaemonClient;
+  client: Pick<
+    DaemonClient,
+    "getLastServerInfoMessage" | "observeAppSettings" | "patchAppSettings"
+  >;
   signal: AbortSignal;
   onSnapshot(snapshot: AppSettingsSnapshot): void;
 }
@@ -17,9 +20,12 @@ export function createSettingsHostTransport(
   let readGeneration = 0;
 
   return {
-    supported: true,
-    writable:
-      input.client.getLastServerInfoMessage()?.permissions?.includes("daemon.manage") === true,
+    supported: input.client.getLastServerInfoMessage()?.features?.appSettingsSync === true,
+    get writable() {
+      return (
+        input.client.getLastServerInfoMessage()?.permissions?.includes("daemon.manage") === true
+      );
+    },
     read,
     patch: (patches, initialize) => input.client.patchAppSettings(patches, initialize),
   };
@@ -31,7 +37,7 @@ export function createSettingsHostTransport(
     const previous = current;
     current = null;
     if (previous) await previous.release();
-    input.signal.throwIfAborted();
+    throwIfSettingsReadAborted(input.signal);
     if (generation !== readGeneration) throw new Error("Settings read was superseded");
 
     const subscription = input.client.observeAppSettings({ signal: input.signal });
@@ -48,7 +54,7 @@ export function createSettingsHostTransport(
     });
     try {
       const result = await subscription.ready;
-      input.signal.throwIfAborted();
+      throwIfSettingsReadAborted(input.signal);
       initialized = true;
       return result.snapshot;
     } catch (error) {
@@ -64,4 +70,11 @@ export function createSettingsHostTransport(
       return !input.signal.aborted && current === subscription && generation === readGeneration;
     }
   }
+}
+
+/** Native signals expose abort state/events without the newer helper; retain any original reason. */
+function throwIfSettingsReadAborted(signal: AbortSignal): void {
+  if (!signal.aborted) return;
+  if (signal.reason !== undefined) throw signal.reason;
+  throw Object.assign(new Error("Settings read aborted"), { name: "AbortError" });
 }
