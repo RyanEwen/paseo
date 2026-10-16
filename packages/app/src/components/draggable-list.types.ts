@@ -31,6 +31,8 @@ export interface DraggableListProps<T> {
   getDragGroupKey?: (item: T) => string | null;
   /** Animate automatic position changes. Zero disables motion without remounting cells. */
   positionTransitionDuration?: number;
+  /** Layout changes that move surviving rows without changing their order. */
+  positionTransitionRevision?: unknown;
   style?: StyleProp<ViewStyle>;
   /** Outer container style (useful for nested, non-scrolling lists). */
   containerStyle?: StyleProp<ViewStyle>;

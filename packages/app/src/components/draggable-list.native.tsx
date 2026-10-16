@@ -35,6 +35,7 @@ export function DraggableList<T>({
   refreshing,
   onRefresh,
   extraData,
+  positionTransitionRevision,
   simultaneousGestureRef,
   gestureHostPresented,
   waitFor,
@@ -154,8 +155,8 @@ export function DraggableList<T>({
     [data, getDragGroupKey],
   );
   const listExtraData = useMemo(
-    () => [extraData, motionDuration, disabled],
-    [extraData, motionDuration, disabled],
+    () => [extraData, motionDuration, disabled, positionTransitionRevision],
+    [extraData, motionDuration, disabled, positionTransitionRevision],
   );
 
   return (
