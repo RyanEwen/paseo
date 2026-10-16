@@ -77,8 +77,8 @@ export const es: TranslationResources = {
     title: "Paseo++",
     optional: "Funciones opcionales",
     optionalHint:
-      "Las opciones siguen al host de ajustes seleccionado cuando la sincronización está activada. Desactivar una función conserva sus datos y preferencias.",
-    preferences: "Más controles de la barra lateral",
+      "Los interruptores de funciones opcionales están activados por defecto. Las preferencias de Mostrar tienen valores predeterminados independientes; Expandir un proyecto a la vez está desactivado al inicio. Las opciones siguen al host de ajustes seleccionado al sincronizar. Desactivar una función conserva sus datos y preferencias.",
+    preferences: "Controles de la barra lateral de espacios de trabajo",
     fixes: "Correcciones y elementos esenciales",
     fixesHint: "Estas mejoras siguen activas",
     additions: "Otras mejoras",
@@ -112,8 +112,8 @@ export const es: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "Selector de proyecto en la barra lateral",
-        hint: "Elige un proyecto desde el encabezado; al desactivarlo vuelve el filtro Proyecto",
+        label: "Proyecto seleccionado en el encabezado",
+        hint: "Muestra el nombre del proyecto seleccionado en el encabezado de espacios de trabajo. Al desactivarlo se muestra Espacios de trabajo; las opciones de host y proyecto siguen disponibles.",
       },
       stickyUserPrompts: {
         label: "Mantener mensajes visibles",
@@ -150,8 +150,8 @@ export const es: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Orden y detalles de los espacios de trabajo",
-        hint: "Ordena proyectos y espacios de trabajo por separado por nombre, estado o un orden personalizado. Muestra la última actividad y los totales de cambios de código juntos; las etiquetas de proyecto están activadas por defecto. Las etiquetas de rama son opcionales y están desactivadas por defecto. Ajusta estas opciones en Mostrar, en la barra lateral de espacios de trabajo.",
+        label: "Modos, filtros y visualización",
+        hint: "Usa la campana de la barra lateral para alternar entre Proyecto y Estado. El icono de filtro abre el filtro rápido de texto. En Mostrar, Límites de espacios de trabajo ajusta la cantidad y la antigüedad por separado; Proyectos vacíos permite mostrar, agrupar u ocultar. Cada modo conserva sus preferencias.",
       },
     },
     fixesList: {

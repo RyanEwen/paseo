@@ -69,8 +69,9 @@ export const zhCN: TranslationResources = {
     saving: "正在保存...",
     title: "Paseo++",
     optional: "可选功能",
-    optionalHint: "启用同步后，选项跟随所选的设置主机。关闭功能会保留已保存的数据和偏好。",
-    preferences: "更多侧边栏设置",
+    optionalHint:
+      "可选功能开关默认开启。显示偏好各有独立默认值；每次只展开一个项目默认关闭。启用同步后，选项跟随所选设置主机。关闭功能会保留已保存的数据和偏好。",
+    preferences: "工作区侧边栏设置",
     fixes: "修复和分支基本功能",
     fixesHint: "这些改进始终启用",
     additions: "其他新增功能",
@@ -104,8 +105,8 @@ export const zhCN: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "侧边栏项目选择器",
-        hint: "从工作区标题选择项目；关闭后恢复项目过滤菜单",
+        label: "标题中的所选项目",
+        hint: "在工作区标题中显示所选项目名称。关闭后使用“工作区”；主机和项目选项仍可使用。",
       },
       stickyUserPrompts: {
         label: "保持用户消息可见",
@@ -142,8 +143,8 @@ export const zhCN: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "工作区顺序和详情",
-        hint: "分别按名称、状态或自定义顺序排列项目和工作区。同时显示最近活动时间和代码更改总计；项目名称默认显示。分支名称可选择显示，默认不显示。请在工作区侧边栏的显示菜单中调整。",
+        label: "模式、筛选和显示",
+        hint: "用侧边栏的铃铛切换项目和状态模式。筛选图标可打开快速文本筛选。在显示菜单中，工作区限制分别设置数量和更新期限，空项目可选择显示、分组或隐藏。每种模式各自保留偏好。",
       },
     },
     fixesList: {

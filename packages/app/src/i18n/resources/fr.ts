@@ -77,8 +77,8 @@ export const fr: TranslationResources = {
     title: "Paseo++",
     optional: "Fonctions facultatives",
     optionalHint:
-      "Les choix suivent l’hôte de paramètres sélectionné lorsque la synchronisation est activée. La désactivation conserve les données et préférences.",
-    preferences: "Autres commandes de la barre latérale",
+      "Les interrupteurs des fonctions facultatives sont activés par défaut. Les préférences d’affichage ont leurs propres valeurs par défaut ; Développer un projet à la fois est initialement désactivé. Les choix suivent l’hôte de paramètres sélectionné lors de la synchronisation. Désactiver une fonction conserve ses données et préférences.",
+    preferences: "Commandes de la barre latérale des espaces de travail",
     fixes: "Correctifs et éléments essentiels",
     fixesHint: "Ces améliorations restent actives",
     additions: "Autres ajouts",
@@ -112,8 +112,8 @@ export const fr: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "Sélecteur de projet dans la barre latérale",
-        hint: "Choisissez un projet dans l’en-tête des espaces; la désactivation rétablit le filtre Projet",
+        label: "Projet sélectionné dans l’en-tête",
+        hint: "Affiche le nom du projet sélectionné dans l’en-tête des espaces de travail. Sinon, l’en-tête indique Espaces de travail ; les choix d’hôtes et de projets restent disponibles.",
       },
       stickyUserPrompts: {
         label: "Garder les messages en vue",
@@ -150,8 +150,8 @@ export const fr: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Ordre et détails des espaces de travail",
-        hint: "Triez séparément les projets et les espaces de travail par nom, état ou ordre personnalisé. Affichez ensemble la dernière activité et les totaux des modifications du code ; les libellés de projet sont activés par défaut. Les libellés de branche sont facultatifs et désactivés par défaut. Réglez ces options dans Affichage, dans la barre latérale des espaces de travail.",
+        label: "Modes, filtres et affichage",
+        hint: "Utilisez la cloche de la barre latérale pour alterner entre Projet et État. L’icône de filtre ouvre le filtre textuel rapide. Dans Affichage, Limites des espaces de travail règle séparément le nombre et l’ancienneté ; Projets vides permet d’afficher, regrouper ou masquer. Chaque mode conserve ses préférences.",
       },
     },
     fixesList: {

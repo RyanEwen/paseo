@@ -10,7 +10,7 @@ For fork development and integration, follow the [worktree guide](docs/worktree-
 
 ## Optional features
 
-All optional features start enabled. The settings button opens **Paseo++** first, where you can find their switches. Turning a feature off preserves its saved data and preferences.
+All switches in **Optional features** start enabled. Display preferences have independent defaults; **Expand one project at a time** starts off. The settings button opens **Paseo++** first, where you can find their switches. Turning a feature off preserves its saved data and preferences.
 
 ### Keep user prompts in view
 
@@ -30,7 +30,7 @@ Reopen conversations with closed tabs or archived agents from the workspace **+*
 
 ### Project selector
 
-Choose hosts and their projects from the **Workspaces** heading. Click a project name to show only that project and close the menu, or use its checkbox to include several projects while keeping the menu open.
+The **Selected project in heading** switch shows the selected project name in the workspace heading. Off uses **Workspaces**; host and project choices remain available. The chooser lists projects directly, with **Hosts** shown when multiple hosts are available. Click a project name to show only that project, or use checkboxes to include several. **All** clears both local filters.
 
 The workspace heading, project selector, and display controls stay visible while you scroll the workspace list. Desktop expand and collapse controls stay with the heading. The bell beside them toggles Project and Status modes, each with its own sorting, filters and display preferences. Adding a project includes it in an active project selection without clearing the projects you already chose.
 
