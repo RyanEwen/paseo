@@ -9,6 +9,7 @@ for clipped text on iOS. Paseo++ includes those updates plus these additions:
 
 - **Paseo++ settings:** Find optional fork features, existing preferences, fixes, and other
   additions together in Settings. Turning an optional feature off preserves its saved data.
+- **Tool call display:** New preferences start in Summary. Choose Full detail in Settings → Chat; saved choices are preserved.
 - **Fork links:** Open the Paseo++ repository and published release notes from the app. Upstream issue,
   sponsorship, and Discord actions are removed.
 - **Keep user prompts in view:** A compact copy fades into place as its original bubble crosses

@@ -173,7 +173,7 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   sidebarFooterItems: [],
   usage: DEFAULT_USAGE_PREFERENCES,
   autoExpandReasoning: false,
-  toolCallDetailLevel: "detailed",
+  toolCallDetailLevel: "overview",
   chatOutlineEnabled: true,
   vimKeybindings: false,
   openInSidePane: DEFAULT_OPEN_IN_SIDE_PANE_PREFERENCES,
@@ -277,7 +277,7 @@ const StoredAppSettingsSchema = z
       .enum(["overview", "detailed"])
       .or(z.literal("concise").transform(() => "overview" as const))
       .optional()
-      .catch("detailed"),
+      .catch(DEFAULT_CLIENT_SETTINGS.toolCallDetailLevel),
     // COMPAT(compactToolCalls): migrated in v0.1.105, remove after 2027-01-12.
     compactToolCalls: z.boolean().optional().catch(undefined),
     chatOutlineEnabled: z.boolean().catch(true),
@@ -330,8 +330,12 @@ const StoredAppSettingsSchema = z
       (isChecksHiddenByLegacyRowItem(stored.sidebarRowItems)
         ? "none"
         : DEFAULT_SIDEBAR_CHECKS_DISPLAY);
-    const toolCallDetailLevel =
-      stored.toolCallDetailLevel ?? (stored.compactToolCalls ? "overview" : "detailed");
+    const legacyToolCallDetailLevel = stored.compactToolCalls ? "overview" : "detailed";
+    const fallbackToolCallDetailLevel =
+      stored.compactToolCalls === undefined
+        ? DEFAULT_CLIENT_SETTINGS.toolCallDetailLevel
+        : legacyToolCallDetailLevel;
+    const toolCallDetailLevel = stored.toolCallDetailLevel ?? fallbackToolCallDetailLevel;
     return {
       ...stored,
       openInSidePane,
