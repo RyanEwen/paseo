@@ -14,9 +14,10 @@ export interface WorkspaceListPreferences {
   setWorkspaceUpdatedWithinDays(days: number | null): void;
 }
 const COUNTS = [null, 5, 10, 15, 20, 25, 50] as const;
-const AGE_OPTIONS = [null, 1, 3, 5, 7, 14, 30, 60, 90] as const;
+const AGE_OPTIONS = [null, 1, 2, 3, 5, 7, 14, 30, 60, 90] as const;
 const AGE_LABELS = {
   1: "day",
+  2: "twoDays",
   3: "threeDays",
   5: "fiveDays",
   7: "week",

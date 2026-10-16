@@ -1441,6 +1441,7 @@ export const ko: TranslationResources = {
         countLimit: "개수 제한",
         updatedWithin: "최근 업데이트 기간",
         day: "1일",
+        twoDays: "2일",
         threeDays: "3일",
         fiveDays: "5일",
         week: "1주",

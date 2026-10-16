@@ -1432,6 +1432,7 @@ export const ar: TranslationResources = {
         countLimit: "حد العدد",
         updatedWithin: "تم التحديث خلال",
         day: "يوم واحد",
+        twoDays: "يومان",
         threeDays: "3 أيام",
         fiveDays: "5 أيام",
         week: "أسبوع واحد",

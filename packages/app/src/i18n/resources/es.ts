@@ -1474,6 +1474,7 @@ export const es: TranslationResources = {
         countLimit: "Límite de cantidad",
         updatedWithin: "Actualizado en",
         day: "1 día",
+        twoDays: "2 días",
         threeDays: "3 días",
         fiveDays: "5 días",
         week: "1 semana",
