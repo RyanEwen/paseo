@@ -1,6 +1,5 @@
 import type { PromptJumpPlacement } from "./prompt-jump-placement";
 import type { PromptReadingPosition } from "./prompt-reading-position";
-import type { AssistantImageContext } from "@/utils/assistant-image-metadata";
 import type { ComponentType, ReactElement, ReactNode, RefObject } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import type { StreamItem } from "@/types/stream";
@@ -104,7 +103,6 @@ export interface StreamRenderInput {
   forwardListContentContainerStyle: StyleProp<ViewStyle>;
   // The chat column's max width. The web viewport estimates unmeasured row heights with it.
   contentMaxWidth: number;
-  imageContext?: AssistantImageContext;
 }
 
 export interface ResolveStreamRenderStrategyInput {

@@ -439,13 +439,6 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
               <MenuSeparator />
             </>
           ) : null}
-          <MenuItem
-            selected={preferences.showBackground}
-            closeOnSelect={false}
-            onSelect={preferences.toggleBackground}
-          >
-            {t("sidebar.display.showBackground")}
-          </MenuItem>
           <MenuSubTrigger
             id="grouping"
             value={t(GROUPING_LABEL_KEYS[preferences.grouping])}
@@ -536,6 +529,14 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
               </MenuSubTrigger>
             </>
           ) : null}
+          <MenuSeparator />
+          <MenuItem
+            selected={preferences.showBackground}
+            closeOnSelect={false}
+            onSelect={preferences.toggleBackground}
+          >
+            {t("sidebar.display.showBackground")}
+          </MenuItem>
         </MenuSurface>
       </MenuRoot>
       <WorkspaceLabelManagerModal visible={managerOpen} onClose={closeManager} />

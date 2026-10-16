@@ -85,6 +85,8 @@ valknut-report.json/
 packages/server/src/server/fixtures/dictation/dictation-debug-largest.wav
 packages/server/src/server/fixtures/dictation/dictation-debug-largest.transcript.txt
 packages/protocol/src/generated/validation/*.aot.ts
+packages/protocol/src/generated/validation/ws-outbound-schema-metadata.ts
+packages/protocol/codegen/generated/
 
 /artifacts
 packages/desktop/.cache/
@@ -100,3 +102,5 @@ packages/desktop/electron-builder.preview.local.yml
 /preview-artifacts/
 /preview-release-assets/
 /preview-android/
+# Project-local Serena configuration and memories.
+.serena/
