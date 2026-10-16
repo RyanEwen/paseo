@@ -74,6 +74,14 @@ Update a host from the sidebar when it confirms update support and a compatible 
 
 ## Display and reading preferences
 
+### Split layout controls
+
+Use the split icon beside a creation item in the workspace **+** menu, then click the region where the new view belongs. One set of diagrams splits left/right and another splits top/bottom. In a 60/40 diagram, clicking left or top gives the new pane 60%; clicking right or bottom gives it 40%. Clicking the creation item itself keeps its normal behavior.
+
+Right-click a tab and choose **Move tab** to move that same tab to an existing pane or a region in a split diagram. Compact diagrams use larger touch regions and wrap within the scrolling menu. Keyboard users can move through the region choices with Up/Down, Home/End, then Enter or Space.
+
+Hover a workspace divider to choose 50/50, 60/40, 40/60, 70/30, or 30/70 proportions for its existing adjacent panes. Divider choices resize panes; they do not create or move a tab. Turn **Split layout controls** off in Paseo++ settings to hide these controls without changing your layout.
+
 ### Mobile workspace tabs
 
 Switch between workspace tabs directly on your phone with the tab strip enabled by default. Scroll it horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. Turn **Mobile workspace tabs** off in Paseo++ settings to restore the earlier chooser while preserving your selected tab and drafts.

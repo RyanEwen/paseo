@@ -73,6 +73,10 @@ export const en = {
         label: "Host updates in the sidebar",
         hint: "Show host update actions in the host menu. Host settings remain available when this is off.",
       },
+      splitLayoutPresets: {
+        label: "Split layout controls",
+        hint: "Click the desired region in a split diagram to open or move a tab there. In 60/40, the right or bottom region gets 40%. Divider presets resize existing panes. Turn off to hide these controls without changing your layout.",
+      },
       mobileWorkspaceTabs: {
         label: "Mobile workspace tabs",
         hint: "Show a scrolling tab strip in compact workspaces. Turn off to use the earlier tab chooser without changing the selected tab.",
@@ -639,6 +643,22 @@ export const en = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Open {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Move tab: {{side}}, {{percent}}%",
+      openToSide: "Open {{item}} to the side",
+      chooseRatio: "Choose split ratio",
+      ratio: "Use {{ratio}} split",
+      moveTab: "Move tab",
+      left: "Left",
+      right: "Right",
+      top: "Top",
+      bottom: "Bottom",
+      columns: "Left / right",
+      rows: "Top / bottom",
+      pane: "Pane {{index}}",
+    },
+
     route: {
       loading: "Loading workspace",
       connecting: "Connecting",

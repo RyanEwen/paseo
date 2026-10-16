@@ -1,3 +1,4 @@
+import type { WorkspaceTabSplitMenu } from "./workspace-tab-split-menu";
 import { useCallback, useMemo, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { Text } from "react-native";
@@ -90,11 +91,13 @@ export function MobileTabTrailingAccessory({
   presentationLabel,
   menuEntries,
   touchSized = false,
+  splitMenu,
 }: {
   menuTestIDBase: string;
   presentationLabel: string;
   menuEntries: WorkspaceTabMenuEntry[];
   touchSized?: boolean;
+  splitMenu?: WorkspaceTabSplitMenu;
 }): ReactElement {
   const { t } = useTranslation();
   const triggerStyle = useCallback(
@@ -120,8 +123,11 @@ export function MobileTabTrailingAccessory({
         align="end"
         width={220}
         sheetTitle={presentationLabel}
+        pages={splitMenu?.pages}
+        scrollable={Boolean(splitMenu?.pages.length)}
         testID={menuTestIDBase}
       >
+        {splitMenu?.trigger}
         {menuEntries.map((entry) =>
           entry.kind === "separator" ? (
             <DropdownMenuSeparator key={entry.key} />

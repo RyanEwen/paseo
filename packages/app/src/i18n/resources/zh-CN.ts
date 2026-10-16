@@ -70,6 +70,10 @@ export const zhCN: TranslationResources = {
         label: "侧边栏中的主机更新",
         hint: "在主机菜单中显示更新操作。关闭后仍可使用主机设置。",
       },
+      splitLayoutPresets: {
+        label: "分屏布局控件",
+        hint: "点击分割图中所需的区域，在那里打开或移动标签页。60/40 中右侧或下方区域占 40%。分隔线预设调整现有窗格的大小。关闭后隐藏这些控件，但不更改布局。",
+      },
       mobileWorkspaceTabs: {
         label: "移动端工作区标签页",
         hint: "在紧凑布局中显示可滚动的标签栏。关闭后使用原来的标签选择器，并保留当前选中的标签。",
@@ -635,6 +639,22 @@ export const zhCN: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "打开 {{item}}：{{side}}，{{percent}}%",
+      moveRegion: "移动标签页：{{side}}，{{percent}}%",
+      openToSide: "在侧边打开{{item}}",
+      chooseRatio: "选择分屏比例",
+      ratio: "使用 {{ratio}} 分屏",
+      moveTab: "移动标签页",
+      left: "左侧",
+      right: "右侧",
+      top: "上方",
+      bottom: "下方",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "窗格 {{index}}",
+    },
+
     route: {
       loading: "正在加载 workspace",
       connecting: "正在连接",

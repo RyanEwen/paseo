@@ -76,6 +76,10 @@ export const ja: TranslationResources = {
         label: "サイドバーのホスト更新",
         hint: "ホストメニューに更新操作を表示します。オフにしてもホスト設定は引き続き利用できます。",
       },
+      splitLayoutPresets: {
+        label: "分割レイアウト操作",
+        hint: "分割図の目的の領域をクリックして、タブを開くか移動します。60/40では右または下の領域が40%です。区切りのプリセットは既存のペインをサイズ変更します。オフにするとレイアウトを変えずに操作を非表示にします。",
+      },
       mobileWorkspaceTabs: {
         label: "モバイルのワークスペースタブ",
         hint: "コンパクト表示でスクロール可能なタブバーを表示します。オフにすると、選択中のタブを変えずに以前のタブ選択に戻ります。",
@@ -649,6 +653,22 @@ export const ja: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "{{item}}を開く：{{side}}、{{percent}}%",
+      moveRegion: "タブを移動：{{side}}、{{percent}}%",
+      openToSide: "{{item}} を横に開く",
+      chooseRatio: "分割比率を選択",
+      ratio: "{{ratio}} に分割",
+      moveTab: "タブを移動",
+      left: "左",
+      right: "右",
+      top: "上",
+      bottom: "下",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "ペイン {{index}}",
+    },
+
     route: {
       loading: "ワークスペースを読み込み中",
       connecting: "接続中",
