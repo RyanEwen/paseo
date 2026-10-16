@@ -98,7 +98,7 @@ Find sorting, row details, and **Workspace limits** controls in the sidebar's **
 
 The filter icon beside the bell opens a quick text filter for the current mode. Match project or workspace names, titles and visible branches without changing the active workspace, saved order or sort. Project-name matches retain their scoped children; other matches retain the matching workspace and its project. Each mode keeps its own text for the current app session. Clear, close or press Escape to restore the list; collapsed sections keep their existing state. Text matching runs before the count window, so a match beyond the first 20 can still appear.
 
-In **Display → Empty workspaces**, choose **Show**, **Group**, or **Hide** for project groups with no visible workspaces.
+In **Display → Empty projects**, choose **Show**, **Group**, or **Hide** for project groups with no visible workspaces.
 
 ### Explorer and Changes
 

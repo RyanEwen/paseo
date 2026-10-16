@@ -1475,7 +1475,7 @@ export const ko: TranslationResources = {
         emptyProjects: "빈 프로젝트 정렬",
       },
       emptyWorkspaces: {
-        label: "빈 작업 공간",
+        label: "빈 프로젝트",
         show: "표시",
         group: "그룹화",
         hide: "숨기기",
