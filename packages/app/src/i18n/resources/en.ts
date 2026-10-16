@@ -1426,6 +1426,16 @@ export const en = {
       working: "Working",
       done: "Done",
     },
+    quickFilter: {
+      open: "Filter projects and workspaces",
+      close: "Close and clear quick filter",
+      placeholder: "Filter projects or workspaces…",
+      clear: "Clear quick filter",
+      emptyTitle: "No matching projects or workspaces",
+      emptyDescription: "Try another name or clear this mode’s quick filter.",
+      guidance:
+        "Use the filter icon to search names and visible branches in this mode. Count and age limits still apply; Show more reveals all matching rows.",
+    },
     display: {
       modeToggle: "{{current}} view. Switch to {{next}} view.",
       workspaceList: {

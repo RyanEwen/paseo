@@ -1,3 +1,5 @@
+import { filterSidebarByText } from "./sidebar-text-filter";
+import { limitSidebarWorkspaces } from "./workspace-limit";
 import { summarizeSidebarProjectActivity } from "./sidebar-project-activity";
 import { setSectionsCollapsed } from "@/stores/sidebar-collapsed-sections-store/state";
 import { i18n } from "@/i18n/i18next";
@@ -759,4 +761,131 @@ it("places a cached offline project after online Done using the same activity as
       projectActivity: activity,
     }).map((project) => project.viewKey),
   ).toEqual(["done", "offline"]);
+});
+
+describe("sidebar transient text projection", () => {
+  it("keeps scoped project children on a case-insensitive displayed project-name match", () => {
+    const input = twoProjectInput("project");
+    const before = input.projects[0]!.workspaces;
+    const result = filterSidebarByText({
+      projects: input.projects,
+      entries: input.workspaceEntriesByKey,
+      projectNames: new Map([["project", "Business Accounts"]]),
+      text: "  ACCOUNTS  ",
+      workspaceTitleSource: "title",
+      showBranch: false,
+    });
+    expect(result.projects.map((project) => project.viewKey)).toEqual(["project"]);
+    expect(result.projects[0]!.workspaces).toBe(before);
+    const unchanged = filterSidebarByText({
+      projects: input.projects,
+      entries: input.workspaceEntriesByKey,
+      projectNames: new Map(),
+      text: "  ",
+      workspaceTitleSource: "title",
+      showBranch: false,
+    });
+    expect(unchanged.projects).toBe(input.projects);
+    expect(unchanged.entries).toBe(input.workspaceEntriesByKey);
+  });
+  it("matches workspace names, titles and visible branches without altering the source or revealing hidden branches", () => {
+    const first = makeWorkspace("Account editor");
+    first.entry.currentBranch = "fix/CSS-Layout";
+    first.entry.title = "Customer styling";
+    const second = makeWorkspace("Unrelated");
+    const project = makeProject([first.placement, second.placement]);
+    const input = {
+      projects: [project],
+      entries: new Map([
+        [first.entry.workspaceKey, first.entry],
+        [second.entry.workspaceKey, second.entry],
+      ]),
+      projectNames: new Map(),
+      workspaceTitleSource: "title" as const,
+      showBranch: true,
+    };
+    for (const text of ["EDITOR", "customer", "css-layout"]) {
+      expect(filterSidebarByText({ ...input, text }).projects[0]!.workspaces).toEqual([
+        first.placement,
+      ]);
+    }
+    expect(
+      filterSidebarByText({ ...input, text: "css-layout", showBranch: false }).projects,
+    ).toEqual([]);
+    expect(
+      filterSidebarByText({
+        ...input,
+        text: "css-layout",
+        showBranch: false,
+        workspaceTitleSource: "branch",
+      }).projects[0]!.workspaces,
+    ).toEqual([first.placement]);
+    expect(project.workspaces).toHaveLength(2);
+  });
+  it.each(["project", "status"] as const)(
+    "filters pinned and ordinary rows consistently before the %s projection",
+    (groupMode) => {
+      const input = projectionInput({ groupMode });
+      input.workspaceEntriesByKey.get("srv:pinned")!.name = "Unique target";
+      const exact = filterSidebarByText({
+        projects: input.projects,
+        entries: input.workspaceEntriesByKey,
+        projectNames: input.projectNamesByViewKey,
+        text: "unique target",
+        workspaceTitleSource: "title",
+        showBranch: false,
+      });
+      const projection = buildSidebarProjection({
+        ...input,
+        projects: exact.projects,
+        workspaceEntriesByKey: exact.entries,
+      });
+      expect(
+        projection.pinnedGroups.pinnedChats.map((workspace) => workspace.workspaceKey),
+      ).toEqual(["srv:pinned"]);
+      expect(exact.entries.has("srv:unpinned")).toBe(false);
+      expect(input.projects[0]!.workspaces).toHaveLength(2);
+    },
+  );
+  it("matches before the count window while leaving age and Show more policy effective", () => {
+    const rows = Array.from({ length: 31 }, (_, index) =>
+      makeWorkspace(index === 30 ? "needle" : `other-${index}`),
+    );
+    const entries = new Map(rows.map((row) => [row.entry.workspaceKey, row.entry]));
+    const source = makeProject(rows.map((row) => row.placement));
+    const filtered = filterSidebarByText({
+      projects: [source],
+      entries,
+      projectNames: new Map(),
+      text: "needle",
+      workspaceTitleSource: "title",
+      showBranch: false,
+    });
+    const matches = filtered.projects[0]!.workspaces;
+    expect(
+      limitSidebarWorkspaces({ items: matches, initialCount: 20, expanded: false }).visibleItems,
+    ).toEqual([rows[30]!.placement]);
+    const age = {
+      days: 1,
+      now: Date.UTC(2026, 9, 16),
+      getStatusEnteredAt: () => new Date(Date.UTC(2026, 9, 1)),
+    };
+    expect(
+      limitSidebarWorkspaces({
+        items: matches,
+        initialCount: 20,
+        expanded: false,
+        updatedWithin: age,
+      }).visibleItems,
+    ).toEqual([]);
+    expect(
+      limitSidebarWorkspaces({
+        items: matches,
+        initialCount: 20,
+        expanded: true,
+        updatedWithin: age,
+      }).visibleItems,
+    ).toEqual(matches);
+    expect(source.workspaces).toHaveLength(31);
+  });
 });

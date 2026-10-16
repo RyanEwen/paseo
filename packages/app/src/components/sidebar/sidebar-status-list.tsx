@@ -1,3 +1,4 @@
+import { SidebarPinnedList } from "@/components/sidebar/pinned-list";
 import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
 import { useSidebarRecencyClock } from "./workspace-recency-clock";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
@@ -179,7 +180,7 @@ export function SidebarStatusWorkspaceList({
           <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
           {pinnedCollapsed ? null : (
             <>
-              <DraggableList
+              <SidebarPinnedList
                 testID="sidebar-pinned-list"
                 data={visiblePinnedWorkspaces}
                 keyExtractor={statusWorkspaceKeyExtractor}

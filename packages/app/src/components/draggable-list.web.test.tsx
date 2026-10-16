@@ -1,9 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
+import { SidebarPinnedList } from "@/components/sidebar/pinned-list";
+import { useSidebarQuickFilterStore } from "@/stores/sidebar-quick-filter-store";
 import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
-import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import type { Active, ClientRect, Over, DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDragReorderState, type DragReorderState } from "./drag-reorder/use-drag-reorder-state";
 import type { DragReorderMove } from "./drag-reorder/reorder-items";
 import React, { memo } from "react";
@@ -183,3 +185,117 @@ it("keeps sorted manual pins available while rejecting ordinary and stale-mode d
   await act(() => useSidebarViewStore.setState({ groupMode: "status" }));
   expect(reorderGuard!.canCommit(true)).toBe(false);
 });
+
+it("invalidates a started reorder when transient quick text changes away and back", async () => {
+  const state = useSidebarQuickFilterStore.getState();
+  state.close("project");
+  useSidebarViewStore.setState({ groupMode: "project", workspaceSortMode: "custom" });
+  state.toggle("project");
+  await act(async () => root?.render(<ReorderGuardHarness />));
+  await act(() => reorderGuard!.onDragBegin());
+  expect(reorderGuard!.canCommit()).toBe(true);
+  await act(() => state.setText("project", "narrow"));
+  await act(() => state.setText("project", ""));
+  expect(reorderGuard!.canCommit()).toBe(false);
+  await act(() => state.close("project"));
+});
+
+// Observe only dnd-kit event ports while retaining its real provider, the actual
+// production pin/list owners and the actual web drag snapshot implementation.
+let pinnedDndContext: {
+  onDragStart?: (event: DragStartEvent) => void;
+  onDragEnd?: (event: DragEndEvent) => void;
+} | null = null;
+vi.mock("@dnd-kit/core", async () => {
+  const actual = await vi.importActual<typeof import("@dnd-kit/core")>("@dnd-kit/core");
+  return {
+    ...actual,
+    DndContext: function ObservedDndContext(props: React.ComponentProps<typeof actual.DndContext>) {
+      pinnedDndContext = props;
+      return <actual.DndContext {...props} />;
+    },
+  };
+});
+
+function renderPinnedRow({ item }: DraggableRenderItemInfo<Item>) {
+  return <div data-pin-row={item.id}>{item.id}</div>;
+}
+
+function createPinnedDragEvents(): { start: DragStartEvent; end: DragEndEvent } {
+  const initial: ClientRect = { width: 100, height: 32, top: 0, left: 0, right: 100, bottom: 32 };
+  const translated: ClientRect = { ...initial, top: 64, bottom: 96 };
+  const active: Active = {
+    id: "one",
+    data: { current: {} },
+    rect: { current: { initial, translated } },
+  };
+  const over: Over = {
+    id: "three",
+    rect: translated,
+    disabled: false,
+    data: { current: {} },
+  };
+  const activatorEvent = new Event("pointerdown");
+  return {
+    start: { active, activatorEvent },
+    end: {
+      active,
+      activatorEvent,
+      over,
+      collisions: [{ id: over.id }],
+      delta: { x: 0, y: 64 },
+    },
+  };
+}
+
+it.each(["project", "status"] as const)(
+  "guards top-level %s pins without disabling their independent manual order",
+  async (mode) => {
+    const query = useSidebarQuickFilterStore.getState();
+    query.close(mode);
+    query.toggle(mode);
+    useSidebarViewStore.setState({
+      groupMode: mode,
+      sortMode: "status",
+      workspaceSortMode: "name",
+    });
+    const dropped = vi.fn();
+    const dragEvents = createPinnedDragEvents();
+    const original = [{ id: "one" }, { id: "two" }, { id: "three" }];
+    const renderPins = (data: Item[]) => (
+      <SidebarPinnedList
+        data={data}
+        keyExtractor={keyExtractor}
+        renderItem={renderPinnedRow}
+        onDragEnd={dropped}
+      />
+    );
+    try {
+      await act(() => root?.render(renderPins(original)));
+      await act(() => pinnedDndContext!.onDragStart!(dragEvents.start));
+      await act(() => pinnedDndContext!.onDragEnd!(dragEvents.end));
+      expect(dropped).toHaveBeenCalledTimes(1);
+      expect(dropped.mock.calls[0][0].map((item: Item) => item.id)).toEqual([
+        "two",
+        "three",
+        "one",
+      ]);
+
+      await act(() => pinnedDndContext!.onDragStart!(dragEvents.start));
+      await act(() => query.setText(mode, "narrow"));
+      await act(() => root?.render(renderPins(original.slice(0, 2))));
+      // Preserve the active snapshot, matching the production web owner during filtering.
+      expect(
+        Array.from(container!.querySelectorAll("[data-pin-row]")).map((row) =>
+          row.getAttribute("data-pin-row"),
+        ),
+      ).toEqual(["one", "two", "three"]);
+      await act(() => query.setText(mode, ""));
+      await act(() => root?.render(renderPins(original)));
+      await act(() => pinnedDndContext!.onDragEnd!(dragEvents.end));
+      expect(dropped).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(() => query.close(mode));
+    }
+  },
+);

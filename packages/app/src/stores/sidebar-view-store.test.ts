@@ -1,3 +1,4 @@
+import { useSidebarQuickFilterStore } from "./sidebar-quick-filter-store";
 import {
   defaultSidebarModeProfiles,
   defaultSidebarLocalModeFilters,
@@ -10,6 +11,7 @@ import {
   createSidebarViewStorage,
   createSidebarPersistStorage,
   normalizeSidebarModeState,
+  sidebarPersistedState,
   initializeSidebarModePreferences,
   installSidebarPreferenceCommitter,
   reduceSidebarPreferences,
@@ -813,5 +815,45 @@ it("serializes rapid functional accordion toggles against the rendered project p
     expect(useSidebarViewStore.getState().modeProfiles.status.oneProjectAtATime).toBe(false);
   } finally {
     uninstall();
+  }
+});
+
+it("keeps quick text per mode, local and transient even while settings editing is blocked", () => {
+  const store = useSidebarQuickFilterStore.getState();
+  store.close("project");
+  store.close("status");
+  const before = useSidebarViewStore.getState();
+  const edits: unknown[] = [];
+  const unsubscribe = subscribeSidebarPreferenceEdits((next) => edits.push(next));
+  setSettingsEditingBlocked(true);
+  try {
+    store.toggle("project");
+    store.setText("project", "session-only-needle");
+    store.toggle("status");
+    store.setText("status", "another needle");
+    const current = useSidebarQuickFilterStore.getState();
+    expect(current.byMode).toEqual({
+      project: { open: true, text: "session-only-needle" },
+      status: { open: true, text: "another needle" },
+    });
+    expect(useSidebarViewStore.getState().modeProfiles).toBe(before.modeProfiles);
+    expect(useSidebarViewStore.getState().localModeFilters).toBe(before.localModeFilters);
+    expect(edits).toEqual([]);
+    expect(useSidebarQuickFilterStore).not.toHaveProperty("persist");
+    expect(sidebarPersistedState(useSidebarViewStore.getState())).not.toHaveProperty(
+      "quickFilterByMode",
+    );
+    expect(JSON.stringify(sidebarPersistedState(useSidebarViewStore.getState()))).not.toContain(
+      "session-only-needle",
+    );
+    store.close("project");
+    store.setText("project", "late native event");
+    expect(useSidebarQuickFilterStore.getState().byMode.project).toEqual({ open: false, text: "" });
+    expect(useSidebarQuickFilterStore.getState().byMode.status.text).toBe("another needle");
+  } finally {
+    unsubscribe();
+    setSettingsEditingBlocked(false);
+    store.close("project");
+    store.close("status");
   }
 });

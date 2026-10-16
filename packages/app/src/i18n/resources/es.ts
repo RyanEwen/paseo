@@ -1458,6 +1458,16 @@ export const es: TranslationResources = {
       working: "En ejecución",
       done: "Terminado",
     },
+    quickFilter: {
+      open: "Filtrar proyectos y espacios de trabajo",
+      close: "Cerrar y borrar el filtro rápido",
+      placeholder: "Filtrar proyectos o espacios de trabajo…",
+      clear: "Borrar el filtro rápido",
+      emptyTitle: "No hay proyectos ni espacios de trabajo coincidentes",
+      emptyDescription: "Prueba otro nombre o borra el filtro rápido de este modo.",
+      guidance:
+        "Usa el icono de filtro para buscar nombres y ramas visibles en este modo. Los límites de cantidad y antigüedad siguen activos; Mostrar más revela todas las coincidencias.",
+    },
     display: {
       modeToggle: "Vista {{current}}. Cambiar a vista {{next}}.",
       workspaceList: {

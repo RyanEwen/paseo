@@ -1449,6 +1449,16 @@ export const fr: TranslationResources = {
       working: "En cours",
       done: "Terminé",
     },
+    quickFilter: {
+      open: "Filtrer les projets et espaces de travail",
+      close: "Fermer et effacer le filtre rapide",
+      placeholder: "Filtrer les projets ou espaces de travail…",
+      clear: "Effacer le filtre rapide",
+      emptyTitle: "Aucun projet ni espace de travail correspondant",
+      emptyDescription: "Essayez un autre nom ou effacez le filtre rapide de ce mode.",
+      guidance:
+        "Utilisez l’icône de filtre pour chercher les noms et branches visibles de ce mode. Les limites de nombre et d’âge restent actives ; Afficher plus révèle toutes les correspondances.",
+    },
     display: {
       modeToggle: "Vue {{current}}. Passer à la vue {{next}}.",
       workspaceList: {
