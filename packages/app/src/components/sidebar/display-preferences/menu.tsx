@@ -393,6 +393,7 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
                 <MenuSeparator />
               </>
             ) : null}
+            <MenuHint>{t("sidebar.display.reorderGuidance")}</MenuHint>
             {preferences.preferencesDisabledReason ? (
               <MenuHint>{preferences.preferencesDisabledReason}</MenuHint>
             ) : null}

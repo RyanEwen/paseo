@@ -1418,6 +1418,8 @@ export const ptBR: TranslationResources = {
       expandAll: "Expandir tudo",
       collapseAll: "Recolher tudo",
       oneProjectAtATime: "Um projeto por vez",
+      reorderGuidance:
+        "Arraste para reordenar apenas na ordenação Personalizada. Projetos filtrados mantêm o mesmo vizinho anterior ou posterior ao mostrar todos os projetos. Itens fixados sempre usam ordem manual.",
       showBackground: "Mostrar espaços em segundo plano",
       trigger: "Preferências de exibição",
       heading: "Exibição",

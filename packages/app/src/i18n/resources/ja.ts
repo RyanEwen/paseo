@@ -1402,6 +1402,8 @@ export const ja: TranslationResources = {
       expandAll: "すべて展開",
       collapseAll: "すべて折りたたむ",
       oneProjectAtATime: "一度に1つのプロジェクト",
+      reorderGuidance:
+        "並べ替えのドラッグはカスタム順でのみ使えます。絞り込んだプロジェクトの移動は、すべて表示した後も同じ隣接プロジェクトの前後を維持します。ピン留めは常に手動順です。",
       showBackground: "バックグラウンドを表示",
       trigger: "表示設定",
       heading: "表示",

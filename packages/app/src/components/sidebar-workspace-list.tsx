@@ -1,3 +1,8 @@
+import type { DragReorderMove } from "@/components/drag-reorder/reorder-items";
+import { isDragGroupOrderValid } from "@/components/drag-reorder/reorder-items";
+import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
+import { useSessionStore } from "@/stores/session-store";
+import { selectWorkspaceStructureProjects } from "@/stores/session-store-hooks/selectors";
 import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import { ProjectActivityChip } from "./sidebar/project-activity-chip";
 import { useSidebarProjectActivity } from "./sidebar/use-sidebar-project-activity";
@@ -89,6 +94,7 @@ import { getForgePresentation, normalizeForge } from "@/git/forge";
 import { toWorktreeArchiveRisk } from "@/git/worktree-archive-warning";
 import {
   hasVisibleOrderChanged,
+  moveProjectInFullOrder,
   mergeWithRemainder,
   resolveProjectWorkspaceReorder,
 } from "@/utils/sidebar-reorder";
@@ -1747,11 +1753,47 @@ function ProjectBlock({
     [renderWorkspaceRow],
   );
 
+  const workspaceDrag = useSidebarReorderGuard("workspace");
+  const canCommitWorkspaceDrag = workspaceDrag.canCommit;
+  const projectPinning = useAppSettings().settings.paseoPlusPlus.projectPinning;
+  const workspaceDragGroup = useCallback(
+    (workspace: SidebarWorkspacePlacement) => {
+      if (
+        projectPinning &&
+        workspaceEntriesByKey.get(workspace.workspaceKey)?.projectPinnedAt != null
+      )
+        return "pins";
+      return workspaceDrag.disabled ? null : "ordinary";
+    },
+    [projectPinning, workspaceDrag.disabled, workspaceEntriesByKey],
+  );
   const handleWorkspaceDragEnd = useCallback(
-    (workspaces: SidebarWorkspacePlacement[]) => {
+    (workspaces: SidebarWorkspacePlacement[], move?: DragReorderMove) => {
+      if (!move) return;
+      const draggedWorkspace = workspaces.find(
+        (workspace) => workspace.workspaceKey === move.activeKey,
+      );
+      const pinsOnly =
+        draggedWorkspace !== undefined && workspaceDragGroup(draggedWorkspace) === "pins";
+      if (!canCommitWorkspaceDrag(pinsOnly)) return;
+      if (
+        !isDragGroupOrderValid({
+          original: visibleWorkspaces,
+          reordered: workspaces,
+          keyExtractor: workspaceKeyExtractor,
+          getDragGroupKey: workspaceDragGroup,
+        })
+      )
+        return;
       onWorkspaceReorder(project.viewKey, workspaces);
     },
-    [onWorkspaceReorder, project.viewKey],
+    [
+      onWorkspaceReorder,
+      project.viewKey,
+      visibleWorkspaces,
+      canCommitWorkspaceDrag,
+      workspaceDragGroup,
+    ],
   );
 
   const toast = useToast();
@@ -1826,6 +1868,11 @@ function ProjectBlock({
             keyExtractor={workspaceKeyExtractor}
             renderItem={renderWorkspace}
             onDragEnd={handleWorkspaceDragEnd}
+            onDragBegin={workspaceDrag.onDragBegin}
+            getDragGroupKey={workspaceDragGroup}
+            disabled={visibleWorkspaces.every(
+              (workspace) => workspaceDragGroup(workspace) === null,
+            )}
             extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
             scrollEnabled={false}
             useDragHandle
@@ -2364,33 +2411,37 @@ function ProjectModeList({
     });
   }, [creatingWorkspaceIds, projects]);
 
+  const projectDrag = useSidebarReorderGuard("project");
+  const canCommitProjectDrag = projectDrag.canCommit;
   const handleProjectDragEnd = useCallback(
-    (reorderedProjects: SidebarProjectEntry[]) => {
-      const reorderedProjectKeys = reorderedProjects.map((project) => project.viewKey);
-      const currentProjectOrder = getProjectOrder();
+    (reorderedProjects: SidebarProjectEntry[], move?: DragReorderMove) => {
+      if (!move || !canCommitProjectDrag()) return;
+      const visibleKeys = reorderedProjects.map((project) => project.viewKey);
       if (
         !hasVisibleOrderChanged({
           currentOrder: unpinnedProjects.map((project) => project.viewKey),
-          reorderedVisibleKeys: reorderedProjectKeys,
+          reorderedVisibleKeys: visibleKeys,
         })
-      ) {
+      )
         return;
-      }
-
-      const viewStore = useSidebarViewStore.getState();
-      if (viewStore.groupMode === "project") {
-        viewStore.setSortMode("custom");
-      } else {
-        viewStore.setEmptyProjectSortMode("custom");
-      }
-      setProjectOrder(
-        mergeWithRemainder({
-          currentOrder: currentProjectOrder,
-          reorderedVisibleKeys: reorderedProjectKeys,
-        }),
+      if (!visibleKeys.includes(move.activeKey) || !visibleKeys.includes(move.overKey)) return;
+      const session = useSessionStore.getState();
+      const serverIds = getHostRuntimeStore()
+        .getHosts()
+        .map((host) => host.serverId);
+      const knownProjectKeys = selectWorkspaceStructureProjects(session, serverIds).map(
+        (project) => project.viewKey,
       );
+      if (!knownProjectKeys.includes(move.activeKey) || !knownProjectKeys.includes(move.overKey))
+        return;
+      const next = moveProjectInFullOrder({
+        currentOrder: getProjectOrder(),
+        knownProjectKeys,
+        move,
+      });
+      if (next) setProjectOrder(next);
     },
-    [getProjectOrder, setProjectOrder, unpinnedProjects],
+    [getProjectOrder, setProjectOrder, unpinnedProjects, canCommitProjectDrag],
   );
 
   const handleWorkspaceReorder = useCallback(
@@ -2418,7 +2469,7 @@ function ProjectModeList({
       }
       if (result.workspaceOrder === null) return;
 
-      useSidebarViewStore.getState().setWorkspaceSortMode("custom");
+      if (useSidebarViewStore.getState().workspaceSortMode !== "custom") return;
       setWorkspaceOrder(projectViewKey, result.workspaceOrder);
     },
     [
@@ -2584,6 +2635,8 @@ function ProjectModeList({
         keyExtractor={projectViewKeyExtractor}
         renderItem={renderProject}
         onDragEnd={handleProjectDragEnd}
+        disabled={projectDrag.disabled}
+        onDragBegin={projectDrag.onDragBegin}
         extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
         scrollEnabled={false}
         useDragHandle

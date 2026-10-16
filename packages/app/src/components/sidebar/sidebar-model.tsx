@@ -1,3 +1,4 @@
+import { useSidebarProjectActivity } from "./use-sidebar-project-activity";
 import { useSessionStore } from "@/stores/session-store";
 import { selectWorkspaceStructureProjects } from "@/stores/session-store-hooks/selectors";
 import { SidebarRecencyClockProvider } from "./workspace-recency-clock";
@@ -182,6 +183,7 @@ export function SidebarModelProvider({
     list.projects,
     visibleWorkspaceKeys,
   ]);
+  const projectActivity = useSidebarProjectActivity(visibleProjects, workspaceEntriesByKey);
   const filteredProjects = useMemo(
     () =>
       groupMode === "project"
@@ -190,9 +192,17 @@ export function SidebarModelProvider({
             mode: sortMode,
             entries: workspaceEntriesByKey,
             projectNames: list.projectNamesByViewKey,
+            projectActivity,
           })
         : visibleProjects,
-    [groupMode, visibleProjects, sortMode, workspaceEntriesByKey, list.projectNamesByViewKey],
+    [
+      groupMode,
+      visibleProjects,
+      sortMode,
+      workspaceEntriesByKey,
+      list.projectNamesByViewKey,
+      projectActivity,
+    ],
   );
   const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
   const projectionInput = useMemo(

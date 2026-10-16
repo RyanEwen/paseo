@@ -1,3 +1,4 @@
+import type { DragReorderMove } from "./drag-reorder/reorder-items";
 import type { ReactElement, MutableRefObject } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import type { GestureType } from "react-native-gesture-handler";
@@ -21,10 +22,11 @@ export interface DraggableRenderItemInfo<T> {
 }
 
 export interface DraggableListProps<T> {
+  disabled?: boolean;
   data: T[];
   keyExtractor: (item: T, index: number) => string;
   renderItem: (info: DraggableRenderItemInfo<T>) => ReactElement;
-  onDragEnd: (data: T[]) => void;
+  onDragEnd: (data: T[], move?: DragReorderMove) => void;
   /** Optional drag boundary. Null entries are fixed headers or footers. */
   getDragGroupKey?: (item: T) => string | null;
   /** Animate automatic position changes. Zero disables motion without remounting cells. */

@@ -90,6 +90,8 @@ Switch between Project and Status views with the bell beside the workspace headi
 
 Adding a project includes it in your current project selection. Host and label filters remain independent.
 
+Dragging is available only when the applicable project or workspace sort is **Custom**; it never changes the sort mode. A filtered project move stays before or after the same anchor project when **All** is shown, preserving the relative order of other projects. Pinned workspaces retain independent manual ordering. Project status sorting places **Done** before **No status**.
+
 In **Display → Workspace list**, choose each view’s workspace count and updated-within limit independently. The count defaults to 20 and the age limit to All. **Show more** reveals the remaining workspaces in that group.
 
 ### Explorer and Changes

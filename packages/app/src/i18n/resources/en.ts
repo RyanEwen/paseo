@@ -1395,6 +1395,8 @@ export const en = {
       expandAll: "Expand all",
       collapseAll: "Collapse all",
       oneProjectAtATime: "One project at a time",
+      reorderGuidance:
+        "Drag to reorder only with Custom sorting. Filtered project moves keep the same before/after neighbor when all projects are shown. Pins always use manual ordering.",
       showBackground: "Show background",
       trigger: "Display preferences",
       heading: "Display",

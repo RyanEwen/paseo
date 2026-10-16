@@ -1,3 +1,4 @@
+import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
 import { useSidebarRecencyClock } from "./workspace-recency-clock";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
@@ -319,8 +320,11 @@ function StatusGroupList({
     });
   }, []);
 
+  const workspaceDrag = useSidebarReorderGuard("workspace");
+  const canCommitWorkspaceDrag = workspaceDrag.canCommit;
   const handleWorkspaceReorder = useCallback(
     (reordered: StatusListItem[]) => {
+      if (!canCommitWorkspaceDrag()) return;
       if (
         !isDragGroupOrderValid({
           original: items,
@@ -354,11 +358,10 @@ function StatusGroupList({
             reorderedVisibleKeys: reorderedRows.map((item) => item.workspace.workspaceKey),
           }),
         );
-        useSidebarViewStore.getState().setWorkspaceSortMode("custom");
         break;
       }
     },
-    [groups, items],
+    [groups, items, canCommitWorkspaceDrag],
   );
 
   const renderItem = useCallback(
@@ -416,6 +419,8 @@ function StatusGroupList({
       getDragGroupKey={statusListDragGroupKey}
       positionTransitionDuration={positionTransitionDuration}
       onDragEnd={handleWorkspaceReorder}
+      disabled={workspaceDrag.disabled}
+      onDragBegin={workspaceDrag.onDragBegin}
       scrollEnabled={false}
       useDragHandle
       nestable={platformIsNative}

@@ -1427,6 +1427,8 @@ export const es: TranslationResources = {
       expandAll: "Expandir todo",
       collapseAll: "Contraer todo",
       oneProjectAtATime: "Un proyecto a la vez",
+      reorderGuidance:
+        "Arrastra para ordenar solo con orden Personalizado. Los proyectos filtrados conservan el mismo vecino anterior o posterior al mostrar todos los proyectos. Los elementos fijados siempre se ordenan manualmente.",
       showBackground: "Mostrar espacios en segundo plano",
       trigger: "Preferencias de visualización",
       heading: "Visualización",

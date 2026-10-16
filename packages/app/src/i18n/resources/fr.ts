@@ -1418,6 +1418,8 @@ export const fr: TranslationResources = {
       expandAll: "Tout déplier",
       collapseAll: "Tout replier",
       oneProjectAtATime: "Un projet à la fois",
+      reorderGuidance:
+        "Le déplacement nécessite le tri Personnalisé. Les projets filtrés gardent le même voisin avant ou après lorsque tous les projets sont affichés. Les éléments épinglés restent ordonnés manuellement.",
       showBackground: "Afficher les espaces en arrière-plan",
       trigger: "Préférences d’affichage",
       heading: "Affichage",

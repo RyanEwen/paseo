@@ -1394,6 +1394,8 @@ export const ko: TranslationResources = {
       expandAll: "모두 펼치기",
       collapseAll: "모두 접기",
       oneProjectAtATime: "한 번에 하나의 프로젝트",
+      reorderGuidance:
+        "사용자 지정 정렬에서만 끌어서 순서를 바꿀 수 있습니다. 필터링한 프로젝트를 이동해도 전체 표시 시 같은 프로젝트의 앞뒤에 유지됩니다. 고정 항목은 항상 수동으로 정렬됩니다.",
       showBackground: "백그라운드 표시",
       trigger: "표시 설정",
       heading: "표시",

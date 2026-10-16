@@ -1372,6 +1372,8 @@ export const zhCN: TranslationResources = {
       expandAll: "全部展开",
       collapseAll: "全部折叠",
       oneProjectAtATime: "一次展开一个项目",
+      reorderGuidance:
+        "仅在自定义排序下可拖动调整顺序。显示所有项目后，筛选时移动的项目仍位于同一相邻项目之前或之后。置顶项目始终使用手动排序。",
       showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",
