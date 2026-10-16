@@ -3,7 +3,10 @@ import type { AppSettingsSnapshot } from "@getpaseo/protocol/app-settings";
 import type { SettingsSyncTransport } from "./model";
 
 interface SettingsHostTransportInput {
-  client: DaemonClient;
+  client: Pick<
+    DaemonClient,
+    "getLastServerInfoMessage" | "observeAppSettings" | "patchAppSettings"
+  >;
   signal: AbortSignal;
   onSnapshot(snapshot: AppSettingsSnapshot): void;
 }
@@ -17,9 +20,12 @@ export function createSettingsHostTransport(
   let readGeneration = 0;
 
   return {
-    supported: true,
-    writable:
-      input.client.getLastServerInfoMessage()?.permissions?.includes("daemon.manage") === true,
+    supported: input.client.getLastServerInfoMessage()?.features?.appSettingsSync === true,
+    get writable() {
+      return (
+        input.client.getLastServerInfoMessage()?.permissions?.includes("daemon.manage") === true
+      );
+    },
     read,
     patch: (patches, initialize) => input.client.patchAppSettings(patches, initialize),
   };

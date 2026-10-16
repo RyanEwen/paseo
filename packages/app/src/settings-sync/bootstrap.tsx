@@ -1,5 +1,5 @@
-import { createSettingsHostTransport } from "./transport";
-import { useEffect, useSyncExternalStore } from "react";
+import { bindSettingsHost } from "./binding";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { loadAppSettingsFromStorage } from "@/hooks/use-settings";
 import { createSyncedAppSettingsSave } from "./app-edits";
@@ -25,19 +25,20 @@ export function SettingsSyncBootstrap() {
   const host = syncState.selectedHost ?? "";
   const client = useHostRuntimeClient(host);
   const connected = useHostRuntimeIsConnected(host);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     const uninstall = installSettingsSyncSaveHandler(
       createSyncedAppSettingsSave(settingsSync, loadAppSettingsFromStorage, saveLocalUsageHost),
     );
-    let initialized = false;
+    let hydrated = false;
     let active = true;
     const owner = new AbortController();
     const updateGate = () => {
       const state = settingsSync.getState();
       setSettingsHostSelected(state.selectedHost !== null);
       setSettingsEditingBlocked(
-        !initialized || !state.canWrite || !["local", "ready", "offline"].includes(state.status),
+        !hydrated || !state.canWrite || !["local", "ready", "offline"].includes(state.status),
       );
     };
     updateGate();
@@ -48,7 +49,8 @@ export function SettingsSyncBootstrap() {
       if (!active) return;
       await settingsSync.load(owner.signal);
       if (!active) return;
-      initialized = true;
+      hydrated = true;
+      setInitialized(true);
       updateGate();
     };
     void initialize().catch(console.error);
@@ -62,37 +64,20 @@ export function SettingsSyncBootstrap() {
   }, []);
 
   useEffect(() => {
-    if (!host) return;
+    if (!initialized || !host) return;
     if (!client || !connected) {
       void settingsSync.connect(host, null);
       return;
     }
-    const supported = client.getLastServerInfoMessage()?.features?.appSettingsSync === true;
-    if (!supported) {
-      void settingsSync.connect(host, {
-        supported: false,
-        writable: false,
-        read: async () => {
-          throw new Error("Update this host to sync settings");
-        },
-        patch: async () => {
-          throw new Error("Update this host to sync settings");
-        },
-      });
-      return;
-    }
-    const controller = new AbortController();
-    const transport = createSettingsHostTransport({
+    return bindSettingsHost({
       client,
-      signal: controller.signal,
       onSnapshot: (snapshot) => {
         void settingsSync.receive(host, snapshot).catch(console.error);
       },
+      onTransport: (transport) => {
+        void settingsSync.connect(host, transport);
+      },
     });
-    void settingsSync.connect(host, transport);
-    return () => {
-      controller.abort();
-    };
-  }, [host, client, connected]);
+  }, [initialized, host, client, connected]);
   return null;
 }
