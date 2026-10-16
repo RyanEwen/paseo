@@ -92,7 +92,9 @@ Adding a project includes it in your current project selection. Host and label f
 
 Dragging is available only when the applicable project or workspace sort is **Custom**; it never changes the sort mode. A filtered project move stays before or after the same anchor project when **All** is shown, preserving the relative order of other projects. Pinned workspaces retain independent manual ordering. Project status sorting places **Done** before **No status**.
 
-In **Display → Workspace list**, choose each view’s workspace count and updated-within limit independently. The count defaults to 20 and the age limit to All. **Show more** reveals the remaining workspaces in that group.
+The filter icon beside the bell opens a quick text filter for the current mode. Match project or workspace names, titles and visible branches without changing the active workspace, saved order or sort. Project-name matches retain their scoped children; other matches retain the matching workspace and its project. Each mode keeps its own text for the current app session. Clear, close or press Escape to restore the list; collapsed sections keep their existing state.
+
+In **Display → Workspace list**, choose each view’s workspace count and updated-within limit independently. The count defaults to 20 and the age limit to All. Quick text matching runs before the count window, so a match beyond the first 20 can still appear. **Show more** reveals every matching workspace in that group, including older entries.
 
 ### Explorer and Changes
 

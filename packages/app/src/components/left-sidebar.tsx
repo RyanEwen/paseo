@@ -1,3 +1,7 @@
+import {
+  SidebarQuickFilterButton,
+  SidebarQuickFilterInput,
+} from "@/components/sidebar/quick-filter";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useShallow } from "zustand/react/shallow";
 import { useSessionStore, type DaemonServerInfo } from "@/stores/session-store";
@@ -916,22 +920,26 @@ function DesktopSidebar({
 function WorkspacesSectionHeader() {
   const isCompact = useIsCompactFormFactor();
   return (
-    <View style={styles.workspacesSectionHeader}>
-      <SidebarProjectSelector />
-      <View style={styles.workspacesSectionActions}>
-        {!isCompact ? <SidebarBulkCollapseControls /> : null}
-        <SidebarViewModeButton />
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <View>
-              <SidebarDisplayPreferencesMenu />
-            </View>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="center" offset={8}>
-            <IconTooltipContent label="Display preferences" />
-          </TooltipContent>
-        </Tooltip>
+    <View>
+      <View style={styles.workspacesSectionHeader}>
+        <SidebarProjectSelector />
+        <View style={styles.workspacesSectionActions}>
+          {!isCompact ? <SidebarBulkCollapseControls /> : null}
+          <SidebarViewModeButton />
+          <SidebarQuickFilterButton />
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <View>
+                <SidebarDisplayPreferencesMenu />
+              </View>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="center" offset={8}>
+              <IconTooltipContent label="Display preferences" />
+            </TooltipContent>
+          </Tooltip>
+        </View>
       </View>
+      <SidebarQuickFilterInput />
     </View>
   );
 }

@@ -1356,6 +1356,16 @@ export const zhCN: TranslationResources = {
       working: "运行中",
       done: "已完成",
     },
+    quickFilter: {
+      open: "筛选项目和工作区",
+      close: "关闭并清除快速筛选",
+      placeholder: "筛选项目或工作区…",
+      clear: "清除快速筛选",
+      emptyTitle: "没有匹配的项目或工作区",
+      emptyDescription: "请尝试其他名称或清除此模式的快速筛选。",
+      guidance:
+        "使用筛选图标搜索此模式中的名称和可见分支。数量和时间限制仍然有效；显示更多可查看所有匹配项。",
+    },
     display: {
       modeToggle: "当前为{{current}}视图。切换到{{next}}视图。",
       workspaceList: {

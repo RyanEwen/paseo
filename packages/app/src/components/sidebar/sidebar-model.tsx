@@ -1,3 +1,5 @@
+import { useSidebarQuickFilterStore } from "@/stores/sidebar-quick-filter-store";
+import { filterSidebarByText } from "./sidebar-text-filter";
 import { useSidebarProjectActivity } from "./use-sidebar-project-activity";
 import { useSessionStore } from "@/stores/session-store";
 import { selectWorkspaceStructureProjects } from "@/stores/session-store-hooks/selectors";
@@ -92,6 +94,8 @@ export function SidebarModelProvider({
   const projectVisibility = useSidebarViewStore((state) => state.projectVisibility);
   const showBackground = useSidebarViewStore((state) => state.showBackground);
   const groupMode = useSidebarViewStore((state) => state.groupMode);
+  const quickFilterText = useSidebarQuickFilterStore((state) => state.byMode[groupMode].text);
+  const showBranch = useSidebarViewStore((state) => state.sidebarRowItems.branch);
   const labelFilter = useSidebarViewStore((state) => state.labelFilter);
   const projectFilters = useSidebarViewStore((state) => state.projectFilters);
   const reconcileLabelFilter = useSidebarViewStore((state) => state.reconcileLabelFilter);
@@ -204,13 +208,32 @@ export function SidebarModelProvider({
       projectActivity,
     ],
   );
-  const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
+  const textFiltered = useMemo(
+    () =>
+      filterSidebarByText({
+        projects: filteredProjects,
+        entries: filteredWorkspaceEntriesByKey,
+        projectNames: list.projectNamesByViewKey,
+        text: quickFilterText,
+        workspaceTitleSource,
+        showBranch,
+      }),
+    [
+      filteredProjects,
+      filteredWorkspaceEntriesByKey,
+      list.projectNamesByViewKey,
+      quickFilterText,
+      workspaceTitleSource,
+      showBranch,
+    ],
+  );
+  const pinnedKeys = usePinnedSidebarKeys(textFiltered.projects);
   const projectionInput = useMemo(
     () => ({
-      projects: filteredProjects,
+      projects: textFiltered.projects,
       pinnedKeys,
       pinnedWorkspaceOrder,
-      workspaceEntriesByKey: filteredWorkspaceEntriesByKey,
+      workspaceEntriesByKey: textFiltered.entries,
       projectNamesByViewKey: list.projectNamesByViewKey,
       groupMode,
       workspaceSortMode,
@@ -231,11 +254,10 @@ export function SidebarModelProvider({
       paseoPlusPlus.projectPinning,
       statusWorkspaceOrder,
       list.projectNamesByViewKey,
-      filteredProjects,
+      textFiltered,
       pinnedCollapsed,
       pinnedKeys,
       pinnedWorkspaceOrder,
-      filteredWorkspaceEntriesByKey,
       t,
     ],
   );
@@ -243,12 +265,12 @@ export function SidebarModelProvider({
   const value = useMemo(
     () => ({
       ...list,
-      projects: filteredProjects,
+      projects: textFiltered.projects,
       allProjects: list.projects,
       allWorkspaceEntriesByKey: workspaceEntriesByKey,
       resolvedProjectFilters,
       hasProjectsBeforeFilter: list.projects.length > 0,
-      workspaceEntriesByKey: filteredWorkspaceEntriesByKey,
+      workspaceEntriesByKey: textFiltered.entries,
       groupMode,
       workspaceGroups: projection.workspaceGroups,
       projectIconTargets: projection.projectIconTargets,
@@ -262,10 +284,9 @@ export function SidebarModelProvider({
       collapsedProjectKeys,
       groupMode,
       list,
-      filteredProjects,
+      textFiltered,
       projection,
       toggleProjectCollapsed,
-      filteredWorkspaceEntriesByKey,
       workspaceEntriesByKey,
     ],
   );

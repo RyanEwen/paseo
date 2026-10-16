@@ -1,3 +1,5 @@
+import { SidebarPinnedList } from "@/components/sidebar/pinned-list";
+import { useSidebarQuickFilterStore } from "@/stores/sidebar-quick-filter-store";
 import type { DragReorderMove } from "@/components/drag-reorder/reorder-items";
 import { isDragGroupOrderValid } from "@/components/drag-reorder/reorder-items";
 import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
@@ -2071,7 +2073,11 @@ export function SidebarWorkspaceList({
   // Background visibility can also hide the last project. Keep the header mounted
   // whenever a local filter empties an otherwise populated directory, so users can
   // reach the display menu to reveal their work again.
-  const sidebarFilterEmpty = hasProjectsBeforeFilter && projects.length === 0;
+  const quickFilterActive = useSidebarQuickFilterStore(
+    (state) => state.byMode[groupMode].text.trim().length > 0,
+  );
+  const sidebarFilterEmpty =
+    (hasProjectsBeforeFilter || quickFilterActive) && projects.length === 0;
 
   // Project mode is the one that keeps its project headers; every other grouping mode is a flat
   // list of grouped rows, so a new mode lands in the grouped branch rather than silently in this
@@ -2654,7 +2660,7 @@ function ProjectModeList({
           <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
           {pinnedCollapsed ? null : (
             <>
-              <DraggableList
+              <SidebarPinnedList
                 testID="sidebar-pinned-list"
                 data={visiblePinnedChats}
                 keyExtractor={workspaceKeyExtractor}

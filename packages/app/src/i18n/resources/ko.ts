@@ -1378,6 +1378,16 @@ export const ko: TranslationResources = {
       working: "실행 중",
       done: "완료",
     },
+    quickFilter: {
+      open: "프로젝트 및 워크스페이스 필터링",
+      close: "빠른 필터 닫기 및 지우기",
+      placeholder: "프로젝트 또는 워크스페이스 필터링…",
+      clear: "빠른 필터 지우기",
+      emptyTitle: "일치하는 프로젝트 또는 워크스페이스 없음",
+      emptyDescription: "다른 이름을 입력하거나 이 모드의 빠른 필터를 지우세요.",
+      guidance:
+        "필터 아이콘으로 이 모드의 이름과 표시된 브랜치를 검색하세요. 개수 및 기간 제한은 유지되며 더 보기로 일치하는 모든 항목을 표시합니다.",
+    },
     display: {
       modeToggle: "{{current}} 보기. {{next}} 보기로 전환.",
       workspaceList: {

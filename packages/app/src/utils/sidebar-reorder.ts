@@ -93,9 +93,11 @@ export function sidebarReorderSort(view: SidebarReorderView, domain: SidebarReor
 export function sidebarReorderContext(
   view: SidebarReorderView,
   domain: SidebarReorderDomain,
+  quickFilterText = "",
 ): string {
   return JSON.stringify([
     view.groupMode,
+    quickFilterText.trim().toLowerCase(),
     sidebarReorderSort(view, domain),
     view.hostFilters,
     view.projectFilters,

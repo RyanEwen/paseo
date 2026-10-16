@@ -1,7 +1,8 @@
+import { useSidebarQuickFilterStore } from "@/stores/sidebar-quick-filter-store";
 import { type ReactNode, useCallback } from "react";
 import { Import, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { Keyboard, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Button } from "@/components/ui/button";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
@@ -38,6 +39,15 @@ function SidebarEmptyStateCard({
  */
 export function SidebarFilterEmptyState() {
   const { t } = useTranslation();
+  const mode = useSidebarViewStore((state) => state.groupMode);
+  const quickFilterActive = useSidebarQuickFilterStore(
+    (state) => state.byMode[mode].text.trim().length > 0,
+  );
+  const closeQuickFilter = useSidebarQuickFilterStore((state) => state.close);
+  const clearQuickFilter = useCallback(() => {
+    closeQuickFilter(mode);
+    Keyboard.dismiss();
+  }, [closeQuickFilter, mode]);
   const clearLabelFilter = useSidebarViewStore((state) => state.clearLabelFilter);
   const setProjectVisibility = useSidebarViewStore((state) => state.setProjectVisibility);
   const clearProjectFilters = useSidebarViewStore((state) => state.clearProjectFilters);
@@ -53,11 +63,19 @@ export function SidebarFilterEmptyState() {
   return (
     <SidebarEmptyStateCard
       testID="sidebar-filter-empty-state"
-      title={t("sidebar.filterEmpty.title")}
-      description={t("sidebar.filterEmpty.description")}
+      title={t(quickFilterActive ? "sidebar.quickFilter.emptyTitle" : "sidebar.filterEmpty.title")}
+      description={t(
+        quickFilterActive
+          ? "sidebar.quickFilter.emptyDescription"
+          : "sidebar.filterEmpty.description",
+      )}
     >
-      <Button variant="secondary" size="xs" onPress={clearFilters}>
-        {t("sidebar.filterEmpty.clear")}
+      <Button
+        variant="secondary"
+        size="xs"
+        onPress={quickFilterActive ? clearQuickFilter : clearFilters}
+      >
+        {t(quickFilterActive ? "sidebar.quickFilter.clear" : "sidebar.filterEmpty.clear")}
       </Button>
     </SidebarEmptyStateCard>
   );

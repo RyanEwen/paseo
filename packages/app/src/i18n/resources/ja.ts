@@ -1386,6 +1386,16 @@ export const ja: TranslationResources = {
       working: "実行中",
       done: "完了",
     },
+    quickFilter: {
+      open: "プロジェクトとワークスペースを絞り込む",
+      close: "クイックフィルターを閉じてクリア",
+      placeholder: "プロジェクトやワークスペースを絞り込む…",
+      clear: "クイックフィルターをクリア",
+      emptyTitle: "一致するプロジェクトやワークスペースはありません",
+      emptyDescription: "別の名前を試すか、このモードのクイックフィルターをクリアしてください。",
+      guidance:
+        "フィルターアイコンで、このモードの名前と表示中のブランチを検索できます。件数と更新日の制限は維持され、さらに表示で一致する全行を表示します。",
+    },
     display: {
       modeToggle: "{{current}}表示。{{next}}表示に切り替え。",
       workspaceList: {
