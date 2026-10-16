@@ -139,14 +139,18 @@ export function SidebarProjectSelector(): ReactElement {
         sheetTitle={t("sidebar.projectSelector.title")}
         testID="sidebar-project-selector-content"
       >
-        <MenuSubTrigger
-          id="hostFilter"
-          indicator={hostFilters.length > 0 || projectFilters.length > 0}
-          testID="sidebar-chooser-hosts"
-        >
-          {t("sidebar.display.hostFilter.label")}
-        </MenuSubTrigger>
-        <MenuSeparator />
+        {hosts.length > 1 ? (
+          <>
+            <MenuSubTrigger
+              id="hostFilter"
+              indicator={hostFilters.length > 0 || projectFilters.length > 0}
+              testID="sidebar-chooser-hosts"
+            >
+              {t("sidebar.display.hostFilter.label")}
+            </MenuSubTrigger>
+            <MenuSeparator />
+          </>
+        ) : null}
         <MenuItem
           selected={
             resolvedProjectFilters.length === 0 &&

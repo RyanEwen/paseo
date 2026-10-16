@@ -1451,7 +1451,7 @@ export const ar: TranslationResources = {
         none: "مخفي",
       },
       hostFilter: {
-        label: "المضيف",
+        label: "المضيفون",
         all: "كل المضيفين",
       },
       projectFilter: {

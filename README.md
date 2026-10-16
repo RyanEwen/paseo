@@ -88,7 +88,7 @@ In Project mode, enable **Display → One project at a time** to collapse other 
 
 Switch between Project and Status views with the bell beside the workspace heading. Each view keeps its own Display preferences and device-local host/project filters. Display includes sorting, labels, background workspaces, row details and activity. Project labels start visible; branch labels start hidden. A selected settings host must support separate sidebar modes before these synchronized controls can be edited.
 
-The workspace chooser lists projects directly. Its **Host** submenu filters hosts; projects from the selected hosts appear directly below it. Adding a project includes it in your current project selection. Host and label filters remain independent.
+The workspace chooser lists projects directly. With multiple hosts, its **Hosts** submenu filters them; projects from the selected hosts appear directly below it. Adding a project includes it in your current project selection. Host and label filters remain independent.
 
 Dragging is available only when the applicable project or workspace sort is **Custom**; it never changes the sort mode. A filtered project move stays before or after the same anchor project when **All** is shown, preserving the relative order of other projects. Pinned workspaces retain independent manual ordering. Project status sorting places **Done** before **No status**.
 

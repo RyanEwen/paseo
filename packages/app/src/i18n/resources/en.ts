@@ -1461,7 +1461,7 @@ export const en = {
         none: "Hidden",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "All hosts",
       },
       projectFilter: {
