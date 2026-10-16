@@ -139,6 +139,14 @@ export function SidebarProjectSelector(): ReactElement {
         sheetTitle={t("sidebar.projectSelector.title")}
         testID="sidebar-project-selector-content"
       >
+        <MenuSubTrigger
+          id="hostFilter"
+          indicator={hostFilters.length > 0 || projectFilters.length > 0}
+          testID="sidebar-chooser-hosts"
+        >
+          {t("sidebar.display.hostFilter.label")}
+        </MenuSubTrigger>
+        <MenuSeparator />
         <MenuItem
           selected={
             resolvedProjectFilters.length === 0 &&
@@ -149,14 +157,6 @@ export function SidebarProjectSelector(): ReactElement {
         >
           {t("sidebar.projectSelector.allWorkspaces")}
         </MenuItem>
-        <MenuSeparator />
-        <MenuSubTrigger
-          id="hostFilter"
-          indicator={hostFilters.length > 0 || projectFilters.length > 0}
-          testID="sidebar-chooser-hosts"
-        >
-          {t("sidebar.display.hostFilter.label")}
-        </MenuSubTrigger>
         <MenuSeparator />
         {visibleProjects.map((project) => (
           <SidebarProjectMenuItem
