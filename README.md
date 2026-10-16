@@ -80,11 +80,15 @@ Check for published Paseo++ releases on startup and resume. Available updates ap
 
 Use the split icon beside a creation item in the workspace **+** menu to open that view on a side. Visual diagrams show the new pane and its proportions; clicking the item itself keeps its normal behavior. Hover a workspace divider to choose 50/50, 60/40, 40/60, 70/30, or 30/70 proportions. Right-click a tab and choose **Move tab** to move it into an existing pane or create a split on a side. Turn **Split layout controls** off in Paseo++ settings to hide these controls without changing your layout.
 
+### Workspace tab widths
+
+Desktop tabs have a 96 px minimum width, so short names such as Dev stay comfortable to select. The strip scrolls when the available space cannot fit that minimum. Compact tabs retain their existing larger touch layout.
+
 ### Mobile workspace tabs
 
 Switch between workspace tabs directly on your phone. Scroll the tab strip horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. The selected tab stays in view.
 
-Enable **Wider workspace tabs** in Paseo++ settings to give long tab titles up to 50% more width. Short tabs retain their natural width, and turning it off restores the earlier maximum.
+Enable **Wider workspace tabs** in Paseo++ settings to give long tab titles up to 50% more width. Short tabs respect the minimum width, and turning it off restores the earlier maximum.
 
 ### Accent colors
 
