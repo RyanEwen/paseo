@@ -211,7 +211,9 @@ Windows uses the daemon bundled with the desktop app. See the
 These packages include the daemon, CLI, web UI, and native runtime dependencies. Linux packages
 require glibc; Alpine/musl hosts are excluded. The `paseo-plus-plus` command uses its own settings
 and host identity in `~/.paseo-plus-plus`, with the default listen address `127.0.0.1:6791`.
-The desktop app keeps its bundled daemon in `~/.paseo-plus-plus-desktop` on port 6790. Upstream Paseo,
+The desktop app keeps its bundled daemon in `~/.paseo-plus-plus-desktop` on port 6790. Resolve these
+defaults from the enclosing packaged manifest after managed environment scrubbing. Saved listen
+addresses remain authoritative, including profiles initialized at 6767 by older previews. Upstream Paseo,
 the desktop daemon, and the standalone daemon can run side by side with their defaults.
 
 The app's host update action installs the newest published fork build for the host's platform

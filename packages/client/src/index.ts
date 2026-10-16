@@ -484,6 +484,12 @@ export interface PaseoConfigActions {
 }
 
 export interface PaseoApi {
+  readonly attachments: {
+    list: DaemonClient["listAttachments"];
+    get: DaemonClient["getAttachment"];
+    read: DaemonClient["readAttachment"];
+    cancelRead: DaemonClient["cancelAttachmentRead"];
+  };
   dispose(): Promise<void>;
   observeEvents: DaemonClient["observeEvents"];
   readonly terminals: PaseoTerminalActions;
@@ -694,6 +700,12 @@ export function createPaseoApi(
   }
 
   return {
+    attachments: {
+      list: daemonClient.listAttachments.bind(daemonClient),
+      get: daemonClient.getAttachment.bind(daemonClient),
+      read: daemonClient.readAttachment.bind(daemonClient),
+      cancelRead: daemonClient.cancelAttachmentRead.bind(daemonClient),
+    },
     dispose,
     observeEvents,
     terminals,

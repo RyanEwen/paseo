@@ -1,5 +1,9 @@
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import { useWorkspaceBrowserOpeningContext } from "@/workspace/browser/context";
-import { WorkspaceBrowserMenuItem } from "@/workspace/browser/link-menu";
+import {
+  WorkspaceBrowserMenuItem,
+  WorkspaceExternalBrowserMenuItem,
+} from "@/workspace/browser/link-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { type ReactElement, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,7 +25,6 @@ import { useCheckoutPrStatusQuery } from "@/git/use-pr-status-query";
 import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
 import { useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { resolvePreferredEditorId, usePreferredEditor } from "@/hooks/use-preferred-editor";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { isAbsolutePath } from "@/utils/path";
 import { isWeb } from "@/constants/platform";
 import { openDesktopTarget, useDesktopOpenTargets } from "@/workspace/desktop-open-targets";
@@ -90,6 +93,7 @@ export function WorkspaceOpenInEditorButton({
   activeFile,
   hideLabels,
 }: WorkspaceOpenInEditorButtonProps) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const toast = useToast();
   const isConnected = useHostRuntimeIsConnected(serverId);
@@ -140,7 +144,7 @@ export function WorkspaceOpenInEditorButton({
             id: target.id,
             label: target.label,
             icon: renderForgeOpenTargetIcon(presentation.icon),
-            onOpen: () => openExternalUrl(target.url),
+            onOpen: () => openPrimary(target.url),
             url: target.url,
           };
         }
@@ -162,6 +166,7 @@ export function WorkspaceOpenInEditorButton({
       isDesktopOpenAvailable,
       isLocalDaemon,
       resolvedFile,
+      openPrimary,
     ],
   );
 
@@ -288,6 +293,7 @@ export function WorkspaceOpenInEditorButton({
                 <>
                   <DropdownMenuSeparator />
                   <WorkspaceBrowserMenuItem url={browserUrl} />
+                  <WorkspaceExternalBrowserMenuItem url={browserUrl} />
                 </>
               ) : null}
             </DropdownMenuContent>

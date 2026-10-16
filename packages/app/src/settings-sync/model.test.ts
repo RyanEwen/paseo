@@ -1,3 +1,17 @@
+import { bindSettingsHost } from "./binding";
+import { createSettingsHostTransport } from "./transport";
+import { normalizeRemoteSidebarModes } from "./sidebar-values";
+import { createSyncedSidebarSettingsSave } from "./sidebar-edits";
+import {
+  exportLegacySidebarPresentation,
+  defaultSidebarModeProfiles,
+  defaultSidebarLocalModeFilters,
+} from "@/stores/sidebar-mode-preferences";
+import {
+  useSidebarViewStore,
+  projectSidebarMode,
+  type SidebarViewStoreState,
+} from "@/stores/sidebar-view-store";
 import {
   selectAccentColorSupport,
   exportSupportedAccentSettings,
@@ -628,4 +642,561 @@ it("backs up the full accent choice while publishing only supported fields, then
   await model.restoreDeviceSettings();
   expect(device).toEqual(original);
   expect(older.writes).toHaveLength(1);
+});
+
+describe("sidebar mode command transactions", () => {
+  function sidebarHarness() {
+    let sidebar = {
+      ...useSidebarViewStore.getState(),
+      ...projectSidebarMode({
+        groupMode: "project",
+        modeProfiles: defaultSidebarModeProfiles(),
+        localModeFilters: defaultSidebarLocalModeFilters(),
+      }),
+      modeProfilesInitialized: true,
+    };
+    let writer: () => Promise<void> = async () => {};
+    let supported = true;
+    const model = new SettingsSyncModel({
+      readLocal: async () => null,
+      writeLocal: async () => writer(),
+      getDeviceValues: async () => ({
+        sidebar: { groupMode: sidebar.groupMode, modeProfiles: sidebar.modeProfiles },
+      }),
+      applyValues: async (values) => {
+        const projected = normalizeRemoteSidebarModes(values.sidebar, DEFAULT_CLIENT_SETTINGS);
+        sidebar = {
+          ...sidebar,
+          ...projectSidebarMode({ ...projected, localModeFilters: sidebar.localModeFilters }),
+          modeProfilesInitialized: true,
+        };
+      },
+    });
+    const store = {
+      getState: () => sidebar,
+      setState: (patch: Partial<SidebarViewStoreState>) => {
+        sidebar = { ...sidebar, ...patch };
+      },
+    };
+    return {
+      model,
+      store,
+      save: createSyncedSidebarSettingsSave(model, store, () => supported),
+      setWriter: (next: () => Promise<void>) => {
+        writer = next;
+      },
+      setSupported: (next: boolean) => {
+        supported = next;
+      },
+    };
+  }
+  it("syncs the accordion choice only in the project profile and retains it on remote normalization", async () => {
+    const harness = sidebarHarness();
+    const remote = host(snapshot("dark"));
+    await harness.model.load();
+    await harness.model.selectHost("A");
+    await harness.model.connect("A", remote.transport);
+    await harness.save((current) => ({ oneProjectAtATime: !current.oneProjectAtATime }), "project");
+    expect(remote.read().values).toMatchObject({
+      sidebar: {
+        modeProfiles: {
+          project: { oneProjectAtATime: true },
+          status: { oneProjectAtATime: false },
+        },
+      },
+    });
+    const normalized = normalizeRemoteSidebarModes(
+      remote.read().values.sidebar,
+      DEFAULT_CLIENT_SETTINGS,
+    );
+    expect(normalized.modeProfiles.project.oneProjectAtATime).toBe(true);
+    expect(normalized.modeProfiles.status.oneProjectAtATime).toBe(false);
+  });
+
+  it("keeps queued old-visible-mode preferences attached to their original mode", async () => {
+    const { model, save, store } = sidebarHarness();
+    await model.load();
+    await Promise.all([
+      save({ groupMode: "status" }),
+      save({ sortMode: "project", initialWorkspaceCount: 7 }),
+    ]);
+    expect(store.getState()).toMatchObject({
+      groupMode: "status",
+      sortMode: "status",
+      initialWorkspaceCount: 20,
+    });
+    expect(store.getState().modeProfiles.project).toMatchObject({
+      sortMode: "project",
+      initialWorkspaceCount: 7,
+    });
+  });
+  it("durably materializes both profiles before projection and preserves filters changed during the write", async () => {
+    const harness = sidebarHarness();
+    const remote = host({
+      ...snapshot("dark"),
+      values: { sidebar: { groupMode: "project", sortMode: "custom" } },
+    });
+    await harness.model.load();
+    await harness.model.selectHost("A");
+    await harness.model.connect("A", remote.transport);
+    const held = deferred<void>();
+    const writing = deferred<void>();
+    harness.setWriter(async () => {
+      writing.resolve();
+      await held.promise;
+    });
+    const saving = harness.save({ groupMode: "status" });
+    await writing.promise;
+    expect(harness.store.getState().groupMode).toBe("project");
+    const current = harness.store.getState();
+    harness.store.setState({
+      localModeFilters: {
+        ...current.localModeFilters,
+        status: { hostFilters: ["offline-host"], projectFilters: ["opaque"] },
+      },
+    });
+    held.resolve();
+    await saving;
+    expect(harness.store.getState()).toMatchObject({
+      groupMode: "status",
+      hostFilters: ["offline-host"],
+      projectFilters: ["opaque"],
+    });
+    expect(remote.writes[0].patches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: ["sidebar", "groupMode"], value: "status" }),
+        expect.objectContaining({
+          path: ["sidebar", "modeProfiles", "project", "initialWorkspaceCount"],
+          value: 20,
+        }),
+        expect.objectContaining({
+          path: ["sidebar", "modeProfiles", "status", "initialWorkspaceCount"],
+          value: 20,
+        }),
+      ]),
+    );
+    expect(remote.writes[0].patches.some((patch) => patch.path.includes("hostFilters"))).toBe(
+      false,
+    );
+  });
+  it("a failed durable write never changes the selected mode or restores older local facets", async () => {
+    const harness = sidebarHarness();
+    await harness.model.load();
+    await harness.model.selectHost("A");
+    await harness.model.connect("A", host(snapshot("dark")).transport);
+    const failure = new Error("disk failed");
+    harness.setWriter(async () => {
+      throw failure;
+    });
+    const current = harness.store.getState();
+    harness.store.setState(
+      projectSidebarMode({
+        ...current,
+        localModeFilters: {
+          ...current.localModeFilters,
+          project: { hostFilters: ["new-choice"], projectFilters: [] },
+        },
+      }),
+    );
+    await expect(harness.save({ groupMode: "status" })).rejects.toBe(failure);
+    expect(harness.store.getState()).toMatchObject({
+      groupMode: "project",
+      hostFilters: ["new-choice"],
+    });
+  });
+  it("rejects unsupported authorities and stale queued edits after a host switch", async () => {
+    const harness = sidebarHarness();
+    await harness.model.load();
+    harness.setSupported(false);
+    await expect(harness.save({ groupMode: "status" })).rejects.toThrow("Update the settings host");
+    harness.setSupported(true);
+    const stale = harness.save({ groupMode: "status" });
+    const switched = harness.model.selectHost("B");
+    await expect(stale).rejects.toThrow("Settings host changed");
+    await switched;
+    expect(harness.store.getState().groupMode).toBe("project");
+  });
+  it("retains known profiles and unknown remote leaves through a subsequent edit", async () => {
+    const harness = sidebarHarness();
+    const modeProfiles = defaultSidebarModeProfiles();
+    modeProfiles.status.initialWorkspaceCount = 37;
+    const remote = host({
+      ...snapshot("dark"),
+      values: {
+        sidebar: {
+          groupMode: "status",
+          futureSibling: { keep: true },
+          modeProfiles: {
+            ...modeProfiles,
+            status: {
+              ...modeProfiles.status,
+              futureSetting: "keep",
+              sidebarRowItems: { ...modeProfiles.status.sidebarRowItems, futureItem: true },
+            },
+          },
+        },
+      },
+    });
+    await harness.model.load();
+    await harness.model.selectHost("A");
+    await harness.model.connect("A", remote.transport);
+    expect(harness.store.getState()).toMatchObject({
+      groupMode: "status",
+      initialWorkspaceCount: 37,
+    });
+    await harness.save({ initialWorkspaceCount: 7 });
+    expect(remote.read().values).toMatchObject({
+      sidebar: {
+        futureSibling: { keep: true },
+        modeProfiles: {
+          status: {
+            initialWorkspaceCount: 7,
+            futureSetting: "keep",
+            sidebarRowItems: { futureItem: true },
+          },
+        },
+      },
+    });
+  });
+  it("materializes a missing second profile while preserving the valid first profile and unknown leaves", async () => {
+    const harness = sidebarHarness();
+    const project = {
+      ...defaultSidebarModeProfiles().project,
+      initialWorkspaceCount: 37,
+      workspaceTitleSource: "branch",
+      futureSetting: true,
+    };
+    const remote = host({
+      ...snapshot("dark"),
+      values: { sidebar: { groupMode: "project", futureSibling: 1, modeProfiles: { project } } },
+    });
+    await harness.model.load();
+    await harness.model.selectHost("A");
+    await harness.model.connect("A", remote.transport);
+    expect(harness.store.getState()).toMatchObject({
+      initialWorkspaceCount: 37,
+      workspaceTitleSource: "branch",
+    });
+    await harness.save({ showBackground: true });
+    expect(remote.read().values).toMatchObject({
+      sidebar: {
+        futureSibling: 1,
+        modeProfiles: {
+          project: { initialWorkspaceCount: 37, futureSetting: true, showBackground: true },
+          status: { initialWorkspaceCount: 20 },
+        },
+      },
+    });
+  });
+  it.each([37, null])(
+    "exports the active canonical count %s to legacy hosts rather than stale globals",
+    (count) => {
+      const profile = {
+        ...defaultSidebarModeProfiles().status,
+        initialWorkspaceCount: count,
+        workspaceTitleSource: "branch" as const,
+      };
+      expect(DEFAULT_CLIENT_SETTINGS).toMatchObject({
+        sidebarInitialWorkspaceCount: 20,
+        workspaceTitleSource: "title",
+      });
+      expect(exportLegacySidebarPresentation(profile)).toMatchObject({
+        sidebarInitialWorkspaceCount: count,
+        workspaceTitleSource: "branch",
+      });
+      expect(exportLegacySidebarPresentation(profile)).not.toHaveProperty("modeProfiles");
+    },
+  );
+});
+
+describe("settings bootstrap load ownership", () => {
+  it.each(["resolve", "reject"] as const)(
+    "ignores an obsolete owner's late %s after the replacement load",
+    async (settlement) => {
+      const firstRead = deferred<unknown>();
+      const secondRead = deferred<unknown>();
+      let reads = 0;
+      const model = new SettingsSyncModel({
+        readLocal: () => (++reads === 1 ? firstRead.promise : secondRead.promise),
+        writeLocal: async () => {},
+        getDeviceValues: async () => ({}),
+        applyValues: async () => {},
+      });
+      const first = new AbortController();
+      const oldLoad = model.load(first.signal);
+      first.abort();
+      const newLoad = model.load();
+      secondRead.resolve({ selectedHost: "H", hosts: {} });
+      await newLoad;
+      const before = model.getState();
+      const emissions: unknown[] = [];
+      const stop = model.subscribe(() => emissions.push(model.getState()));
+      if (settlement === "resolve") firstRead.resolve({ selectedHost: null, hosts: {} });
+      else firstRead.reject(new Error("obsolete read failed"));
+      await oldLoad;
+      stop();
+      expect(model.getState()).toEqual(before);
+      expect(model.getState()).toMatchObject({
+        selectedHost: "H",
+        status: "reading",
+        canWrite: false,
+      });
+      expect(emissions).toEqual([]);
+    },
+  );
+  it("does not let a pending load replace a newer explicit host selection", async () => {
+    const pending = deferred<unknown>();
+    const model = new SettingsSyncModel({
+      readLocal: () => pending.promise,
+      writeLocal: async () => {},
+      getDeviceValues: async () => ({}),
+      applyValues: async () => {},
+    });
+    const loading = model.load();
+    await model.selectHost("chosen");
+    pending.resolve({ selectedHost: null, hosts: {} });
+    await loading;
+    expect(model.getState()).toMatchObject({
+      selectedHost: "chosen",
+      status: "reading",
+      canWrite: false,
+    });
+  });
+});
+
+describe("live settings authority", () => {
+  function controlledClient() {
+    type Client = Parameters<typeof bindSettingsHost>[0]["client"];
+    let info = ServerInfoStatusPayloadSchema.parse({
+      status: "server_info",
+      serverId: "H",
+      permissions: ["daemon.read"],
+      features: { appSettingsSync: true },
+    });
+    const listeners = new Set<Parameters<Client["subscribeRawMessages"]>[0]>();
+    const observations: { settle(theme?: string): void; released: boolean }[] = [];
+    let writes = 0;
+    const client: Client = {
+      getLastServerInfoMessage: () => info,
+      subscribeRawMessages: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      patchAppSettings: async () => {
+        writes++;
+        return { requestId: "patch", snapshot: snapshot("host"), conflicts: [] };
+      },
+      observeAppSettings: (options) => {
+        const ready = deferred<Awaited<ReturnType<Client["observeAppSettings"]>["ready"]>>();
+        const id = String(observations.length);
+        const observation = {
+          settle: (theme = "host") =>
+            ready.resolve({ requestId: id, subscriptionId: id, snapshot: snapshot(theme) }),
+          released: false,
+        };
+        const release = async () => {
+          observation.released = true;
+          options?.signal?.removeEventListener("abort", abort);
+        };
+        const abort = () => {
+          void release();
+        };
+        options?.signal?.addEventListener("abort", abort, { once: true });
+        observations.push(observation);
+        return { subscriptionId: id, ready: ready.promise, subscribe: () => () => {}, release };
+      },
+    };
+    return {
+      client,
+      observations,
+      writes: () => writes,
+      listenerCount: () => listeners.size,
+      change(writable: boolean, supported = true) {
+        info = ServerInfoStatusPayloadSchema.parse({
+          ...info,
+          permissions: writable ? ["daemon.read", "daemon.manage"] : ["daemon.read"],
+          features: { appSettingsSync: supported },
+        });
+        for (const listener of listeners) listener({ type: "status", payload: info });
+      },
+    };
+  }
+
+  it("rebinds same-client permission changes and immediately gates a revoked writer", async () => {
+    const { model } = setup();
+    await model.load();
+    await model.selectHost("H");
+    const h = controlledClient();
+    const connections: Promise<void>[] = [];
+    const stop = bindSettingsHost({
+      client: h.client,
+      onSnapshot: (value) => {
+        void model.receive("H", value);
+      },
+      onTransport: (transport) => {
+        connections.push(model.connect("H", transport));
+      },
+    });
+    h.observations[0].settle();
+    await connections[0];
+    expect(model.getState().status).toBe("readonly");
+    const beforeRefresh = model.getState().pendingCount;
+    h.change(true);
+    expect(h.observations[0].released).toBe(true);
+    h.observations[1].settle();
+    await connections[1];
+    expect(model.getState()).toMatchObject({ status: "ready", canWrite: true, selectedHost: "H" });
+    expect(model.getState().pendingCount).toBe(beforeRefresh);
+    h.change(true);
+    expect(h.observations).toHaveLength(2);
+    h.change(false);
+    expect(model.getState().canWrite).toBe(false);
+    h.observations[2].settle();
+    await connections[2];
+    expect(model.getState().status).toBe("readonly");
+    expect(h.writes()).toBe(0);
+    stop();
+    h.change(true);
+    expect(h.listenerCount()).toBe(0);
+    expect(h.observations).toHaveLength(3);
+    expect(h.observations[2].released).toBe(true);
+  });
+
+  it("resamples authority on explicit readonly refresh without publishing settings", async () => {
+    const { model } = setup();
+    await model.load();
+    await model.selectHost("H");
+    const h = controlledClient();
+    const controller = new AbortController();
+    const transport = createSettingsHostTransport({
+      client: h.client,
+      signal: controller.signal,
+      onSnapshot: () => {},
+    });
+    const first = model.connect("H", transport);
+    h.observations[0].settle();
+    await first;
+    const stillReadonly = model.retry();
+    await Promise.resolve();
+    h.observations[1].settle();
+    await stillReadonly;
+    expect(model.getState().status).toBe("readonly");
+    h.change(true);
+    const recovered = model.retry();
+    await Promise.resolve();
+    h.observations[2].settle();
+    await recovered;
+    expect(model.getState()).toMatchObject({
+      status: "ready",
+      canWrite: true,
+      selectedHost: "H",
+      pendingCount: 0,
+    });
+    expect(h.writes()).toBe(0);
+    controller.abort();
+  });
+
+  it("rejects a replaced read's late completion and retires unsupported observations", async () => {
+    const { model, applied } = setup();
+    await model.load();
+    await model.selectHost("H");
+    const h = controlledClient(),
+      connections: Promise<void>[] = [];
+    const stop = bindSettingsHost({
+      client: h.client,
+      onSnapshot: (value) => {
+        void model.receive("H", value);
+      },
+      onTransport: (transport) => {
+        connections.push(model.connect("H", transport));
+      },
+    });
+    h.change(true);
+    h.observations[0].settle("obsolete");
+    h.observations[1].settle("current");
+    await Promise.all(connections);
+    expect(applied).toEqual([{ app: { theme: "current" } }]);
+    expect(model.getState().status).toBe("ready");
+    h.change(true, false);
+    await connections[2];
+    expect(model.getState().status).toBe("unsupported");
+    expect(h.observations).toHaveLength(2);
+    expect(h.observations.every((observation) => observation.released)).toBe(true);
+    stop();
+  });
+
+  it("keeps adopted authority when bootstrap hydration is requested again", async () => {
+    const { model } = setup();
+    await model.load();
+    await model.selectHost("H");
+    const h = host(snapshot("host"));
+    await model.connect("H", h.transport);
+    const before = model.getState();
+    await model.load();
+    expect(model.getState()).toBe(before);
+    await model.receive("H", snapshot("host", 2));
+    expect(model.getState()).toMatchObject({ status: "ready", canWrite: true });
+    expect(h.writes).toEqual([]);
+  });
+  it("recovers local Retry after a failed host selection without discarding another host outbox", async () => {
+    const first = setup();
+    const remote = host(snapshot("host"));
+    await first.model.load();
+    await first.model.selectHost("A");
+    await first.model.connect("A", remote.transport);
+    await first.model.connect("A", null);
+    await editTheme(first.model, "host", "pending");
+    await first.model.selectHost(null);
+    const saved = structuredClone(first.saved());
+    let reads = 0;
+    const model = new SettingsSyncModel({
+      readLocal: async () => {
+        reads++;
+        return structuredClone(saved);
+      },
+      writeLocal: async () => {
+        throw new Error("disk unavailable");
+      },
+      getDeviceValues: async () => ({}),
+      applyValues: async () => {
+        throw new Error("must not adopt settings");
+      },
+    });
+    await model.load();
+    await expect(model.selectHost("H")).rejects.toThrow("disk unavailable");
+    expect(model.getState().status).toBe("error");
+    await model.retry();
+    expect(model.getState()).toMatchObject({
+      selectedHost: null,
+      status: "local",
+      canWrite: true,
+      error: null,
+    });
+    expect(reads).toBe(1);
+    expect(first.saved()).toEqual(saved);
+    expect(remote.writes).toEqual([]);
+    expect(saved).toMatchObject({
+      hosts: { A: { pending: [{ value: "pending" }], backup: { app: { theme: "device" } } } },
+    });
+  });
+
+  it("retries storage after the first hydration fails", async () => {
+    let reads = 0;
+    const model = new SettingsSyncModel({
+      readLocal: async () => {
+        if (++reads === 1) throw new Error("unavailable");
+        return null;
+      },
+      writeLocal: async () => {},
+      getDeviceValues: async () => ({}),
+      applyValues: async () => {},
+    });
+    await model.load();
+    expect(model.getState().status).toBe("error");
+    await model.retry();
+    expect(reads).toBe(2);
+    expect(model.getState()).toMatchObject({ status: "local", canWrite: true, error: null });
+  });
 });

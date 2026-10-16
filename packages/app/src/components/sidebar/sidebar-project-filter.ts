@@ -2,6 +2,24 @@ import type {
   SidebarProjectEntry,
   SidebarWorkspaceEntry,
 } from "@/hooks/use-sidebar-workspaces-list";
+import type { WorkspaceStructureProject } from "@/projects/workspace-structure";
+
+/** Keep an explicit project selection while revealing a successful Add Project result. */
+export function includeCreatedProjectFilter(input: {
+  projectFilters: string[];
+  projects: readonly Pick<WorkspaceStructureProject, "viewKey" | "hosts">[];
+  serverId: string;
+  projectId: string;
+}): string[] {
+  const { projectFilters, projects, serverId, projectId } = input;
+  const available = new Set(projects.map((project) => project.viewKey));
+  if (resolveActiveProjectFilters(projectFilters, available).length === 0) return projectFilters;
+  const created = projects.find((project) =>
+    project.hosts.some((host) => host.serverId === serverId && host.projectId === projectId),
+  );
+  if (!created || projectFilters.includes(created.viewKey)) return projectFilters;
+  return [...projectFilters, created.viewKey];
+}
 
 /**
  * The subset of a stored project filter that still names a project the sidebar can see.

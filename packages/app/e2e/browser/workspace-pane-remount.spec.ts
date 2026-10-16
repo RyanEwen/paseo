@@ -1,3 +1,8 @@
+import { WorkspaceLayoutPersistedStateSchema } from "@/stores/workspace-layout-storage";
+import { collectAllPanes, collectAllTabs } from "@/stores/workspace-layout-actions";
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { createMockIdleAgent, openWorkspaceWithAgents } from "../support/helpers/archive-tab";
 import {
   buildDefaultSettingsRoute,
   buildHostAgentDetailRoute,
@@ -184,4 +189,93 @@ test.describe("Workspace pane mounting", () => {
       await workspace.cleanup();
     }
   });
+});
+
+/** Read the newly created draft’s persisted identity without changing the layout. */
+async function readSplitDraft(page: Page, workspaceId: string) {
+  const raw = await page.evaluate(() => localStorage.getItem("workspace-layout-state"));
+  if (!raw) return null;
+  const state = WorkspaceLayoutPersistedStateSchema.parse(JSON.parse(raw).state);
+  const layout = state.layoutByWorkspace[`${getServerId()}:${workspaceId}`];
+  if (!layout) return null;
+  const tab = collectAllTabs(layout.root).find((item) => item.target.kind === "draft");
+  if (!tab || tab.target.kind !== "draft") return null;
+  const pane = collectAllPanes(layout.root).find((item) => item.tabIds.includes(tab.tabId));
+  return { tabId: tab.tabId, draftId: tab.target.draftId, paneId: pane?.id };
+}
+
+test("tab move menus and divider presets preserve workspace tabs", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const workspace = await seedWorkspace({ repoPrefix: "split-presets-" });
+  try {
+    const first = await createMockIdleAgent(workspace.client, {
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "Left conversation",
+    });
+    const second = await createMockIdleAgent(workspace.client, {
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "Right conversation",
+    });
+    await openWorkspaceWithAgents(page, [first, second]);
+    const main = page.getByTestId("workspace-pane-main");
+    const originalComposer = await captureRenderedNode(main.getByTestId("message-input-root"));
+    const countBefore = await main.getByRole("tab").count();
+    await main.getByTestId("workspace-new-tab-button").click();
+    await page.getByTestId("workspace-new-tab-split-agent").click();
+    await expect(page.getByTestId(/^workspace-new-tab-layout-agent-/)).toHaveCount(20);
+    await expect(main.getByRole("tab")).toHaveCount(countBefore);
+    const splitEvidence = resolve("../../docs/qa-evidence/workspace-split-presets");
+    mkdirSync(splitEvidence, { recursive: true });
+    await page.screenshot({ path: resolve(splitEvidence, "creation-split-choices.png") });
+    await page.getByTestId("workspace-new-tab-layout-agent-right-60-40").click();
+    await expect.poll(() => readSplitDraft(page, workspace.workspaceId)).not.toBeNull();
+    const draft = await readSplitDraft(page, workspace.workspaceId);
+    if (!draft?.paneId) throw new Error("Expected new draft in its own split");
+    await expectSameRenderedNode(originalComposer, main.getByTestId("message-input-root"));
+    await expect(page.getByTestId(`workspace-pane-${draft.paneId}`)).toBeVisible();
+    await page.getByTestId(`workspace-tab-${draft.draftId}`).hover();
+    await page.getByTestId(`workspace-draft-close-${draft.draftId}`).click();
+    await expect(page.getByTestId("workspace-split-resize-handle")).toHaveCount(0);
+    const tabId = `agent_${second.id}`;
+    const tab = page.getByTestId(`workspace-tab-${tabId}`);
+    await expect(tab).toBeVisible();
+    await tab.click({ button: "right" });
+    const menu = `workspace-tab-move-${tabId}`;
+    await page.getByTestId(menu).click();
+    await page.getByTestId(`${menu}-right`).click();
+    await page.getByTestId(`${menu}-right-60-40`).click();
+    const left = page.getByTestId("workspace-pane-main");
+    const right = page
+      .getByTestId(/^workspace-pane-/)
+      .filter({ has: page.getByTestId(`workspace-tab-${tabId}`) });
+    const ratio = async () => {
+      const a = await left.boundingBox();
+      const b = await right.boundingBox();
+      if (!a || !b) throw new Error("Expected both split panes");
+      return a.width / (a.width + b.width);
+    };
+    await expect.poll(ratio).toBeGreaterThan(0.58);
+    await expect.poll(ratio).toBeLessThan(0.62);
+    const divider = page.getByTestId("workspace-split-resize-handle");
+    await divider.hover();
+    await expect(page.getByTestId("workspace-split-presets")).toBeVisible();
+    const evidence = resolve("../../docs/qa-evidence/workspace-split-presets");
+    mkdirSync(evidence, { recursive: true });
+    await page.screenshot({ path: resolve(evidence, "divider-presets.png") });
+    await page.getByTestId("workspace-split-preset-50-50").click();
+    await expect.poll(ratio).toBeGreaterThan(0.48);
+    await expect.poll(ratio).toBeLessThan(0.52);
+    await tab.click({ button: "right" });
+    await page.getByTestId(menu).click();
+    await page.screenshot({ path: resolve(evidence, "tab-move-menu.png") });
+    await page.getByTestId(`${menu}-pane-main`).click();
+    await expect(left.getByTestId(`workspace-tab-agent_${first.id}`)).toBeVisible();
+    await expect(left.getByTestId(`workspace-tab-${tabId}`)).toBeVisible();
+    await expect(page.getByTestId("workspace-split-resize-handle")).toHaveCount(0);
+  } finally {
+    await workspace.cleanup();
+  }
 });

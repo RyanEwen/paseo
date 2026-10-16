@@ -32,9 +32,24 @@ export const en = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "Accent color",
+      hint: "Used for primary controls and your messages",
+      updateHost: "Update your selected settings host to change the accent color",
+      preview: "This is how your messages will look",
+      options: {
+        default: "Default",
+        blue: "Blue",
+        green: "Green",
+        purple: "Purple",
+        rose: "Rose",
+        orange: "Orange",
+        teal: "Teal",
+      },
+    },
     workspaceLimit: {
       save: "Save",
-      title: "Workspace list",
+      title: "Workspace limits",
       label: "Initially show per group",
       limited: "Limited",
       all: "Show all",
@@ -57,8 +72,8 @@ export const en = {
     title: "Paseo++",
     optional: "Optional features",
     optionalHint:
-      "Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
-    preferences: "More sidebar controls",
+      "Optional feature switches start on. Display preferences have independent defaults; Expand one project at a time starts off. Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
+    preferences: "Workspace sidebar controls",
     fixes: "Fixes and fork essentials",
     fixesHint: "These improvements stay enabled",
     additions: "Other additions",
@@ -66,16 +81,24 @@ export const en = {
     saveFailed: "Unable to save. Try again.",
     features: {
       workspaceChatLinks: {
-        label: "Open chat links in Paseo",
-        hint: "Open web links from workspace chats in that workspace’s browser on desktop. Turn off to use your external browser. Open in Paseo remains in the link menu.",
+        label: "Workspace links",
+        hint: "Open workspace web links in new tabs in that workspace’s browser on desktop, including terminal, chat, and Git links. Turn off to open them externally. Explicit browser actions remain available in menus.",
       },
       sidebarHostUpdates: {
         label: "Host updates in the sidebar",
         hint: "Show host update actions in the host menu. Host settings remain available when this is off.",
       },
+      splitLayoutPresets: {
+        label: "Split layout controls",
+        hint: "Choose common pane ratios at a divider and move tabs from their menu. Turn off to hide these controls.",
+      },
       mobileWorkspaceTabs: {
         label: "Mobile workspace tabs",
         hint: "Show a scrolling tab strip in compact workspaces. Turn off to use the earlier tab chooser without changing the selected tab.",
+      },
+      widerWorkspaceTabs: {
+        label: "Wider workspace tabs",
+        hint: "Allow long tab titles up to 50% more width. Short tabs keep their natural width. Turn off to restore the earlier maximum.",
       },
 
       descriptiveToolCalls: {
@@ -84,8 +107,8 @@ export const en = {
       },
 
       sidebarProjectSelector: {
-        label: "Project selector in sidebar",
-        hint: "Choose a project from the workspace heading; turning this off restores the Project filter menu",
+        label: "Selected project in heading",
+        hint: "Show the selected project name in the workspace heading. Off uses Workspaces; host and project choices remain available.",
       },
       stickyUserPrompts: {
         label: "Keep user prompts in view",
@@ -109,11 +132,11 @@ export const en = {
       },
       projectPinning: {
         label: "Pin workspaces within projects",
-        hint: "Keep selected workspaces first in their project. Saved pins return when re-enabled.",
+        hint: "Keep selected workspaces first in their project and mark them with a pin beside the name. Saved pins return when re-enabled.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animate workspace moves",
-        hint: "Use quick transitions when sidebar workspace positions change",
+        hint: "Use quick transitions when workspace positions change, including when projects expand or collapse",
       },
       androidAutomaticUpdateChecks: {
         label: "Automatic Android update checks",
@@ -122,8 +145,8 @@ export const en = {
     },
     links: {
       sidebar: {
-        label: "Workspace order and details",
-        hint: "Sort projects and workspaces independently by name, status or custom order. Show last activity and code-change totals together; project labels are on by default. Branch labels are optional and off by default. Adjust these in Display in the workspace sidebar.",
+        label: "Modes, filters and display",
+        hint: "Use the bell in the workspace sidebar to switch Project and Status modes. The filter icon opens quick text filtering. In Display, Workspace limits sets count and age independently, and Empty projects offers Show, Group or Hide. Each mode keeps its own preferences.",
       },
     },
     fixesList: {
@@ -639,6 +662,20 @@ export const en = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "Open {{item}} to the side",
+      chooseRatio: "Choose split ratio",
+      ratio: "Use {{ratio}} split",
+      moveTab: "Move tab",
+      left: "Left",
+      right: "Right",
+      top: "Top",
+      bottom: "Bottom",
+      columns: "Left / right",
+      rows: "Top / bottom",
+      pane: "Pane {{index}}",
+    },
+
     route: {
       loading: "Loading workspace",
       connecting: "Connecting",
@@ -776,6 +813,7 @@ export const en = {
     browser: {
       openInPaseo: "Open in Paseo browser",
       openExternally: "Open in external browser",
+      copyLink: "Copy link",
       unavailable: {
         title: "Browser is desktop-only",
         subtitle: "Open this workspace in Electron to use the built-in browser.",
@@ -803,6 +841,14 @@ export const en = {
         placeholder: "Message to the agent about this element…",
         submit: "Attach",
         cancel: "Cancel",
+      },
+      extensions: {
+        label: "Extensions",
+        empty: "No enabled extensions.",
+        noPopup: "No popup provided",
+        loading: "Loading extensions...",
+        manage: "Manage extensions",
+        openFailed: "Couldn't open extension",
       },
       devices: {
         label: "Device size",
@@ -1131,6 +1177,7 @@ export const en = {
         },
       },
       diff: {
+        updateHostFileDiff: "Update this host to open a single-file diff.",
         openChangesTab: "Open Changes tab",
         openDiffTab: "Open Diff tab",
         closeChangesTab: "Close Changes tab",
@@ -1359,6 +1406,7 @@ export const en = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "No known projects for this host yet.",
       selectOnlyProject: "Show only {{project}}",
       includeProject: "Include {{project}}",
       workspaces: "Workspaces",
@@ -1378,10 +1426,37 @@ export const en = {
       working: "Working",
       done: "Done",
     },
+    quickFilter: {
+      open: "Filter projects and workspaces",
+      close: "Close and clear quick filter",
+      placeholder: "Filter projects or workspaces…",
+      clear: "Clear quick filter",
+      emptyTitle: "No matching projects or workspaces",
+      emptyDescription: "Try another name or clear this mode’s quick filter.",
+      guidance:
+        "Use the filter icon to search names and visible branches in this mode. Count and age limits still apply; Show more reveals all matching rows.",
+    },
     display: {
+      modeToggle: "{{current}} view. Switch to {{next}} view.",
+      workspaceList: {
+        countLimit: "Count limit",
+        updatedWithin: "Updated within",
+        day: "1 day",
+        twoDays: "2 days",
+        threeDays: "3 days",
+        fiveDays: "5 days",
+        week: "1 week",
+        twoWeeks: "2 weeks",
+        month: "1 month (30 days)",
+        twoMonths: "2 months (60 days)",
+        threeMonths: "3 months (90 days)",
+      },
       expandAll: "Expand all",
       collapseAll: "Collapse all",
-      showBackground: "Show background",
+      oneProjectAtATime: "Expand one project at a time",
+      reorderGuidance:
+        "Drag to reorder only with Custom sorting. Filtered project moves keep the same before/after neighbor when all projects are shown. Pins always use manual ordering.",
+      showBackground: "Show background workspaces",
       trigger: "Display preferences",
       heading: "Display",
       grouping: {
@@ -1399,6 +1474,12 @@ export const en = {
         status: "Status",
         custom: "Custom order",
         emptyProjects: "Sort empty projects",
+      },
+      emptyWorkspaces: {
+        label: "Empty projects",
+        show: "Show",
+        group: "Group",
+        hide: "Hide",
       },
       projectVisibility: {
         label: "Filter",
@@ -1429,7 +1510,7 @@ export const en = {
         none: "Hidden",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "All hosts",
       },
       projectFilter: {
@@ -2566,6 +2647,25 @@ export const en = {
     general: {
       title: "General",
       sending: "Sending",
+      browserExtensions: {
+        title: "Extensions",
+        compatibility:
+          "Some Chrome extension features are unsupported. Extensions are not updated automatically.",
+        store: "Chrome Web Store",
+        openStore: "Open Web Store",
+        refresh: "Refresh",
+        enable: "Enable",
+        disable: "Disable",
+        retry: "Retry",
+        remove: "Remove",
+        removeTitle: "Remove {{name}}?",
+        removeMessage: "This removes the extension from Paseo. Unpacked source folders are kept.",
+        loading: "Loading extensions...",
+        empty: "No extensions installed.",
+        unpackedHint: "Load an extension from a folder containing manifest.json.",
+        loadUnpacked: "Load unpacked",
+        unavailable: "Extension support is unavailable. Update the desktop app.",
+      },
       browserData: {
         title: "Browser data",
         siteData: "Cookies and site data",
@@ -2690,21 +2790,6 @@ export const en = {
       },
     },
     appearance: {
-      accent: {
-        title: "Accent color",
-        hint: "Used for primary controls and your messages",
-        updateHost: "Update your selected settings host to change the accent color",
-        preview: "This is how your messages will look",
-        options: {
-          default: "Default",
-          blue: "Blue",
-          green: "Green",
-          purple: "Purple",
-          rose: "Rose",
-          orange: "Orange",
-          teal: "Teal",
-        },
-      },
       theme: {
         title: "Theme",
         accessibilityLabel: "Theme: {{value}}",

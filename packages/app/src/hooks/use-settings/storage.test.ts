@@ -144,6 +144,8 @@ describe("loadAppSettingsFromStorage", () => {
       workspaceChatLinks: true,
       sidebarHostUpdates: true,
       mobileWorkspaceTabs: true,
+      widerWorkspaceTabs: true,
+      splitLayoutPresets: true,
       descriptiveToolCalls: true,
       stickyUserPrompts: true,
       previousAgents: true,

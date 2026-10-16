@@ -1,3 +1,4 @@
+import { moveProjectInFullOrder } from "@/utils/sidebar-reorder";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   computeSidebarOrderUpdates,
@@ -113,4 +114,37 @@ describe("sidebar order keys that end in whitespace", () => {
 
     expect(migrated.projectOrder).toEqual(["host-a:one"]);
   });
+});
+
+it("keeps the filtered anchor move when later reconciliation appends a new cached project", () => {
+  const order = useSidebarOrderStore.getState();
+  order.setProjectOrder(["a", "hidden", "b", "unknown"]);
+  const next = moveProjectInFullOrder({
+    currentOrder: order.getProjectOrder(),
+    knownProjectKeys: ["a", "hidden", "b"],
+    move: { activeKey: "b", overKey: "a", from: 1, to: 0 },
+  });
+  order.setProjectOrder(next!);
+  const projects: SidebarProjectEntry[] = ["a", "hidden", "b", "new"].map((viewKey) => ({
+    viewKey,
+    projectName: viewKey,
+    projectKind: "non_git",
+    iconWorkingDir: `/repo/${viewKey}`,
+    hosts: [],
+    workspaces: [],
+  }));
+  const updates = computeSidebarOrderUpdates({
+    projects,
+    persistedProjectOrder: order.getProjectOrder(),
+    getWorkspaceOrder: order.getWorkspaceOrder,
+  });
+  order.setProjectOrder(updates.projectOrder!);
+  expect(order.getProjectOrder()).toEqual(["b", "a", "hidden", "unknown", "new"]);
+  expect(
+    computeSidebarOrderUpdates({
+      projects,
+      persistedProjectOrder: order.getProjectOrder(),
+      getWorkspaceOrder: order.getWorkspaceOrder,
+    }).projectOrder,
+  ).toBeNull();
 });

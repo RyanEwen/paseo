@@ -93,8 +93,20 @@ export interface DesktopWebUtilsBridge {
   getPathForFile?: (file: File) => string;
 }
 
+export type TerminalLinkMenuAction = "open-internal" | "open-external" | "copy-link";
+
+export interface TerminalLinkMenuInput {
+  url: string;
+  openInPaseo: boolean;
+  labels: { internal: string; external: string; copy: string };
+}
+
 export interface DesktopMenuBridge {
-  showContextMenu?: (input?: { kind?: "terminal"; hasSelection?: boolean }) => Promise<void>;
+  showContextMenu?: (input?: {
+    kind?: "terminal";
+    hasSelection?: boolean;
+    link?: TerminalLinkMenuInput;
+  }) => Promise<TerminalLinkMenuAction | null>;
   setCapturingShortcut?: (capturing: boolean) => Promise<void>;
 }
 
@@ -149,7 +161,77 @@ export interface DesktopAttachedBrowserRegistration {
   webContentsId: number;
 }
 
+export interface DesktopNativeBrowserState {
+  browserId: string;
+  workspaceId: string;
+  webContentsId: number;
+  url: string;
+  title: string;
+  faviconUrl: string | null;
+  isLoading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  visible: boolean;
+  /** Observed page zoom / host UI zoom; never a command to change either. */
+  presentationScale: number;
+  focused: boolean;
+  lastError: string | null;
+}
+export interface DesktopNativeBrowserOverlayTarget {
+  browserId: string;
+  webContentsId: number;
+  revision: number;
+}
+export interface DesktopNativeBrowserOverlayFrame extends DesktopNativeBrowserOverlayTarget {
+  bounds: { x: number; y: number; width: number; height: number };
+  dataUrl: string;
+}
+export interface DesktopNativeBrowserBridge {
+  prepareOverlay(token: string): Promise<DesktopNativeBrowserOverlayTarget[]>;
+  commitOverlay(input: {
+    token: string;
+    frames: DesktopNativeBrowserOverlayTarget[];
+  }): Promise<boolean>;
+  captureOverlay(
+    input: DesktopNativeBrowserOverlayTarget & { token: string },
+  ): Promise<DesktopNativeBrowserOverlayFrame | null>;
+  endOverlay(token: string): Promise<void>;
+  create(input: {
+    browserId: string;
+    workspaceId: string;
+    url: string;
+  }): Promise<DesktopNativeBrowserState>;
+  present(input: {
+    browserId: string;
+    webContentsId: number;
+    visible: boolean;
+    viewportMode: "fixed" | "responsive";
+    bounds: { x: number; y: number; width: number; height: number };
+    clip?: { x: number; y: number; width: number; height: number };
+  }): Promise<DesktopNativeBrowserState>;
+  navigate(browserId: string, webContentsId: number, url: string): Promise<void>;
+  executeScript(browserId: string, webContentsId: number, code: string): Promise<unknown>;
+  control(
+    browserId: string,
+    webContentsId: number,
+    command: "back" | "forward" | "reload" | "stop",
+  ): Promise<DesktopNativeBrowserState>;
+  state(browserId: string, webContentsId: number): Promise<DesktopNativeBrowserState>;
+  focus(browserId: string, webContentsId: number): Promise<boolean>;
+  close(browserId: string, webContentsId: number): Promise<void>;
+}
+
 export interface DesktopBrowserBridge {
+  views?: DesktopNativeBrowserBridge;
+  extensions?: {
+    list(): Promise<DesktopBrowserExtension[]>;
+    actions(): Promise<DesktopBrowserExtensionAction[]>;
+    openPopup(id: string, browserId: string): Promise<void>;
+    setEnabled(id: string, enabled: boolean): Promise<void>;
+    remove(id: string): Promise<void>;
+    loadUnpacked(): Promise<void>;
+    openStore(): Promise<void>;
+  };
   setShortcutPolicy?: (input: BrowserKeyboardPolicy) => Promise<void>;
   readonly profilePartition?: string;
   registerAttachedBrowser?: (input: DesktopAttachedBrowserRegistration) => Promise<void>;
@@ -171,6 +253,21 @@ export interface DesktopBrowserBridge {
   ) => Promise<string | null>;
   /** Copy element text and/or an image to the system clipboard from main. */
   copyElement?: (payload: { text?: string; imageDataUrl?: string }) => Promise<boolean>;
+}
+
+export interface DesktopBrowserExtension {
+  id: string;
+  name: string;
+  version: string;
+  source: "store" | "unpacked";
+  enabled: boolean;
+  error?: string;
+}
+
+export interface DesktopBrowserExtensionAction {
+  id: string;
+  name: string;
+  hasPopup: boolean;
 }
 
 export interface DesktopInvokeBridge {

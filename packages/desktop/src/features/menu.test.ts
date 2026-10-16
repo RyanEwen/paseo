@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reloadActiveBrowserOrWindow } from "./menu.js";
+import { buildTerminalContextMenuTemplate, reloadActiveBrowserOrWindow } from "./menu.js";
 
 class FakeWebContents {
   public readonly reloads: string[] = [];
@@ -67,4 +67,62 @@ describe("reloadActiveBrowserOrWindow", () => {
     expect(browserReloads.secondBrowser.reloads).toEqual(["force-reload"]);
     expect(browserReloads.secondWindow.webContents.reloads).toEqual([]);
   });
+});
+
+describe("terminal link context menu", () => {
+  const link = {
+    url: "https://example.com/path",
+    openInPaseo: true,
+    labels: { internal: "Internal", external: "External", copy: "Copy link" },
+  };
+
+  it("preserves terminal editing roles and returns the chosen link action", () => {
+    const actions: string[] = [];
+    const items = buildTerminalContextMenuTemplate(
+      { kind: "terminal", hasSelection: true, link },
+      (action) => actions.push(action),
+    );
+    expect(items.map((item) => item.label ?? item.type)).toEqual([
+      "Internal",
+      "External",
+      "Copy link",
+      "separator",
+      "Copy",
+      "Paste",
+      "separator",
+      "Select All",
+    ]);
+    for (const item of items.slice(0, 3)) {
+      item.click?.({} as Electron.MenuItem, undefined, {} as Electron.KeyboardEvent);
+    }
+    expect(actions).toEqual(["open-internal", "open-external", "copy-link"]);
+    expect(items.filter((item) => item.role).map((item) => item.role)).toEqual([
+      "copy",
+      "paste",
+      "selectAll",
+    ]);
+    expect(items.find((item) => item.role === "copy")?.enabled).toBe(true);
+  });
+
+  it("offers only external link actions without a workspace browser", () => {
+    const items = buildTerminalContextMenuTemplate(
+      { link: { ...link, openInPaseo: false } },
+      () => {},
+    );
+    expect(items[0].label).toBe("External");
+    expect(items.find((item) => item.role === "copy")?.enabled).toBe(false);
+  });
+
+  it.each(["file:///tmp/readme", "mailto:test@example.com", "invalid"])(
+    "keeps non-HTTP target %s out of the link menu",
+    (url) => {
+      const items = buildTerminalContextMenuTemplate({ link: { ...link, url } }, () => {});
+      expect(items.map((item) => item.role ?? item.type)).toEqual([
+        "copy",
+        "paste",
+        "separator",
+        "selectAll",
+      ]);
+    },
+  );
 });

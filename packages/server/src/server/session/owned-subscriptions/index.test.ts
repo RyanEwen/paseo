@@ -169,3 +169,28 @@ test("failed teardown still closes the delivery and rejects late work", async ()
     delivery.request(source, { type: "ping", requestId: "late" }, async () => {}),
   ).rejects.toThrow("Session delivery is closed");
 });
+
+test("attachment binary proofs remain bound to the initiating physical request", async () => {
+  const delivery = new SessionDelivery(() => {});
+  const source = {};
+  const sibling = {};
+  delivery.attach(source, true);
+  delivery.attach(sibling, true);
+  const frame = new Uint8Array([1, 2]);
+  await delivery.request(
+    source,
+    {
+      type: "attachments.read.request",
+      agentId: "agent-a",
+      referenceId: "att_11111111-1111-4111-8111-111111111111",
+      requestId: "read",
+    },
+    async () => {
+      delivery.authorizeFileReply(frame, source);
+      expect(delivery.permitsBinary(source, frame)).toBe(true);
+      expect(delivery.permitsBinary(sibling, frame)).toBe(false);
+    },
+  );
+  expect(delivery.permitsBinary(source, frame)).toBe(false);
+  await delivery.close();
+});

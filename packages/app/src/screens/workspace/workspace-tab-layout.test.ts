@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MIN_WORKSPACE_TAB_WIDTH,
   computeWorkspaceTabLayout,
   retainWorkspaceTabMeasuredWidth,
   resolveWorkspaceTabScrollOffset,
@@ -19,6 +20,73 @@ const metrics = {
 };
 
 describe("computeWorkspaceTabLayout", () => {
+  it("keeps short desktop tab names at the fork minimum width", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 1200,
+      tabLabelWidths: [0, 29, 52, 400],
+      metrics: { ...metrics, minTabWidth: MIN_WORKSPACE_TAB_WIDTH },
+    });
+    expect(result.items.map((item) => item.width)).toEqual([96, 96, 96, 160]);
+    expect(result.requiresHorizontalScrollFallback).toBe(false);
+  });
+  it("scrolls instead of shrinking desktop tabs below the fork minimum", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 260,
+      tabLabelWidths: [29, 52, 180],
+      metrics: { ...metrics, minTabWidth: MIN_WORKSPACE_TAB_WIDTH },
+    });
+    expect(result.items.map((item) => item.width)).toEqual([96, 96, 96]);
+    expect(result.requiresHorizontalScrollFallback).toBe(true);
+    expect(result.items.every((item) => item.showLabel)).toBe(true);
+  });
+
+  it("raises the title ceiling by 50% without stretching short tabs", () => {
+    const normal = computeWorkspaceTabLayout({
+      viewportWidth: 1200,
+      tabLabelWidths: [30, 400],
+      metrics,
+    });
+    const wider = computeWorkspaceTabLayout({
+      viewportWidth: 1200,
+      tabLabelWidths: [30, 400],
+      metrics,
+      widerTabs: true,
+    });
+    expect(normal.items.map((item) => item.width)).toEqual([64, 160]);
+    expect(wider.items.map((item) => item.width)).toEqual([64, 240]);
+  });
+
+  it("uses the compact ceiling and preserves scrolling when wider tabs are enabled", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 390,
+      tabLabelWidths: [400, 400],
+      metrics: { ...metrics, minTabWidth: 120, maxTabWidth: 240 },
+      widerTabs: true,
+      preserveNaturalWidths: true,
+    });
+    expect(result.items.map((item) => item.width)).toEqual([360, 360]);
+    expect(result.requiresHorizontalScrollFallback).toBe(true);
+    expect(result.closeButtonPolicy).toBe("all");
+  });
+
+  it("still compresses wider desktop tabs to fit the available pane", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 400,
+      tabLabelWidths: [400, 400],
+      metrics,
+      widerTabs: true,
+    });
+    expect(result.items.map((item) => item.width)).toEqual([130, 130]);
+    expect(result.requiresHorizontalScrollFallback).toBe(false);
+  });
+
+  it("restores the earlier ceiling when the preference is disabled", () => {
+    const input = { viewportWidth: 1200, tabLabelWidths: [400], metrics };
+    expect(computeWorkspaceTabLayout({ ...input, widerTabs: false })).toEqual(
+      computeWorkspaceTabLayout(input),
+    );
+  });
+
   it("keeps each tab at its natural content width when space is available", () => {
     const result = computeWorkspaceTabLayout({
       viewportWidth: 1200,

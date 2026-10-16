@@ -27,8 +27,17 @@ export function checkoutDiffQueryKey(
   mode: "uncommitted" | "base",
   baseRef?: string,
   ignoreWhitespace?: boolean,
+  filePath?: string,
 ) {
-  return ["checkoutDiff", serverId, cwd, mode, baseRef ?? "", ignoreWhitespace === true] as const;
+  const key = [
+    "checkoutDiff",
+    serverId,
+    cwd,
+    mode,
+    baseRef ?? "",
+    ignoreWhitespace === true,
+  ] as const;
+  return filePath === undefined ? key : ([...key, "file", filePath] as const);
 }
 
 export function checkoutPrStatusQueryKey(serverId: string, cwd: string) {

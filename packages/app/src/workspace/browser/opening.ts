@@ -53,3 +53,22 @@ export function workspaceBrowserLinkDestinations(
   }
   return [];
 }
+
+export interface WorkspaceLinkOpeningPolicy {
+  isEnabled(): boolean;
+  openInPaseo?: (url: string) => void | Promise<void>;
+  openExternally(url: string): void | Promise<void>;
+}
+
+/** Decide at activation time, before awaiting anything, using the owning workspace opener. */
+export async function openWorkspaceLink(
+  url: string,
+  policy: WorkspaceLinkOpeningPolicy,
+): Promise<void> {
+  const openInPaseo = policy.openInPaseo;
+  if (isHttpUrl(url) && policy.isEnabled() && openInPaseo) {
+    await openInPaseo(url);
+    return;
+  }
+  await policy.openExternally(url);
+}

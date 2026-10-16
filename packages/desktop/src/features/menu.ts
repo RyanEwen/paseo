@@ -1,9 +1,49 @@
-import { app, Menu, BrowserWindow, ipcMain } from "electron";
+import { app, Menu, BrowserWindow, ipcMain, type MenuItemConstructorOptions } from "electron";
 import { getActivePaseoBrowserWebContentsForHostWindow } from "./browser-webviews/index.js";
 
-interface ShowContextMenuInput {
+export type TerminalLinkMenuAction = "open-internal" | "open-external" | "copy-link";
+
+export interface ShowContextMenuInput {
   kind?: "terminal";
   hasSelection?: boolean;
+  link?: {
+    url: string;
+    openInPaseo: boolean;
+    labels: { internal: string; external: string; copy: string };
+  };
+}
+
+/** Extend the existing terminal menu without moving navigation or clipboard ownership into main. */
+export function buildTerminalContextMenuTemplate(
+  input: ShowContextMenuInput,
+  choose: (action: TerminalLinkMenuAction) => void,
+): MenuItemConstructorOptions[] {
+  const items: MenuItemConstructorOptions[] = [];
+  const link = input.link;
+  let eligible = false;
+  if (link && typeof link.url === "string") {
+    try {
+      const protocol = new URL(link.url).protocol;
+      eligible = protocol === "http:" || protocol === "https:";
+    } catch {
+      eligible = false;
+    }
+  }
+  if (eligible && link) {
+    if (link.openInPaseo) {
+      items.push({ label: link.labels.internal, click: () => choose("open-internal") });
+    }
+    items.push({ label: link.labels.external, click: () => choose("open-external") });
+    items.push({ label: link.labels.copy, click: () => choose("copy-link") });
+    items.push({ type: "separator" });
+  }
+  items.push(
+    { label: "Copy", role: "copy", enabled: input.hasSelection === true },
+    { label: "Paste", role: "paste" },
+    { type: "separator" },
+    { label: "Select All", role: "selectAll" },
+  );
+  return items;
 }
 
 interface ApplicationMenuOptions {
@@ -199,33 +239,21 @@ export function setupApplicationMenu(options: ApplicationMenuOptions): void {
   ipcMain.handle("paseo:menu:showContextMenu", (event, input?: ShowContextMenuInput) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) {
-      return;
+      return null;
     }
 
     if (input?.kind !== "terminal") {
-      return;
+      return null;
     }
 
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: "Copy",
-        role: "copy",
-        enabled: input.hasSelection === true,
-      },
-      {
-        label: "Paste",
-        role: "paste",
-      },
-      {
-        type: "separator",
-      },
-      {
-        label: "Select All",
-        role: "selectAll",
-      },
-    ]);
-
-    contextMenu.popup({ window: win });
+    return new Promise<TerminalLinkMenuAction | null>((resolve) => {
+      let selected: TerminalLinkMenuAction | null = null;
+      const choose = (action: TerminalLinkMenuAction) => {
+        selected = action;
+      };
+      const contextMenu = Menu.buildFromTemplate(buildTerminalContextMenuTemplate(input, choose));
+      contextMenu.popup({ window: win, callback: () => resolve(selected) });
+    });
   });
 
   // Disable the zoom accelerators while capturing a shortcut so combos like

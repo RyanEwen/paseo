@@ -9,27 +9,29 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from "@/components/ui/context-menu";
-import { useToast } from "@/contexts/toast-context";
+import { useToast } from "@/contexts/toast-api-context";
 import { isWeb } from "@/constants/platform";
 import { isHttpUrl } from "@/utils/http-url";
-import { useWorkspaceBrowserOpeningContext } from "./context";
+import { useWorkspaceBrowserOpeningContext, useWorkspaceLinkOpeningContext } from "./context";
 import { openExternalUrl } from "@/utils/open-external-url";
 
 /** Offer browser destinations while preserving the wrapped link's primary action. */
 export function WorkspaceHttpLinkMenu({
   url,
   children,
-  defaultDestination = "external",
+  defaultDestination,
 }: {
   url: string | null | undefined;
   children: ReactNode;
   defaultDestination?: BrowserLinkDestination;
 }) {
   const openInPaseo = useWorkspaceBrowserOpeningContext();
+  const policy = useWorkspaceLinkOpeningContext();
+  const primaryDestination = defaultDestination ?? policy.defaultDestination;
   const destinations = workspaceBrowserLinkDestinations({
     url,
     hasWorkspaceBrowser: Boolean(openInPaseo),
-    defaultDestination,
+    defaultDestination: primaryDestination,
   });
   if (!isWeb || !url || destinations.length === 0) {
     return children;
@@ -71,6 +73,12 @@ export function WorkspaceBrowserMenuItem({ url }: { url: string | null | undefin
     return null;
   }
   return <BrowserDestinationMenuItem url={url} destination="paseo" />;
+}
+
+/** Explicit external action for an existing workspace menu. */
+export function WorkspaceExternalBrowserMenuItem({ url }: { url: string | null | undefined }) {
+  if (!url || !isHttpUrl(url)) return null;
+  return <BrowserDestinationMenuItem url={url} destination="external" />;
 }
 
 function BrowserDestinationMenuItem({

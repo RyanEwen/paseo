@@ -1,3 +1,4 @@
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import {
   useCallback,
@@ -26,7 +27,6 @@ import { Pressable } from "react-native";
 import type { GestureResponderEvent } from "react-native";
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { PrHint } from "@/git/use-pr-status-query";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
 import { PrBadge } from "@/components/sidebar-workspace-list";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -317,6 +317,7 @@ function ChecksSummaryPressable({
   forge: PrHint["forge"];
   url: string;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const counts = countCheckPresentations(checks);
   const accessibilityLabel = formatCheckPresentationCountsLabel(
@@ -325,8 +326,8 @@ function ChecksSummaryPressable({
     t,
   );
   const handlePress = useCallback(() => {
-    void openExternalUrl(buildForgeChecksUrl(forge, url) ?? url);
-  }, [forge, url]);
+    void openPrimary(buildForgeChecksUrl(forge, url) ?? url);
+  }, [forge, url, openPrimary]);
 
   const renderChildren = useCallback(
     ({ hovered }: { pressed: boolean; hovered?: boolean }) => (

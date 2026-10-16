@@ -108,7 +108,7 @@ export function SettingsSyncSection() {
             disabled={busy}
           />
         ) : null}
-        {state.status === "error" ? (
+        {state.status === "error" || state.status === "readonly" ? (
           <SettingsAction
             label={t("settingsSync.retryHint")}
             actionLabel={t("common.actions.retry")}

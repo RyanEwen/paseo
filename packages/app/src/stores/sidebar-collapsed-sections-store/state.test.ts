@@ -116,3 +116,52 @@ describe("bulk sidebar collapse", () => {
     expect(next).toEqual(initial);
   });
 });
+
+describe("one project at a time", () => {
+  const projectKeys = ["host-a:project-a", "host-b:project-a", "offline:project-b"];
+  const options = { mode: "project" as const, oneProjectAtATime: true, projectKeys };
+
+  it("expanding B collapses A across hosts while preserving unrelated collapse owners", () => {
+    const initial = {
+      ...emptyState(),
+      collapsedProjectKeys: new Set([projectKeys[1], "unavailable:key"]),
+      collapsedWorkspaceGroupKeys: new Set(["running"]),
+      collapsedPinned: false,
+    };
+    const next = toggleProjectCollapsed(initial, projectKeys[1], options);
+    expect([...next.collapsedProjectKeys].sort()).toEqual(
+      [projectKeys[0], projectKeys[2], "unavailable:key"].sort(),
+    );
+    expect(next.collapsedWorkspaceGroupKeys).toBe(initial.collapsedWorkspaceGroupKeys);
+    expect(next.collapsedPinned).toBe(false);
+    expect(initial.collapsedProjectKeys.has(projectKeys[0])).toBe(false);
+  });
+
+  it("re-collapsing a project opens no other project", () => {
+    const expanded = setProjectCollapsed(emptyState(), projectKeys[1], false, options);
+    const collapsed = toggleProjectCollapsed(expanded, projectKeys[1], options);
+    expect([...collapsed.collapsedProjectKeys].sort()).toEqual([...projectKeys].sort());
+  });
+
+  it.each([
+    { mode: "project" as const, oneProjectAtATime: false },
+    { mode: "status" as const, oneProjectAtATime: true },
+  ])("keeps multiple projects open for %o", (policy) => {
+    const initial = { ...emptyState(), collapsedProjectKeys: new Set([projectKeys[1]]) };
+    const next = toggleProjectCollapsed(initial, projectKeys[1], { ...policy, projectKeys });
+    expect(next.collapsedProjectKeys.size).toBe(0);
+  });
+
+  it("expand all remains explicit and the next individual expansion restores exclusivity", () => {
+    const initial = setProjectCollapsed(emptyState(), projectKeys[0], false, options);
+    const targets = { projectKeys, workspaceGroupKeys: [], includePinned: false };
+    const all = setSectionsCollapsed(initial, targets, false);
+    expect(all.collapsedProjectKeys.size).toBe(0);
+    const closed = toggleProjectCollapsed(all, projectKeys[1], options);
+    expect([...closed.collapsedProjectKeys]).toEqual([projectKeys[1]]);
+    const reopened = toggleProjectCollapsed(closed, projectKeys[1], options);
+    expect([...reopened.collapsedProjectKeys].sort()).toEqual(
+      [projectKeys[0], projectKeys[2]].sort(),
+    );
+  });
+});

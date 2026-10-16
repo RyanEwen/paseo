@@ -61,9 +61,33 @@ the mouse idle during this group. It reads the app's production CSS and writes
 screenshots and window bounds to the output directory.
 
 The browser profile group runs two Electron processes in sequence. It verifies that each
-renderer-side `did-attach` identity maps to the correct main-process guest, that two live
+renderer-side `dom-ready` identity maps to the correct main-process guest, that two live
 tabs share cookies and local storage through one persistent session, and that the data is
-still present after the first Electron process exits and the second starts.
+still present after the first Electron process exits and the second starts. It also verifies
+extension content scripts in both tabs, enable/disable behavior, and extension restore across
+processes. The production popup host loads a real extension document, verifies its Chrome
+APIs and persistent storage, and checks that Node and the Paseo bridge are absent. A second
+MV3 fixture verifies selected-tab ownership, native content-script messaging, tab lifecycle
+events, navigation events, child-frame IDs, and Chromium document IDs. Optional permission requests must fail
+without granting access, including through Chrome's callback error path. DevTools explicitly
+stops the fixture worker; navigation and an actual tab selection must wake it without losing
+the triggering event or retaining the previous document identity. Separate fixtures verify that
+actual WebSocket traffic resets worker idle time, idle connections allow normal sleep, and a
+scheduled alarm wakes a naturally sleeping worker. Observe these fixtures from the main
+process without attaching a worker debugger, which changes worker lifetime. An offline
+Store fixture verifies that installation notifications still use the
+Electron Web Store shim after extension activation. Chromium's native Store status API requires
+Chrome services and can crash Electron if it replaces that shim.
+
+Extension-created document windows have real popup tab and window identities. The fixture
+checks their requested URL and geometry, profile storage, reuse and removal, and exclusion
+of toolbar action views from popup tab queries. Foreign extension and remote document URLs
+must fail before opening a window. A storage-only extension verifies that window creation
+does not require tab access, its own document retains tab metadata, and unrelated page URLs
+and titles stay hidden. Activating it must preserve existing compatibility API bindings.
+
+Extensions can make `did-attach` fire before `getWebContentsId()` is usable; register
+the guest identity at `dom-ready`.
 
 The automation group uses a real guest webview to verify the page-side ref contract:
 ARIA-like snapshot text includes headings, static text, and controls; refs survive

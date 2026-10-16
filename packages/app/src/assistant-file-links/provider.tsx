@@ -1,4 +1,4 @@
-import { useAppSettings } from "@/hooks/use-settings";
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import {
   createContext,
   useCallback,
@@ -52,10 +52,8 @@ export function AssistantFileLinkResolverProvider({
   toast,
   children,
 }: AssistantFileLinkResolverProviderProps) {
-  const { settings } = useAppSettings();
-  const openHttpLinksInPaseo = settings.paseoPlusPlus.workspaceChatLinks;
-  const openHttpLinksInPaseoRef = useRef(openHttpLinksInPaseo);
-  openHttpLinksInPaseoRef.current = openHttpLinksInPaseo;
+  const { enabledRef: openHttpLinksInPaseoRef, defaultDestination: httpLinkDestination } =
+    useWorkspaceLinkOpeningContext();
 
   const configRef = useRef<AssistantFileLinkResolverConfig>({
     client,
@@ -89,9 +87,9 @@ export function AssistantFileLinkResolverProvider({
       configRef,
       getDirectorySuggestions,
       openHttpLinksInPaseoRef,
-      httpLinkDestination: openHttpLinksInPaseo ? "paseo" : "external",
+      httpLinkDestination,
     }),
-    [getDirectorySuggestions, openHttpLinksInPaseo],
+    [getDirectorySuggestions, openHttpLinksInPaseoRef, httpLinkDestination],
   );
 
   return (

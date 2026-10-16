@@ -1,3 +1,5 @@
+import { WorkspaceProjectPinGutter } from "./project-pin-gutter";
+import { useSidebarViewStore } from "@/stores/sidebar-view-store";
 import { WorkspaceBrowserOpeningProvider } from "@/workspace/browser/context";
 import { useWorkspaceBrowserOpening } from "@/workspace/browser/use-opening";
 import { HoverRevealActions } from "./hover-reveal-actions";
@@ -18,7 +20,6 @@ import {
   hasSidebarWorkspaceTrailing,
   type SidebarWorkspaceTrailing,
 } from "@/components/sidebar/workspace-trailing";
-import { useAppSettings } from "@/hooks/use-settings";
 import type { Theme } from "@/styles/theme";
 import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
 import { getStatusDotColor } from "@/utils/status-dot-color";
@@ -124,9 +125,7 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
   reserveIdleStatusIndicatorSpace?: boolean;
   children?: ReactNode;
 }) {
-  const {
-    settings: { workspaceTitleSource },
-  } = useAppSettings();
+  const workspaceTitleSource = useSidebarViewStore((state) => state.workspaceTitleSource);
   const workspaceLabel = resolveSidebarWorkspacePrimaryLabel({ workspace, workspaceTitleSource });
   // The workspace carries label names; their colors live in its host's catalog, so the row is
   // where the two meet — the meta line is handed finished definitions.
@@ -160,6 +159,11 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
             reserveIdleSpace={reserveIdleStatusIndicatorSpace}
           />
         )}
+        <WorkspaceProjectPinGutter
+          workspace={workspace}
+          occupied={Boolean(leadingProjectName) || isLoading}
+          outside={!leadingProjectName && !reserveIdleStatusIndicatorSpace}
+        />
         <View style={styles.workspaceContentColumn}>
           <View style={styles.workspaceTitleRow}>
             <Text style={workspaceBranchTextStyle} numberOfLines={1}>

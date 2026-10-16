@@ -36,7 +36,7 @@ Your code never leaves your machine. Paseo is local-first.
 - **Daemon:** Local server that spawns and manages agent processes and exposes the WebSocket API.
 - **App:** Cross-platform Expo client for iOS, Android, web, and the shared UI used by desktop.
 - **CLI:** Terminal interface for agent workflows that can also start and manage the daemon.
-- **Desktop app:** Electron wrapper around the web app that bundles and auto-manages its own daemon. Deferred native-browser research and historical qualification boundaries are recorded in [native browser feasibility](native-browser-feasibility.md).
+- **Desktop app:** Electron wrapper around the web app that bundles and auto-manages its own daemon. Native browser design and historical qualification boundaries are recorded in [native browser feasibility](native-browser-feasibility.md).
 - **Relay:** Optional encrypted bridge for remote access without opening ports directly.
 
 ## Packages
@@ -205,7 +205,7 @@ file after the daemon confirms persistence.
 
 > **Window-state v1 limitation:** only the _first_ window of a session restores and persists saved geometry (size/position/maximized). Windows opened via ⌘⇧N / second-instance / "Open in new window" open at the default size, OS-cascaded, and do not persist — this avoids every window stacking on the same restored bounds and fighting over the single window-state store. Lifting this needs per-window state keys.
 >
-> **In-app browser profile.** Every browser guest uses one stable persistent Electron session, so cookies, authentication, cache, and site storage are shared across tabs, workspaces, and desktop windows and survive tab or app closure. Browser identity is independent of that storage partition: after every `did-attach`, the renderer explicitly registers its browser id, workspace id, and current guest `WebContents` id, and main accepts the registration only when that guest belongs to the calling renderer and the shared profile. Registration is intentionally repeated because reparenting a retained `<webview>` can replace its guest without replacing the DOM element. Settings > Browser > Clear browser data is the sole profile-deletion path; it clears the shared session and reloads live guests without deleting saved tabs or URLs. See the [browser profile harness](browser-capture-harness.md) for guest identity and shared-profile verification.
+> **In-app browser profile.** Browser pages and extension documents share one persistent Electron session across tabs, workspaces, windows and desktop restarts. Main creates native WebContentsViews and registers their browser/workspace/host identities before page load; renderer IPC cannot claim arbitrary native contents IDs. Inactive workspace retention keeps page identity separate from presentation, and explicit tab closure owns disposal. Settings > Browser > Clear browser data remains the profile-deletion path and reloads live guests without deleting saved tabs or URLs. The accepted legacy webview path retains its attachment registration contract. Extension installation and API limits are described in [Browser](../public-docs/browser.md).
 >
 > **In-app browser window opens.** Ordinary link opens, including Shift-clicked links, become Paseo workspace tabs. Script-created opens with popup features or a named window target and POST-backed opens remain secured Electron child windows in the shared browser profile, preserving `window.opener`, `postMessage`, named-window reuse, request bodies, and `window.close()` for OAuth, payment, and similar popup protocols. Unsupported URL schemes are denied before either path.
 >
@@ -224,6 +224,40 @@ Agent browser_keypress -> guest sendInputEvent(skipIfUnhandled)
   |-- guest handles ------------> page owns it
   `-- guest does not handle ----> stop; never redispatch to the host window
 ```
+
+#### Screenshot capture guards
+
+Reject requests whose sampled geometry exceeds the capture limits before dispatch. Admission is
+shared across windows and workspaces: one active capture, four waiting requests, and a five-second
+request deadline. Canceling a waiter removes it. An already-dispatched CDP capture retains its slot
+until acknowledgment, even after its caller times out; releasing it early would allow overlapping
+allocations. A stuck CDP operation can therefore leave capture busy until it settles.
+
+Capture preflight checks use 8,192 pixels per physical axis and 8 million physical pixels. The
+physical estimate uses CDP layout metrics, the largest connected display scale and page zoom.
+Rejected requests fail without clipping or scaling. Viewport results have their returned dimensions
+checked before PNG encoding; PNG output and CDP base64 output have a 16 MiB size check after encoding.
+
+These are best-effort Electron/CDP capture guards. Sampled geometry is not bound atomically to the
+captured frame: native retries or guest presentation can observe a later viewport, and an explicit
+full-page CDP clip does not freeze layout or device scale. The APIs expose no enforced native
+allocation budget. Returned-image checks run after capture allocation, and output-size checks run
+after encoding. They do not bound intermediate native buffers, every NativeImage scale
+representation, encoder scratch space or process RSS. A strict allocation boundary needs a
+separately qualified backend contract; see [capture backend constraints](browser-capture-harness.md).
+
+| Boundary                                                               | Coverage                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Desktop `browser_screenshot`, viewport and full page                   | Shared capture admission and finite queue; best-effort geometry/result checks and explicit errors on rejection. The execution daemon reserves [original storage](data-model.md#attachment-originals) before broker capture.                                                                                                                |
+| Shared provider-image materializer                                     | Original string length before normalization, decoded byte length before base64 conversion, strict standard base64 and PNG/JPEG/GIF/WebP/BMP/TIFF signatures before file writes. Padded and unpadded base64 and base64 image data URLs remain supported. Unknown MIME types and mismatched signatures reject. Accepted bytes are unchanged. |
+| External MCP and provider history                                      | Providers may capture, buffer, parse, log or retain images before the materializer. No bound at those earlier boundaries.                                                                                                                                                                                                                  |
+| App transport, history and image caches                                | No new residency or decoder limits in this slice. Existing timeline ownership remains in place.                                                                                                                                                                                                                                            |
+| Element screenshots, clipboard images and provider-native image inputs | Separate paths; no capture-admission claim for them.                                                                                                                                                                                                                                                                                       |
+
+Container signatures do not establish valid image contents, safe dimensions, animation/frame counts
+or decompression safety. No image decoder is introduced. Provider-native materialized files remain temporary. Owned browser screenshot originals use the
+[durable attachment store](data-model.md#attachment-originals); neither path establishes a
+provider-context quota, compaction savings or an OOM incident fix. The enforced input, queue, storage and transfer limits do not depend on a Paseo++ preference.
 
 ### `packages/website` — Marketing site
 
@@ -397,14 +431,14 @@ Two workspaces can share the same `cwd` (e.g. a `directory` workspace and a `loc
 
 **Directory-backed (shared by same-`cwd` workspaces) — keyed by `(serverId, cwd)`, never by `workspaceId`:**
 
-| Surface                 | Key                                                      | Source                                                  |
-| ----------------------- | -------------------------------------------------------- | ------------------------------------------------------- |
-| Git status              | `checkoutStatusQueryKey(serverId, cwd)`                  | `packages/app/src/git/query-keys.ts`                    |
-| Git diff                | `checkoutDiffQueryKey(serverId, cwd, mode, baseRef, ws)` | `packages/app/src/git/query-keys.ts`                    |
-| Forge change request    | `checkoutPrStatusQueryKey(serverId, cwd)`                | `packages/app/src/git/query-keys.ts`                    |
-| Change request timeline | `prPaneTimelineQueryKey({ serverId, cwd, prNumber })`    | `packages/app/src/git/pull-request-panel/query-keys.ts` |
-| File preview content    | `["workspaceFile", serverId, cwd, path]`                 | `packages/app/src/components/file-pane.tsx`             |
-| File explorer listings  | fetched via `listDirectory(workspaceRoot, path)`         | `packages/app/src/hooks/use-file-explorer-actions.ts`   |
+| Surface                 | Key                                                                 | Source                                                  |
+| ----------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
+| Git status              | `checkoutStatusQueryKey(serverId, cwd)`                             | `packages/app/src/git/query-keys.ts`                    |
+| Git diff                | `checkoutDiffQueryKey(serverId, cwd, mode, baseRef, ws, filePath?)` | `packages/app/src/git/query-keys.ts`                    |
+| Forge change request    | `checkoutPrStatusQueryKey(serverId, cwd)`                           | `packages/app/src/git/query-keys.ts`                    |
+| Change request timeline | `prPaneTimelineQueryKey({ serverId, cwd, prNumber })`               | `packages/app/src/git/pull-request-panel/query-keys.ts` |
+| File preview content    | `["workspaceFile", serverId, cwd, path]`                            | `packages/app/src/components/file-pane.tsx`             |
+| File explorer listings  | fetched via `listDirectory(workspaceRoot, path)`                    | `packages/app/src/hooks/use-file-explorer-actions.ts`   |
 
 **Workspace-owned (independent per workspace) — keyed by `workspaceId` (falling back to `cwd` only when no `workspaceId` exists):**
 

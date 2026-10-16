@@ -9,16 +9,24 @@ interface DiffFileScopeInput {
   selectedPath: string | undefined;
   presentation: "tree" | "diff" | "combined";
   scope: AppSettings["explorerDiffScope"];
+  isCompact: boolean;
+}
+
+/** The acquisition scope and displayed document must select the same destination path. */
+export function resolveDiffFilePath(input: Omit<DiffFileScopeInput, "allFiles">) {
+  if (input.filePath !== undefined) return input.filePath;
+  const selectsInPlace =
+    input.presentation === "combined" || (input.isCompact && input.presentation === "diff");
+  return selectsInPlace && input.scope === "single" ? input.selectedPath : undefined;
 }
 
 /** Narrows the document without removing other files from an inline Changes tree. */
 export function resolveDiffFileScope(input: DiffFileScopeInput) {
-  let filePath = input.filePath;
-  if (!filePath && input.presentation === "combined" && input.scope === "single") {
-    filePath = input.selectedPath;
-  }
+  const filePath = resolveDiffFilePath(input);
   const files = filePath ? input.allFiles.filter((file) => file.path === filePath) : input.allFiles;
-  const treeFiles = input.presentation === "combined" ? input.allFiles : files;
+  const keepsCompactOverview = input.isCompact && !input.filePath;
+  const keepsFileOverview = input.presentation === "combined" || keepsCompactOverview;
+  const treeFiles = keepsFileOverview ? input.allFiles : files;
   return { files, treeFiles };
 }
 
@@ -28,11 +36,12 @@ interface DiffFileScopeHookInput extends Omit<DiffFileScopeInput, "selectedPath"
 
 /** Keeps filtered documents stable across unrelated toolbar and selection renders. */
 export function useDiffFileScope(input: DiffFileScopeHookInput) {
-  const { allFiles, filePath, focusRequest, presentation, scope } = input;
+  const { allFiles, filePath, focusRequest, presentation, scope, isCompact } = input;
   const selectedPath = focusRequest?.path;
   return useMemo(
-    () => resolveDiffFileScope({ allFiles, filePath, selectedPath, presentation, scope }),
-    [allFiles, filePath, selectedPath, presentation, scope],
+    () =>
+      resolveDiffFileScope({ allFiles, filePath, selectedPath, presentation, scope, isCompact }),
+    [allFiles, filePath, selectedPath, presentation, scope, isCompact],
   );
 }
 

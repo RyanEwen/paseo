@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { ToastApi } from "@/components/toast-host";
-import { useToast } from "@/contexts/toast-context";
+import { useToast } from "@/contexts/toast-api-context";
 
 interface DesktopIpcErrorReport {
   toast: ToastApi;

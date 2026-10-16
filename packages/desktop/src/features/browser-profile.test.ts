@@ -66,13 +66,15 @@ class FakeWebContents extends FakeLiveGuest {
 }
 
 describe("listPaseoBrowserProfileGuests", () => {
-  test("returns every live webview and popup in the shared profile", () => {
+  test("returns every live native browser, webview and popup in the shared profile", () => {
     const profileSession = {};
     const firstWindowGuest = new FakeWebContents(1, profileSession, "webview");
     const secondWindowGuest = new FakeWebContents(2, profileSession, "webview");
     const foreignProfileGuest = new FakeWebContents(3, {}, "webview");
     const popupWindow = new FakeWebContents(4, profileSession, "window");
     const destroyedGuest = new FakeWebContents(5, profileSession, "webview", true);
+    const nativeView = new FakeWebContents(6, profileSession, "browserView");
+    const foreignNativeView = new FakeWebContents(7, {}, "browserView");
 
     const guests = listPaseoBrowserProfileGuests({
       profileSession,
@@ -82,10 +84,12 @@ describe("listPaseoBrowserProfileGuests", () => {
         foreignProfileGuest,
         popupWindow,
         destroyedGuest,
+        nativeView,
+        foreignNativeView,
       ],
     });
 
-    expect(guests).toEqual([firstWindowGuest, secondWindowGuest, popupWindow]);
+    expect(guests).toEqual([firstWindowGuest, secondWindowGuest, popupWindow, nativeView]);
   });
 });
 

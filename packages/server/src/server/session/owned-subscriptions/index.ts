@@ -380,7 +380,8 @@ export class SessionDelivery {
     if (
       owner?.active &&
       owner.source.socket === socket &&
-      owner.request.type === "file_explorer_request"
+      (owner.request.type === "file_explorer_request" ||
+        owner.request.type === "attachments.read.request")
     )
       this.proofs.set(frame, owner);
   }

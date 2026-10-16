@@ -1,8 +1,13 @@
+import {
+  SidebarQuickFilterButton,
+  SidebarQuickFilterInput,
+} from "@/components/sidebar/quick-filter";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useShallow } from "zustand/react/shallow";
 import { useSessionStore, type DaemonServerInfo } from "@/stores/session-store";
 import type { HostProfile } from "@/types/host-connection";
 import { HostUpdateAction, HostUpdateSheet } from "@/components/hosts/host-update-action";
+import { SidebarViewModeButton } from "@/components/sidebar/view-mode-button";
 import { SidebarProjectSelector } from "@/components/sidebar/sidebar-project-selector";
 import { SidebarBulkCollapseControls } from "@/components/sidebar/bulk-collapse-controls";
 import { router } from "expo-router";
@@ -915,21 +920,26 @@ function DesktopSidebar({
 function WorkspacesSectionHeader() {
   const isCompact = useIsCompactFormFactor();
   return (
-    <View style={styles.workspacesSectionHeader}>
-      <SidebarProjectSelector />
-      <View style={styles.workspacesSectionActions}>
-        {!isCompact ? <SidebarBulkCollapseControls /> : null}
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <View>
-              <SidebarDisplayPreferencesMenu />
-            </View>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="center" offset={8}>
-            <IconTooltipContent label="Display preferences" />
-          </TooltipContent>
-        </Tooltip>
+    <View>
+      <View style={styles.workspacesSectionHeader}>
+        <SidebarProjectSelector />
+        <View style={styles.workspacesSectionActions}>
+          {!isCompact ? <SidebarBulkCollapseControls /> : null}
+          <SidebarViewModeButton />
+          <SidebarQuickFilterButton />
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <View>
+                <SidebarDisplayPreferencesMenu />
+              </View>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="center" offset={8}>
+              <IconTooltipContent label="Display preferences" />
+            </TooltipContent>
+          </Tooltip>
+        </View>
       </View>
+      <SidebarQuickFilterInput />
     </View>
   );
 }

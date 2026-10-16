@@ -35,9 +35,24 @@ export const ja: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "アクセントカラー",
+      hint: "主要な操作と自分のメッセージに使用します",
+      updateHost: "アクセントカラーを変更するには、選択した設定ホストを更新してください",
+      preview: "メッセージはこのように表示されます",
+      options: {
+        default: "デフォルト",
+        blue: "ブルー",
+        green: "グリーン",
+        purple: "パープル",
+        rose: "ローズ",
+        orange: "オレンジ",
+        teal: "ティール",
+      },
+    },
     workspaceLimit: {
       save: "保存",
-      title: "ワークスペース一覧",
+      title: "ワークスペースの表示制限",
       label: "グループごとの初期表示",
       limited: "件数を指定",
       all: "すべて表示",
@@ -60,8 +75,8 @@ export const ja: TranslationResources = {
     title: "Paseo++",
     optional: "任意の機能",
     optionalHint:
-      "同期を有効にすると、設定は選択した設定ホストに従います。機能をオフにしても保存済みのデータと設定は保持されます。",
-    preferences: "サイドバーのその他の設定",
+      "任意の機能のスイッチは既定でオンです。表示設定にはそれぞれ独立した既定値があり、「一度に1つのプロジェクトを展開」は既定でオフです。同期時は選択した設定ホストに従います。機能をオフにしても保存済みのデータと設定は保持されます。",
+    preferences: "ワークスペースのサイドバー設定",
     fixes: "修正とフォークの基本機能",
     fixesHint: "これらの改善は常に有効です",
     additions: "その他の追加機能",
@@ -69,16 +84,24 @@ export const ja: TranslationResources = {
     saveFailed: "保存できませんでした。もう一度お試しください。",
     features: {
       workspaceChatLinks: {
-        label: "チャットのリンクをPaseoで開く",
-        hint: "デスクトップでは、チャットのウェブリンクをそのワークスペースのブラウザーで開きます。オフにすると外部ブラウザーを使います。リンクメニューの「Paseoで開く」は引き続き使えます。",
+        label: "ワークスペースのリンク",
+        hint: "デスクトップでは、ターミナル、チャット、Git のウェブリンクを所属ワークスペースの新しいブラウザータブで開きます。オフにすると外部ブラウザーで開きます。メニューからの明示的な操作は引き続き利用できます。",
       },
       sidebarHostUpdates: {
         label: "サイドバーのホスト更新",
         hint: "ホストメニューに更新操作を表示します。オフにしてもホスト設定は引き続き利用できます。",
       },
+      splitLayoutPresets: {
+        label: "分割レイアウト操作",
+        hint: "区切りで比率を選択し、メニューからタブを移動します。オフにすると操作を非表示にします。",
+      },
       mobileWorkspaceTabs: {
         label: "モバイルのワークスペースタブ",
         hint: "コンパクト表示でスクロール可能なタブバーを表示します。オフにすると、選択中のタブを変えずに以前のタブ選択に戻ります。",
+      },
+      widerWorkspaceTabs: {
+        label: "ワークスペースのタブを広くする",
+        hint: "長いタブ名の最大幅を50%広げます。短いタブは自然な幅を保ちます。オフにすると以前の最大幅に戻ります。",
       },
 
       descriptiveToolCalls: {
@@ -87,8 +110,8 @@ export const ja: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "サイドバーのプロジェクト選択",
-        hint: "ワークスペース見出しから選択します。無効にするとプロジェクトフィルターのメニューに戻ります",
+        label: "見出しに選択したプロジェクトを表示",
+        hint: "ワークスペースの見出しに選択したプロジェクト名を表示します。オフの場合は「ワークスペース」と表示され、ホストとプロジェクトの選択は引き続き使えます。",
       },
       stickyUserPrompts: {
         label: "ユーザーメッセージを表示し続ける",
@@ -112,7 +135,7 @@ export const ja: TranslationResources = {
       },
       projectPinning: {
         label: "プロジェクト内で固定",
-        hint: "選択したワークスペースを先頭に表示します。再度有効にすると保存済みの固定が戻ります。",
+        hint: "選択したワークスペースをプロジェクト内の先頭に置き、名前の横にピンを表示します。再度有効にすると保存済みのピンが戻ります。",
       },
       sidebarWorkspaceTransitions: {
         label: "移動をアニメーション表示",
@@ -125,8 +148,8 @@ export const ja: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "ワークスペースの順序と詳細",
-        hint: "プロジェクトとワークスペースを個別に名前、状態、任意の順序で並べ替えられます。最終アクティビティとコード変更の合計を同時に表示できます。プロジェクト名は既定で表示されます。ブランチ名の表示は任意で、既定では非表示です。ワークスペースのサイドバーにある表示メニューで設定してください。",
+        label: "モード、フィルター、表示",
+        hint: "サイドバーのベルでプロジェクト表示と状態表示を切り替えます。フィルターアイコンでテキストをすぐに絞り込めます。「表示」の「ワークスペースの表示制限」では件数と更新期間を個別に設定し、「空のプロジェクト」では表示、グループ化、非表示を選べます。各モードで設定が保持されます。",
       },
     },
     fixesList: {
@@ -649,6 +672,20 @@ export const ja: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "{{item}} を横に開く",
+      chooseRatio: "分割比率を選択",
+      ratio: "{{ratio}} に分割",
+      moveTab: "タブを移動",
+      left: "左",
+      right: "右",
+      top: "上",
+      bottom: "下",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "ペイン {{index}}",
+    },
+
     route: {
       loading: "ワークスペースを読み込み中",
       connecting: "接続中",
@@ -787,6 +824,7 @@ export const ja: TranslationResources = {
     browser: {
       openInPaseo: "Paseo ブラウザーで開く",
       openExternally: "外部ブラウザーで開く",
+      copyLink: "リンクをコピー",
       unavailable: {
         title: "ブラウザはデスクトップ専用です",
         subtitle: "組み込みブラウザを使用するには、このワークスペースをElectronで開いてください。",
@@ -814,6 +852,14 @@ export const ja: TranslationResources = {
         placeholder: "この要素についてエージェントへのメッセージ…",
         submit: "添付",
         cancel: "キャンセル",
+      },
+      extensions: {
+        label: "拡張機能",
+        empty: "有効な拡張機能はありません。",
+        noPopup: "ポップアップはありません",
+        loading: "拡張機能を読み込み中...",
+        manage: "拡張機能を管理",
+        openFailed: "拡張機能を開けませんでした",
       },
       devices: {
         label: "デバイスサイズ",
@@ -1138,6 +1184,7 @@ export const ja: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "単一ファイルの差分を開くには、このホストを更新してください。",
         openChangesTab: "変更タブを開く",
         openDiffTab: "差分タブを開く",
         closeChangesTab: "変更タブを閉じる",
@@ -1366,6 +1413,7 @@ export const ja: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "このホストの既知のプロジェクトはまだありません。",
       selectOnlyProject: "{{project}} のみ表示",
       includeProject: "{{project}} を含める",
       workspaces: "ワークスペース",
@@ -1385,10 +1433,37 @@ export const ja: TranslationResources = {
       working: "実行中",
       done: "完了",
     },
+    quickFilter: {
+      open: "プロジェクトとワークスペースを絞り込む",
+      close: "クイックフィルターを閉じてクリア",
+      placeholder: "プロジェクトやワークスペースを絞り込む…",
+      clear: "クイックフィルターをクリア",
+      emptyTitle: "一致するプロジェクトやワークスペースはありません",
+      emptyDescription: "別の名前を試すか、このモードのクイックフィルターをクリアしてください。",
+      guidance:
+        "フィルターアイコンで、このモードの名前と表示中のブランチを検索できます。件数と更新日の制限は維持され、さらに表示で一致する全行を表示します。",
+    },
     display: {
+      modeToggle: "{{current}}表示。{{next}}表示に切り替え。",
+      workspaceList: {
+        countLimit: "表示件数の上限",
+        updatedWithin: "更新期間",
+        day: "1日",
+        twoDays: "2日",
+        threeDays: "3日",
+        fiveDays: "5日",
+        week: "1週間",
+        twoWeeks: "2週間",
+        month: "1か月（30日）",
+        twoMonths: "2か月（60日）",
+        threeMonths: "3か月（90日）",
+      },
       expandAll: "すべて展開",
       collapseAll: "すべて折りたたむ",
-      showBackground: "バックグラウンドを表示",
+      oneProjectAtATime: "一度に1つのプロジェクトを展開",
+      reorderGuidance:
+        "並べ替えのドラッグはカスタム順でのみ使えます。絞り込んだプロジェクトの移動は、すべて表示した後も同じ隣接プロジェクトの前後を維持します。ピン留めは常に手動順です。",
+      showBackground: "バックグラウンドのワークスペースを表示",
       trigger: "表示設定",
       heading: "表示",
       grouping: {
@@ -1406,6 +1481,12 @@ export const ja: TranslationResources = {
         status: "ステータス",
         custom: "カスタム順",
         emptyProjects: "空のプロジェクトを並べ替え",
+      },
+      emptyWorkspaces: {
+        label: "空のプロジェクト",
+        show: "表示",
+        group: "グループ化",
+        hide: "非表示",
       },
       projectVisibility: {
         label: "フィルター",
@@ -2470,6 +2551,25 @@ export const ja: TranslationResources = {
     general: {
       title: "一般",
       sending: "送信",
+      browserExtensions: {
+        title: "拡張機能",
+        compatibility:
+          "Chrome 拡張機能の一部の機能はサポートされていません。拡張機能は自動更新されません。",
+        store: "Chrome ウェブストア",
+        openStore: "ウェブストアを開く",
+        refresh: "更新",
+        enable: "有効にする",
+        disable: "無効にする",
+        retry: "再試行",
+        remove: "削除",
+        removeTitle: "{{name}} を削除しますか？",
+        removeMessage: "Paseo から拡張機能を削除します。展開済みのソースフォルダーは保持されます。",
+        loading: "拡張機能を読み込み中...",
+        empty: "拡張機能はインストールされていません。",
+        unpackedHint: "manifest.json を含むフォルダーから拡張機能を読み込みます。",
+        loadUnpacked: "展開済みを読み込む",
+        unavailable: "拡張機能を利用できません。デスクトップアプリを更新してください。",
+      },
       browserData: {
         title: "ブラウザーデータ",
         siteData: "Cookie とサイトデータ",
@@ -2594,21 +2694,6 @@ export const ja: TranslationResources = {
       },
     },
     appearance: {
-      accent: {
-        title: "アクセントカラー",
-        hint: "主要な操作と自分のメッセージに使用します",
-        updateHost: "アクセントカラーを変更するには、選択した設定ホストを更新してください",
-        preview: "メッセージはこのように表示されます",
-        options: {
-          default: "デフォルト",
-          blue: "ブルー",
-          green: "グリーン",
-          purple: "パープル",
-          rose: "ローズ",
-          orange: "オレンジ",
-          teal: "ティール",
-        },
-      },
       theme: {
         title: "テーマ",
         accessibilityLabel: "テーマ: {{value}}",

@@ -47,7 +47,10 @@ interface ElectronSessions {
   fromPartition(partition: string): BrowserProfileSession;
 }
 
-export function getPaseoBrowserProfileSession(sessions: ElectronSessions): BrowserProfileSession {
+/** Resolve the shared profile while retaining the caller's concrete session type. */
+export function getPaseoBrowserProfileSession<TSession extends BrowserProfileSession>(sessions: {
+  fromPartition(partition: string): TSession;
+}): TSession {
   return sessions.fromPartition(PASEO_BROWSER_PROFILE_PARTITION);
 }
 
@@ -96,7 +99,9 @@ export function listPaseoBrowserProfileGuests(
   return input.webContents.filter(
     (contents) =>
       !contents.isDestroyed() &&
-      (contents.getType() === "webview" || contents.getType() === "window") &&
+      (contents.getType() === "webview" ||
+        contents.getType() === "window" ||
+        contents.getType() === "browserView") &&
       contents.session === input.profileSession,
   );
 }

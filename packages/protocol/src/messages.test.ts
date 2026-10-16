@@ -1,11 +1,13 @@
 import { describe, expect, test } from "vitest";
 import {
   AgentTimelineItemPayloadSchema,
+  CheckoutDiffGetRequestSchema,
   FileExplorerRequestSchema,
   PaseoWorktreeArchiveRequestSchema,
   parseServerInfoStatusPayload,
   SessionInboundMessageSchema,
   SessionOutboundMessageSchema,
+  SubscribeCheckoutDiffRequestSchema,
   WorkspaceProjectDescriptorPayloadSchema,
 } from "./messages.js";
 
@@ -562,4 +564,106 @@ test("agent messages are an optional semantic payload on existing tool rows", ()
       agentMessage: { ...agentMessage, sender: { id: 42 } },
     }).success,
   ).toBe(false);
+});
+
+test("durable original RPCs are structural, bounded and optional on server info", () => {
+  for (const type of [
+    "attachments.list.request",
+    "attachments.get.request",
+    "attachments.read.request",
+  ]) {
+    expect(
+      SessionInboundMessageSchema.safeParse({
+        type,
+        agentId: "agent-a",
+        referenceId: "att_11111111-1111-4111-8111-111111111111",
+        requestId: "req",
+      }).success,
+    ).toBe(true);
+  }
+  expect(
+    SessionInboundMessageSchema.safeParse({
+      type: "attachments.list.request",
+      agentId: "agent-a",
+      limit: 51,
+      requestId: "req",
+    }).success,
+  ).toBe(false);
+  expect(
+    SessionInboundMessageSchema.safeParse({
+      type: "attachments.read.request",
+      agentId: "agent-a",
+      referenceId: "../../secret",
+      requestId: "req",
+    }).success,
+  ).toBe(false);
+  expect(
+    SessionOutboundMessageSchema.safeParse({
+      type: "attachments.read.response",
+      payload: { reference: null, error: "Original unavailable", requestId: "req" },
+    }).success,
+  ).toBe(true);
+  const legacy = { type: "status", payload: { status: "server_info", serverId: "server-a" } };
+  expect(SessionOutboundMessageSchema.safeParse(legacy).success).toBe(true);
+  expect(
+    SessionOutboundMessageSchema.safeParse({
+      type: "status",
+      payload: {
+        ...legacy.payload,
+        features: { durableAttachments: true },
+        attachmentStorage: {
+          writable: false,
+          originalReads: false,
+          writeError: "Exclusive ownership unavailable",
+        },
+      },
+    }).success,
+  ).toBe(true);
+});
+
+test("sidebar mode profile support is optional and independent of settings sync", () => {
+  expect(
+    parseServerInfoStatusPayload({
+      status: "server_info",
+      serverId: "old",
+      features: { appSettingsSync: true },
+    })?.features?.appSettingsSidebarModeProfiles,
+  ).toBeUndefined();
+  expect(
+    parseServerInfoStatusPayload({
+      status: "server_info",
+      serverId: "new",
+      features: { appSettingsSync: true, appSettingsSidebarModeProfiles: true },
+    })?.features?.appSettingsSidebarModeProfiles,
+  ).toBe(true);
+});
+
+test.each([undefined, " :(glob)*\tfile.css "])(
+  "checkout diff requests preserve optional literal file scope %s",
+  (filePath) => {
+    const compare = {
+      mode: "base" as const,
+      baseRef: "main",
+      ...(filePath === undefined ? {} : { filePath }),
+    };
+    const common = { cwd: "/repo", requestId: "diff-scope", compare };
+    expect(
+      CheckoutDiffGetRequestSchema.parse({ ...common, type: "checkout.diff.get.request" }).compare,
+    ).toEqual(compare);
+    expect(
+      SubscribeCheckoutDiffRequestSchema.parse({
+        ...common,
+        type: "subscribe_checkout_diff_request",
+      }).compare,
+    ).toEqual(compare);
+  },
+);
+
+test("single-file diff capability is optional on older hosts", () => {
+  const host = { status: "server_info", serverId: "workspace-host" };
+  expect(parseServerInfoStatusPayload(host)?.features?.checkoutFileDiff).toBeUndefined();
+  expect(
+    parseServerInfoStatusPayload({ ...host, features: { checkoutFileDiff: true } })?.features
+      ?.checkoutFileDiff,
+  ).toBe(true);
 });

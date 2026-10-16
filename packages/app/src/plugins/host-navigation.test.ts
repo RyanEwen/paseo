@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   openWorkspaceBrowser,
+  openWorkspaceLink,
   workspaceBrowserLinkDestinations,
 } from "@/workspace/browser/opening";
 import { createPluginHostNavigation } from "./host-navigation-model";
@@ -186,5 +187,41 @@ describe("workspace browser link menu policy", () => {
         defaultDestination: "external",
       }),
     ).toEqual([]);
+  });
+});
+
+describe("workspace primary link policy", () => {
+  it("reads the latest preference for each activation while retaining the owning opener", async () => {
+    let enabled = true;
+    const internal: string[] = [];
+    const external: string[] = [];
+    const policy = {
+      isEnabled: () => enabled,
+      openInPaseo: (url: string) => {
+        internal.push(url);
+      },
+      openExternally: (url: string) => {
+        external.push(url);
+      },
+    };
+    await openWorkspaceLink("https://example.com/one", policy);
+    enabled = false;
+    await openWorkspaceLink("https://example.com/two", policy);
+    enabled = true;
+    await openWorkspaceLink("https://example.com/three", policy);
+    await openWorkspaceLink("mailto:person@example.com", policy);
+    expect(internal).toEqual(["https://example.com/one", "https://example.com/three"]);
+    expect(external).toEqual(["https://example.com/two", "mailto:person@example.com"]);
+  });
+
+  it("uses external activation when no built-in workspace browser is available", async () => {
+    const external: string[] = [];
+    await openWorkspaceLink("https://example.com", {
+      isEnabled: () => true,
+      openExternally: (url) => {
+        external.push(url);
+      },
+    });
+    expect(external).toEqual(["https://example.com"]);
   });
 });

@@ -84,6 +84,7 @@ export const SYNC_APP_SETTING_KEYS = [
   "workingDiffAutoSwitch",
 ] as const;
 export const SYNC_SIDEBAR_SETTING_KEYS = [
+  "modeProfiles",
   "groupMode",
   "sortMode",
   "workspaceSortMode",

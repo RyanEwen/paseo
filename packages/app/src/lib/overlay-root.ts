@@ -1,4 +1,8 @@
 import {
+  prepareWebOverlayPresentation,
+  subscribeWebOverlayPresentationGuard,
+} from "./overlay-presentation";
+import {
   createContext,
   createElement,
   useCallback,
@@ -211,24 +215,41 @@ function detachWebOverlayListeners(): void {
   webOverlayListenersAttached = false;
 }
 
-function addWebOverlay(entry: WebOverlayEntry): (options?: RemoveWebOverlayOptions) => void {
+function addWebOverlay(
+  entry: WebOverlayEntry,
+  admitted?: Promise<boolean>,
+): (options?: RemoveWebOverlayOptions) => void {
   webOverlayEntries.push(entry);
   attachWebOverlayListeners();
 
-  const focusFrame = window.requestAnimationFrame(() => {
-    const scope = entry.getScope();
-    if (
-      entry.manageFocus &&
-      getTopWebOverlay() === entry &&
-      scope &&
-      !scope.contains(document.activeElement)
-    ) {
-      focusFirstElement(scope);
-    }
-  });
+  let live = true;
+  let focusFrame: number | undefined;
+  const scheduleFocus = () => {
+    if (!live) return;
+    focusFrame = window.requestAnimationFrame(() => {
+      const scope = entry.getScope();
+      if (
+        entry.manageFocus &&
+        getTopWebOverlay() === entry &&
+        scope &&
+        !scope.contains(document.activeElement)
+      ) {
+        focusFirstElement(scope);
+      }
+    });
+  };
+  if (admitted) {
+    void admitted.then((ready) => {
+      if (ready) scheduleFocus();
+      return ready;
+    });
+  } else {
+    scheduleFocus();
+  }
 
   return (options) => {
-    window.cancelAnimationFrame(focusFrame);
+    live = false;
+    if (focusFrame !== undefined) window.cancelAnimationFrame(focusFrame);
     const index = webOverlayEntries.findIndex((candidate) => candidate.id === entry.id);
     if (index !== -1) webOverlayEntries.splice(index, 1);
     detachWebOverlayListeners();
@@ -250,6 +271,13 @@ interface WebOverlayRegistration {
   restoreFocusRef?: React.RefObject<unknown>;
   /** Hover surfaces claim overlay keys while preserving the user's existing focus. */
   manageFocus?: boolean;
+  /** Full-window menu/backdrop scopes must hide overlapping native browser pixels. */
+  nativeBrowserOverlap?: boolean;
+  /** Expose children with autofocus only after native hiding has been admitted. */
+  onPresentationReady?: () => void;
+  onPresentationFailed?: () => void;
+  /** A caller with its own return-focus lifecycle keeps this owner from racing it. */
+  restoreFocusOnClose?: boolean;
 }
 
 /**
@@ -262,6 +290,10 @@ export function useWebOverlayRegistration({
   layer,
   onKeyDown,
   manageFocus = true,
+  nativeBrowserOverlap = false,
+  onPresentationReady,
+  onPresentationFailed,
+  restoreFocusOnClose = true,
   restoreFocusRef: preferredRestoreFocusRef,
 }: WebOverlayRegistration) {
   const idRef = useRef(Symbol("web-overlay"));
@@ -274,6 +306,10 @@ export function useWebOverlayRegistration({
   const registeredRef = useRef(false);
   const activeRef = useRef(active);
   const wasActiveRef = useRef(false);
+  const onPresentationReadyRef = useRef(onPresentationReady);
+  onPresentationReadyRef.current = onPresentationReady;
+  const onPresentationFailedRef = useRef(onPresentationFailed);
+  onPresentationFailedRef.current = onPresentationFailed;
 
   activeRef.current = active;
   layerRef.current = layer;
@@ -310,18 +346,40 @@ export function useWebOverlayRegistration({
     if (registeredRef.current) return;
 
     detachedRemoveEntryRef.current = null;
+    const presentation =
+      nativeBrowserOverlap && scopeRef.current
+        ? prepareWebOverlayPresentation(scopeRef.current)
+        : null;
+    let live = true;
+    let admitted = presentation === null;
+    const admission = presentation?.ready.then((ready) => {
+      if (!live) return false;
+      admitted = ready;
+      if (ready) onPresentationReadyRef.current?.();
+      else onPresentationFailedRef.current?.();
+      return ready;
+    });
     const entry: WebOverlayEntry = {
       id: idRef.current,
       order: ++webOverlayOrder,
       getLayer: () => layerRef.current,
-      getScope: () => scopeRef.current,
+      getScope: () => (admitted ? scopeRef.current : null),
       getKeyHandler: () => keyHandlerRef.current,
       restoreFocus: capturedRestoreFocusRef.current,
       manageFocus,
     };
-    removeEntryRef.current = addWebOverlay(entry);
+    const removeEntry = addWebOverlay(entry, admission);
+    removeEntryRef.current = (options) => {
+      live = false;
+      presentation?.release();
+      removeEntry({
+        ...options,
+        restoreFocus: restoreFocusOnClose && options?.restoreFocus !== false,
+      });
+    };
     registeredRef.current = true;
-  }, [manageFocus]);
+    if (!presentation) onPresentationReadyRef.current?.();
+  }, [manageFocus, nativeBrowserOverlap, restoreFocusOnClose]);
 
   const setScope = useCallback(
     (node: unknown) => {
@@ -340,6 +398,16 @@ export function useWebOverlayRegistration({
     },
     [syncRegistration],
   );
+
+  useLayoutEffect(() => {
+    if (!nativeBrowserOverlap) return;
+    return subscribeWebOverlayPresentationGuard(() => {
+      removeEntryRef.current?.({ restoreFocus: false });
+      removeEntryRef.current = null;
+      registeredRef.current = false;
+      syncRegistration();
+    });
+  }, [nativeBrowserOverlap, syncRegistration]);
 
   useLayoutEffect(() => {
     syncRegistration();

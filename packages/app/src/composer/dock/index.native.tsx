@@ -1,3 +1,4 @@
+import { ComposerViewportRef } from "./internal/viewport-ref";
 import { ComposerDockBackground } from "./internal/background";
 export { ComposerDockBackground } from "./internal/background";
 import { ScrollView } from "@/components/ui/scroll-view";
@@ -5,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HEADER_INNER_HEIGHT } from "@/constants/layout";
 import { resolveContentMaxWidth, useAppSettings } from "@/hooks/use-settings";
 import { KeyboardTranslateView } from "@/keyboard/shift";
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useRef, useCallback, useContext, useState, type ReactNode } from "react";
 import { View, type LayoutChangeEvent, type ViewProps, StyleSheet } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -36,6 +37,7 @@ function ComposerViewport({
   centered = false,
   ...props
 }: ComposerViewportProps) {
+  const viewportRef = useRef<View>(null);
   const measuredHeight = useSharedValue(0);
   const sizing = useSharedValue<ComposerCapacity | undefined>(undefined);
   const { layoutShift, bottomInset: safeAreaBottom } = useKeyboardShift();
@@ -63,8 +65,16 @@ function ComposerViewport({
   );
 
   return (
-    <View testID="composer-viewport" {...props} onLayout={measureViewport} collapsable={false}>
-      <ViewportCapacity.Provider value={capacity}>{children}</ViewportCapacity.Provider>
+    <View
+      ref={viewportRef}
+      testID="composer-viewport"
+      {...props}
+      onLayout={measureViewport}
+      collapsable={false}
+    >
+      <ComposerViewportRef.Provider value={viewportRef}>
+        <ViewportCapacity.Provider value={capacity}>{children}</ViewportCapacity.Provider>
+      </ComposerViewportRef.Provider>
     </View>
   );
 }

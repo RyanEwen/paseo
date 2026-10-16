@@ -1,3 +1,4 @@
+import { installWebOverlayPresentationGuard } from "@/lib/overlay-presentation";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -163,7 +164,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function render(element: React.ReactElement) {
+function render(element: React.ReactElement | null) {
   act(() => {
     root?.render(element);
   });
@@ -244,5 +245,56 @@ describe("AttachmentLightbox", () => {
     });
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("AttachmentLightbox native overlap admission", () => {
+  it("holds its actual backdrop and image until admission and releases on close", async () => {
+    let admit!: (ready: boolean) => void;
+    const release = vi.fn();
+    const uninstall = installWebOverlayPresentationGuard(() => ({
+      ready: new Promise<boolean>((resolve) => {
+        admit = resolve;
+      }),
+      release,
+    }));
+    try {
+      render(<AttachmentLightbox source={attachmentSource} onClose={vi.fn()} />);
+      expect(queryByTestId("attachment-lightbox-backdrop")).toBeNull();
+      expect(queryByTestId("attachment-lightbox-image")).toBeNull();
+      await act(async () => {
+        admit(true);
+      });
+      expect(queryByTestId("attachment-lightbox-backdrop")).not.toBeNull();
+      expect(queryByTestId("attachment-lightbox-image")).not.toBeNull();
+      render(<AttachmentLightbox source={null} onClose={vi.fn()} />);
+      await act(async () => {});
+      expect(release).toHaveBeenCalledOnce();
+    } finally {
+      render(null);
+      uninstall();
+    }
+  });
+
+  it("closes on failed hide acknowledgement without presenting its own image", async () => {
+    const close = vi.fn();
+    const release = vi.fn();
+    const uninstall = installWebOverlayPresentationGuard(() => ({
+      ready: Promise.resolve(false),
+      release,
+    }));
+    try {
+      render(<AttachmentLightbox source={attachmentSource} onClose={close} />);
+      await act(async () => {});
+      expect(close).toHaveBeenCalledOnce();
+      expect(queryByTestId("attachment-lightbox-backdrop")).toBeNull();
+      expect(queryByTestId("attachment-lightbox-image")).toBeNull();
+      render(null);
+      await act(async () => {});
+      expect(release).toHaveBeenCalledOnce();
+    } finally {
+      render(null);
+      uninstall();
+    }
   });
 });
