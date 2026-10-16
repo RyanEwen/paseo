@@ -17,6 +17,10 @@ export interface WorkspaceTabLayoutInput {
   viewportWidth: number;
   tabLabelWidths: number[];
   metrics: WorkspaceTabLayoutMetrics;
+  /** Compact strips keep readable content widths and scroll instead of compressing tabs. */
+  preserveNaturalWidths?: boolean;
+  /** Raise only the title-width ceiling; short tabs and overflow behavior stay content-driven. */
+  widerTabs?: boolean;
 }
 
 export interface WorkspaceTabLayoutItem {
@@ -74,17 +78,20 @@ export function computeWorkspaceTabLayout(
     input.metrics.tabContentGap +
     input.metrics.tabHorizontalPadding * 2 +
     input.metrics.closeButtonWidth;
+  const maximumWidth = input.metrics.maxTabWidth * (input.widerTabs ? 1.5 : 1);
   const naturalWidths = input.tabLabelWidths.map((labelWidth) =>
-    clamp(tabChromeWidth + labelWidth, input.metrics.minTabWidth, input.metrics.maxTabWidth),
+    clamp(tabChromeWidth + labelWidth, input.metrics.minTabWidth, maximumWidth),
   );
   const naturalTotalWidth = naturalWidths.reduce((total, width) => total + width, 0);
   const minimumTotalWidth = input.metrics.minTabWidth * tabCount;
-  const requiresHorizontalScrollFallback = availableTabsWidth < minimumTotalWidth;
+  const requiresHorizontalScrollFallback = input.preserveNaturalWidths
+    ? availableTabsWidth < naturalTotalWidth
+    : availableTabsWidth < minimumTotalWidth;
 
   let resolvedWidths = naturalWidths;
-  if (requiresHorizontalScrollFallback) {
+  if (!input.preserveNaturalWidths && requiresHorizontalScrollFallback) {
     resolvedWidths = Array.from({ length: tabCount }, () => input.metrics.minTabWidth);
-  } else if (naturalTotalWidth > availableTabsWidth) {
+  } else if (!input.preserveNaturalWidths && naturalTotalWidth > availableTabsWidth) {
     const widthToRemove = naturalTotalWidth - availableTabsWidth;
     const shrinkCapacity = naturalTotalWidth - minimumTotalWidth;
     const shrinkRatio = widthToRemove / shrinkCapacity;
@@ -94,7 +101,7 @@ export function computeWorkspaceTabLayout(
   }
 
   const roundedWidths = resolvedWidths.map((width) =>
-    Math.round(clamp(width, input.metrics.minTabWidth, input.metrics.maxTabWidth)),
+    Math.round(clamp(width, input.metrics.minTabWidth, maximumWidth)),
   );
 
   return {
@@ -105,4 +112,27 @@ export function computeWorkspaceTabLayout(
     closeButtonPolicy: "all",
     requiresHorizontalScrollFallback,
   };
+}
+
+/** Reveal the selected tab with the smallest movement, clamped to the measured scroll range. */
+export function resolveWorkspaceTabScrollOffset(input: {
+  offset: number;
+  viewportWidth: number;
+  contentWidth: number;
+  tabStart: number;
+  tabWidth: number;
+}): number {
+  const { offset, viewportWidth, contentWidth, tabStart, tabWidth } = input;
+  if (viewportWidth <= 0 || contentWidth <= 0) {
+    return offset;
+  }
+
+  let nextOffset = offset;
+  if (tabStart < offset || tabWidth > viewportWidth) {
+    nextOffset = tabStart;
+  } else if (tabStart + tabWidth > offset + viewportWidth) {
+    nextOffset = tabStart + tabWidth - viewportWidth;
+  }
+
+  return clamp(nextOffset, 0, Math.max(0, contentWidth - viewportWidth));
 }

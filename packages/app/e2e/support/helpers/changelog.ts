@@ -1,7 +1,8 @@
 import { parseChangelog } from "../../../src/changelog/internal/parse-changelog";
 import { expect, type Locator, type Page } from "@playwright/test";
 
-const CHANGELOG_SOURCE_URL = "https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100";
+const CHANGELOG_SOURCE_URL =
+  "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100";
 
 /**
  * Serves a changelog to the app instead of the repository's.

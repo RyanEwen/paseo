@@ -13,7 +13,8 @@ export type ElementSelectorOutcome =
 
 export type ElementSelectorStartResult = "started" | "loading" | "unavailable";
 
-export interface ElementSelectorWebview extends HTMLElement {
+export interface ElementSelectorWebview {
+  readonly isConnected: boolean;
   isLoading?: () => boolean;
   executeJavaScript?: (code: string) => Promise<unknown>;
 }

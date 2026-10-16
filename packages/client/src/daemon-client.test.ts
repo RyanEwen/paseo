@@ -4913,66 +4913,73 @@ test("returns renameBranch business failures", async () => {
   });
 });
 
-test("resubscribes checkout diff streams after reconnect", async () => {
-  const logger = createMockLogger();
-  const mock = createMockTransport();
+test.each([undefined, " :(glob)*.css "])(
+  "resubscribes checkout diff streams with scope %s after reconnect",
+  async (filePath) => {
+    const logger = createMockLogger();
+    const mock = createMockTransport();
 
-  const client = new DaemonClient({
-    url: "ws://test",
-    clientId: "clsk_unit_test",
-    logger,
-    reconnect: { enabled: false },
-    transportFactory: () => mock.transport,
-  });
-  clients.push(client);
+    const client = new DaemonClient({
+      url: "ws://test",
+      clientId: "clsk_unit_test",
+      logger,
+      reconnect: { enabled: false },
+      transportFactory: () => mock.transport,
+    });
+    clients.push(client);
 
-  const connectPromise = client.connect();
-  mock.triggerOpen();
-  await connectPromise;
+    const connectPromise = client.connect();
+    mock.triggerOpen();
+    await connectPromise;
 
-  const observation = client.observeCheckoutDiff("/tmp/project", { mode: "base", baseRef: "main" });
-  await vi.waitFor(() => expect(mock.sent).toHaveLength(1));
-  const first = parseSentFrame(mock.sent[0]);
-  mock.triggerMessage(
-    wrapSessionMessage({
-      type: "subscribe_checkout_diff_response",
-      payload: {
-        requestId: first.requestId,
-        subscriptionId: "server-first",
-        cwd: "/tmp/project",
-        files: [],
-        error: null,
-      },
-    }),
-  );
-  await observation.ready;
-  mock.triggerClose();
-  const reconnect = client.connect();
-  mock.triggerOpen();
-  await reconnect;
-  await vi.waitFor(() => expect(mock.sent).toHaveLength(1));
-  const request = parseSentFrame(mock.sent[0]);
-  expect(request).toMatchObject({
-    type: "subscribe_checkout_diff_request",
-    cwd: "/tmp/project",
-    compare: { mode: "base", baseRef: "main" },
-  });
-  expect(request.subscriptionId).toBeUndefined();
-  expect(request.requestId).not.toBe(first.requestId);
-  mock.triggerMessage(
-    wrapSessionMessage({
-      type: "subscribe_checkout_diff_response",
-      payload: {
-        requestId: request.requestId,
-        subscriptionId: "server-second",
-        cwd: "/tmp/project",
-        files: [],
-        error: null,
-      },
-    }),
-  );
-  await vi.waitFor(() => expect(observation.subscriptionId).toBe("server-second"));
-});
+    const observation = client.observeCheckoutDiff("/tmp/project", {
+      mode: "base",
+      baseRef: "main",
+      ...(filePath !== undefined ? { filePath } : {}),
+    });
+    await vi.waitFor(() => expect(mock.sent).toHaveLength(1));
+    const first = parseSentFrame(mock.sent[0]);
+    mock.triggerMessage(
+      wrapSessionMessage({
+        type: "subscribe_checkout_diff_response",
+        payload: {
+          requestId: first.requestId,
+          subscriptionId: "server-first",
+          cwd: "/tmp/project",
+          files: [],
+          error: null,
+        },
+      }),
+    );
+    await observation.ready;
+    mock.triggerClose();
+    const reconnect = client.connect();
+    mock.triggerOpen();
+    await reconnect;
+    await vi.waitFor(() => expect(mock.sent).toHaveLength(1));
+    const request = parseSentFrame(mock.sent[0]);
+    expect(request).toMatchObject({
+      type: "subscribe_checkout_diff_request",
+      cwd: "/tmp/project",
+      compare: { mode: "base", baseRef: "main", ...(filePath !== undefined ? { filePath } : {}) },
+    });
+    expect(request.subscriptionId).toBeUndefined();
+    expect(request.requestId).not.toBe(first.requestId);
+    mock.triggerMessage(
+      wrapSessionMessage({
+        type: "subscribe_checkout_diff_response",
+        payload: {
+          requestId: request.requestId,
+          subscriptionId: "server-second",
+          cwd: "/tmp/project",
+          files: [],
+          error: null,
+        },
+      }),
+    );
+    await vi.waitFor(() => expect(observation.subscriptionId).toBe("server-second"));
+  },
+);
 
 test("fetches agents via RPC with filters, sort, and pagination", async () => {
   const logger = createMockLogger();
@@ -7527,3 +7534,324 @@ test.each([false, true])(
     await send;
   },
 );
+
+test("correlates a read-only daemon update availability response", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_unit_test",
+    logger: noopLogger,
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connection = client.connect();
+  mock.triggerOpen();
+  await connection;
+  mock.sent.length = 0;
+  const response = client.checkDaemonUpdateAvailability();
+  const request = parseSentFrame(mock.sent[0]);
+  if (request.type !== "daemon.update.check_availability.request") {
+    throw new Error("Expected daemon availability request");
+  }
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "daemon.update.check_availability.response",
+      payload: { requestId: "another-request", version: "9.0.0", reason: null },
+    }),
+  );
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "daemon.update.check_availability.response",
+      payload: {
+        requestId: z.string().parse(request.requestId),
+        version: "0.11.2-preview.14",
+        reason: null,
+      },
+    }),
+  );
+  await expect(response).resolves.toEqual({
+    requestId: z.string().parse(request.requestId),
+    version: "0.11.2-preview.14",
+    reason: null,
+  });
+});
+
+async function originalClient(originalReads = true) {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://originals.test",
+    clientId: "originals-client",
+    reconnect: { enabled: false },
+    logger: noopLogger,
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connected = client.connect();
+  mock.triggerOpen({ features: { ownedSubscriptions: true, durableAttachments: true } });
+  await connected;
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "status",
+      payload: {
+        status: "server_info",
+        serverId: "srv_test_1",
+        features: { ownedSubscriptions: true, durableAttachments: true },
+        attachmentStorage: { writable: true, originalReads, writeError: null },
+      },
+    }),
+  );
+  return { client, mock };
+}
+const CLIENT_ORIGINAL_REFERENCE = {
+  id: "att_11111111-1111-4111-8111-111111111111",
+  agentId: "agent-a",
+  byteLength: 5,
+  mimeType: "image/png",
+  sha256: "a".repeat(64),
+  createdAt: "2026-10-15T00:00:00.000Z",
+};
+function originalFrame(mock: ReturnType<typeof createMockTransport>, requestId: string, size = 5) {
+  mock.triggerMessage(
+    encodeFileTransferFrame({
+      opcode: FileTransferOpcode.FileBegin,
+      requestId,
+      metadata: {
+        mime: "image/png",
+        size,
+        encoding: "binary",
+        modifiedAt: CLIENT_ORIGINAL_REFERENCE.createdAt,
+        revision: CLIENT_ORIGINAL_REFERENCE.sha256,
+      },
+    }),
+  );
+}
+test("durable references support list -> metadata -> acknowledged original bytes", async () => {
+  const { client, mock } = await originalClient();
+  const list = client.listAttachments("agent-a", { requestId: "list-original" });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.list.response",
+      payload: {
+        references: [CLIENT_ORIGINAL_REFERENCE],
+        next: null,
+        error: null,
+        requestId: "list-original",
+      },
+    }),
+  );
+  expect((await list).references).toEqual([CLIENT_ORIGINAL_REFERENCE]);
+  const metadata = client.getAttachment("agent-a", CLIENT_ORIGINAL_REFERENCE.id, "get-original");
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.get.response",
+      payload: { reference: CLIENT_ORIGINAL_REFERENCE, error: null, requestId: "get-original" },
+    }),
+  );
+  expect((await metadata).reference).toEqual(CLIENT_ORIGINAL_REFERENCE);
+  let settled = false;
+  const original = client
+    .readAttachment("agent-a", CLIENT_ORIGINAL_REFERENCE.id, "read-original")
+    .then((result) => {
+      settled = true;
+      return result;
+    });
+  const wireId = z.string().parse(parseSentFrame(mock.sent.at(-1)).requestId);
+  originalFrame(mock, wireId);
+  mock.triggerMessage(
+    encodeFileTransferFrame({
+      opcode: FileTransferOpcode.FileChunk,
+      requestId: wireId,
+      payload: new TextEncoder().encode("hello"),
+    }),
+  );
+  mock.triggerMessage(
+    encodeFileTransferFrame({ opcode: FileTransferOpcode.FileEnd, requestId: wireId }),
+  );
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.read.response",
+      payload: { reference: CLIENT_ORIGINAL_REFERENCE, error: null, requestId: wireId },
+    }),
+  );
+  const result = await original;
+  expect(result.reference).toEqual(CLIENT_ORIGINAL_REFERENCE);
+  expect(new TextDecoder().decode(result.bytes)).toBe("hello");
+});
+test("a metadata-capable plugin transport cannot request inline fallback bytes", async () => {
+  const { client, mock } = await originalClient(false);
+  const list = client.listAttachments("agent-a", { requestId: "metadata-only" });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.list.response",
+      payload: { references: [], next: null, error: null, requestId: "metadata-only" },
+    }),
+  );
+  await list;
+  await expect(client.readAttachment("agent-a", CLIENT_ORIGINAL_REFERENCE.id)).rejects.toThrow(
+    "connection",
+  );
+  expect(mock.sent.map((entry) => parseSentFrame(entry).type)).not.toContain(
+    "attachments.read.request",
+  );
+});
+test.each(["oversized", "short", "overflow", "duplicate"])(
+  "rejects %s original transfer without returning partial success",
+  async (mode) => {
+    const { client, mock } = await originalClient();
+    const id = `read-${mode}`;
+    const original = client.readAttachment("agent-a", CLIENT_ORIGINAL_REFERENCE.id, id);
+    const wireId = z.string().parse(parseSentFrame(mock.sent.at(-1)).requestId);
+    originalFrame(mock, wireId, mode === "oversized" ? 16 * 1024 * 1024 + 1 : 5);
+    if (mode === "duplicate") originalFrame(mock, wireId);
+    if (mode === "overflow")
+      mock.triggerMessage(
+        encodeFileTransferFrame({
+          opcode: FileTransferOpcode.FileChunk,
+          requestId: wireId,
+          payload: new Uint8Array(6),
+        }),
+      );
+    mock.triggerMessage(
+      encodeFileTransferFrame({ opcode: FileTransferOpcode.FileEnd, requestId: wireId }),
+    );
+    await expect(original).rejects.toThrow("Original transfer");
+    // No terminal server reply is needed to reclaim local admission.
+    const next = client.readAttachment("agent-a", CLIENT_ORIGINAL_REFERENCE.id, id);
+    const nextWire = z.string().parse(parseSentFrame(mock.sent.at(-1)).requestId);
+    expect(nextWire).not.toBe(wireId);
+    const cancel = client.cancelAttachmentRead(id, "cancel-next");
+    await expect(next).rejects.toThrow("canceled locally");
+    mock.triggerMessage(
+      wrapSessionMessage({
+        type: "attachments.read.cancel.response",
+        payload: { canceled: true, error: null, requestId: "cancel-next" },
+      }),
+    );
+    await cancel;
+  },
+);
+test("original transfer cancellation has a correlated namespaced response", async () => {
+  const { client, mock } = await originalClient();
+  const canceled = client.cancelAttachmentRead("original-request", "cancel-original");
+  expect(parseSentFrame(mock.sent.at(-1))).toMatchObject({
+    type: "attachments.read.cancel.request",
+    readRequestId: "original-request",
+  });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.read.cancel.response",
+      payload: { canceled: true, error: null, requestId: "cancel-original" },
+    }),
+  );
+  expect((await canceled).canceled).toBe(true);
+});
+
+test("local cancel clears a completed buffer without a terminal reply and fences reused caller IDs", async () => {
+  const { client, mock } = await originalClient();
+  const first = client.readAttachment("agent-a", CLIENT_ORIGINAL_REFERENCE.id, "reused-read");
+  const oldWireId = z.string().parse(parseSentFrame(mock.sent.at(-1)).requestId);
+  originalFrame(mock, oldWireId);
+  mock.triggerMessage(
+    encodeFileTransferFrame({
+      opcode: FileTransferOpcode.FileChunk,
+      requestId: oldWireId,
+      payload: new TextEncoder().encode("hello"),
+    }),
+  );
+  mock.triggerMessage(
+    encodeFileTransferFrame({ opcode: FileTransferOpcode.FileEnd, requestId: oldWireId }),
+  );
+  const cancel = client.cancelAttachmentRead("reused-read", "cancel-local-read");
+  expect(parseSentFrame(mock.sent.at(-1))).toMatchObject({ readRequestId: oldWireId });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.read.cancel.response",
+      payload: { canceled: true, error: null, requestId: "cancel-local-read" },
+    }),
+  );
+  await cancel;
+  await expect(first).rejects.toThrow("canceled locally");
+  expect(client).toMatchObject({
+    pendingBinaryFileReads: new Map(),
+    activeBinaryFileTransfers: new Map(),
+    completedBinaryFileReads: new Map(),
+    attachmentReadRequests: new Map(),
+  });
+  let settled = false;
+  const next = client
+    .readAttachment("agent-a", CLIENT_ORIGINAL_REFERENCE.id, "reused-read")
+    .then((result) => {
+      settled = true;
+      return result;
+    });
+  const newWireId = z.string().parse(parseSentFrame(mock.sent.at(-1)).requestId);
+  expect(newWireId).not.toBe(oldWireId);
+  originalFrame(mock, oldWireId);
+  mock.triggerMessage(
+    encodeFileTransferFrame({
+      opcode: FileTransferOpcode.FileChunk,
+      requestId: oldWireId,
+      payload: new TextEncoder().encode("wrong"),
+    }),
+  );
+  mock.triggerMessage(
+    encodeFileTransferFrame({ opcode: FileTransferOpcode.FileEnd, requestId: oldWireId }),
+  );
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.read.response",
+      payload: { reference: CLIENT_ORIGINAL_REFERENCE, error: null, requestId: oldWireId },
+    }),
+  );
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  originalFrame(mock, newWireId);
+  mock.triggerMessage(
+    encodeFileTransferFrame({
+      opcode: FileTransferOpcode.FileChunk,
+      requestId: newWireId,
+      payload: new TextEncoder().encode("hello"),
+    }),
+  );
+  mock.triggerMessage(
+    encodeFileTransferFrame({ opcode: FileTransferOpcode.FileEnd, requestId: newWireId }),
+  );
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "attachments.read.response",
+      payload: { reference: CLIENT_ORIGINAL_REFERENCE, error: null, requestId: newWireId },
+    }),
+  );
+  expect(new TextDecoder().decode((await next).bytes)).toBe("hello");
+});
+
+test("repeated header after complete framing immediately frees the completed original", async () => {
+  const { client, mock } = await originalClient();
+  const original = client.readAttachment(
+    "agent-a",
+    CLIENT_ORIGINAL_REFERENCE.id,
+    "duplicate-after-end",
+  );
+  const wireId = z.string().parse(parseSentFrame(mock.sent.at(-1)).requestId);
+  originalFrame(mock, wireId);
+  mock.triggerMessage(
+    encodeFileTransferFrame({
+      opcode: FileTransferOpcode.FileChunk,
+      requestId: wireId,
+      payload: new Uint8Array(5),
+    }),
+  );
+  mock.triggerMessage(
+    encodeFileTransferFrame({ opcode: FileTransferOpcode.FileEnd, requestId: wireId }),
+  );
+  originalFrame(mock, wireId);
+  await expect(original).rejects.toThrow("header");
+  expect(client).toMatchObject({
+    pendingBinaryFileReads: new Map(),
+    activeBinaryFileTransfers: new Map(),
+    completedBinaryFileReads: new Map(),
+  });
+});

@@ -17,6 +17,21 @@ describe("checkout query keys", () => {
   const serverId = "server-1";
   const cwd = "/tmp/repo";
 
+  it("keeps whole, file and whitespace-distinct file scopes separate", () => {
+    const whole = checkoutDiffQueryKey(serverId, cwd, "base", "main", true);
+    expect(whole).toEqual(["checkoutDiff", serverId, cwd, "base", "main", true]);
+    expect(checkoutDiffQueryKey(serverId, cwd, "base", "main", true, "a.css")).toEqual([
+      ...whole,
+      "file",
+      "a.css",
+    ]);
+    expect(checkoutDiffQueryKey(serverId, cwd, "base", "main", true, " a.css ")).toEqual([
+      ...whole,
+      "file",
+      " a.css ",
+    ]);
+  });
+
   it("invalidates every query for a checkout without touching other checkouts", async () => {
     const queryClient = new QueryClient();
 

@@ -1,3 +1,4 @@
+import type { PromptJumpPlacement } from "./prompt-jump-placement";
 import type { PromptReadingPosition } from "./prompt-reading-position";
 import type { AssistantImageContext } from "@/utils/assistant-image-metadata";
 import type { ComponentType, ReactElement, ReactNode, RefObject } from "react";
@@ -57,7 +58,13 @@ export interface StreamViewportHandle {
   prepareForViewportChange: () => void;
   /** Cancel only message navigation, leaving bottom anchoring and delivery intact. */
   cancelMessageScroll?: () => void;
-  scrollToMessage?: (messageId: string, occurrence?: ScrollToMessageOccurrence) => void;
+  /** Expand the actual row for a current find request without moving the viewport. */
+  expandMessageForFind?: (messageId: string, signal: AbortSignal) => void;
+  scrollToMessage?: (
+    messageId: string,
+    occurrence?: ScrollToMessageOccurrence,
+    placement?: PromptJumpPlacement,
+  ) => void;
 }
 
 export interface StreamSegmentRenderers {
@@ -74,6 +81,7 @@ export interface StreamHistoryRowRevision {
 }
 
 export interface StreamRenderInput {
+  nativeViewportPlacement?: "docked" | "standalone";
   agentId: string;
   segments: StreamRenderSegments;
   historyRowRevision?: StreamHistoryRowRevision;

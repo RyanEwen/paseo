@@ -63,7 +63,7 @@ export interface SettingsSyncTransport {
 export interface SettingsSyncDeps {
   readLocal(): Promise<unknown>;
   writeLocal(value: LocalState): Promise<void>;
-  getDeviceValues(): Promise<Record<string, unknown>>;
+  getDeviceValues(purpose: "backup" | "publish"): Promise<Record<string, unknown>>;
   applyValues(values: Record<string, unknown>): Promise<void>;
 }
 
@@ -79,6 +79,7 @@ export class SettingsSyncModel {
     canWrite: false,
   };
   private generation = 0;
+  private loadRevision = 0;
   private adoptedHost: string | null = null;
   private transport: SettingsSyncTransport | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -96,9 +97,14 @@ export class SettingsSyncModel {
   };
 
   /** Read failures stay visible and cannot silently reset the settings authority to local. */
-  async load(): Promise<void> {
+  async load(signal?: AbortSignal): Promise<void> {
+    const revision = ++this.loadRevision;
+    const generation = this.generation;
+    const current = () =>
+      !signal?.aborted && revision === this.loadRevision && generation === this.generation;
     try {
       const value = await this.deps.readLocal();
+      if (!current()) return;
       this.local =
         value === null ? { selectedHost: null, hosts: {} } : LocalStateSchema.parse(value);
       this.publish({
@@ -107,7 +113,7 @@ export class SettingsSyncModel {
         canWrite: this.local.selectedHost === null,
       });
     } catch (error) {
-      this.fail(error);
+      if (current()) this.fail(error);
     }
   }
 
@@ -178,7 +184,7 @@ export class SettingsSyncModel {
         if (!this.current(host, generation)) return;
         const old = this.local.hosts[host];
         if (old && snapshot.revision < old.snapshot.revision) return;
-        const backup = old?.backup ?? (await this.deps.getDeviceValues());
+        const backup = old?.backup ?? (await this.deps.getDeviceValues("backup"));
         if (!this.current(host, generation)) return;
         // An unknown-outcome write that is already durable needs no second write.
         const pending = (old?.pending ?? []).filter(
@@ -266,7 +272,7 @@ export class SettingsSyncModel {
     const generation = this.generation;
     if (!host || !transport?.writable || this.state.status !== "empty")
       throw new Error("Read an empty settings host before publishing");
-    const values = await this.deps.getDeviceValues();
+    const values = await this.deps.getDeviceValues("publish");
     if (!this.current(host, generation)) return;
     const patches = settingsDiff({}, values, EMPTY).filter((patch) =>
       isSyncedSettingsPath(patch.path),

@@ -74,3 +74,8 @@ export const FEATURE_EXAMPLE_IMAGES: Partial<
     },
   ],
 };
+
+/** Shared preference help slots stay empty until genuine captures are qualified. */
+export const PREFERENCE_EXAMPLE_IMAGES: Partial<
+  Record<"explorer" | "workspaceLimit", readonly SettingsExampleImage[]>
+> = {};

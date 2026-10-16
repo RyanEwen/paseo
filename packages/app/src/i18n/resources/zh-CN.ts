@@ -32,6 +32,21 @@ export const zhCN: TranslationResources = {
     },
   },
   paseoPlusPlus: {
+    accent: {
+      title: "强调色",
+      hint: "用于主要控件和你发送的消息",
+      updateHost: "请更新所选的设置主机以更改强调色",
+      preview: "你的消息将呈现此效果",
+      options: {
+        default: "默认",
+        blue: "蓝色",
+        green: "绿色",
+        purple: "紫色",
+        rose: "玫瑰色",
+        orange: "橙色",
+        teal: "青色",
+      },
+    },
     workspaceLimit: {
       save: "保存",
       title: "工作区列表",
@@ -62,6 +77,27 @@ export const zhCN: TranslationResources = {
     additionsHint: "这些工作流程仍然可用",
     saveFailed: "无法保存。请重试。",
     features: {
+      workspaceChatLinks: {
+        label: "工作区链接",
+        hint: "在桌面端，将终端、聊天和 Git 等工作区网页链接在所属工作区浏览器的新标签页中打开。关闭后在外部浏览器中打开。菜单中的显式操作仍然可用。",
+      },
+      sidebarHostUpdates: {
+        label: "侧边栏中的主机更新",
+        hint: "在主机菜单中显示更新操作。关闭后仍可使用主机设置。",
+      },
+      splitLayoutPresets: {
+        label: "分屏布局控件",
+        hint: "在分隔线处选择常用比例，并从菜单移动标签页。关闭后隐藏这些控件。",
+      },
+      mobileWorkspaceTabs: {
+        label: "移动端工作区标签页",
+        hint: "在紧凑布局中显示可滚动的标签栏。关闭后使用原来的标签选择器，并保留当前选中的标签。",
+      },
+      widerWorkspaceTabs: {
+        label: "更宽的工作区标签页",
+        hint: "将长标题标签页的最大宽度增加 50%。短标签页保持自然宽度。关闭后恢复原来的宽度上限。",
+      },
+
       descriptiveToolCalls: {
         label: "易读的工具活动",
         hint: "描述已知操作，并在详情中保留准确命令和输出。关闭后恢复经典标签。",
@@ -107,7 +143,7 @@ export const zhCN: TranslationResources = {
     links: {
       sidebar: {
         label: "工作区顺序和详情",
-        hint: "分别按名称、状态或自定义顺序排列项目和工作区。同时显示最近活动时间和代码更改总计；项目和分支名称默认显示。请在工作区侧边栏的显示菜单中调整。",
+        hint: "分别按名称、状态或自定义顺序排列项目和工作区。同时显示最近活动时间和代码更改总计；项目名称默认显示。分支名称可选择显示，默认不显示。请在工作区侧边栏的显示菜单中调整。",
       },
     },
     fixesList: {
@@ -163,6 +199,9 @@ export const zhCN: TranslationResources = {
     current: "你使用的是最新发布的预览版本。",
     available: "预览版本 {{version}} 已可用。",
     downloading: "正在下载并验证更新…",
+    downloadProgress: "正在下载 {{percent}}%（{{downloaded}} / {{total}}）",
+    downloadBytes: "正在下载 {{downloaded}}…",
+    verifying: "正在验证下载的更新…",
     permission: "在 Android 设置中允许此应用安装更新，然后返回并再次点击安装更新。",
     installer: "请在 Android 中完成安装。如果已取消，请点击安装更新重试。",
     install: "安装更新",
@@ -619,6 +658,20 @@ export const zhCN: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openToSide: "在侧边打开{{item}}",
+      chooseRatio: "选择分屏比例",
+      ratio: "使用 {{ratio}} 分屏",
+      moveTab: "移动标签页",
+      left: "左侧",
+      right: "右侧",
+      top: "上方",
+      bottom: "下方",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "窗格 {{index}}",
+    },
+
     route: {
       loading: "正在加载 workspace",
       connecting: "正在连接",
@@ -754,6 +807,9 @@ export const zhCN: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "在 Paseo 浏览器中打开",
+      openExternally: "在外部浏览器中打开",
+      copyLink: "复制链接",
       unavailable: {
         title: "浏览器仅桌面端可用",
         subtitle: "在 Electron 中打开此 workspace 以使用内置浏览器。",
@@ -781,6 +837,14 @@ export const zhCN: TranslationResources = {
         placeholder: "给智能体关于此元素的留言…",
         submit: "附加",
         cancel: "取消",
+      },
+      extensions: {
+        label: "扩展程序",
+        empty: "没有已启用的扩展程序。",
+        noPopup: "未提供弹出窗口",
+        loading: "正在加载扩展程序...",
+        manage: "管理扩展程序",
+        openFailed: "无法打开扩展程序",
       },
       devices: {
         label: "设备尺寸",
@@ -1090,6 +1154,7 @@ export const zhCN: TranslationResources = {
         },
       },
       diff: {
+        updateHostFileDiff: "请更新此主机以打开单文件差异。",
         openChangesTab: "打开“更改”标签页",
         openDiffTab: "打开 Diff 标签页",
         closeChangesTab: "关闭“更改”标签页",
@@ -1318,6 +1383,7 @@ export const zhCN: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "尚无此主机的已知项目。",
       selectOnlyProject: "仅显示 {{project}}",
       includeProject: "包含 {{project}}",
       workspaces: "工作区",
@@ -1338,8 +1404,23 @@ export const zhCN: TranslationResources = {
       done: "已完成",
     },
     display: {
+      modeToggle: "当前为{{current}}视图。切换到{{next}}视图。",
+      workspaceList: {
+        updatedWithin: "最近更新时间",
+        day: "1天",
+        threeDays: "3天",
+        fiveDays: "5天",
+        week: "1周",
+        twoWeeks: "2周",
+        month: "1个月（30天）",
+        twoMonths: "2个月（60天）",
+        threeMonths: "3个月（90天）",
+      },
       expandAll: "全部展开",
       collapseAll: "全部折叠",
+      oneProjectAtATime: "一次展开一个项目",
+      reorderGuidance:
+        "仅在自定义排序下可拖动调整顺序。显示所有项目后，筛选时移动的项目仍位于同一相邻项目之前或之后。置顶项目始终使用手动排序。",
       showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",
@@ -2394,6 +2475,24 @@ export const zhCN: TranslationResources = {
     general: {
       title: "通用",
       sending: "发送",
+      browserExtensions: {
+        title: "扩展程序",
+        compatibility: "部分 Chrome 扩展功能不受支持。扩展程序不会自动更新。",
+        store: "Chrome 应用商店",
+        openStore: "打开应用商店",
+        refresh: "刷新",
+        enable: "启用",
+        disable: "停用",
+        retry: "重试",
+        remove: "移除",
+        removeTitle: "移除 {{name}}？",
+        removeMessage: "这会从 Paseo 中移除扩展程序。未打包的源文件夹将保留。",
+        loading: "正在加载扩展程序...",
+        empty: "尚未安装扩展程序。",
+        unpackedHint: "从包含 manifest.json 的文件夹加载扩展程序。",
+        loadUnpacked: "加载未打包的扩展",
+        unavailable: "扩展功能不可用。请更新桌面应用。",
+      },
       browserData: {
         title: "浏览器数据",
         siteData: "Cookie 和网站数据",

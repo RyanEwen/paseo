@@ -1,3 +1,6 @@
+import { AttachmentStore, ATTACHMENT_LIMITS } from "../attachments/store.js";
+import { AttachmentReferenceSchema } from "@getpaseo/protocol/attachments";
+import { createPaseoToolCatalog } from "./tools/paseo-tools.js";
 import { parseAgentMessage } from "./agent-messages/index.js";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -924,7 +927,12 @@ describe("browser MCP tools", () => {
         height: 600,
       },
     });
-    const server = await createAgentMcpServer({
+    const home = await mkdtemp(join(tmpdir(), "mcp-originals-"));
+    const attachmentStore = await AttachmentStore.create(home, {
+      ...ATTACHMENT_LIMITS,
+      freeBytes: 0,
+    });
+    const options = {
       agentManager: agentManager as AgentManager,
       agentStorage: agentStorage as AgentStorage,
       providerSnapshotManager:
@@ -933,7 +941,9 @@ describe("browser MCP tools", () => {
       browserToolsBroker: broker as BrowserToolsBroker,
       callerAgentId: "agent-1",
       logger,
-    });
+      attachmentStore,
+    };
+    const server = await createAgentMcpServer(options);
     const client = await connectInMemoryMcpClient(server);
 
     try {
@@ -956,11 +966,19 @@ describe("browser MCP tools", () => {
           },
         },
       ]);
+      const reference = z
+        .object({ attachment: AttachmentReferenceSchema })
+        .parse(response.structuredContent).attachment;
       expect(response.content).toEqual([
         { type: "text", text: "Captured browser screenshot (800x600)." },
         { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
+        {
+          type: "text",
+          text: `Original screenshot reference: ${reference.id} (agent ${reference.agentId}).`,
+        },
       ]);
       expect(response.structuredContent).toEqual({
+        attachment: reference,
         ok: true,
         result: {
           command: "screenshot",
@@ -978,9 +996,23 @@ describe("browser MCP tools", () => {
       });
       expect(JSON.stringify(response.structuredContent)).not.toContain("iVBORw0KGgo=");
       expect(JSON.stringify(response.structuredContent)).not.toContain("dataBase64");
+      const native = await createPaseoToolCatalog(options);
+      const nativeResult = await native.executeTool(
+        "browser_screenshot",
+        { browserId: "11111111-1111-4111-8111-111111111111" },
+        {},
+      );
+      expect(
+        z.object({ attachment: AttachmentReferenceSchema }).parse(nativeResult.structuredContent)
+          .attachment,
+      ).toEqual(reference);
+      expect((await attachmentStore.list("agent-1")).references).toEqual([reference]);
+      expect(await attachmentStore.get("agent-1", reference.id)).toEqual(reference);
     } finally {
       await client.close();
       await server.close();
+      await attachmentStore.close();
+      await rm(home, { recursive: true, force: true });
     }
   });
 

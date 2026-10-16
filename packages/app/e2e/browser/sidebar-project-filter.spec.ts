@@ -28,6 +28,11 @@ async function readStoredProjectFilters(page: Page): Promise<string[]> {
   );
 }
 
+/** Read the actual scroll owner so a stationary list cannot satisfy the geometry case. */
+async function readScrollTop(scroll: Locator): Promise<number> {
+  return scroll.evaluate((element) => element.scrollTop);
+}
+
 /** Pick a display option through the same menu on desktop and compact layouts. */
 async function selectDisplayOption(page: Page, section: string, option: string): Promise<void> {
   await openSidebarDisplayPage(page, `sidebar-display-${section}`);
@@ -500,6 +505,82 @@ test("project working count includes pinned workspaces", async ({ page }, testIn
 
 test.describe("Sidebar project selector", () => {
   test.describe.configure({ timeout: 180_000 });
+
+  for (const compact of [false, true]) {
+    test(`workspace controls stay anchored while the list scrolls on ${compact ? "compact" : "desktop"}`, async ({
+      page,
+    }, testInfo) => {
+      const projects: Awaited<ReturnType<typeof seedWorkspace>>[] = [];
+      try {
+        // Plain directories provide enough real rows to overflow without creating worktrees.
+        for (let index = 0; index < 12; index += 1) {
+          projects.push(
+            await seedWorkspace({
+              repoPrefix: `sticky-header-${index}-`,
+              title: `Scroll workspace ${index}`,
+              git: false,
+            }),
+          );
+        }
+        await page.setViewportSize({ width: compact ? 390 : 1280, height: 600 });
+        await gotoAppShell(page);
+        if (compact) await openMobileAgentSidebar(page);
+        await waitForSidebarHydration(page);
+
+        const selector = page.getByTestId("sidebar-project-selector");
+        const display = page.getByTestId("sidebar-display-preferences-menu");
+        const scroll = page.getByTestId("sidebar-project-workspace-list-scroll");
+        const firstProject = page.getByTestId(`sidebar-project-row-${projects[0].projectKey}`);
+        await expect(selector).toHaveText("All Workspaces");
+        await expect(firstProject).toBeVisible();
+        const selectorBefore = await selector.boundingBox();
+        const displayBefore = await display.boundingBox();
+        const projectBefore = await firstProject.boundingBox();
+        if (!selectorBefore || !displayBefore || !projectBefore) {
+          throw new Error("Sidebar controls and rows must have rendered bounds");
+        }
+
+        await scroll.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        await expect.poll(() => readScrollTop(scroll)).toBeGreaterThan(150);
+        await expect
+          .poll(async () => (await firstProject.boundingBox())?.y ?? Infinity)
+          .toBeLessThan(projectBefore.y - 150);
+        await expect(selector).toBeInViewport();
+        await expect(display).toBeInViewport();
+        expect((await selector.boundingBox())?.y).toBeCloseTo(selectorBefore.y, 0);
+        expect((await display.boundingBox())?.y).toBeCloseTo(displayBefore.y, 0);
+        await page.screenshot({
+          path: testInfo.outputPath(
+            `sticky-workspace-header-${compact ? "compact" : "desktop"}.png`,
+          ),
+        });
+        if (!compact) {
+          await expect(page.getByTestId("sidebar-collapse-all")).toBeInViewport();
+          await expect(page.getByTestId("sidebar-expand-all")).toBeInViewport();
+          await page.getByTestId("sidebar-collapse-all").click();
+          await expect(
+            page.getByTestId(`sidebar-workspace-row-${getServerId()}:${projects[0].workspaceId}`),
+          ).toHaveCount(0);
+          await page.getByTestId("sidebar-expand-all").click();
+          await expect(
+            page.getByTestId(`sidebar-workspace-row-${getServerId()}:${projects[0].workspaceId}`),
+          ).toHaveCount(1);
+        }
+        await display.click();
+        await expect(page.getByTestId("sidebar-display-grouping")).toBeVisible();
+        await closeSidebarDisplayPreferences(page);
+        await selector.click();
+        await page
+          .getByTestId(`sidebar-project-selector-${projects[0].projectKey}-checkbox`)
+          .click();
+        await expect.poll(() => readStoredProjectFilters(page)).toEqual([projects[0].projectKey]);
+      } finally {
+        for (const project of projects.toReversed()) await project.cleanup();
+      }
+    });
+  }
 
   for (const compact of [false, true]) {
     test(`preserves multi-selection and filters pinned workspaces on ${compact ? "compact" : "desktop"}`, async ({

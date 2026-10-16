@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isDragGroupOrderValid, reorderItemsOnDragEnd } from "./reorder-items";
+import {
+  describeDragReorderMove,
+  isDragGroupOrderValid,
+  reorderItemsOnDragEnd,
+  reorderItemsWithMove,
+} from "./reorder-items";
 
 const items = ["alpha", "beta", "gamma"];
 const byValue = (item: string): string => item;
@@ -119,4 +124,60 @@ describe("group-bounded dragging", () => {
       ).toBe(false);
     }
   });
+});
+
+describe("actual dragged identity", () => {
+  it("distinguishes opposite active items that produce the same adjacent swap", () => {
+    const down = reorderItemsWithMove({
+      items,
+      activeId: "alpha",
+      overId: "beta",
+      keyExtractor: byValue,
+    });
+    const up = reorderItemsWithMove({
+      items,
+      activeId: "beta",
+      overId: "alpha",
+      keyExtractor: byValue,
+    });
+    expect(down?.items).toEqual(up?.items);
+    expect(down?.move).toEqual({ activeKey: "alpha", overKey: "beta", from: 0, to: 1 });
+    expect(up?.move).toEqual({ activeKey: "beta", overKey: "alpha", from: 1, to: 0 });
+    expect(
+      describeDragReorderMove({ items: down!.items, from: 0, to: 1, keyExtractor: byValue }),
+    ).toEqual(down?.move);
+    expect(
+      describeDragReorderMove({ items: up!.items, from: 1, to: 0, keyExtractor: byValue }),
+    ).toEqual(up?.move);
+  });
+  it.each([
+    [0, 0],
+    [-1, 1],
+    [0, 3],
+    [0, 0.5],
+  ])("does not invent metadata for invalid native indices %s→%s", (from, to) => {
+    expect(describeDragReorderMove({ items, from, to, keyExtractor: byValue })).toBeNull();
+  });
+});
+
+it("requires native from/to metadata to match its original drag snapshot", () => {
+  const reordered = ["beta", "alpha", "gamma"];
+  expect(
+    describeDragReorderMove({
+      items: reordered,
+      originalItems: items,
+      from: 0,
+      to: 1,
+      keyExtractor: byValue,
+    }),
+  ).toEqual({ activeKey: "alpha", overKey: "beta", from: 0, to: 1 });
+  expect(
+    describeDragReorderMove({
+      items: reordered,
+      originalItems: ["gamma", "beta", "alpha"],
+      from: 0,
+      to: 1,
+      keyExtractor: byValue,
+    }),
+  ).toBeNull();
 });

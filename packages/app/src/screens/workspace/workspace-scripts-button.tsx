@@ -1,3 +1,8 @@
+import {
+  WorkspaceBrowserMenuItem,
+  WorkspaceExternalBrowserMenuItem,
+} from "@/workspace/browser/link-menu";
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import { useCallback, useEffect, useMemo, useRef, type ReactElement } from "react";
 import type { GestureResponderEvent } from "react-native";
 import { Pressable, Text, View } from "react-native";
@@ -28,7 +33,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MENU_ITEM_HEIGHT } from "@/components/ui/menu/menu-geometry";
 import { useToast } from "@/contexts/toast-context";
-import { openServiceUrl } from "@/utils/open-service-url";
 import {
   resolveWorkspaceScriptLink,
   type WorkspaceScriptLinkKind,
@@ -393,7 +397,6 @@ function ScriptRow({
   preferredRouteKind,
   onSelectRouteKind,
   onViewTerminal,
-  onOpenUrlInBrowserTab,
 }: ScriptRowProps): ReactElement {
   const { t } = useTranslation();
   const isRunning = script.lifecycle === "running";
@@ -413,11 +416,12 @@ function ScriptRow({
   const showExitBadge = !isRunning && exitCode !== null;
   const closeMenu = useDropdownMenuClose();
 
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const handleOpenService = useCallback(() => {
     if (!selectedLink) return;
     closeMenu();
-    void openServiceUrl(selectedLink.url, { openInApp: onOpenUrlInBrowserTab });
-  }, [selectedLink, closeMenu, onOpenUrlInBrowserTab]);
+    void openPrimary(selectedLink.url);
+  }, [selectedLink, closeMenu, openPrimary]);
 
   const handleView = useCallback(() => {
     if (liveTerminalId) onViewTerminal?.(liveTerminalId);
@@ -521,6 +525,8 @@ function ScriptRow({
       </View>
       {selectedLink ? (
         <View style={styles.hostList}>
+          <WorkspaceBrowserMenuItem url={selectedLink.url} />
+          <WorkspaceExternalBrowserMenuItem url={selectedLink.url} />
           <ServiceLinkRow
             selectedTarget={selectedLink}
             targets={serviceLink.targets}
@@ -541,7 +547,6 @@ export function WorkspaceScriptsButton({
   liveTerminalIds = [],
   onScriptTerminalStarted,
   onViewTerminal,
-  onOpenUrlInBrowserTab,
   hideLabels,
   presentation = "split",
 }: WorkspaceScriptsButtonProps): ReactElement | null {
@@ -721,7 +726,6 @@ export function WorkspaceScriptsButton({
                 preferredRouteKind={preferredRouteKind}
                 onSelectRouteKind={handleSelectRouteKind}
                 onViewTerminal={onViewTerminal}
-                onOpenUrlInBrowserTab={onOpenUrlInBrowserTab}
               />
             ))}
           </DropdownMenuContent>

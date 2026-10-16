@@ -59,41 +59,27 @@ import {
 } from "@/desktop/host";
 import {
   type BrowserViewport,
+  type BrowserRecord,
   createFixedBrowserViewport,
   normalizeWorkspaceBrowserUrl,
   RESPONSIVE_BROWSER_VIEWPORT,
   useBrowserStore,
 } from "@/desktop/browser/store";
 import {
-  applyInactiveBrowserWebviewViewport,
-  prepareBrowserWebview,
-  presentBrowserWebview,
-  rememberBrowserWebviewSize,
-  releaseResidentBrowserWebview,
-  removeResidentBrowserWebview,
-  takeResidentBrowserWebview,
-} from "../resident-webviews";
+  ensureResidentNativeBrowser,
+  presentResidentNativeBrowser,
+  hideResidentNativeBrowser,
+  removeResidentNativeBrowser,
+} from "../resident-native-pages.electron";
+import type { NativeBrowserPage } from "../native-page.electron";
 import {
   createElementSelectorController,
   type BrowserElementSelection,
   type ElementSelectorOutcome,
 } from "./element-selector.electron";
+import { ExtensionsMenu } from "./extensions-menu.electron";
 
-type ElectronWebview = HTMLElement & {
-  canGoBack?: () => boolean;
-  canGoForward?: () => boolean;
-  goBack?: () => void;
-  goForward?: () => void;
-  reload?: () => void;
-  stop?: () => void;
-  loadURL?: (url: string) => Promise<void>;
-  getURL?: () => string;
-  isLoading?: () => boolean;
-  executeJavaScript?: (code: string) => Promise<unknown>;
-  focus?: () => void;
-  addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
-  removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
-};
+type ElectronWebview = NativeBrowserPage;
 
 interface BrowserElementAnnotation {
   comment: string;
@@ -573,12 +559,18 @@ function deviceSizeIdForViewport(viewport: BrowserViewport): DeviceSizeId | null
   );
 }
 
-function rememberResolvedBrowserWebviewSize(browserId: string, webview: HTMLElement): void {
-  const bounds = webview.getBoundingClientRect();
-  rememberBrowserWebviewSize({ browserId, width: bounds.width, height: bounds.height });
+/** Resolve chrome defaults without inventing a persisted tab when its record is absent. */
+function browserPaneValues(browser: BrowserRecord | null) {
+  return {
+    url: browser?.url ?? "https://example.com",
+    viewport: browser?.viewport ?? RESPONSIVE_BROWSER_VIEWPORT,
+    canGoBack: browser?.canGoBack ?? false,
+    canGoForward: browser?.canGoForward ?? false,
+    isLoading: browser?.isLoading ?? false,
+    lastError: browser?.lastError ?? null,
+  };
 }
 
-// eslint-disable-next-line complexity
 export function BrowserPane({
   browserId,
   serverId,
@@ -597,9 +589,11 @@ export function BrowserPane({
   const { theme } = useUnistyles();
   const { t } = useTranslation();
   const browser = useBrowserStore((state) => state.browsersById[browserId] ?? null);
+  const paneValues = browserPaneValues(browser);
   const updateBrowser = useBrowserStore((state) => state.updateBrowser);
   const setBrowserViewport = useBrowserStore((state) => state.setBrowserViewport);
-  const browserViewport = browser?.viewport ?? RESPONSIVE_BROWSER_VIEWPORT;
+  const browserViewport = paneValues.viewport;
+  const [presentationScale, setPresentationScale] = useState(1);
   const browserViewportRef = useRef(browserViewport);
   browserViewportRef.current = browserViewport;
   const isPresented = useRetainedPanelActive();
@@ -609,7 +603,7 @@ export function BrowserPane({
   const webviewHostRef = useRef<HTMLDivElement | null>(null);
   const webviewClipRef = useRef<HTMLElement | null>(null);
   const urlInputRef = useRef<EditingTextInputHandle | null>(null);
-  const initialUrlRef = useRef(browser?.url ?? "https://example.com");
+  const initialUrlRef = useRef(paneValues.url);
   const browserIdRef = useRef(browserId);
   browserIdRef.current = browserId;
   const browserRef = useRef(browser);
@@ -631,7 +625,7 @@ export function BrowserPane({
   // Screenshot is captured at selection time (overlay already torn down, no
   // scroll drift) and reused when the annotation card is submitted.
   const pendingScreenshotRef = useRef<AttachmentMetadata | undefined>(undefined);
-  const [draftUrl, setDraftUrl] = useState(browser?.url ?? "https://example.com");
+  const [draftUrl, setDraftUrl] = useState(paneValues.url);
   const workspaceAttachmentScopeKey = useMemo(
     () => buildBrowserAttachmentScopeKey({ cwd, serverId, workspaceId }),
     [cwd, serverId, workspaceId],
@@ -675,10 +669,10 @@ export function BrowserPane({
   browserErrorLabelsRef.current = browserErrorLabels;
 
   useEffect(() => {
-    const nextUrl = browser?.url ?? "https://example.com";
+    const nextUrl = paneValues.url;
     urlInputRef.current?.replaceText(nextUrl);
     setDraftUrl((current) => (current === nextUrl ? current : nextUrl));
-  }, [browser?.url]);
+  }, [paneValues.url]);
 
   const updateBrowserRef = useRef(updateBrowser);
   updateBrowserRef.current = updateBrowser;
@@ -705,7 +699,7 @@ export function BrowserPane({
     }
 
     try {
-      const currentUrl = webview.getURL?.() ?? webview.getAttribute("src") ?? "";
+      const currentUrl = webview.getURL?.() ?? "";
       const patch = {
         canGoBack: webview.canGoBack?.() ?? false,
         canGoForward: webview.canGoForward?.() ?? false,
@@ -736,38 +730,28 @@ export function BrowserPane({
       initialUrlRef.current,
       browserErrorLabelsRef.current,
     );
-    const residentWebview = takeResidentBrowserWebview(browserId) as ElectronWebview | null;
-    const webview = residentWebview ?? (document.createElement("webview") as ElectronWebview);
+    const webview = ensureResidentNativeBrowser({
+      browserId,
+      workspaceId,
+      url: initialUnsafeNavigationMessage ? "about:blank" : initialUrlRef.current,
+    });
     webviewRef.current = webview;
-    if (!residentWebview) {
-      prepareBrowserWebview(webview, {
-        browserId,
-        workspaceId,
-        initialUrl: initialUnsafeNavigationMessage ? "about:blank" : initialUrlRef.current,
-      });
-    }
-    releaseResidentBrowserWebview(browserId, webview);
-    if (isPresentedRef.current) {
-      presentBrowserWebview(browserId, webview, host, clip, browserViewportRef.current);
-    } else {
-      applyInactiveBrowserWebviewViewport(browserId, webview, browserViewportRef.current);
-    }
+    const syncPresentationScale = () => setPresentationScale(webview.getPresentationScale());
+    syncPresentationScale();
+    webview.addEventListener("presentation-changed", syncPresentationScale);
+    const updatePresentation = () => {
+      const operation = isPresentedRef.current
+        ? presentResidentNativeBrowser(browserId, host, clip, browserViewportRef.current)
+        : hideResidentNativeBrowser(browserId, browserViewportRef.current);
+      void operation.catch((error) =>
+        updateBrowserRef.current(browserId, { lastError: String(error) }),
+      );
+    };
+    updatePresentation();
     const sizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(() => {
-            if (!isPresentedRef.current) {
-              return;
-            }
-            presentBrowserWebview(
-              browserIdRef.current,
-              webview,
-              host,
-              clip,
-              browserViewportRef.current,
-            );
-            rememberResolvedBrowserWebviewSize(browserIdRef.current, webview);
-          });
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePresentation);
+    window.addEventListener("resize", updatePresentation);
+    document.addEventListener("scroll", updatePresentation, true);
 
     const handleStartLoading = () => {
       selectorControllerRef.current?.stopForWebview(webview);
@@ -782,7 +766,7 @@ export function BrowserPane({
       const nextUrl =
         typeof (event as Event & { url?: unknown }).url === "string"
           ? ((event as Event & { url?: string }).url ?? "")
-          : (webview.getURL?.() ?? webview.getAttribute("src") ?? "");
+          : (webview.getURL?.() ?? "");
       const normalized = normalizeWorkspaceBrowserUrl(nextUrl);
       const previousUrl = browserRef.current?.url ?? initialUrlRef.current;
       pendingNavigationUrlRef.current = null;
@@ -873,9 +857,6 @@ export function BrowserPane({
     webview.addEventListener("focus", handleWebviewFocus);
     webview.addEventListener("mousedown", handleWebviewFocus);
 
-    if (isPresentedRef.current) {
-      rememberResolvedBrowserWebviewSize(browserId, webview);
-    }
     sizeObserver?.observe(host);
     sizeObserver?.observe(clip);
     if (initialUnsafeNavigationMessage) {
@@ -886,7 +867,10 @@ export function BrowserPane({
     }
 
     return () => {
+      webview.removeEventListener("presentation-changed", syncPresentationScale);
       sizeObserver?.disconnect();
+      window.removeEventListener("resize", updatePresentation);
+      document.removeEventListener("scroll", updatePresentation, true);
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);
       webview.removeEventListener("will-navigate", handleWillNavigate);
@@ -902,9 +886,9 @@ export function BrowserPane({
         useBrowserStore.getState().browsersById[browserIdRef.current],
       );
       if (browserStillExists) {
-        releaseResidentBrowserWebview(browserIdRef.current, webview);
+        void hideResidentNativeBrowser(browserId).catch(console.error);
       } else {
-        removeResidentBrowserWebview(browserIdRef.current);
+        void removeResidentNativeBrowser(browserId).catch(console.error);
       }
       selectorControllerRef.current?.stopForWebview(webview);
       if (webviewRef.current === webview) {
@@ -920,22 +904,15 @@ export function BrowserPane({
       return;
     }
     if (!isPresented) {
-      releaseResidentBrowserWebview(browserId, webview);
+      void hideResidentNativeBrowser(browserId, browserViewport).catch(console.error);
       return;
     }
     const host = webviewHostRef.current;
     const clip = webviewClipRef.current;
     if (host && clip) {
-      presentBrowserWebview(browserId, webview, host, clip, browserViewport);
-    }
-    if (browserViewport.mode === "fixed") {
-      rememberBrowserWebviewSize({
-        browserId,
-        width: browserViewport.width,
-        height: browserViewport.height,
-      });
-    } else {
-      rememberResolvedBrowserWebviewSize(browserId, webview);
+      void presentResidentNativeBrowser(browserId, host, clip, browserViewport).catch(
+        console.error,
+      );
     }
   }, [browserId, browserViewport, isPresented]);
 
@@ -973,9 +950,6 @@ export function BrowserPane({
         });
         return;
       }
-      if (webview) {
-        webview.setAttribute("src", normalizedUrl);
-      }
     },
     [browserErrorLabels],
   );
@@ -991,13 +965,13 @@ export function BrowserPane({
   }, [syncNavigationState]);
 
   const handleRefresh = useCallback(() => {
-    if (browser?.isLoading) {
+    if (paneValues.isLoading) {
       webviewRef.current?.stop?.();
       updateBrowser(browserId, { isLoading: false });
       return;
     }
     webviewRef.current?.reload?.();
-  }, [browser?.isLoading, browserId, updateBrowser]);
+  }, [paneValues.isLoading, browserId, updateBrowser]);
 
   useEffect(() => {
     if (!isElectronRuntime() || !isInteractive) {
@@ -1342,17 +1316,17 @@ export function BrowserPane({
     ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
       styles.iconButton,
       (hovered || pressed) && styles.iconButtonHovered,
-      !browser?.canGoBack && styles.iconButtonDisabled,
+      !paneValues.canGoBack && styles.iconButtonDisabled,
     ],
-    [browser?.canGoBack],
+    [paneValues.canGoBack],
   );
   const forwardIconButtonStyle = useCallback(
     ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
       styles.iconButton,
       (hovered || pressed) && styles.iconButtonHovered,
-      !browser?.canGoForward && styles.iconButtonDisabled,
+      !paneValues.canGoForward && styles.iconButtonDisabled,
     ],
-    [browser?.canGoForward],
+    [paneValues.canGoForward],
   );
   const annotateIconButtonStyle = useCallback(
     ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
@@ -1404,15 +1378,17 @@ export function BrowserPane({
             background: theme.colors.surface0,
           }
         : {
-            // Fixed-size device frame, centered within webviewWrap (see styles).
+            // The DOM frame must retain the same full extent as the native page.
+            // Flex shrinking would move its center and shadow inside a small pane.
             display: "flex",
-            width: browserViewport.width,
-            height: browserViewport.height,
+            flexShrink: 0,
+            width: browserViewport.width * presentationScale,
+            height: browserViewport.height * presentationScale,
             minHeight: 0,
             background: theme.colors.surface0,
             boxShadow: "0 2px 16px rgba(0,0,0,0.25)",
           },
-    [browserViewport, isResponsiveDevice, theme.colors.surface0],
+    [browserViewport, isResponsiveDevice, presentationScale, theme.colors.surface0],
   );
 
   const webviewWrapStyle = useMemo(
@@ -1443,7 +1419,7 @@ export function BrowserPane({
         <View style={styles.chromeLeft}>
           <ToolbarButton
             label={t("workspace.browser.controls.back")}
-            disabled={!browser?.canGoBack}
+            disabled={!paneValues.canGoBack}
             onPress={handleBack}
             style={backIconButtonStyle}
           >
@@ -1451,7 +1427,7 @@ export function BrowserPane({
           </ToolbarButton>
           <ToolbarButton
             label={t("workspace.browser.controls.forward")}
-            disabled={!browser?.canGoForward}
+            disabled={!paneValues.canGoForward}
             onPress={handleForward}
             style={forwardIconButtonStyle}
           >
@@ -1459,7 +1435,7 @@ export function BrowserPane({
           </ToolbarButton>
           <ToolbarButton
             label={
-              browser?.isLoading
+              paneValues.isLoading
                 ? t("workspace.browser.controls.stopLoading")
                 : t("workspace.browser.controls.refresh")
             }
@@ -1485,6 +1461,11 @@ export function BrowserPane({
           />
         </View>
         <View style={styles.chromeRight}>
+          <ExtensionsMenu
+            browserId={browserId}
+            triggerStyle={baseIconButtonStyle}
+            tooltipTextStyle={styles.toolbarTooltipText}
+          />
           <DeviceSizeMenu
             selectedId={selectedDeviceSizeId}
             onSelect={handleSelectDeviceSize}
@@ -1533,10 +1514,10 @@ export function BrowserPane({
           </ToolbarButton>
         </View>
       </View>
-      {browser?.lastError ? (
+      {paneValues.lastError ? (
         <View style={styles.errorRow}>
           <Text numberOfLines={1} style={errorTextStyle}>
-            {browser.lastError}
+            {paneValues.lastError}
           </Text>
         </View>
       ) : null}

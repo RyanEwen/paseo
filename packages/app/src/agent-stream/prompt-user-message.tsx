@@ -1,3 +1,4 @@
+import { useActualPromptPresentation } from "./use-actual-prompt-presentation";
 import type { TextLayoutEvent } from "react-native";
 import {
   PromptBubbleGeometryContext,
@@ -13,6 +14,7 @@ export const PromptUserMessage = memo(function PromptUserMessage({
   timelineMessageId,
   ...props
 }: ComponentProps<typeof UserMessage> & { timelineMessageId: string }) {
+  const presentation = useActualPromptPresentation(timelineMessageId, props);
   const pixelOwner = useContext(PromptPixelOwnerContext);
   const copyMask = pixelOwner?.id === timelineMessageId ? pixelOwner : undefined;
   const geometry = useContext(PromptBubbleGeometryContext);
@@ -46,6 +48,8 @@ export const PromptUserMessage = memo(function PromptUserMessage({
       bubbleRef={geometry ? registerBubble : undefined}
       onBubbleLayout={geometry ? onBubbleLayout : undefined}
       navigationActions={actions}
+      keepActionsVisible={navigation?.actionVisibleMessageId === timelineMessageId}
+      {...presentation}
     />
   );
 });

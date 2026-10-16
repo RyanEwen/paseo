@@ -35,6 +35,26 @@ describe("passthrough CLI", () => {
     ).toBeNull();
   });
 
+  it("opens the GUI for the Windows installer update completion flag", () => {
+    expect(
+      parsePassthroughCliArgs({
+        argv: ["C:\\Program Files\\Paseo++\\Paseo++.exe", "--updated"],
+        isDefaultApp: false,
+        forceCli: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps CLI arguments when the installer update flag is present", () => {
+    expect(
+      parsePassthroughCliArgs({
+        argv: ["Paseo++.exe", "--updated", "daemon", "status"],
+        isDefaultApp: false,
+        forceCli: true,
+      }),
+    ).toEqual(["daemon", "status"]);
+  });
+
   it("ignores macOS GUI launch arguments", () => {
     expect(
       parsePassthroughCliArgs({

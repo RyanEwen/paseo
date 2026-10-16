@@ -1,3 +1,5 @@
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import React, { useCallback, useMemo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -10,7 +12,6 @@ import {
   type ClientForgeViewModule,
   type PaneChecksSlotContext,
 } from "@/git/client-forge-module";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { formatDuration } from "@/utils/time";
 import { COUNTED_CHECK_PRESENTATIONS } from "@/git/check-presentation";
 import { CheckPresentationIcon } from "@/git/check-presentation.view";
@@ -115,6 +116,7 @@ function GitLabPipelineSection({
   onToggle: () => void;
   canFetchCheckDetails: boolean;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const { pipeline, isLoading, isPlaceholderData, error } = useGitLabPipeline({
     serverId,
@@ -136,9 +138,9 @@ function GitLabPipelineSection({
 
   const handleOpenPipeline = useCallback(() => {
     if (summary.url) {
-      void openExternalUrl(summary.url);
+      void openPrimary(summary.url);
     }
-  }, [summary.url]);
+  }, [summary.url, openPrimary]);
 
   const sectionSummary = (
     <>
@@ -161,27 +163,29 @@ function GitLabPipelineSection({
       onToggle={onToggle}
       summary={sectionSummary}
     >
-      <Pressable
-        onPress={handleOpenPipeline}
-        style={rowPressableStyle}
-        disabled={!summary.url}
-        testID="pr-pane-pipeline-link"
-      >
-        <GitLabPipelineStatusIcon status={summary.rawStatus} />
-        <Text style={sectionKitStyles.checkName} numberOfLines={1}>
-          {`Pipeline #${summary.id}`}
-        </Text>
-        {summary.rawStatus ? (
-          <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
-            {summary.rawStatus}
+      <WorkspaceHttpLinkMenu url={summary.url}>
+        <Pressable
+          onPress={handleOpenPipeline}
+          style={rowPressableStyle}
+          disabled={!summary.url}
+          testID="pr-pane-pipeline-link"
+        >
+          <GitLabPipelineStatusIcon status={summary.rawStatus} />
+          <Text style={sectionKitStyles.checkName} numberOfLines={1}>
+            {`Pipeline #${summary.id}`}
           </Text>
-        ) : null}
-        {summary.url ? (
-          <View style={sectionKitStyles.checkTrailing}>
-            <ThemedExternalLink size={12} uniProps={foregroundMutedColorMapping} />
-          </View>
-        ) : null}
-      </Pressable>
+          {summary.rawStatus ? (
+            <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
+              {summary.rawStatus}
+            </Text>
+          ) : null}
+          {summary.url ? (
+            <View style={sectionKitStyles.checkTrailing}>
+              <ThemedExternalLink size={12} uniProps={foregroundMutedColorMapping} />
+            </View>
+          ) : null}
+        </Pressable>
+      </WorkspaceHttpLinkMenu>
       {isLoading ? (
         <Text style={sectionKitStyles.emptyText}>
           {t("workspace.git.pr.empty.loadingPipeline")}
@@ -219,28 +223,31 @@ function PipelineStageGroup({ stage }: { stage: CheckoutPipelineStage }) {
 }
 
 function PipelineJobRow({ job }: { job: CheckoutPipelineJob }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const handlePress = useCallback(() => {
     if (job.url) {
-      void openExternalUrl(job.url);
+      void openPrimary(job.url);
     }
-  }, [job.url]);
+  }, [job.url, openPrimary]);
   const duration = formatPipelineDuration(job.durationSeconds);
   return (
-    <Pressable onPress={handlePress} style={jobRowPressableStyle} disabled={!job.url}>
-      <GitLabPipelineStatusIcon status={job.status} allowFailure={job.allowFailure} />
-      <Text style={sectionKitStyles.checkName} numberOfLines={1}>
-        {job.name}
-      </Text>
-      {job.allowFailure ? (
-        <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
-          {t("workspace.git.pr.empty.allowedToFail")}
+    <WorkspaceHttpLinkMenu url={job.url}>
+      <Pressable onPress={handlePress} style={jobRowPressableStyle} disabled={!job.url}>
+        <GitLabPipelineStatusIcon status={job.status} allowFailure={job.allowFailure} />
+        <Text style={sectionKitStyles.checkName} numberOfLines={1}>
+          {job.name}
         </Text>
-      ) : null}
-      <View style={sectionKitStyles.checkTrailing}>
-        {duration ? <Text style={sectionKitStyles.checkDuration}>{duration}</Text> : null}
-      </View>
-    </Pressable>
+        {job.allowFailure ? (
+          <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
+            {t("workspace.git.pr.empty.allowedToFail")}
+          </Text>
+        ) : null}
+        <View style={sectionKitStyles.checkTrailing}>
+          {duration ? <Text style={sectionKitStyles.checkDuration}>{duration}</Text> : null}
+        </View>
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

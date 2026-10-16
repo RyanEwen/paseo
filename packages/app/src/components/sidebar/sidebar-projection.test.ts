@@ -692,3 +692,71 @@ describe("project activity summaries", () => {
     ).toBe("done");
   });
 });
+
+it("sorts Done before empty/unknown project status while preserving known priorities and stable ties", () => {
+  const waiting = makeWorkspace("waiting", "needs_input");
+  const failed = makeWorkspace("failed", "failed");
+  const attention = makeWorkspace("attention", "attention");
+  const running = makeWorkspace("running", "running");
+  const doneA = makeWorkspace("done-a", "done");
+  const doneB = makeWorkspace("done-b", "done");
+  const unknown = makeWorkspace("unknown", "done");
+  const entries = new Map(
+    [waiting, failed, attention, running, doneA, doneB].map((item) => [
+      item.entry.workspaceKey,
+      item.entry,
+    ]),
+  );
+  const projects = [
+    makeProject([], "empty"),
+    makeProject([unknown.placement], "unknown"),
+    makeProject([doneB.placement], "done-b"),
+    makeProject([running.placement], "running"),
+    makeProject([attention.placement], "attention"),
+    makeProject([failed.placement], "failed"),
+    makeProject([waiting.placement], "waiting"),
+    makeProject([doneA.placement], "done-a"),
+  ];
+  const activity = summarizeSidebarProjectActivity(projects, entries, new Map([["srv", "online"]]));
+  expect(
+    arrangeSidebarProjects({
+      projects,
+      mode: "status",
+      entries,
+      projectNames: new Map(),
+      projectActivity: activity,
+    }).map((project) => project.viewKey),
+  ).toEqual(["waiting", "failed", "attention", "running", "done-b", "done-a", "empty", "unknown"]);
+  expect(projects[0]!.viewKey).toBe("empty");
+});
+
+it("places a cached offline project after online Done using the same activity as its no-status badge", () => {
+  const offline = makeWorkspace("cached", "running");
+  offline.placement.serverId = "offline";
+  const done = makeWorkspace("done", "done");
+  const entries = new Map([
+    [offline.entry.workspaceKey, offline.entry],
+    [done.entry.workspaceKey, done.entry],
+  ]);
+  const projects = [
+    makeProject([offline.placement], "offline"),
+    makeProject([done.placement], "done"),
+  ];
+  const activity = summarizeSidebarProjectActivity(
+    projects,
+    entries,
+    new Map([
+      ["srv", "online"],
+      ["offline", "offline"],
+    ]),
+  );
+  expect(
+    arrangeSidebarProjects({
+      projects,
+      mode: "status",
+      entries,
+      projectNames: new Map(),
+      projectActivity: activity,
+    }).map((project) => project.viewKey),
+  ).toEqual(["done", "offline"]);
+});

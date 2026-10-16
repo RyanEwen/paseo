@@ -1,3 +1,4 @@
+import { PREFERENCE_EXAMPLE_IMAGES } from "@/paseo-plus-plus/settings-examples";
 import { SettingsExample } from "@/components/settings/settings-example";
 import { DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT } from "@/hooks/use-settings/storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,6 +39,7 @@ export function SidebarLimitSection() {
         <SettingsExample
           title={t("paseoPlusPlus.workspaceLimit.label")}
           caption={t("paseoPlusPlus.examples.workspaceLimit")}
+          images={PREFERENCE_EXAMPLE_IMAGES.workspaceLimit}
           testID="settings-example-workspace-limit-mode"
         />
       ),
@@ -45,6 +47,7 @@ export function SidebarLimitSection() {
         <SettingsExample
           title={t("paseoPlusPlus.workspaceLimit.count")}
           caption={t("paseoPlusPlus.examples.workspaceLimit")}
+          images={PREFERENCE_EXAMPLE_IMAGES.workspaceLimit}
           testID="settings-example-workspace-limit-count"
         />
       ),

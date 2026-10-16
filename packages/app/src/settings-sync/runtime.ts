@@ -1,3 +1,5 @@
+import { normalizeRemoteSidebarModes } from "./sidebar-values";
+import { createSyncedSidebarSettingsSave } from "./sidebar-edits";
 import type { QueryClient } from "@tanstack/react-query";
 import { SYNC_APP_SETTING_KEYS, SYNC_SIDEBAR_SETTING_KEYS } from "@getpaseo/protocol/app-settings";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -12,15 +14,49 @@ import {
 import { loadAppSettingsFromStorage } from "@/hooks/use-settings";
 import {
   useSidebarViewStore,
-  migrateSidebarViewState,
-  subscribeSidebarPreferenceEdits,
+  installSidebarPreferenceCommitter,
+  initializeSidebarModePreferences,
+  projectSidebarMode,
 } from "@/stores/sidebar-view-store";
+import { exportLegacySidebarPresentation } from "@/stores/sidebar-mode-preferences";
 import { DEFAULT_DESKTOP_SETTINGS } from "@/desktop/settings/desktop-settings";
-import { isSettingsObject, settingsDiff } from "@getpaseo/protocol/app-settings-values";
+import { isSettingsObject } from "@getpaseo/protocol/app-settings-values";
 import { SettingsSyncModel } from "./model";
 
+import { selectHostFeature } from "@/runtime/host-features";
+import { useSessionStore } from "@/stores/session-store";
+import {
+  selectAccentColorSupport,
+  exportSupportedAccentSettings,
+} from "@/appearance/accent-support";
+
 const STORAGE_KEY = "app-settings-sync";
-const SIDEBAR_KEYS = SYNC_SIDEBAR_SETTING_KEYS;
+const SIDEBAR_KEYS = ["groupMode", "modeProfiles"] as const;
+const LEGACY_PRESENTATION_KEYS = new Set([
+  "workspaceTitleSource",
+  "sidebarInitialWorkspaceCount",
+  "sidebarWorkspaceTrailing",
+  "sidebarRowItems",
+  "sidebarChecksDisplay",
+]);
+export function sidebarModeProfilesSupported(): boolean {
+  const host = settingsSync.getState().selectedHost;
+  // COMPAT(appSettingsSidebarModeProfiles): added in v0.11.2, remove after 2027-10-16.
+  return (
+    host === null ||
+    selectHostFeature(useSessionStore.getState(), host, "appSettingsSidebarModeProfiles")
+  );
+}
+export async function initializeDeviceSidebarModes(): Promise<void> {
+  await queryClient.getQueryCache().find({ queryKey: APP_SETTINGS_QUERY_KEY })?.promise;
+  const settings =
+    queryClient.getQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY) ??
+    (await loadAppSettingsFromStorage());
+  if (!useSidebarViewStore.persist.hasHydrated()) await useSidebarViewStore.persist.rehydrate();
+  if (!useSidebarViewStore.persist.hasHydrated())
+    throw new Error("Unable to load saved sidebar preferences");
+  initializeSidebarModePreferences(settings);
+}
 const deps: SettingsDeps = {
   storage: AsyncStorage,
   desktop: {
@@ -29,17 +65,22 @@ const deps: SettingsDeps = {
     migrateLegacyDesktopSettings: async () => {},
   },
 };
-let applying = false;
 
-/** Known preferences only. Credentials, host selection, layouts and drafts never enter this blob. */
-export async function getDeviceSettingsValues(): Promise<Record<string, unknown>> {
+/**
+ * Read known preferences, excluding credentials, host selection, layouts and drafts.
+ * Backup preserves every choice; publish alone omits a field unsupported by the chosen host.
+ */
+export async function getDeviceSettingsValues(
+  purpose: "backup" | "publish" = "backup",
+): Promise<Record<string, unknown>> {
   await queryClient.getQueryCache().find({ queryKey: APP_SETTINGS_QUERY_KEY })?.promise;
   const settings =
     queryClient.getQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY) ??
     (await loadAppSettingsFromStorage());
+  await initializeDeviceSidebarModes();
   const app: Record<string, unknown> = {};
   for (const key of SYNC_APP_SETTING_KEYS satisfies readonly (keyof AppSettings)[])
-    app[key] = settings[key];
+    if (!LEGACY_PRESENTATION_KEYS.has(key)) app[key] = settings[key];
   app.usage = { displayAs: settings.usage.displayAs, pins: settings.usage.pins };
   if (!useSidebarViewStore.persist.hasHydrated()) {
     await useSidebarViewStore.persist.rehydrate();
@@ -49,7 +90,19 @@ export async function getDeviceSettingsValues(): Promise<Record<string, unknown>
   const state = useSidebarViewStore.getState();
   const sidebar: Record<string, unknown> = {};
   for (const key of SIDEBAR_KEYS) sidebar[key] = state[key];
-  return { app, sidebar };
+  if (purpose === "backup") return { app, sidebar };
+  if (!sidebarModeProfilesSupported()) {
+    delete sidebar.modeProfiles;
+    for (const key of SYNC_SIDEBAR_SETTING_KEYS) {
+      if (key !== "modeProfiles") sidebar[key] = state[key];
+    }
+    Object.assign(app, exportLegacySidebarPresentation(state.modeProfiles[state.groupMode]));
+  }
+  const supported = selectAccentColorSupport(
+    useSessionStore.getState(),
+    settingsSync.getState().selectedHost,
+  );
+  return { app: exportSupportedAccentSettings(app, supported), sidebar };
 }
 
 /** Project host values through the existing normalization and durable app write path. */
@@ -63,16 +116,17 @@ async function applyValues(values: Record<string, unknown>): Promise<void> {
     updates: (current) => ({ ...app, usage: { ...app.usage, serverId: current.usage.serverId } }),
     deps,
   });
-  const sidebar = migrateSidebarViewState(isSettingsObject(values.sidebar) ? values.sidebar : {});
-  const patch: Record<string, unknown> = {};
-  for (const key of SIDEBAR_KEYS) patch[key] = sidebar[key];
-  // Suppress only our synchronous projection. User actions during the async write stay queued.
-  applying = true;
-  try {
-    useSidebarViewStore.setState(patch);
-  } finally {
-    applying = false;
-  }
+  const sidebar = normalizeRemoteSidebarModes(values.sidebar, app);
+  const modeProfiles = sidebar.modeProfiles;
+  const patch = {
+    ...projectSidebarMode({
+      ...sidebar,
+      modeProfiles,
+      localModeFilters: useSidebarViewStore.getState().localModeFilters,
+    }),
+    modeProfilesInitialized: true,
+  };
+  useSidebarViewStore.setState(patch);
 }
 
 export const settingsSync = new SettingsSyncModel({
@@ -85,30 +139,15 @@ export const settingsSync = new SettingsSyncModel({
   applyValues,
 });
 
-/** Sidebar actions already own their persisted store. Forward only intentional changed leaves. */
+/** Serialize commands before projection; failed durable writes never roll back newer UI state. */
 export function observeSidebarSettingsEdits(): () => void {
-  return subscribeSidebarPreferenceEdits((next, previous) => {
-    if (applying || settingsSync.getState().selectedHost === null) return;
-    const before: Record<string, unknown> = {};
-    const after: Record<string, unknown> = {};
-    for (const key of SIDEBAR_KEYS) {
-      before[key] = previous[key];
-      after[key] = next[key];
-    }
-    const patches = settingsDiff(
-      { sidebar: before },
-      { sidebar: after },
-      settingsSync.getSnapshot(),
-    );
-    if (!patches.length) return;
-    void settingsSync.edit(patches).catch(() => {
-      applying = true;
-      const restore: Record<string, unknown> = {};
-      for (const key of SIDEBAR_KEYS) restore[key] = previous[key];
-      useSidebarViewStore.setState(restore);
-      applying = false;
-    });
-  });
+  return installSidebarPreferenceCommitter(
+    createSyncedSidebarSettingsSave(
+      settingsSync,
+      useSidebarViewStore,
+      sidebarModeProfilesSupported,
+    ),
+  );
 }
 
 /** The report host stays local even when the rest of Usage preferences sync. */

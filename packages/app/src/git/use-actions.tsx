@@ -1,3 +1,4 @@
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import { useState, useCallback, useEffect, useMemo, type ReactElement } from "react";
 import { Info } from "lucide-react-native";
 import { withUnistyles } from "react-native-unistyles";
@@ -19,7 +20,6 @@ import {
 } from "@/git/policy";
 import { deriveMergeCapability } from "@/git/merge-capability";
 import type { CheckoutPrMergeMethod } from "@getpaseo/protocol/messages";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { useToast } from "@/contexts/toast-context";
 import { useSessionStore, type WorkspaceDescriptor } from "@/stores/session-store";
 import {
@@ -75,10 +75,6 @@ function renderForgePrIcon(forge: Forge): ReactElement {
 
 function forgeVocabulary(forge: Forge): { context: "mr" | undefined } {
   return { context: getForgePresentation(forge).changeRequestContext };
-}
-
-function openURLInNewTab(url: string): void {
-  void openExternalUrl(url);
 }
 
 function isActionDisabled(actionsDisabled: boolean, status: CheckoutGitActionStatus): boolean {
@@ -313,6 +309,7 @@ function useWorkspaceScreenArchiveController({
 }
 
 export function useGitActions({ serverId, cwd, icons }: UseGitActionsInput): UseGitActionsResult {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const toast = useToast();
   const activeWorkspaceSelection = useActiveWorkspaceSelection();
@@ -670,11 +667,11 @@ export function useGitActions({ serverId, cwd, icons }: UseGitActionsInput): Use
 
   const handlePrAction = useCallback(() => {
     if (prStatus?.url) {
-      openURLInNewTab(prStatus.url);
+      void openPrimary(prStatus.url);
       return;
     }
     handleCreatePr();
-  }, [prStatus?.url, handleCreatePr]);
+  }, [prStatus?.url, handleCreatePr, openPrimary]);
 
   // Build actions
   const gitActionsInput = useMemo<BuildGitActionsInput>(() => {

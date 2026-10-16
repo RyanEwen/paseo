@@ -1,10 +1,11 @@
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, Text, View, type GestureResponderEvent } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, MessageSquarePlus } from "lucide-react-native";
 import { Button } from "@/components/ui/button";
-import { openExternalUrl } from "@/utils/open-external-url";
 import { ICON_SIZE } from "@/styles/theme";
 import { classifyCheck, type CheckPresentation } from "@/git/check-presentation";
 import { CheckPresentationIcon } from "@/git/check-presentation.view";
@@ -189,10 +190,11 @@ function CheckRow({
   isAddingLogsToChat: boolean;
   onAddLogsToChat: (check: PrPaneCheck) => void;
 }) {
+  const { openPrimary } = useWorkspaceLinkOpeningContext();
   const { t } = useTranslation();
   const handlePress = useCallback(() => {
-    void openExternalUrl(check.url);
-  }, [check.url]);
+    void openPrimary(check.url);
+  }, [check.url, openPrimary]);
   const handleAddLogsToChat = useCallback(
     (event: GestureResponderEvent) => {
       event.stopPropagation();
@@ -201,34 +203,36 @@ function CheckRow({
     [check, onAddLogsToChat],
   );
   return (
-    <Pressable onPress={handlePress} style={rowPressableStyle} testID="pr-pane-check-row">
-      <CheckPresentationIcon presentation={classifyCheck(check)} size={14} />
-      <Text style={sectionKitStyles.checkName} numberOfLines={1}>
-        {check.name}
-      </Text>
-      {check.workflow && (
-        <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
-          {check.workflow}
+    <WorkspaceHttpLinkMenu url={check.url}>
+      <Pressable onPress={handlePress} style={rowPressableStyle} testID="pr-pane-check-row">
+        <CheckPresentationIcon presentation={classifyCheck(check)} size={14} />
+        <Text style={sectionKitStyles.checkName} numberOfLines={1}>
+          {check.name}
         </Text>
-      )}
-      <View style={sectionKitStyles.checkTrailing}>
-        {attachEnabled && canAddPullRequestCheckLogsToChat(check) ? (
-          <Button
-            variant="ghost"
-            size="xs"
-            leftIcon={MessageSquarePlus}
-            loading={isAddingLogsToChat}
-            onPress={handleAddLogsToChat}
-            style={styles.addButton}
-          >
-            {isAddingLogsToChat
-              ? t("workspace.git.pr.actions.addingToChat")
-              : t("workspace.git.pr.actions.addToChat")}
-          </Button>
-        ) : null}
-        {check.timing && <Text style={sectionKitStyles.checkDuration}>{check.timing}</Text>}
-      </View>
-    </Pressable>
+        {check.workflow && (
+          <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
+            {check.workflow}
+          </Text>
+        )}
+        <View style={sectionKitStyles.checkTrailing}>
+          {attachEnabled && canAddPullRequestCheckLogsToChat(check) ? (
+            <Button
+              variant="ghost"
+              size="xs"
+              leftIcon={MessageSquarePlus}
+              loading={isAddingLogsToChat}
+              onPress={handleAddLogsToChat}
+              style={styles.addButton}
+            >
+              {isAddingLogsToChat
+                ? t("workspace.git.pr.actions.addingToChat")
+                : t("workspace.git.pr.actions.addToChat")}
+            </Button>
+          ) : null}
+          {check.timing && <Text style={sectionKitStyles.checkDuration}>{check.timing}</Text>}
+        </View>
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

@@ -1,3 +1,5 @@
+import { getOriginalPromptTop } from "./actual-prompt-pin.web";
+import type { PromptJumpPlacement } from "./prompt-jump-placement";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { Virtualizer } from "@tanstack/react-virtual";
@@ -40,6 +42,7 @@ export function useScrollToMessage({
   onSettled,
   onStarted,
 }: UseScrollToMessageInput) {
+  const placementRef = useRef<PromptJumpPlacement>("original");
   const occurrenceRef = useRef<ScrollToMessageOccurrence | undefined>(undefined);
   const removeAbortListener = useRef<(() => void) | null>(null);
   const settled = useStableEvent(onSettled);
@@ -70,7 +73,11 @@ export function useScrollToMessage({
             const target = scrollContainerRef.current?.querySelector<HTMLElement>(
               `[data-message-id="${CSS.escape(messageId)}"]`,
             );
-            return target ? target.getBoundingClientRect().top : null;
+            const measuredTarget =
+              placementRef.current === "pinned"
+                ? target?.querySelector<HTMLElement>('[data-testid="user-message-bubble"]')
+                : target;
+            return measuredTarget ? getOriginalPromptTop(measuredTarget) : null;
           },
           estimateTargetTop(messageId) {
             // Find occurrences own their exact target; a message-row estimate must
@@ -130,7 +137,12 @@ export function useScrollToMessage({
   }, [active, settleController]);
 
   const scrollToMessage = useCallback(
-    (messageId: string, occurrence?: ScrollToMessageOccurrence) => {
+    (
+      messageId: string,
+      occurrence?: ScrollToMessageOccurrence,
+      placement: PromptJumpPlacement = "original",
+    ) => {
+      placementRef.current = placement;
       occurrenceRef.current = occurrence;
       removeAbortListener.current?.();
       const cancel = () => settleController.cancel();
@@ -144,6 +156,7 @@ export function useScrollToMessage({
 
       started();
       settleController.start(messageId, {
+        placement,
         smooth: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
       });
       onNearBottomChange(false);

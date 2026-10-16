@@ -2,9 +2,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { loadConfig, resolveBundledWebUiDistDir, resolveConfigFromPersisted } from "./config.js";
+import { resolveDaemonDistribution } from "./daemon-distribution.js";
+import { daemonLaunchEnvironment } from "./config-environment.js";
 import { loadPersistedConfig } from "./persisted-config.js";
 
 const roots: string[] = [];
@@ -214,4 +216,63 @@ test("loads private plugin registry settings through the configuration boundary"
   } finally {
     await rm(home, { recursive: true, force: true });
   }
+});
+
+describe("packaged desktop managed defaults", () => {
+  afterEach(() => {
+    vi.doUnmock("./daemon-distribution.js");
+    vi.resetModules();
+  });
+
+  test.each([
+    { paseoPreview: true, port: 6790 },
+    { paseoDebug: true, port: 6791 },
+  ])("initializes and preserves real persisted settings for port $port", async (metadata) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "paseo-packaged-config-"));
+    try {
+      const asar = path.join(root, "app.asar");
+      const server = path.join(asar, "node_modules", "@getpaseo", "server");
+      await mkdir(server, { recursive: true });
+      await writeFile(
+        path.join(asar, "package.json"),
+        JSON.stringify({ name: "paseo-plus-plus", ...metadata }),
+      );
+      const distribution = resolveDaemonDistribution(
+        pathToFileURL(path.join(server, "dist", "daemon-distribution.js")).href,
+      );
+      vi.resetModules();
+      vi.doMock("./daemon-distribution.js", () => ({ daemonDistribution: distribution }));
+      const { loadConfig: loadPackagedConfig } = await import("./config.js");
+      const { loadPersistedConfig: readPackagedConfig } = await import("./persisted-config.js");
+      const home = path.join(root, "home");
+      await mkdir(home);
+      const env = daemonLaunchEnvironment({
+        mode: "managed",
+        desktopManaged: true,
+        home,
+        env: { PASEO_LISTEN: "127.0.0.1:6767", PORT: "6767" },
+      });
+      expect(env.PASEO_LISTEN).toBeUndefined();
+      expect(env.PORT).toBeUndefined();
+      expect(env.PASEO_HOME).toBe(home);
+      const expected = `127.0.0.1:${metadata.port}`;
+      expect(loadPackagedConfig(home, { env }).listen).toBe(expected);
+      expect(readPackagedConfig(home).daemon?.listen).toBe(expected);
+      await writeFile(path.join(home, "config.json"), JSON.stringify({ daemon: {} }));
+      expect(loadPackagedConfig(home, { env }).listen).toBe(expected);
+      await writeFile(
+        path.join(home, "config.json"),
+        JSON.stringify({ daemon: { listen: "127.0.0.1:6767" } }),
+      );
+      expect(loadPackagedConfig(home, { env }).listen).toBe("127.0.0.1:6767");
+      const deployment = daemonLaunchEnvironment({
+        mode: "deployment",
+        home,
+        env: { PASEO_LISTEN: "127.0.0.1:7001" },
+      });
+      expect(loadPackagedConfig(home, { env: deployment }).listen).toBe("127.0.0.1:7001");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

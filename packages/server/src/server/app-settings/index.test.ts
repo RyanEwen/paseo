@@ -123,3 +123,64 @@ it("rejects Usage host selection and parent replacement while preserving histori
     app: { usage: { serverId: "legacy-host", displayAs: "remaining", futureChoice: true } },
   });
 });
+
+it("durably stores accent choices alongside independent appearance preferences", async () => {
+  const { home, store } = await createStore();
+  await store.patch(
+    [theme("auto"), { path: ["app", "accentColor"], value: "purple", expectedRevision: 0 }],
+    true,
+  );
+  await store.patch([theme("light", 1)]);
+  expect((await new AppSettingsStore(home).read()).values).toEqual({
+    app: { theme: "light", accentColor: "purple" },
+  });
+});
+
+it("stores independent sidebar profile leaves atomically without removing legacy client fields", async () => {
+  const { home, store } = await createStore();
+  await store.patch(
+    [
+      { path: ["sidebar", "sortMode"], value: "custom", expectedRevision: 0 },
+      { path: ["sidebar", "groupMode"], value: "project", expectedRevision: 0 },
+    ],
+    true,
+  );
+  const result = await store.patch([
+    {
+      path: ["sidebar", "modeProfiles", "project", "initialWorkspaceCount"],
+      value: 37,
+      expectedRevision: 0,
+    },
+    {
+      path: ["sidebar", "modeProfiles", "status", "initialWorkspaceCount"],
+      value: null,
+      expectedRevision: 0,
+    },
+    {
+      path: ["sidebar", "modeProfiles", "status", "workspaceUpdatedWithinDays"],
+      value: 3,
+      expectedRevision: 0,
+    },
+    {
+      path: ["sidebar", "modeProfiles", "status", "sidebarRowItems", "host"],
+      value: false,
+      expectedRevision: 0,
+    },
+    { path: ["sidebar", "groupMode"], value: "status", expectedRevision: 1 },
+  ]);
+  expect(result.conflicts).toEqual([]);
+  expect((await new AppSettingsStore(home).read()).values).toEqual({
+    sidebar: {
+      sortMode: "custom",
+      groupMode: "status",
+      modeProfiles: {
+        project: { initialWorkspaceCount: 37 },
+        status: {
+          initialWorkspaceCount: null,
+          workspaceUpdatedWithinDays: 3,
+          sidebarRowItems: { host: false },
+        },
+      },
+    },
+  });
+});

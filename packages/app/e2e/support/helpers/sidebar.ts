@@ -250,8 +250,15 @@ export async function selectAllProjectsFilter(page: Page): Promise<void> {
   await page.getByTestId("sidebar-project-filter-all").click();
 }
 
+/** Dismiss the compact sheet through its backdrop, or the desktop popover with Escape. */
 export async function closeSidebarDisplayPreferences(page: Page): Promise<void> {
-  await page.keyboard.press("Escape");
+  const backdrop = page.getByRole("button", { name: "Bottom sheet backdrop" }).first();
+  if (await backdrop.isVisible()) {
+    await backdrop.click({ position: { x: 12, y: 12 } });
+    await expect(backdrop).not.toBeVisible();
+  } else {
+    await page.keyboard.press("Escape");
+  }
   await expect(page.getByTestId("sidebar-display-preferences-content")).toHaveCount(0);
 }
 

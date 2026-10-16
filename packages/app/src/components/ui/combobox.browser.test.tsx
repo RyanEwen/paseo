@@ -5,7 +5,9 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { ComboboxItem } from "./combobox";
+import { View } from "react-native";
+import { installWebOverlayPresentationGuard } from "@/lib/overlay-presentation";
+import { Combobox, ComboboxItem } from "./combobox";
 
 // Transition animations are outside this tooltip geometry and interaction regression.
 vi.mock("react-native-reanimated", async (importOriginal) => {
@@ -41,6 +43,7 @@ vi.mock("react-native", async (importOriginal) => {
 });
 
 const TEXT_PREVIEW_TEST_STYLE = { fontSize: 20, lineHeight: 24 };
+const ADMISSION_ANCHOR_STYLE = { width: 200, height: 32 };
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -119,9 +122,11 @@ it("measures clamped preview content at exact line boundaries and after resize",
   );
   await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(false);
   const actual = container.querySelector('[data-testid="preview-actual"]') as HTMLElement;
-  const full = container.querySelector('[data-testid="text-preview-measurement"]') as HTMLElement;
+  const clip = container.querySelector('[data-testid="text-preview-clip"]') as HTMLElement;
+  expect(container.querySelector('[data-testid="text-preview-measurement"]')).toBeNull();
+  expect(container.textContent).toBe("First line\nSecond line");
   await expect.poll(() => actual.clientHeight).toBe(48);
-  expect(full.parentElement?.getAttribute("aria-hidden")).toBe("true");
+  expect(clip.clientHeight).toBe(48);
   act(() =>
     root!.render(
       <TextPreview
@@ -135,8 +140,10 @@ it("measures clamped preview content at exact line boundaries and after resize",
     ),
   );
   await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(true);
-  await expect.poll(() => actual.clientHeight).toBe(24);
-  expect(full.clientHeight).toBe(48);
+  await expect.poll(() => clip.clientHeight).toBe(24);
+  expect(actual.clientHeight).toBe(48);
+  expect(container.querySelector('[data-testid="preview-actual"]')).toBe(actual);
+  expect(container.textContent).toBe("First line\nSecond line");
   act(() =>
     root!.render(
       <TextPreview
@@ -224,4 +231,54 @@ it("shows a contextual screenshot with one outline and fits narrow settings help
   expect(window.innerWidth).toBe(320);
   await page.screenshot({ path: ".vitest-screenshots/settings-context-320.png" });
   await page.viewport(1280, 720);
+});
+
+// DOM admission proof only. Real native composition and exit animation need Electron QA.
+it("admits the desktop combobox before its searchable autofocus content", async () => {
+  await page.viewport(1200, 800);
+  let admit!: (ready: boolean) => void;
+  const release = vi.fn();
+  const uninstall = installWebOverlayPresentationGuard(() => ({
+    ready: new Promise<boolean>((resolve) => {
+      admit = resolve;
+    }),
+    release,
+  }));
+  function Picker() {
+    const anchor = React.useRef<View>(null);
+    return (
+      <>
+        <View ref={anchor} style={ADMISSION_ANCHOR_STYLE} />
+        <Combobox
+          anchorRef={anchor}
+          open
+          value=""
+          options={[{ id: "one", label: "One" }]}
+          onSelect={vi.fn()}
+          onOpenChange={vi.fn()}
+          searchPlaceholder="Admission search"
+        />
+      </>
+    );
+  }
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  try {
+    act(() => root!.render(<Picker />));
+    expect(document.querySelector('[data-testid="combobox-desktop-container"]')).toBeNull();
+    expect(document.querySelector('[placeholder="Admission search"]')).toBeNull();
+    await act(async () => {
+      admit(true);
+    });
+    await expect
+      .poll(() => document.querySelector('[data-testid="combobox-desktop-container"]'))
+      .not.toBeNull();
+    expect(document.querySelector('[placeholder="Admission search"]')).not.toBeNull();
+    await act(async () => root!.render(null));
+    expect(release).toHaveBeenCalledOnce();
+  } finally {
+    await act(async () => root?.render(null));
+    uninstall();
+  }
 });

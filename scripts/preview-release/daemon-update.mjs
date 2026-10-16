@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { smokeRunningDaemon } from "./daemon-smoke.mjs";
+import { requirePreviewRepository } from "./source.mjs";
 import {
   downloadForkPreview,
   selectForkPreview,
@@ -10,12 +11,13 @@ import {
 
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const shell = process.platform === "win32";
+const repository = requirePreviewRepository(process.env.GITHUB_REPOSITORY);
 
 // Use the same release selector and checksum verifier that the running daemon uses.
 const batches = JSON.parse(
   execFileSync(
     "gh",
-    ["api", "repos/RyanEwen/paseo/releases?per_page=100", "--paginate", "--slurp"],
+    ["api", `repos/${repository}/releases?per_page=100`, "--paginate", "--slurp"],
     { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
   ),
 );

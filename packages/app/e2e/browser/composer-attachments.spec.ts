@@ -1,3 +1,7 @@
+import {
+  expectSingleLineStickyGeometry,
+  expectInlineStickyAttachmentCount,
+} from "../support/helpers/sticky-preview-geometry";
 import { chatOutlineRail } from "../support/helpers/chat-outline";
 import { expect, test } from "../support/fixtures";
 import { clickNewChat } from "../support/helpers/launcher";
@@ -320,7 +324,9 @@ test.describe("Composer attachments", () => {
   });
 });
 
-test("sticky user message preserves uploaded image and file attachments", async ({ page }) => {
+test("sticky user message preserves uploaded image and file attachments", async ({
+  page,
+}, testInfo) => {
   test.setTimeout(120_000);
   const agent = await seedLongMockAgentTimeline({ turns: 20 });
   try {
@@ -390,6 +396,8 @@ test("sticky user message preserves uploaded image and file attachments", async 
     });
     await scrollTimelinePastPrompt(page, prompt);
     await expect(sticky).toContainText("2 attachments");
+    await expectInlineStickyAttachmentCount(sticky, "2 attachments", prompt, testInfo);
+    const attachmentTextGeometry = await expectSingleLineStickyGeometry(sticky);
     await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
     await expect(sticky.getByTestId("user-message")).toContainText(prompt);
     await expect(sticky).toContainText(TEST_JSON.name);
@@ -398,6 +406,143 @@ test("sticky user message preserves uploaded image and file attachments", async 
     ).toBeVisible();
     await sticky.getByRole("button", { name: "Collapse user message", exact: true }).click();
     await expect(sticky).toContainText("2 attachments");
+    expect((await expectSingleLineStickyGeometry(sticky)).height).toBeCloseTo(
+      attachmentTextGeometry.height,
+      0,
+    );
+
+    // Reuse real uploads for an attachment-only prompt, without inventing placeholder text.
+    await attachImageFromMenu(page, TEST_IMAGE);
+    await attachFileFromMenu(page, TEST_JSON);
+    await submitMessageWithButton(page, "");
+    await agent.client.waitForFinish(agent.agentId, 15_000);
+    await agent.client.sendAgentMessage(
+      agent.agentId,
+      "emit 85 assistant messages before synthetic user message",
+    );
+    await agent.client.waitForFinish(agent.agentId, 15_000);
+    // This fixture has one empty-preview prompt. Synthetic user events can change
+    // its order, so retain its canonical sequence tick instead of an earlier count.
+    const attachmentOnlyEntry = chatOutlineRail(page).getByRole("tab", {
+      name: /^\d+ of \d+:\s*$/,
+    });
+    await expect(attachmentOnlyEntry).toHaveCount(1);
+    const attachmentOnlyTickId = await attachmentOnlyEntry.getAttribute("data-testid");
+    expect(attachmentOnlyTickId).toMatch(/^chat-outline-tick-\d+$/);
+    const attachmentOnlyTick = chatOutlineRail(page).getByTestId(attachmentOnlyTickId!);
+    await attachmentOnlyTick.click();
+    const attachmentOnlyOriginal = timeline
+      .getByTestId("user-message")
+      .filter({ hasText: TEST_JSON.name })
+      .filter({ hasNot: page.getByTestId("user-message-text") });
+    await expect(attachmentOnlyOriginal).toHaveCount(1);
+
+    // Sample one mounted occurrence and its viewport together after hover, while
+    // the existing navigation owner settles the requested original at its 8px inset.
+    const readAttachmentOnlyLanding = () =>
+      attachmentOnlyOriginal.getByTestId("user-message-bubble").evaluate((bubble) => {
+        const viewport = bubble.closest<HTMLElement>('[data-testid="agent-chat-scroll"]')!;
+        const originalBounds = bubble.getBoundingClientRect();
+        const viewportBounds = viewport.getBoundingClientRect();
+        return {
+          messageId: bubble.closest("[data-message-id]")?.getAttribute("data-message-id"),
+          originalBounds: originalBounds.toJSON(),
+          viewportBounds: viewportBounds.toJSON(),
+          relativeTop: originalBounds.top - viewportBounds.top,
+          scrollTop: viewport.scrollTop,
+          scrollHeight: viewport.scrollHeight,
+          clientHeight: viewport.clientHeight,
+        };
+      });
+    await timeline.hover();
+    let previousLanding: Awaited<ReturnType<typeof readAttachmentOnlyLanding>> | undefined;
+    await expect
+      .poll(async () => {
+        const current = await readAttachmentOnlyLanding();
+        const stable =
+          previousLanding !== undefined &&
+          previousLanding.messageId === current.messageId &&
+          previousLanding.scrollTop === current.scrollTop &&
+          previousLanding.scrollHeight === current.scrollHeight &&
+          previousLanding.relativeTop === current.relativeTop;
+        previousLanding = current;
+        return stable ? Math.abs(current.relativeTop - 8) : Number.POSITIVE_INFINITY;
+      })
+      .toBeLessThanOrEqual(2);
+    await expect(attachmentOnlyTick).toHaveAttribute("aria-selected", "true");
+    const attachmentOnlyLanding = await readAttachmentOnlyLanding();
+    expect(Math.abs(attachmentOnlyLanding.relativeTop - 8)).toBeLessThanOrEqual(2);
+    expect(attachmentOnlyLanding.messageId).toBeTruthy();
+    await testInfo.attach("attachment-only-before-wheel", {
+      body: JSON.stringify({ tickId: attachmentOnlyTickId, ...attachmentOnlyLanding }, null, 2),
+      contentType: "application/json",
+    });
+    await page.mouse.wheel(0, attachmentOnlyLanding.relativeTop + 1);
+    await expect(sticky).toContainText("2 attachments");
+    await expect(sticky.getByTestId("user-message-text")).toHaveCount(0);
+    await expectInlineStickyAttachmentCount(sticky, "2 attachments", "", testInfo);
+    const attachmentOnlyBubble = sticky.getByTestId("user-message-bubble");
+    await expect
+      .poll(async () => (await attachmentOnlyBubble.boundingBox())!.height)
+      .toBeCloseTo(attachmentTextGeometry.height, 0);
+    await sticky.getByRole("button", { name: "Expand user message", exact: true }).click();
+    await expect(sticky).toContainText(TEST_JSON.name);
+    await expect(
+      sticky.getByRole("button", { name: "Open image attachment", exact: true }),
+    ).toBeVisible();
+    await sticky.getByRole("button", { name: "Collapse user message", exact: true }).click();
+    await expect
+      .poll(async () => (await attachmentOnlyBubble.boundingBox())!.height)
+      .toBeCloseTo(attachmentTextGeometry.height, 0);
+  } catch (error) {
+    // Capture the still-owned conversation before agent cleanup can remove its route.
+    try {
+      const geometry = await page.evaluate(() => {
+        const sticky = document.querySelector('[data-testid="sticky-user-message"]');
+        const selectors = [
+          '[data-testid="user-message-bubble"]',
+          '[data-testid="user-message-text"]',
+          '[data-testid="sticky-user-message-controls"]',
+          '[data-testid="sticky-user-message-disclosure"]',
+          "[data-message-text=true]",
+        ];
+        return {
+          url: location.href,
+          viewport: { width: innerWidth, height: innerHeight },
+          nodes: selectors.map((selector) => {
+            const node = sticky?.querySelector(selector);
+            if (!node) return { selector, present: false };
+            const style = getComputedStyle(node);
+            return {
+              selector,
+              present: true,
+              bounds: node.getBoundingClientRect().toJSON(),
+              parentBounds: node.parentElement?.getBoundingClientRect().toJSON(),
+              lineHeight: style.lineHeight,
+              paddingTop: style.paddingTop,
+              paddingBottom: style.paddingBottom,
+              opacity: style.opacity,
+              pointerEvents: style.pointerEvents,
+            };
+          }),
+        };
+      });
+      await testInfo.attach("attachments-failure-geometry", {
+        body: JSON.stringify(geometry, null, 2),
+        contentType: "application/json",
+      });
+    } catch (captureError) {
+      console.error("attachments geometry capture failed before cleanup", String(captureError));
+    }
+    try {
+      await page.screenshot({
+        path: testInfo.outputPath("attachments-before-cleanup.png"),
+        timeout: 2_000,
+      });
+    } catch (captureError) {
+      console.error("attachments screenshot capture failed before cleanup", String(captureError));
+    }
+    throw error;
   } finally {
     await agent.cleanup();
   }

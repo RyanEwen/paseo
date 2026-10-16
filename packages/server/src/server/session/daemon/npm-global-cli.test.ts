@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { DefaultNpmGlobalPaseoCli } from "./npm-global-cli.js";
+import { DefaultNpmGlobalPaseoCli, isNewerDaemonVersion } from "./npm-global-cli.js";
 
 interface CommandCall {
   command: string;
@@ -171,5 +171,31 @@ describe("DefaultNpmGlobalPaseoCli", () => {
     await expect(cli.inspect()).rejects.toThrow(
       "@getpaseo/cli is not installed with npm -g on this host",
     );
+  });
+});
+
+describe("newer daemon release ordering", () => {
+  test.each([
+    ["9.0.0-preview.12", "0.1.0-preview.13", true, true],
+    ["0.1.0-preview.13", "9.0.0-preview.12", true, false],
+    ["0.1.0-preview.13", "9.0.0-preview.13", true, false],
+    ["0.1.0", "0.2.0-preview.14", true, false],
+    ["0.9.0", "0.10.0", false, true],
+    ["0.10.0", "0.9.0", false, false],
+    ["0.10.0", "0.10.0", false, false],
+    ["unknown", "1.0.0", false, false],
+  ])("compares %s with %s in fork=%s", (current, candidate, fork, expected) => {
+    expect(
+      isNewerDaemonVersion({ current, candidate, distribution: fork ? "fork" : "upstream" }),
+    ).toBe(expected);
+  });
+  test("npm availability reads the latest tag without installing a package", async () => {
+    const commands: string[][] = [];
+    const cli = new DefaultNpmGlobalPaseoCli(async (_command, args) => {
+      commands.push(args);
+      return { exitCode: 0, stdout: '"0.10.0"', stderr: "" };
+    }, "@getpaseo/cli");
+    await expect(cli.getNewerVersion("0.9.0")).resolves.toBe("0.10.0");
+    expect(commands).toEqual([["view", "@getpaseo/cli@latest", "version", "--json"]]);
   });
 });

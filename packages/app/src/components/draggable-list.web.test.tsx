@@ -1,6 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
+import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
+import { useSidebarViewStore } from "@/stores/sidebar-view-store";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import { useDragReorderState, type DragReorderState } from "./drag-reorder/use-drag-reorder-state";
+import type { DragReorderMove } from "./drag-reorder/reorder-items";
 import React, { memo } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -87,4 +92,94 @@ describe("DraggableList web row stability", () => {
 
     expect(rowRenderCount).toBe(1);
   });
+});
+
+let dragModel: DragReorderState<Item> | null = null;
+function DragStateHarness({
+  data,
+  dropped,
+  disabled = false,
+}: {
+  data: Item[];
+  dropped: (items: Item[], move?: DragReorderMove) => void;
+  disabled?: boolean;
+}) {
+  dragModel = useDragReorderState({ data, keyExtractor, onDragEnd: dropped, disabled });
+  return null;
+}
+
+describe("drag result identity", () => {
+  it("passes actual active/from/to/anchor from the drag snapshot even if rendered data changes", () => {
+    const dropped = vi.fn();
+    const original = [{ id: "one" }, { id: "two" }, { id: "three" }];
+    act(() => root?.render(<DragStateHarness data={original} dropped={dropped} />));
+    act(() => dragModel!.handlers.onDragStart({ active: { id: "one" } } as DragStartEvent));
+    act(() =>
+      root?.render(<DragStateHarness data={[{ id: "new" }, ...original]} dropped={dropped} />),
+    );
+    act(() =>
+      dragModel!.handlers.onDragEnd({
+        active: { id: "one" },
+        over: { id: "three" },
+      } as DragEndEvent),
+    );
+    expect(dropped).toHaveBeenCalledExactlyOnceWith([original[1], original[2], original[0]], {
+      activeKey: "one",
+      overKey: "three",
+      from: 0,
+      to: 2,
+    });
+  });
+  it("does not emit an order or move for a cancelled drop", () => {
+    const dropped = vi.fn();
+    act(() => root?.render(<DragStateHarness data={items} dropped={dropped} />));
+    act(() => dragModel!.handlers.onDragStart({ active: { id: "one" } } as DragStartEvent));
+    act(() => dragModel!.handlers.onDragEnd({ active: { id: "one" }, over: null } as DragEndEvent));
+    expect(dropped).not.toHaveBeenCalled();
+  });
+});
+
+it("does not begin or finish a reorder when the list is disabled", () => {
+  const dropped = vi.fn();
+  const data = [{ id: "one" }, { id: "two" }];
+  act(() => root?.render(<DragStateHarness data={data} dropped={dropped} disabled />));
+  act(() => dragModel!.handlers.onDragStart({ active: { id: "one" } } as DragStartEvent));
+  expect(dragModel!.activeId).toBeNull();
+  act(() =>
+    dragModel!.handlers.onDragEnd({ active: { id: "one" }, over: { id: "two" } } as DragEndEvent),
+  );
+  expect(dropped).not.toHaveBeenCalled();
+});
+
+let reorderGuard: ReturnType<typeof useSidebarReorderGuard> | null = null;
+function ReorderGuardHarness() {
+  reorderGuard = useSidebarReorderGuard("workspace");
+  return null;
+}
+
+it("rejects a drop when its sorting changes away and back without issuing preference commands", async () => {
+  useSidebarViewStore.setState({ groupMode: "project", workspaceSortMode: "custom" });
+  const originalCommand = useSidebarViewStore.getState().setModePreferences;
+  const commands = vi.spyOn(useSidebarViewStore.getState(), "setModePreferences");
+  await act(() => root?.render(<ReorderGuardHarness />));
+  await act(() => reorderGuard!.onDragBegin());
+  expect(reorderGuard!.canCommit()).toBe(true);
+  await act(() => useSidebarViewStore.setState({ workspaceSortMode: "name" }));
+  expect(reorderGuard!.disabled).toBe(true);
+  expect(reorderGuard!.canCommit()).toBe(false);
+  await act(() => useSidebarViewStore.setState({ workspaceSortMode: "custom" }));
+  expect(reorderGuard!.canCommit()).toBe(false);
+  expect(commands).not.toHaveBeenCalled();
+  commands.mockRestore();
+  useSidebarViewStore.setState({ setModePreferences: originalCommand });
+});
+
+it("keeps sorted manual pins available while rejecting ordinary and stale-mode drops", async () => {
+  useSidebarViewStore.setState({ groupMode: "project", workspaceSortMode: "name" });
+  await act(() => root?.render(<ReorderGuardHarness />));
+  await act(() => reorderGuard!.onDragBegin());
+  expect(reorderGuard!.canCommit()).toBe(false);
+  expect(reorderGuard!.canCommit(true)).toBe(true);
+  await act(() => useSidebarViewStore.setState({ groupMode: "status" }));
+  expect(reorderGuard!.canCommit(true)).toBe(false);
 });

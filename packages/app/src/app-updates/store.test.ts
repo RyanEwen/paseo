@@ -1,8 +1,14 @@
+import type { AndroidUpdateDownloadProgress } from "./native-contract";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The native bridge is unavailable in Node. Isolate that boundary while exercising real store transitions.
 const bridge = vi.hoisted(() => ({
   getVersionCode: () => 1_000_000_013,
+  addListener: vi.fn(
+    (_name: "downloadProgress", _handler: (progress: AndroidUpdateDownloadProgress) => void) => ({
+      remove: vi.fn(),
+    }),
+  ),
   download: vi.fn(),
   install: vi.fn(),
 }));
@@ -32,6 +38,43 @@ beforeEach(() => {
 });
 
 describe("Android update operation", () => {
+  it("publishes measured download progress and verification without stale updates after installation", async () => {
+    const { useAndroidUpdate: store } = await import("./store");
+    await store.getState().check();
+    let finishDownload = () => {};
+    bridge.download.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishDownload = resolve;
+        }),
+    );
+    const pending = store.getState().install();
+    await vi.waitFor(() => expect(bridge.addListener).toHaveBeenCalledTimes(1));
+    const handler = bridge.addListener.mock.calls[0]![1];
+    const progress = {
+      versionCode: update.versionCode,
+      phase: "downloading" as const,
+      bytesDownloaded: 8 * 1024 * 1024,
+      totalBytes: 32 * 1024 * 1024,
+    };
+    handler({ ...progress, versionCode: update.versionCode - 1 });
+    expect(store.getState().progress).toBeNull();
+    handler(progress);
+    expect(store.getState()).toMatchObject({ status: "downloading", progress });
+    handler({ ...progress, phase: "verifying", bytesDownloaded: progress.totalBytes });
+    expect(store.getState().status).toBe("verifying");
+    await store.getState().check(true);
+    await store.getState().install();
+    expect(bridge.download).toHaveBeenCalledTimes(1);
+    expect(requests.find).toHaveBeenCalledTimes(1);
+    finishDownload();
+    await pending;
+    expect(store.getState()).toMatchObject({ status: "installer", progress: null });
+    expect(bridge.addListener.mock.results[0]!.value.remove).toHaveBeenCalledTimes(1);
+    handler(progress);
+    expect(store.getState()).toMatchObject({ status: "installer", progress: null });
+  });
+
   it("retains a verified download across the permission prompt and cancelled installation", async () => {
     const { useAndroidUpdate: store } = await import("./store");
     await store.getState().check();

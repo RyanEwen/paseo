@@ -3,8 +3,9 @@ import { gotoAppShell, openSettings } from "../support/helpers/app";
 import { openSettingsSection } from "../support/helpers/settings";
 import { openWhatsNew, release, serveChangelog } from "../support/helpers/changelog";
 
-const REPOSITORY_DESTINATION = /^https:\/\/github\.com\/RyanEwen\/paseo(?:[/?#]|$)/;
-const CHANGELOG_DESTINATION = /^https:\/\/github\.com\/RyanEwen\/paseo\/releases(?:[/?#]|$)/;
+const REPOSITORY_DESTINATION = /^https:\/\/github\.com\/RyanEwen\/paseo-plus-plus(?:[/?#]|$)/;
+const CHANGELOG_DESTINATION =
+  /^https:\/\/github\.com\/RyanEwen\/paseo-plus-plus\/releases(?:[/?#]|$)/;
 // The name and the version are separate cells of a key/value row, so they meet with no space
 // between them in the row's text content.
 const APP_VERSION = /^Paseo\s*v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -123,22 +124,25 @@ test("renders fork release notes and links GitHub Releases", async ({ page }) =>
 
 test("retries unavailable fork notes and excludes unpublished releases", async ({ page }) => {
   let fail = true;
-  await page.route("https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100", (route) => {
-    if (fail) {
-      return route.fulfill({ status: 403, json: { message: "API rate limit exceeded" } });
-    }
-    return route.fulfill({
-      json: [
-        {
-          tag_name: "v0.11.2-preview.27",
-          draft: false,
-          published_at: "2026-10-09T21:26:07Z",
-          body: "Published Paseo++ notes",
-        },
-        { tag_name: "v0.11.2-preview.28", draft: true, published_at: null, body: "Draft notes" },
-      ],
-    });
-  });
+  await page.route(
+    "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100",
+    (route) => {
+      if (fail) {
+        return route.fulfill({ status: 403, json: { message: "API rate limit exceeded" } });
+      }
+      return route.fulfill({
+        json: [
+          {
+            tag_name: "v0.11.2-preview.27",
+            draft: false,
+            published_at: "2026-10-09T21:26:07Z",
+            body: "Published Paseo++ notes",
+          },
+          { tag_name: "v0.11.2-preview.28", draft: true, published_at: null, body: "Draft notes" },
+        ],
+      });
+    },
+  );
   await gotoAppShell(page);
   const sheet = await openWhatsNew(page);
   await expect(sheet.getByTestId("changelog-error")).toBeVisible();

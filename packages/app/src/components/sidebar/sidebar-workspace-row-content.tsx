@@ -1,3 +1,6 @@
+import { useSidebarViewStore } from "@/stores/sidebar-view-store";
+import { WorkspaceBrowserOpeningProvider } from "@/workspace/browser/context";
+import { useWorkspaceBrowserOpening } from "@/workspace/browser/use-opening";
 import { HoverRevealActions } from "./hover-reveal-actions";
 import { memo, useMemo, useCallback, useState, type ReactNode } from "react";
 import { Text, View, type ViewStyle } from "react-native";
@@ -16,7 +19,6 @@ import {
   hasSidebarWorkspaceTrailing,
   type SidebarWorkspaceTrailing,
 } from "@/components/sidebar/workspace-trailing";
-import { useAppSettings } from "@/hooks/use-settings";
 import type { Theme } from "@/styles/theme";
 import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
 import { getStatusDotColor } from "@/utils/status-dot-color";
@@ -55,6 +57,7 @@ export function SidebarWorkspaceRowFrame({
     hoverHandlers: { onPointerEnter: () => void; onPointerLeave: () => void };
   }) => ReactNode;
 }) {
+  const openInPaseo = useWorkspaceBrowserOpening(workspace.serverId, workspace.workspaceId);
   const [isHovered, setIsHovered] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const handlePointerEnter = useCallback(() => {
@@ -71,19 +74,21 @@ export function SidebarWorkspaceRowFrame({
   );
 
   return (
-    <WorkspaceHoverCard
-      workspace={workspace}
-      prHint={workspace.prHint}
-      isDragging={isDragging}
-      disabled={contextMenuOpen}
-    >
-      {children({
-        isHovered: isHovered && !contextMenuOpen && !isDragging,
-        contextMenuOpen,
-        onContextMenuOpenChange: handleContextMenuOpenChange,
-        hoverHandlers,
-      })}
-    </WorkspaceHoverCard>
+    <WorkspaceBrowserOpeningProvider value={openInPaseo}>
+      <WorkspaceHoverCard
+        workspace={workspace}
+        prHint={workspace.prHint}
+        isDragging={isDragging}
+        disabled={contextMenuOpen}
+      >
+        {children({
+          isHovered: isHovered && !contextMenuOpen && !isDragging,
+          contextMenuOpen,
+          onContextMenuOpenChange: handleContextMenuOpenChange,
+          hoverHandlers,
+        })}
+      </WorkspaceHoverCard>
+    </WorkspaceBrowserOpeningProvider>
   );
 }
 
@@ -119,9 +124,7 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
   reserveIdleStatusIndicatorSpace?: boolean;
   children?: ReactNode;
 }) {
-  const {
-    settings: { workspaceTitleSource },
-  } = useAppSettings();
+  const workspaceTitleSource = useSidebarViewStore((state) => state.workspaceTitleSource);
   const workspaceLabel = resolveSidebarWorkspacePrimaryLabel({ workspace, workspaceTitleSource });
   // The workspace carries label names; their colors live in its host's catalog, so the row is
   // where the two meet — the meta line is handed finished definitions.
@@ -443,7 +446,7 @@ export function SidebarWorkspaceTrailingStatusActions({
 }) {
   return (
     <View style={styles.workspaceStatusActionsFrame}>
-      <View style={[styles.trailingContentRow, styles.workspaceStatusActionsContent]}>
+      <View style={styles.trailingContentRow}>
         <WorkspaceStatusIndicator
           bucket={workspace.statusBucket}
           workspaceKind={workspace.workspaceKind}
@@ -462,18 +465,12 @@ export function SidebarWorkspaceTrailingStatusActions({
 }
 
 const styles = StyleSheet.create((theme) => ({
-  // Reserve the complete revealed footprint so the 100ms internal movement never steals
-  // title width. The right anchor keeps idle status and visible actions on the same rail.
+  // Hidden actions consume no width. HoverRevealActions expands the row only while
+  // its controls are visible, keeping idle titles beside their metadata and status.
   workspaceStatusActionsFrame: {
     position: "relative",
-    width: theme.iconSize.md + theme.spacing[2] + 18,
     height: 20,
     flexShrink: 0,
-  },
-  workspaceStatusActionsContent: {
-    position: "absolute",
-    top: 0,
-    right: 0,
   },
   trailingContentRow: {
     flexDirection: "row",

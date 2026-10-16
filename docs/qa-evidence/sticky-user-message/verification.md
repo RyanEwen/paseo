@@ -2,7 +2,7 @@
 
 Branch: `feat/sticky-user-message-navigation`.
 
-Prompts pin at the measured bubble top with an opaque surface and complementary original-text masking, so one copy is painted. The copy matches the original bubble's position and width. Newer bubbles clip older copies. Navigation shares the copy/rewind action row, appearing on desktop hover and remaining visible on touch screens; More… appears only for measured text overflow or omitted attachment details. Desktop previews use two lines, compact previews one. Clicking or pressing Enter on the pinned message returns to its original bubble; selecting text does not navigate.
+Prompts pin at the measured bubble top with a solid bubble with a square top-left corner, transparent surrounding container, and complementary original-text masking, so one copy is painted. The copy matches the original bubble's position and width. Newer bubbles clip older copies. Navigation shares the copy/rewind action row, appearing on desktop hover and remaining visible on touch screens; More… occupies a reserved column beside the preview only for measured text overflow or omitted attachment details, so it never covers the preview text. Pinned previews use one line on every screen size. Clicking or pressing Enter on the pinned message returns to its original bubble; selecting text does not navigate.
 
 Reviewing an earlier prompt remains stable during incoming messages. Sending from the composer
 or using Jump to bottom resumes the latest prompt and invalidates pending navigation, including
@@ -10,6 +10,8 @@ older window application, errors, animation frames, and native retry callbacks. 
 reads retain their own acceptance and the timeline owner's request and epoch fences.
 
 ## Results
+
+The pinned view uses the normal solid message bubble with no gradient or fade. Its surrounding container is transparent so conversation remains visible outside the bubble. The floating control row has its own backing for readable timestamps and navigation. Jump to latest aligns above the composer’s right edge using its centered content width and outer padding. The updated desktop/compact composer-edge regression is prepared but not yet run. Native jumps verify two measured landings within the existing attempt and time budgets; accepting an index scroll alone is no longer completion. Current physical-device qualification remains pending.
 
 The single-copy repair supersedes the earlier fade evidence below. Five scoped Chromium cases passed at desktop and compact widths, including exact text pixels through forward/reverse top-edge crossings, actual overflow disclosure, current-message click and keyboard navigation, resizing, and attachment masking. See [current qualification](single-copy-evidence.txt). That summary records the completed qualification; its /tmp logs and fresh frames were lost during WSL recovery and are not available now. The 114 focused checks, typecheck, lint and formatting passed. Physical Android/iOS and Electron frames remain unverified.
 

@@ -233,8 +233,9 @@ export function Button({
       variant === "default" ? styles.textDefault : null,
       variant === "destructive" ? styles.textDestructive : null,
       variant === "ghost" ? styles.textGhost : null,
-      textStyle,
       isGhostHovered ? styles.textGhostHovered : null,
+      // Caller colors can carry contrast against a colored parent surface.
+      textStyle,
     ],
     [size, variant, textStyle, isGhostHovered],
   );

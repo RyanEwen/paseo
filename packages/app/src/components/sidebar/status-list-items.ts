@@ -25,11 +25,13 @@ export function buildStatusListItems({
   collapsedGroupKeys,
   expandedGroupKeys,
   initialCount,
+  updatedWithin,
 }: {
   groups: SidebarWorkspaceGroup[];
   collapsedGroupKeys: ReadonlySet<string>;
   expandedGroupKeys: ReadonlySet<string>;
   initialCount: number | null;
+  updatedWithin?: { days: number; now: number };
 }): StatusListItem[] {
   const result: StatusListItem[] = [];
   for (const group of groups) {
@@ -41,6 +43,9 @@ export function buildStatusListItems({
       items: group.rows,
       initialCount,
       expanded,
+      updatedWithin: updatedWithin
+        ? { ...updatedWithin, getStatusEnteredAt: (workspace) => workspace.statusEnteredAt }
+        : undefined,
     });
     for (const workspace of visibleItems) {
       result.push({ kind: "workspace", workspace, groupKey: group.key });

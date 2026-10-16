@@ -140,7 +140,7 @@ import {
   AttachmentThumbnail,
 } from "@/components/attachment-pill";
 import { AttachmentLightbox, type ImageLightboxSource } from "@/components/attachment-lightbox";
-import { openExternalUrl } from "@/utils/open-external-url";
+import { useWorkspaceLinkOpeningContext } from "@/workspace/browser/context";
 import { useIsDictationReady } from "@/hooks/use-is-dictation-ready";
 import { useForgeSearchQuery } from "@/git/use-forge-search-query";
 import { useCheckoutStatusQuery } from "@/git/use-status-query";
@@ -1830,6 +1830,8 @@ function ComposerContentImpl({
     [removeAttachment, selectedAttachments, setSelectedAttachments],
   );
 
+  const { openPrimary: openWorkspaceLink } = useWorkspaceLinkOpeningContext();
+
   const handleOpenAttachment = useCallback(
     (attachment: ComposerAttachment) => {
       openComposerAttachment({
@@ -1837,11 +1839,11 @@ function ComposerContentImpl({
         setLightboxMetadata,
         openWorkspaceAttachment: openAttachment,
         openExternalUrl: (url) => {
-          void openExternalUrl(url);
+          void openWorkspaceLink(url);
         },
       });
     },
-    [openAttachment],
+    [openAttachment, openWorkspaceLink],
   );
 
   const handleCancelAgent = useCallback(() => {

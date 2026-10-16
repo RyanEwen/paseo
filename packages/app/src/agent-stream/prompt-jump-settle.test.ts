@@ -1,3 +1,14 @@
+import { nativeTextPreviewMetrics } from "../components/ui/native-text-preview-metrics";
+import {
+  nativeBottomDistance,
+  resolveActualNativeReading,
+  resolveNativeMotionOwner,
+  resolveNativeMeasurementOwner,
+  nativeOriginalTop,
+  nativeStickyTranslation,
+} from "./native-actual-row-model";
+import { createNativeStickyLayout } from "./native-sticky-layout";
+import { resolveActualPromptPin } from "./actual-prompt-pin-model";
 import { resolvePromptHandoffProgress } from "./prompt-handoff";
 import {
   createNativePromptHandoffPair,
@@ -293,17 +304,24 @@ describe("prompt jump settle", () => {
 });
 
 /** FlatList synchronously reports unmeasured indices; retry callbacks can survive cancellation. */
-function nativeJumpFixture() {
+function nativeJumpFixture(direction: "inverted" | "chronological" = "inverted") {
   let header: number | null = 6000;
   let index = 12;
   let liveOffset: number | undefined;
   let measured = 0;
   let clock = 0;
   let failIndex = true;
+  let targetTop = 8;
+  let mounted = true;
+  let dropMeasurements = false;
+  let offset = 1000;
   const callbacks = new Set<() => void>();
   const archivedCallbacks: Array<() => void> = [];
   const onFailure = vi.fn();
-  const scrollToOffset = vi.fn();
+  const scrollToOffset = vi.fn((value: number) => {
+    targetTop += (direction === "chronological" ? -1 : 1) * (value - offset);
+    offset = value;
+  });
   const scrollToIndex = vi.fn((target: number) => {
     if (failIndex)
       controller.handleIndexFailure({
@@ -313,10 +331,15 @@ function nativeJumpFixture() {
       });
   });
   const controller = createNativePromptJumpController({
+    direction,
     viewport: {
       findHistoryIndex: () => index,
       findLiveOffset: () => liveOffset,
       getLiveHeaderHeight: () => header,
+      measureTarget: (_id, callback) => {
+        if (!dropMeasurements)
+          callback(mounted ? { top: targetTop, offset, maxOffset: 20000 } : null);
+      },
       scrollToIndex,
       scrollToOffset,
     },
@@ -337,11 +360,21 @@ function nativeJumpFixture() {
     onFailure,
     archivedCallbacks,
     pending: () => callbacks.size,
+    measuredTargetTop: () => targetTop,
     retry() {
       const next = callbacks.values().next().value;
       expect(next).toBeDefined();
       callbacks.delete(next!);
       next!();
+    },
+    dropMeasurements() {
+      dropMeasurements = true;
+    },
+    setMounted(value: boolean) {
+      mounted = value;
+    },
+    setTargetTop(value: number) {
+      targetTop = value;
     },
     setHeader(value: number | null) {
       header = value;
@@ -365,6 +398,57 @@ function nativeJumpFixture() {
 }
 
 describe("native prompt viewport recovery", () => {
+  it("bounds a native node that never returns its measurement callback", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.dropMeasurements();
+    f.controller.start("prompt");
+    while (f.pending()) f.retry();
+    expect(f.onFailure).toHaveBeenCalledWith("prompt");
+    expect(f.controller.isActive()).toBe(false);
+  });
+  it("waits for a mounted bubble rather than accepting estimated index frames", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setMounted(false);
+    f.controller.start("prompt");
+    f.retry();
+    expect(f.controller.isActive()).toBe(true);
+    expect(f.scrollToIndex).toHaveBeenCalledTimes(2);
+    f.setMounted(true);
+    f.retry();
+    f.retry();
+    expect(f.controller.isActive()).toBe(false);
+  });
+  it("cancels an accepted jump before its queued landing check", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setTargetTop(180);
+    f.controller.start("prompt");
+    const stale = f.archivedCallbacks[0]!;
+    f.controller.cancel();
+    stale();
+    expect(f.scrollToOffset).not.toHaveBeenCalled();
+    expect(f.pending()).toBe(0);
+  });
+  it("corrects an accepted scroll whose cell frame settles short on the first tap", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setTargetTop(180);
+    f.controller.start("prompt");
+    expect(f.controller.isActive()).toBe(true);
+    f.retry();
+    expect(f.scrollToOffset).toHaveBeenLastCalledWith(828, false);
+    // A later layout change must invalidate the first apparent landing.
+    f.setTargetTop(48);
+    f.retry();
+    expect(f.scrollToOffset).toHaveBeenLastCalledWith(788, false);
+    f.retry();
+    expect(f.controller.isActive()).toBe(true);
+    f.retry();
+    expect(f.controller.isActive()).toBe(false);
+    expect(f.onFailure).not.toHaveBeenCalled();
+  });
   it("includes long measured live header, rebases stable ID, then lands exactly", () => {
     const f = nativeJumpFixture();
     f.controller.start("prompt");
@@ -373,6 +457,9 @@ describe("native prompt viewport recovery", () => {
     f.succeed();
     f.retry();
     expect(f.scrollToIndex).toHaveBeenLastCalledWith(14);
+    f.setTargetTop(8);
+    f.retry();
+    f.retry();
     expect(f.controller.isActive()).toBe(false);
     expect(f.onFailure).not.toHaveBeenCalled();
   });
@@ -598,6 +685,9 @@ it("native live prompt uses its measured landing offset and the animated path", 
   expect(f.scrollToOffset).toHaveBeenCalledWith(5300, true);
   expect(f.scrollToIndex).not.toHaveBeenCalled();
   expect(f.onFailure).not.toHaveBeenCalled();
+  f.setTargetTop(8);
+  f.retry();
+  f.retry();
   expect(f.controller.isActive()).toBe(false);
 });
 
@@ -728,4 +818,350 @@ it("waits for native text layout before publishing a copy and accepts an explici
   expect(measured).toHaveBeenLastCalledWith(
     expect.objectContaining({ id: "attachments-only", progress: 1, prefixHeightOne: 0 }),
   );
+});
+
+describe("explicit prompt jump placement", () => {
+  it("pins a measured bubble beyond the edge, while the next original reveal retains its inset", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setTargetTop("target", 50);
+    controller.start("target", { placement: "pinned" });
+    while (frames.pendingFrames()) frames.runNextFrame();
+    expect(viewport.findTargetTop("target")).toBe(-2);
+    controller.start("target", { placement: "original" });
+    while (frames.pendingFrames()) frames.runNextFrame();
+    expect(viewport.findTargetTop("target")).toBe(8);
+  });
+
+  it("does not finish pinned placement on an unmounted estimate and cancels its pending frames", () => {
+    const frames = createFakeFrameScheduler();
+    const viewport = createFakeViewport();
+    const controller = createController(viewport, frames);
+    viewport.setEstimatedTargetTop("target", -2);
+    controller.start("target", { placement: "pinned" });
+    frames.runNextFrame();
+    frames.runNextFrame();
+    expect(controller.isActive()).toBe(true);
+    controller.cancel();
+    expect(frames.pendingFrames()).toBe(0);
+  });
+
+  it("uses the same measured pinned destination in the inverted native controller", () => {
+    const f = nativeJumpFixture();
+    f.succeed();
+    f.setTargetTop(8);
+    f.controller.start("prompt", "pinned");
+    while (f.pending()) f.retry();
+    expect(f.scrollToOffset).toHaveBeenCalledWith(990, false);
+    expect(f.onFailure).not.toHaveBeenCalled();
+    expect(f.controller.isActive()).toBe(false);
+  });
+});
+
+describe("actual prompt row ownership", () => {
+  it("keeps one original row at the edge until its successor pushes it out", () => {
+    const rows = [
+      { id: "old", top: 80, height: 96 },
+      { id: "new", top: 400, height: 96 },
+    ];
+    expect(resolveActualPromptPin(rows, 79)).toBeNull();
+    expect(resolveActualPromptPin(rows, 80)).toEqual({ id: "old", translateY: 0 });
+    expect(resolveActualPromptPin(rows, 200)).toEqual({ id: "old", translateY: 120 });
+    for (const top of [305, 350, 399]) {
+      const pin = resolveActualPromptPin(rows, top)!;
+      expect(pin.id).toBe("old");
+      // Same actual row: its trailing edge meets the incoming row exactly.
+      expect(rows[0].top + pin.translateY + rows[0].height).toBe(rows[1].top);
+    }
+    expect(resolveActualPromptPin(rows, 400)).toEqual({ id: "new", translateY: 0 });
+  });
+
+  it("hands back the same row at the same position on reverse scrolling", () => {
+    const rows = [{ id: "prompt", top: 80, height: 96 }];
+    const positions = [79, 80, 81, 160, 81, 80, 79];
+    expect(positions.map((top) => resolveActualPromptPin(rows, top))).toEqual([
+      null,
+      { id: "prompt", translateY: 0 },
+      { id: "prompt", translateY: 1 },
+      { id: "prompt", translateY: 80 },
+      { id: "prompt", translateY: 1 },
+      { id: "prompt", translateY: 0 },
+      null,
+    ]);
+  });
+
+  it("uses changed measured height for collision without adding a spacer", () => {
+    const collapsed = [
+      { id: "old", top: 80, height: 96 },
+      { id: "new", top: 400, height: 96 },
+    ];
+    const expanded = [
+      { id: "old", top: 80, height: 196 },
+      { id: "new", top: 500, height: 96 },
+    ];
+    const oldPin = resolveActualPromptPin(collapsed, 350)!;
+    const newPin = resolveActualPromptPin(expanded, 350)!;
+    expect(oldPin.id).toBe(newPin.id);
+    expect(80 + oldPin.translateY + 96).toBe(400);
+    expect(80 + newPin.translateY + 196).toBe(500);
+    expect(collapsed[0].top).toBe(expanded[0].top);
+  });
+});
+
+describe("actual native row coordinates", () => {
+  it("keeps bottom distance independent of keyboard displacement and leading inset normalization", () => {
+    const height = 1800,
+      viewport = 600,
+      offset = 1160;
+    expect(nativeBottomDistance(height, 0, viewport, offset)).toBe(40);
+    expect(nativeBottomDistance(height, 20, viewport, offset)).toBe(60);
+    // Native top inset, if installed elsewhere, normalizes H and y together.
+    expect(nativeBottomDistance(height + 80, 0, viewport, offset + 80)).toBe(40);
+  });
+  it("measures original top at the stationary clip while the actual child is sticky", () => {
+    expect(nativeOriginalTop(900, 750, 100, 100)).toBe(150);
+    expect(nativeOriginalTop(900, 750, -200, 100)).toBe(-150);
+    const translation = nativeStickyTranslation(750 + 300, 900, 53, null);
+    expect(translation).toBe(150);
+    expect(nativeOriginalTop(900, 750, -200, 100) + translation).toBe(0);
+  });
+  it("matches RN uncapped unknown or overlapping next-header interpolation", () => {
+    expect(nativeStickyTranslation(700, 100, 53, null)).toBe(600);
+    expect(nativeStickyTranslation(700, 100, 53, 120)).toBe(600);
+    expect(nativeStickyTranslation(99, 100, 53, null)).toBe(0);
+  });
+  it("caps both drivers at the same measured next prompt collision", () => {
+    expect(nativeStickyTranslation(300, 100, 53, 500)).toBe(200);
+    expect(nativeStickyTranslation(600, 100, 53, 500)).toBe(347);
+    const t0 = nativeStickyTranslation(440, 100, 53, 500);
+    const tk = nativeStickyTranslation(440 + 300, 100, 53, 500);
+    expect(tk - t0).toBe(7);
+    expect(100 - 440 - 300 + tk).toBe(-293);
+  });
+  it("delivers the original absolute wrapper event once to the list callback", () => {
+    const channel = createNativeStickyLayout<{ y: number; height: number }>();
+    const cell = vi.fn();
+    const stop = channel.subscribe(cell);
+    const event = { y: 900, height: 53 };
+    channel.publish(event);
+    expect(cell).toHaveBeenCalledExactlyOnceWith(event);
+    stop();
+    channel.publish({ y: 1000, height: 53 });
+    expect(cell).toHaveBeenCalledTimes(1);
+  });
+  it("replays latest real layout to a late subscriber but never across position identities", () => {
+    const channel = createNativeStickyLayout<number>({ key: "prompt", index: 2 });
+    expect(channel.position).toEqual({ key: "prompt", index: 2 });
+    channel.publish(900);
+    const cell = vi.fn();
+    channel.subscribe(cell);
+    expect(cell).toHaveBeenCalledExactlyOnceWith(900);
+    const newPosition = createNativeStickyLayout<number>({ key: "prompt", index: 3 });
+    const changedIndex = vi.fn();
+    newPosition.subscribe(changedIndex);
+    expect(changedIndex).not.toHaveBeenCalled();
+    newPosition.publish(1100);
+    expect(changedIndex).toHaveBeenCalledExactlyOnceWith(1100);
+  });
+});
+
+describe("chronological native prompt settling", () => {
+  it("moves forward to the actual original row and confirms two real landings", () => {
+    const f = nativeJumpFixture("chronological");
+    f.succeed();
+    f.setTargetTop(280);
+    f.controller.start("prompt", "original");
+    f.retry();
+    expect(f.scrollToOffset).toHaveBeenLastCalledWith(1272, false);
+    f.retry();
+    f.retry();
+    expect(f.controller.isActive()).toBe(false);
+    expect(f.onFailure).not.toHaveBeenCalled();
+  });
+  it("pins at the measured effective leading edge without a copied preview", () => {
+    const f = nativeJumpFixture("chronological");
+    f.succeed();
+    f.setTargetTop(280);
+    f.controller.start("prompt", "pinned");
+    f.retry();
+    expect(f.scrollToOffset).toHaveBeenLastCalledWith(1282, false);
+    f.retry();
+    f.retry();
+    expect(f.controller.isActive()).toBe(false);
+    expect(f.measuredTargetTop()).toBe(-2);
+    expect(f.onFailure).not.toHaveBeenCalled();
+  });
+  it("recovers an unmeasured index using the one measured leading reservation", () => {
+    const f = nativeJumpFixture("chronological");
+    f.setHeader(332);
+    f.controller.start("prompt");
+    expect(f.scrollToOffset).toHaveBeenLastCalledWith(1532, false);
+    f.succeed();
+    f.retry();
+    while (f.pending()) f.retry();
+    expect(f.onFailure).not.toHaveBeenCalled();
+  });
+  it("cancels stale native measurements and timers without scrolling a new session", () => {
+    const f = nativeJumpFixture("chronological");
+    f.succeed();
+    f.setTargetTop(280);
+    f.controller.start("prompt");
+    f.controller.cancel();
+    for (const callback of f.archivedCallbacks) callback();
+    expect(f.scrollToOffset).not.toHaveBeenCalled();
+    expect(f.onFailure).not.toHaveBeenCalled();
+  });
+});
+
+describe("actual native preview line boundaries", () => {
+  it("clips before an overlapping second line instead of exposing its first ink", () => {
+    expect(
+      nativeTextPreviewMetrics(
+        [
+          { y: 0, height: 23 },
+          { y: 21, height: 23 },
+        ],
+        1,
+      ),
+    ).toEqual({ height: 21, count: 2 });
+  });
+  it("uses actual changed font/wrapping metrics and preserves full expanded line accounting", () => {
+    const scaled = [
+      { y: 2, height: 28 },
+      { y: 31, height: 28 },
+      { y: 60, height: 28 },
+    ];
+    expect(nativeTextPreviewMetrics(scaled, 1)).toEqual({ height: 30, count: 3 });
+    expect(nativeTextPreviewMetrics(scaled, 2)).toEqual({ height: 59, count: 3 });
+    expect(nativeTextPreviewMetrics([], 1)).toEqual({ height: 0, count: 0 });
+  });
+});
+
+function effectiveNativeReadingFixture() {
+  const items: StreamItem[] = [
+    {
+      id: "old",
+      kind: "user_message",
+      text: "old",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch", seq: 1000 },
+    },
+    {
+      id: "old-answer",
+      kind: "assistant_message",
+      text: "old answer",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch", seq: 1100 },
+    },
+    {
+      id: "later",
+      kind: "user_message",
+      text: "later",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch", seq: 1250 },
+    },
+    {
+      id: "later-answer",
+      kind: "assistant_message",
+      text: "later answer",
+      timestamp: new Date(0),
+      timelineCursor: { epoch: "epoch", seq: 1303 },
+    },
+  ];
+  const geometry = new Map([
+    ["old", { index: 0, y: 1000, height: 100 }],
+    ["old-answer", { index: 1, y: 1100, height: 150 }],
+    ["later", { index: 2, y: 1250, height: 53 }],
+    ["later-answer", { index: 3, y: 1303, height: 297 }],
+  ]);
+  return {
+    items,
+    geometry,
+    mounted: new Set(items.map((item) => item.id)),
+    offset: 1000,
+    viewportHeight: 600,
+    clippedLeading: 300,
+    stickyEnabled: true,
+  };
+}
+describe("actual native effective reading selection", () => {
+  it("publishes the later canonical turn when raw viewable rows are wholly behind the stationary clip", () => {
+    expect(resolveActualNativeReading(effectiveNativeReadingFixture())).toEqual({
+      pinnedId: "later",
+      rowId: "later",
+      seq: 1250,
+      visibleUserIds: ["later"],
+    });
+  });
+  it("keeps original row order and user visibility with K zero", () => {
+    expect(
+      resolveActualNativeReading({ ...effectiveNativeReadingFixture(), clippedLeading: 0 }),
+    ).toEqual({ pinnedId: "old", rowId: "old", seq: 1000, visibleUserIds: ["old", "later"] });
+  });
+  it("counts the actual retained sticky prompt while reading the straddling original assistant", () => {
+    const fixture = effectiveNativeReadingFixture();
+    fixture.geometry.set("later", { index: 2, y: 1250, height: 40 });
+    fixture.geometry.set("later-answer", { index: 3, y: 1290, height: 310 });
+    expect(resolveActualNativeReading(fixture)).toEqual({
+      pinnedId: "later",
+      rowId: "later-answer",
+      seq: 1303,
+      visibleUserIds: ["later"],
+    });
+    expect(resolveActualNativeReading({ ...fixture, stickyEnabled: false })).toEqual({
+      pinnedId: null,
+      rowId: "later-answer",
+      seq: 1303,
+      visibleUserIds: [],
+    });
+  });
+  it("rejects unmounted/stale-index geometry and an entirely occluded pane", () => {
+    const fixture = effectiveNativeReadingFixture();
+    fixture.mounted.delete("later");
+    fixture.geometry.set("old", { index: 99, y: 1000, height: 100 });
+    expect(resolveActualNativeReading(fixture)).toEqual({
+      pinnedId: null,
+      rowId: "later-answer",
+      seq: 1303,
+      visibleUserIds: [],
+    });
+    expect(resolveActualNativeReading({ ...fixture, clippedLeading: 600 })).toEqual({
+      pinnedId: null,
+      rowId: null,
+      seq: null,
+      visibleUserIds: [],
+    });
+  });
+});
+
+describe("actual native motion owner topology", () => {
+  it("uses the actual unshifted child viewport as its stationary measurement edge", () => {
+    const mode = resolveNativeMotionOwner(true, false, false);
+    expect(mode).toBe("standalone");
+    const viewport = { top: 20 };
+    const owner = resolveNativeMeasurementOwner(mode, viewport, null)!;
+    expect(owner.viewport).toBe(viewport);
+    expect(owner.clip).toBe(viewport);
+    expect(nativeOriginalTop(1250, 1000, owner.viewport.top, owner.clip.top)).toBe(250);
+    expect(nativeStickyTranslation(1000, 1250, 53, null)).toBe(0);
+  });
+  it("retains the real dock measurement owner and physical K even when a child is eligible for standalone", () => {
+    const mode = resolveNativeMotionOwner(true, true, true);
+    expect(mode).toBe("docked");
+    const viewport = { top: -200 };
+    const clip = { top: 100 };
+    const owner = resolveNativeMeasurementOwner(mode, viewport, clip)!;
+    expect(owner.viewport).toBe(viewport);
+    expect(owner.clip).toBe(clip);
+    expect(nativeOriginalTop(1250, 1000, owner.viewport.top, owner.clip.top)).toBe(-50);
+    expect(nativeStickyTranslation(1000 + 300, 1250, 53, null)).toBe(50);
+  });
+  it("rejects partial/missing dock contracts and waits for actual refs rather than guessing zero", () => {
+    expect(() => resolveNativeMotionOwner(false, false, false)).toThrow("owners must match");
+    expect(() => resolveNativeMotionOwner(true, true, false)).toThrow("owners must match");
+    expect(() => resolveNativeMotionOwner(true, false, true)).toThrow("owners must match");
+    expect(resolveNativeMeasurementOwner("docked", { top: -200 }, null)).toBeNull();
+    expect(resolveNativeMeasurementOwner("standalone", null, null)).toBeNull();
+  });
 });

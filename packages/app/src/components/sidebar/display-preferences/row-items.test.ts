@@ -6,9 +6,9 @@ import {
 } from "./row-items";
 
 describe("parseSidebarRowItems", () => {
-  it("shows project and branch alongside operational metadata by default", () => {
+  it("shows project and operational metadata by default with branches opt-in", () => {
     expect(DEFAULT_SIDEBAR_ROW_ITEMS).toEqual({
-      branch: true,
+      branch: false,
       project: true,
       host: true,
       changeRequest: true,
@@ -16,6 +16,15 @@ describe("parseSidebarRowItems", () => {
       labels: true,
     });
   });
+
+  it.each([undefined, null, {}, { branch: null }, { branch: "true" }])(
+    "keeps missing or invalid branch visibility opt-in for %j",
+    (stored) => {
+      const parsed = parseSidebarRowItems(stored);
+      expect(parsed.branch).toBe(false);
+      expect(parsed.project).toBe(true);
+    },
+  );
 
   it.each([
     { project: false, branch: false },

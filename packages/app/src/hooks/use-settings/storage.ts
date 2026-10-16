@@ -32,6 +32,7 @@ import {
   type ThemePreference,
 } from "@/styles/theme";
 import { z } from "zod";
+import { AccentColorSchema, type AccentColor } from "@/styles/accent";
 import { APP_SETTINGS_KEY, LEGACY_SETTINGS_KEY } from "./keys";
 import { migrateAppSettings } from "./migrations";
 
@@ -84,6 +85,7 @@ export interface AppSettings {
   /** Optional fork feature preferences, synced when a settings host is selected. */
   paseoPlusPlus: PaseoPlusPlusPreferences;
   theme: ThemePreference;
+  accentColor: AccentColor;
   /** Which contributed theme `theme: "plugin"` selects. */
   pluginThemeId: string | null;
   language: AppLanguage;
@@ -156,6 +158,7 @@ export interface Settings extends AppSettings {
 export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   paseoPlusPlus: DEFAULT_PASEO_PLUS_PLUS_PREFERENCES,
   theme: DEFAULT_THEME_PREFERENCE,
+  accentColor: "default",
   pluginThemeId: null,
   language: "system",
   sendBehavior: "steer",
@@ -238,6 +241,7 @@ const StoredAppSettingsSchema = z
   .looseObject({
     paseoPlusPlus: PaseoPlusPlusPreferencesSchema,
     theme: ThemePreferenceSchema.catch(DEFAULT_THEME_PREFERENCE),
+    accentColor: AccentColorSchema.catch("default"),
     pluginThemeId: z.string().nullable().catch(null),
     language: z
       .enum(["system", "ar", "en", "es", "fr", "ja", "ko", "pt-BR", "ru", "zh-CN"])

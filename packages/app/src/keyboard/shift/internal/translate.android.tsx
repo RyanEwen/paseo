@@ -1,6 +1,9 @@
+import { DockReservationContext } from "./dock-reservation";
+import { usePublishDockReservation } from "./use-dock-reservation";
+import { KeyboardDockDisplacementContext } from "./dock-displacement.android";
 import type { ReactNode } from "react";
 import type { ViewProps } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useDerivedValue } from "react-native-reanimated";
 import { useKeyboardShift } from "./context";
 
 interface KeyboardTranslateViewProps extends ViewProps {
@@ -17,14 +20,24 @@ export function KeyboardTranslateView({
   style,
   ...props
 }: KeyboardTranslateViewProps) {
+  const reservation = usePublishDockReservation(enabled, bottomClearance);
   const { shift } = useKeyboardShift();
+  // Share the physical driver, rather than bridging keyboard frames through JS.
+  const displacement = useDerivedValue(
+    () => (enabled ? Math.max(0, shift.value - bottomClearance) : 0),
+    [enabled, bottomClearance],
+  );
   const keyboardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: enabled ? -Math.max(0, shift.value - bottomClearance) : 0 }],
+    transform: [{ translateY: -displacement.value }],
   }));
 
   return (
     <Animated.View style={[style, keyboardStyle]} {...props}>
-      {children}
+      <KeyboardDockDisplacementContext.Provider value={displacement}>
+        <DockReservationContext.Provider value={reservation}>
+          {children}
+        </DockReservationContext.Provider>
+      </KeyboardDockDisplacementContext.Provider>
     </Animated.View>
   );
 }

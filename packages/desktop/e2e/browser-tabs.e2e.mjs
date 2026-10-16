@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { createServer } from "node:http";
 import net from "node:net";
@@ -14,6 +14,11 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { chromium } from "playwright";
 import { runAppearanceFontSizeRegression } from "./appearance-font-size.electron.mjs";
 import { runSettingsMemoryRegression } from "./settings-memory.electron.mjs";
+import { prepareNativePaneRenderer, runNativePaneRegression } from "./native-pane.electron.mjs";
+import {
+  seedBrowserExtensions,
+  runBrowserExtensionsRegression,
+} from "./browser-extensions.electron.mjs";
 
 import { seedPluginLinks, runPluginLinksRegression } from "./plugin-links.electron.mjs";
 
@@ -28,6 +33,7 @@ const workspaceIds = [
   "desktop-browser-evict-three",
 ];
 const timeoutMs = 90_000;
+const nativePaneOnly = process.env.PASEO_DESKTOP_NATIVE_PANE_ONLY === "1";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -86,15 +92,48 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+/** Create ordinary Git test data only in the runner's disposable workspace directory. */
+function seedRepositoryFixture(cwd) {
+  const options = { cwd, stdio: "ignore" };
+  execFileSync("git", ["init", "--initial-branch=main"], options);
+  // Fixture commits need neither the user's signing setup nor their global hooks.
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "-c",
+      "commit.gpgSign=false",
+      "-c",
+      `core.hooksPath=${path.join(cwd, ".git", "fixture-hooks")}`,
+      "commit",
+      "--allow-empty",
+      "-m",
+      "Seed isolated repository fixture",
+    ],
+    options,
+  );
+  execFileSync(
+    "git",
+    ["remote", "add", "origin", "https://github.com/acme/workspace-links.git"],
+    options,
+  );
+}
+
 function seedPaseoHome(paseoHome, listen, workspaceRoot) {
   const timestamp = "2026-01-01T00:00:00.000Z";
   const projects = workspaceIds.map((workspaceId, index) => {
     const cwd = path.join(workspaceRoot, `workspace-${index + 1}`);
     fs.mkdirSync(cwd, { recursive: true });
+    if (index === 0) {
+      seedRepositoryFixture(cwd);
+    }
     return {
       projectId: `project-${workspaceId}`,
       rootPath: cwd,
-      kind: "non_git",
+      kind: index === 0 ? "git" : "non_git",
       displayName: `Desktop browser project ${index + 1}`,
       customName: null,
       createdAt: timestamp,
@@ -109,7 +148,7 @@ function seedPaseoHome(paseoHome, listen, workspaceRoot) {
     kind: "directory",
     displayName: `Desktop browser workspace ${index + 1}`,
     title: `Desktop browser workspace ${index + 1}`,
-    branch: null,
+    branch: index === 0 ? "main" : null,
     baseBranch: null,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -139,6 +178,18 @@ function spawnLogged(name, command, args, options, logDir) {
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
   });
+  if (nativePaneOnly && child.pid) {
+    const birthsPath = path.join(logDir, "owned-process-births.jsonl");
+    fs.appendFileSync(
+      birthsPath,
+      JSON.stringify({
+        name,
+        pid: child.pid,
+        birthStat:
+          process.platform === "linux" ? fs.readFileSync(`/proc/${child.pid}/stat`, "utf8") : null,
+      }) + "\n",
+    );
+  }
   let openStreams = 2;
   const closeLogStream = () => {
     openStreams -= 1;
@@ -195,8 +246,26 @@ async function waitForDesktopStatus(page) {
   );
 }
 
+/** Keep cold compilation admission separate from the existing rendered UI assertion. */
+async function waitForRendererReady(page, expoPort, artifactDir) {
+  if (nativePaneOnly) {
+    await prepareNativePaneRenderer({ page, expoPort, artifactDir, timeoutMs });
+    return;
+  }
+  await page
+    .getByRole("button", { name: "Settings", exact: true })
+    .waitFor({ state: "visible", timeout: timeoutMs });
+}
+
 async function startTargetPage() {
   const server = createServer((_request, response) => {
+    if (nativePaneOnly) {
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end(
+        `<!doctype html><head><title>Native target ${_request.url}</title><style>html,body{margin:0;background:rgb(34,153,102)}#top,#bottom{position:fixed;left:0;right:0;height:32px}#top{top:0}#bottom{bottom:0}#typing-target{position:fixed;left:calc(50% - 120px);top:calc(50% - 20px);width:240px}</style></head><body><div id=top></div><input id=typing-target aria-label="Typing target"><div id=bottom></div></body>`,
+      );
+      return;
+    }
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(`<!doctype html>
       <html>
@@ -273,7 +342,7 @@ async function waitForGuestActiveElement(client, browserId, elementId) {
   return false;
 }
 
-async function createCallerAgent(daemonPort, workspaceId = workspaceIds[0]) {
+async function createCallerAgent({ daemonPort, workspaceId = workspaceIds[0], responseText }) {
   const transport = new StreamableHTTPClientTransport(
     new URL(`http://127.0.0.1:${daemonPort}/mcp/agents`),
   );
@@ -286,7 +355,10 @@ async function createCallerAgent(daemonPort, workspaceId = workspaceIds[0]) {
         workspace: { kind: "existing", workspaceId },
         title: "Browser desktop browser E2E caller",
         provider: "mock/ten-second-stream",
-        settings: { modeId: "load-test" },
+        settings: {
+          modeId: "load-test",
+          features: responseText ? { mockAssistantResponse: responseText } : {},
+        },
         initialPrompt: "Remain available while the browser bridge regression runs.",
       },
     });
@@ -690,6 +762,7 @@ async function runRegression({
   typingAgent,
   artifactDir,
   inspectorPort,
+  extensionFixtures,
   withoutPlaywrightObservation,
 }) {
   const failures = [];
@@ -729,6 +802,12 @@ async function runRegression({
   );
   const firstGuest = await readGuest(page, browserId);
   assert(firstGuest, "Original browser guest was not attached to its workspace pane");
+  const extensions = await runBrowserExtensionsRegression({
+    page,
+    fixtures: extensionFixtures,
+    artifactDir,
+    browserId,
+  });
   const visibleWindow = await inspectWindowPresentation(inspectorPort);
   writeJson(path.join(artifactDir, "visible-window.json"), visibleWindow);
   await verifyBackgroundAgentAccess({
@@ -1183,6 +1262,7 @@ async function runRegression({
 
   return {
     browserId,
+    extensions,
     originalWebContentsId: firstGuest.webContentsId,
     finalWebContentsId: parkedGuest.webContentsId,
     viewport: "passed",
@@ -1197,11 +1277,26 @@ async function runRegression({
   };
 }
 
+/** Reuse an explicitly authenticated fixture display; ordinary runs keep their existing Xvfb wrapper. */
+function desktopLaunchCommand(desktopArgs) {
+  const useOwnPrivateDisplay =
+    nativePaneOnly && process.env.PASEO_BROWSER_FIXTURE_PRIVATE_DISPLAY === "1";
+  const desktopCommand =
+    process.platform === "linux" && !useOwnPrivateDisplay ? "xvfb-run" : desktopArgs.shift();
+  const desktopCommandArgs =
+    process.platform === "linux" && !useOwnPrivateDisplay
+      ? ["-a", "--server-args=-screen 0 1280x800x24", ...desktopArgs]
+      : desktopArgs;
+  return { desktopCommand, desktopCommandArgs };
+}
+
 async function main() {
   const artifactDir =
     process.env.PASEO_DESKTOP_BROWSER_E2E_ARTIFACT_DIR ??
     fs.mkdtempSync(path.join(os.tmpdir(), "paseo-desktop-browser-e2e-artifacts-"));
-  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "paseo-desktop-browser-e2e-"));
+  const runtimeParent = process.env.PASEO_DESKTOP_BROWSER_E2E_RUNTIME_ROOT ?? os.tmpdir();
+  fs.mkdirSync(runtimeParent, { recursive: true });
+  const runtimeDir = fs.mkdtempSync(path.join(runtimeParent, "paseo-desktop-browser-e2e-"));
   fs.mkdirSync(artifactDir, { recursive: true });
   const paseoHome = path.join(runtimeDir, "paseo-home");
   const userData = path.join(runtimeDir, "electron-user-data");
@@ -1217,14 +1312,19 @@ async function main() {
   ]);
   const listen = `127.0.0.1:${daemonPort}`;
   seedPaseoHome(paseoHome, listen, workspaceRoot);
+  const extensionFixtures = nativePaneOnly ? null : seedBrowserExtensions(userData);
   const target = await startTargetPage();
-  seedPluginLinks(paseoHome, workspaceIds[0], target.url, workspaceIds[1]);
+  if (!nativePaneOnly) seedPluginLinks(paseoHome, workspaceIds[0], target.url, workspaceIds[1]);
   const remoteHome = path.join(runtimeDir, "remote-home");
   seedPaseoHome(remoteHome, `127.0.0.1:${remotePort}`, path.join(runtimeDir, "remote-workspaces"));
   const children = [];
   let browser = null;
   let client = null;
   let appPage = null;
+  const stopOwned = () => {
+    for (const child of children.toReversed()) stopProcess(child);
+  };
+  if (nativePaneOnly) process.once("SIGTERM", stopOwned);
 
   try {
     // Observe the real Electron shell handoff without launching a user's browser.
@@ -1250,7 +1350,27 @@ async function main() {
       PASEO_VOICE_MODE_ENABLED: "0",
       FORCE_COLOR: "0",
       NO_COLOR: "1",
+      ...(nativePaneOnly
+        ? {
+            PASEO_METRO_CACHE_ROOT: path.join(runtimeDir, "metro-cache"),
+            PASEO_METRO_MAX_WORKERS: "1",
+            TMPDIR: path.join(runtimeDir, "tmp"),
+            XDG_CACHE_HOME: path.join(runtimeDir, "xdg-cache"),
+            XDG_CONFIG_HOME: path.join(runtimeDir, "xdg-config"),
+          }
+        : {}),
     };
+    if (nativePaneOnly) fs.mkdirSync(commonEnv.TMPDIR, { recursive: true });
+    writeJson(path.join(artifactDir, "runtime-context.json"), {
+      runtimeDir,
+      daemonPort,
+      expoPort,
+      cdpPort,
+      inspectorPort,
+      targetUrl: target.url,
+      privateDisplay: process.env.DISPLAY,
+      nativePaneOnly,
+    });
     const daemon = spawnLogged(
       "daemon",
       process.execPath,
@@ -1261,24 +1381,26 @@ async function main() {
     children.push(daemon.child);
     await waitForPort(daemonPort, "daemon", daemon);
 
-    const remoteDaemon = spawnLogged(
-      "remote-daemon",
-      process.execPath,
-      ["--import", "tsx", path.join(rootDir, "packages/server/scripts/dev-runner.ts")],
-      {
-        cwd: rootDir,
-        env: {
-          ...commonEnv,
-          PASEO_HOME: remoteHome,
-          PASEO_LISTEN: `127.0.0.1:${remotePort}`,
-          PASEO_SERVER_ID: "plugin-links-remote",
-          PASEO_NODE_ENV: "development",
+    if (!nativePaneOnly) {
+      const remoteDaemon = spawnLogged(
+        "remote-daemon",
+        process.execPath,
+        ["--import", "tsx", path.join(rootDir, "packages/server/scripts/dev-runner.ts")],
+        {
+          cwd: rootDir,
+          env: {
+            ...commonEnv,
+            PASEO_HOME: remoteHome,
+            PASEO_LISTEN: `127.0.0.1:${remotePort}`,
+            PASEO_SERVER_ID: "plugin-links-remote",
+            PASEO_NODE_ENV: "development",
+          },
         },
-      },
-      artifactDir,
-    );
-    children.push(remoteDaemon.child);
-    await waitForPort(remotePort, "remote daemon", remoteDaemon);
+        artifactDir,
+      );
+      children.push(remoteDaemon.child);
+      await waitForPort(remotePort, "remote daemon", remoteDaemon);
+    }
 
     const desktopArgs = [
       process.execPath,
@@ -1286,11 +1408,7 @@ async function main() {
       `--inspect=127.0.0.1:${inspectorPort}`,
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
     ];
-    const desktopCommand = process.platform === "linux" ? "xvfb-run" : desktopArgs.shift();
-    const desktopCommandArgs =
-      process.platform === "linux"
-        ? ["-a", "--server-args=-screen 0 1280x800x24", ...desktopArgs]
-        : desktopArgs;
+    const { desktopCommand, desktopCommandArgs } = desktopLaunchCommand(desktopArgs);
     const desktop = spawnLogged(
       "desktop",
       desktopCommand,
@@ -1318,11 +1436,41 @@ async function main() {
       fs.appendFileSync(path.join(artifactDir, "renderer-errors.txt"), `${error.stack}\n`),
     );
     const status = await waitForDesktopStatus(page);
+    await waitForRendererReady(page, expoPort, artifactDir);
 
+    if (nativePaneOnly) {
+      const callerAgentId = await createCallerAgent(daemonPort);
+      const transport = new StreamableHTTPClientTransport(
+        new URL(
+          `http://127.0.0.1:${daemonPort}/mcp/agents?callerAgentId=${encodeURIComponent(callerAgentId)}`,
+        ),
+      );
+      client = await experimental_createMCPClient({ transport });
+      const report = await runNativePaneRegression({
+        page,
+        client,
+        serverId: status.serverId,
+        targetUrl: target.url,
+        workspaceIds,
+        artifactDir,
+        inspectorPort,
+        inspectWindowPresentation,
+        callBrowserTool,
+        assert,
+        rootDir,
+        timeoutMs,
+      });
+      writeJson(path.join(artifactDir, "native-pane-report.json"), report);
+      console.log("Actual native React browser pane journey passed.");
+      return;
+    }
     const checkPluginLinks = () =>
       runPluginLinksRegression({
         page,
         remotePort,
+        serverId: status.serverId,
+        createChatAgent: () =>
+          createCallerAgent({ daemonPort, responseText: `[Workspace chat link](${target.url})` }),
         workspaceId: workspaceIds[0],
         remoteWorkspaceId: workspaceIds[1],
         url: target.url,
@@ -1346,10 +1494,10 @@ async function main() {
 
     await runAppearanceFontSizeRegression(page);
 
-    const callerAgentId = await createCallerAgent(daemonPort);
+    const callerAgentId = await createCallerAgent({ daemonPort });
     const typingAgent = {
       workspaceId: workspaceIds.at(-1),
-      agentId: await createCallerAgent(daemonPort, workspaceIds.at(-1)),
+      agentId: await createCallerAgent({ daemonPort, workspaceId: workspaceIds.at(-1) }),
     };
     const transport = new StreamableHTTPClientTransport(
       new URL(
@@ -1363,6 +1511,7 @@ async function main() {
       serverId: status.serverId,
       targetUrl: target.url,
       inspectorPort,
+      extensionFixtures,
       // Playwright's session owns a visible-capture lease on the host. A second
       // CDP session cannot release it, so detach the observer for native idle QA.
       withoutPlaywrightObservation: async (task) => {
@@ -1387,13 +1536,24 @@ async function main() {
       `Browser desktop browser E2E passed: WebContents ${report.originalWebContentsId} remained ${report.finalWebContentsId}; viewport, inactive capture, focus continuity, list, snapshot, click, local-page selectors passed.`,
     );
   } catch (error) {
+    if (appPage && !appPage.isClosed()) {
+      await appPage
+        .screenshot({ path: path.join(artifactDir, "failure.png") })
+        .catch(() => undefined);
+      fs.writeFileSync(
+        path.join(artifactDir, "failure.html"),
+        await appPage.content().catch(() => "Renderer closed"),
+      );
+    }
     console.error(`Browser desktop browser E2E failed. Artifacts: ${artifactDir}`);
     console.error(error);
     throw error;
   } finally {
     await client?.close().catch(() => undefined);
     await browser?.close().catch(() => undefined);
-    for (const child of children.toReversed()) stopProcess(child);
+    stopOwned();
+    if (nativePaneOnly) process.removeListener("SIGTERM", stopOwned);
+    target.server.closeAllConnections();
     await closeServer(target.server);
     await delay(1_000);
     try {

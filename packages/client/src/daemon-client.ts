@@ -1,3 +1,4 @@
+import type { AttachmentReference } from "@getpaseo/protocol/attachments";
 import { legacyUsageIcon } from "./legacy-usage-icons.js";
 import { subscribeTimeline, type TimelineMessage } from "./timeline-subscription/index.js";
 import { ProviderSnapshotUpdates } from "./provider-snapshots/index.js";
@@ -23,6 +24,7 @@ import {
   RenameTerminalResponseSchema,
   RestartRequestedStatusPayloadSchema,
   ShutdownRequestedStatusPayloadSchema,
+  DaemonUpdateAvailabilityResponseSchema,
   DaemonUpdateResponseSchema,
   SessionInboundMessageSchema,
   type ActiveTurnBehavior,
@@ -954,12 +956,15 @@ interface CorrelatedResponseIdentity {
 }
 
 interface PendingBinaryFileRead {
+  attachment?: true;
   cwd: string;
   path: string;
   maxBytes?: number;
 }
 
 interface BinaryFileTransferState extends PendingBinaryFileRead {
+  attachmentBuffer?: Uint8Array;
+  receivedBytes: number;
   mime: string;
   size: number;
   encoding: Extract<
@@ -1273,6 +1278,7 @@ export class DaemonClient {
   private pendingBinaryFileReads = new Map<string, PendingBinaryFileRead>();
   private activeBinaryFileTransfers = new Map<string, BinaryFileTransferState>();
   private completedBinaryFileReads = new Map<string, FileReadResult>();
+  private readonly attachmentReadRequests = new Map<string, string>();
   private logger: Logger;
   private pendingSendQueue: PendingSend[] = [];
   private readonly logConnectionPath: "direct" | "relay";
@@ -3827,6 +3833,25 @@ export class DaemonClient {
     });
   }
 
+  /** Read installable update availability without changing the selected host. */
+  async checkDaemonUpdateAvailability() {
+    const requestId = this.createRequestId();
+    const message = SessionInboundMessageSchema.parse({
+      type: "daemon.update.check_availability.request",
+      requestId,
+    });
+    return this.sendRequest({
+      requestId,
+      message,
+      timeout: 300_000,
+      select: (msg) => {
+        const parsed = DaemonUpdateAvailabilityResponseSchema.safeParse(msg);
+        if (!parsed.success || parsed.data.payload.requestId !== requestId) return null;
+        return parsed.data.payload;
+      },
+    });
+  }
+
   async updateDaemon(requestId?: string): Promise<DaemonUpdateResponse["payload"]> {
     const resolvedRequestId = this.createRequestId(requestId);
     const message = SessionInboundMessageSchema.parse({
@@ -4164,26 +4189,30 @@ export class DaemonClient {
     mode: "uncommitted" | "base";
     baseRef?: string;
     ignoreWhitespace?: boolean;
-  }): { mode: "uncommitted" | "base"; baseRef?: string; ignoreWhitespace?: boolean } {
-    if (compare.mode === "uncommitted") {
-      return compare.ignoreWhitespace === true
-        ? { mode: "uncommitted", ignoreWhitespace: true }
-        : { mode: "uncommitted" };
-    }
-    const trimmedBaseRef = compare.baseRef?.trim();
-    if (!trimmedBaseRef) {
-      return compare.ignoreWhitespace === true
-        ? { mode: "base", ignoreWhitespace: true }
-        : { mode: "base" };
-    }
-    return compare.ignoreWhitespace === true
-      ? { mode: "base", baseRef: trimmedBaseRef, ignoreWhitespace: true }
-      : { mode: "base", baseRef: trimmedBaseRef };
+    filePath?: string;
+  }): {
+    mode: "uncommitted" | "base";
+    baseRef?: string;
+    ignoreWhitespace?: boolean;
+    filePath?: string;
+  } {
+    const baseRef = compare.mode === "base" ? compare.baseRef?.trim() : undefined;
+    return {
+      mode: compare.mode,
+      ...(baseRef ? { baseRef } : {}),
+      ...(compare.ignoreWhitespace === true ? { ignoreWhitespace: true } : {}),
+      ...(compare.filePath !== undefined ? { filePath: compare.filePath } : {}),
+    };
   }
 
   async getCheckoutDiff(
     cwd: string,
-    compare: { mode: "uncommitted" | "base"; baseRef?: string; ignoreWhitespace?: boolean },
+    compare: {
+      mode: "uncommitted" | "base";
+      baseRef?: string;
+      ignoreWhitespace?: boolean;
+      filePath?: string;
+    },
     requestId?: string,
   ): Promise<CheckoutDiffPayload> {
     return this.sendCorrelatedSessionRequest({
@@ -4199,7 +4228,12 @@ export class DaemonClient {
 
   observeCheckoutDiff(
     cwd: string,
-    compare: { mode: "uncommitted" | "base"; baseRef?: string; ignoreWhitespace?: boolean },
+    compare: {
+      mode: "uncommitted" | "base";
+      baseRef?: string;
+      ignoreWhitespace?: boolean;
+      filePath?: string;
+    },
     options?: { requestId?: string; signal?: AbortSignal },
   ): OwnedSubscription<SubscribeCheckoutDiffPayload> {
     return this.observe(
@@ -4805,6 +4839,99 @@ export class DaemonClient {
       throw new Error("Directory listing unavailable.");
     }
     return payload.directory;
+  }
+
+  private requireAttachmentSupport(original = false): void {
+    if (this.lastServerInfoMessage?.features?.durableAttachments !== true)
+      throw new Error("Update the host to use durable screenshot references.");
+    if (original && this.lastServerInfoMessage.attachmentStorage?.originalReads !== true)
+      throw new Error(
+        "This connection does not support original-image transfers. Metadata remains available.",
+      );
+  }
+
+  async listAttachments(
+    agentId: string,
+    options?: { after?: string; limit?: number; requestId?: string },
+  ) {
+    this.requireAttachmentSupport();
+    return this.sendNamespacedCorrelatedSessionRequest<"attachments.list.response">({
+      requestId: options?.requestId,
+      message: {
+        type: "attachments.list.request",
+        agentId,
+        after: options?.after,
+        limit: options?.limit,
+      },
+    });
+  }
+  async getAttachment(agentId: string, referenceId: string, requestId?: string) {
+    this.requireAttachmentSupport();
+    return this.sendNamespacedCorrelatedSessionRequest<"attachments.get.response">({
+      requestId,
+      message: { type: "attachments.get.request", agentId, referenceId },
+    });
+  }
+  async cancelAttachmentRead(readRequestId: string, requestId?: string) {
+    const wireId = this.attachmentReadRequests.get(readRequestId) ?? readRequestId;
+    this.failAttachmentRead(wireId, new Error("Original transfer canceled locally."));
+    this.requireAttachmentSupport();
+    return this.sendNamespacedCorrelatedSessionRequest<"attachments.read.cancel.response">({
+      requestId,
+      message: { type: "attachments.read.cancel.request", readRequestId: wireId },
+    });
+  }
+  async readAttachment(
+    agentId: string,
+    referenceId: string,
+    requestId?: string,
+  ): Promise<{ reference: AttachmentReference; bytes: Uint8Array }> {
+    this.requireAttachmentSupport(true);
+    if ([...this.pendingBinaryFileReads.values()].filter((read) => read.attachment).length >= 2)
+      throw new Error("Original-image transfers are busy.");
+    // Caller IDs name cancellation handles. Every attempt uses a fresh wire identity,
+    // so late frames from an earlier canceled attempt cannot target an ID reused by the caller.
+    const id = this.createRequestId();
+    const callerId = requestId ?? id;
+    if (!callerId.length || callerId.length > 128)
+      throw new Error("Original transfer request ID is invalid.");
+    if (this.attachmentReadRequests.has(callerId))
+      throw new Error("Transfer request ID is already active.");
+    this.attachmentReadRequests.set(callerId, id);
+    this.pendingBinaryFileReads.set(id, {
+      attachment: true,
+      cwd: "",
+      path: referenceId,
+      maxBytes: 16 * 1024 * 1024,
+    });
+    try {
+      const result = await this.sendNamespacedCorrelatedSessionRequest<"attachments.read.response">(
+        {
+          requestId: id,
+          timeout: 300_000,
+          message: { type: "attachments.read.request", agentId, referenceId },
+        },
+      );
+      if (result.error || !result.reference)
+        throw new Error(result.error ?? "Original attachment is unavailable.");
+      const original = this.completedBinaryFileReads.get(id);
+      if (
+        !original ||
+        original.bytes.length !== result.reference.byteLength ||
+        original.mime !== result.reference.mimeType ||
+        original.revision !== result.reference.sha256 ||
+        result.reference.id !== referenceId ||
+        result.reference.agentId !== agentId
+      )
+        throw new Error("Original transfer is incomplete or inconsistent.");
+      return { reference: result.reference, bytes: original.bytes };
+    } finally {
+      this.pendingBinaryFileReads.delete(id);
+      this.activeBinaryFileTransfers.delete(id);
+      this.completedBinaryFileReads.delete(id);
+      if (this.attachmentReadRequests.get(callerId) === id)
+        this.attachmentReadRequests.delete(callerId);
+    }
   }
 
   async readFile(
@@ -6508,12 +6635,62 @@ export class DaemonClient {
     return true;
   }
 
+  private failAttachmentRead(wireId: string, error: Error): void {
+    if (!this.pendingBinaryFileReads.get(wireId)?.attachment) return;
+    this.pendingBinaryFileReads.delete(wireId);
+    this.activeBinaryFileTransfers.delete(wireId);
+    this.completedBinaryFileReads.delete(wireId);
+    for (const [callerId, candidate] of this.attachmentReadRequests)
+      if (candidate === wireId) this.attachmentReadRequests.delete(callerId);
+    this.rejectWaitersForRequestId(wireId, error);
+  }
+
+  private rejectAttachmentFraming(wireId: string, message: string): void {
+    this.failAttachmentRead(wireId, new Error(message));
+    // Local cleanup never waits for the host's cancellation acknowledgement.
+    try {
+      this.sendSessionMessageStrict({
+        type: "attachments.read.cancel.request",
+        readRequestId: wireId,
+        requestId: this.createRequestId(),
+      });
+    } catch {
+      /* Remote cancellation is best effort after local termination. */
+    }
+  }
+
+  private admitAttachmentTransferHeader(
+    frame: Extract<FileTransferFrame, { opcode: typeof FileTransferOpcode.FileBegin }>,
+  ): boolean {
+    const invalid =
+      frame.metadata.size < 1 ||
+      frame.metadata.encoding !== "binary" ||
+      frame.metadata.size > 16 * 1024 * 1024 ||
+      this.activeBinaryFileTransfers.has(frame.requestId) ||
+      this.completedBinaryFileReads.has(frame.requestId);
+    if (!invalid) return true;
+    this.rejectAttachmentFraming(
+      frame.requestId,
+      "Original transfer header is invalid or repeated.",
+    );
+    return false;
+  }
+
+  private rejectUnexpectedAttachmentFrame(requestId: string): void {
+    if (this.pendingBinaryFileReads.get(requestId)?.attachment)
+      this.rejectAttachmentFraming(
+        requestId,
+        "Original transfer framing is incomplete or repeated.",
+      );
+  }
+
   private handleFileTransferFrame(frame: FileTransferFrame): void {
     if (frame.opcode === FileTransferOpcode.FileBegin) {
       const pending = this.pendingBinaryFileReads.get(frame.requestId);
       if (!pending) {
         return;
       }
+      if (pending.attachment && !this.admitAttachmentTransferHeader(frame)) return;
       this.activeBinaryFileTransfers.set(frame.requestId, {
         ...pending,
         mime: frame.metadata.mime,
@@ -6522,16 +6699,34 @@ export class DaemonClient {
         modifiedAt: frame.metadata.modifiedAt,
         revision: frame.metadata.revision,
         chunks: [],
+        receivedBytes: 0,
+        ...(pending.attachment ? { attachmentBuffer: new Uint8Array(frame.metadata.size) } : {}),
       });
       return;
     }
 
     const transfer = this.activeBinaryFileTransfers.get(frame.requestId);
     if (!transfer) {
+      this.rejectUnexpectedAttachmentFrame(frame.requestId);
       return;
     }
 
     if (frame.opcode === FileTransferOpcode.FileChunk) {
+      if (transfer.attachmentBuffer) {
+        if (
+          frame.payload.byteLength > 64 * 1024 ||
+          transfer.receivedBytes + frame.payload.byteLength > transfer.size
+        ) {
+          this.rejectAttachmentFraming(
+            frame.requestId,
+            "Original transfer exceeded its declared length or chunk limit.",
+          );
+          return;
+        }
+        transfer.attachmentBuffer.set(frame.payload, transfer.receivedBytes);
+        transfer.receivedBytes += frame.payload.byteLength;
+        return;
+      }
       // COMPAT(fileReadByteBudget): added in v0.5.0, remove after 2027-02-21 once daemon floor >= v0.5.0.
       // Old daemons stream despite maxBytes; discard before client-side accumulation.
       if (transfer.maxBytes && transfer.size > transfer.maxBytes) {
@@ -6559,7 +6754,11 @@ export class DaemonClient {
       return;
     }
 
-    const bytes = concatByteChunks(transfer.chunks, transfer.size);
+    if (transfer.attachmentBuffer && transfer.receivedBytes !== transfer.size) {
+      this.rejectAttachmentFraming(frame.requestId, "Original transfer is incomplete.");
+      return;
+    }
+    const bytes = transfer.attachmentBuffer ?? concatByteChunks(transfer.chunks, transfer.size);
     this.activeBinaryFileTransfers.delete(frame.requestId);
     this.completedBinaryFileReads.set(frame.requestId, {
       bytes,
@@ -6570,6 +6769,7 @@ export class DaemonClient {
       modifiedAt: transfer.modifiedAt,
       revision: transfer.revision,
     });
+    if (transfer.attachment) return;
     this.handleSessionMessage({
       type: "file_explorer_response",
       payload: {

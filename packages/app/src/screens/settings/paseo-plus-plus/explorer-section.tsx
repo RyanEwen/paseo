@@ -1,3 +1,4 @@
+import { PREFERENCE_EXAMPLE_IMAGES } from "@/paseo-plus-plus/settings-examples";
 import { SettingsExample } from "@/components/settings/settings-example";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -50,6 +51,7 @@ export function ExplorerSection() {
             key={key}
             title={t(content.label)}
             caption={`${t(content.hint)} ${t("paseoPlusPlus.examples.explorer")}`}
+            images={PREFERENCE_EXAMPLE_IMAGES.explorer}
             testID={`settings-example-${key}`}
           />,
         ]),
