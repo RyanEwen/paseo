@@ -1463,6 +1463,12 @@ export const ar: TranslationResources = {
         custom: "ترتيب مخصص",
         emptyProjects: "ترتيب المشاريع الفارغة",
       },
+      emptyWorkspaces: {
+        label: "مساحات العمل الفارغة",
+        show: "إظهار",
+        group: "تجميع",
+        hide: "إخفاء",
+      },
       projectVisibility: {
         label: "التصفية",
         all: "كل المشاريع",

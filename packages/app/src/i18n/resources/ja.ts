@@ -1480,6 +1480,12 @@ export const ja: TranslationResources = {
         custom: "カスタム順",
         emptyProjects: "空のプロジェクトを並べ替え",
       },
+      emptyWorkspaces: {
+        label: "空のワークスペース",
+        show: "表示",
+        group: "グループ化",
+        hide: "非表示",
+      },
       projectVisibility: {
         label: "フィルター",
         all: "すべてのプロジェクト",

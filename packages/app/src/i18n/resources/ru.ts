@@ -1486,6 +1486,12 @@ export const ru: TranslationResources = {
         custom: "Свой порядок",
         emptyProjects: "Сортировка пустых проектов",
       },
+      emptyWorkspaces: {
+        label: "Пустые рабочие пространства",
+        show: "Показать",
+        group: "Сгруппировать",
+        hide: "Скрыть",
+      },
       projectVisibility: {
         label: "Фильтр",
         all: "Все проекты",

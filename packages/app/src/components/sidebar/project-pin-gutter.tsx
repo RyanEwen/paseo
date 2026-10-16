@@ -13,17 +13,21 @@ const pinMapping = (theme: Theme) => ({
   size: theme.iconSize.sm,
 });
 
-/** One stable rail for all workspace names; the existing status/project gutter stays intact. */
+/** Paint inside the existing leading gutter without participating in row layout. */
 export function WorkspaceProjectPinGutter({
   workspace,
+  occupied = false,
+  outside = false,
 }: {
+  occupied?: boolean;
+  outside?: boolean;
   workspace: Pick<SidebarWorkspaceEntry, "workspaceKey" | "projectPinnedAt" | "pinnedAt">;
 }) {
   const enabled = useContext(ProjectPinGutterContext);
-  if (!enabled) return null;
+  if (!enabled || workspace.projectPinnedAt == null) return null;
   return (
     <View
-      style={styles.rail}
+      style={[styles.rail, occupied && styles.annotation, outside && styles.outside]}
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
@@ -39,13 +43,20 @@ export function WorkspaceProjectPinGutter({
   );
 }
 const styles = StyleSheet.create((theme) => ({
+  annotation: {
+    transform: [{ scale: 0.65 }],
+    left: theme.iconSize.md / 2,
+    top: theme.spacing[1],
+  },
+  outside: { left: -(theme.iconSize.md + theme.spacing[2]) },
   rail: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     width: theme.iconSize.md,
     height: theme.iconSize.md + theme.spacing[1],
     flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
-    // The shared row already supplies spacing[2]; keep a small gap before the title column.
-    marginRight: -theme.spacing[1],
   },
 }));

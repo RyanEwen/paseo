@@ -35,6 +35,8 @@ export interface SidebarDisplayPreferences {
   setWorkspaceSorting: (mode: SidebarWorkspaceSortMode) => void;
   sorting: SidebarSortMode;
   setSorting: (mode: SidebarSortMode) => void;
+  emptyWorkspaces: "show" | "group" | "hide";
+  setEmptyWorkspaces: (mode: "show" | "group" | "hide") => void;
   projectVisibility: SidebarProjectVisibility;
   setProjectVisibility: (visibility: SidebarProjectVisibility) => void;
   emptyProjectSorting: SidebarEmptyProjectSortMode;
@@ -116,6 +118,18 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
     [update],
   );
   const setSorting = useCallback((mode: SidebarSortMode) => update({ sortMode: mode }), [update]);
+  let emptyWorkspaces: SidebarDisplayPreferences["emptyWorkspaces"] = groupEmptyProjects
+    ? "group"
+    : "show";
+  if (projectVisibility === "unarchived") emptyWorkspaces = "hide";
+  const setEmptyWorkspaces = useCallback(
+    (mode: "show" | "group" | "hide") =>
+      update({
+        projectVisibility: mode === "hide" ? "unarchived" : "all",
+        groupEmptyProjects: mode === "group",
+      }),
+    [update],
+  );
   const setProjectVisibility = useCallback(
     (visibility: SidebarProjectVisibility) => update({ projectVisibility: visibility }),
     [update],
@@ -233,6 +247,8 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setWorkspaceSorting,
       sorting,
       setSorting,
+      emptyWorkspaces,
+      setEmptyWorkspaces,
       projectVisibility,
       setProjectVisibility,
       emptyProjectSorting,
@@ -276,6 +292,8 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       setWorkspaceSorting,
       sorting,
       setSorting,
+      emptyWorkspaces,
+      setEmptyWorkspaces,
       projectVisibility,
       setProjectVisibility,
       emptyProjectSorting,

@@ -58,7 +58,6 @@ import {
   type SidebarGroupMode,
   type SidebarSortMode,
   type SidebarEmptyProjectSortMode,
-  type SidebarProjectVisibility,
 } from "@/stores/sidebar-view-store";
 import { workspaceLabelKey, type WorkspaceLabelColor } from "@getpaseo/protocol/workspace-labels";
 import type { WorkspaceTitleSource } from "@/hooks/use-settings";
@@ -108,9 +107,16 @@ const SORTING_ICONS: Record<SidebarSortMode, OptionIcon> = {
   status: GROUPING_ICONS.status,
   custom: withUnistyles(GripVertical),
 };
-const VISIBILITY_ICONS: Record<SidebarProjectVisibility, OptionIcon> = {
-  all: GROUPING_ICONS.project,
-  unarchived: GROUPING_ICONS.status,
+const EMPTY_WORKSPACE_ICONS = {
+  show: GROUPING_ICONS.project,
+  group: GROUPING_ICONS.status,
+  hide: withUnistyles(EyeOff),
+};
+const EMPTY_WORKSPACE_MODES = ["show", "group", "hide"] as const;
+const EMPTY_WORKSPACE_LABEL_KEYS = {
+  show: "sidebar.display.emptyWorkspaces.show",
+  group: "sidebar.display.emptyWorkspaces.group",
+  hide: "sidebar.display.emptyWorkspaces.hide",
 };
 const WORKSPACE_SORTING_MODES = ["name", "status", "custom"] as const;
 const WORKSPACE_SORTING_ICONS = {
@@ -126,17 +132,11 @@ const WORKSPACE_SORTING_LABEL_KEYS = {
 const SORTING_MODES: readonly SidebarSortMode[] = ["project", "status", "custom"];
 const EMPTY_PROJECT_SORTING_MODES: readonly SidebarEmptyProjectSortMode[] = ["project", "custom"];
 
-const PROJECT_VISIBILITIES: readonly SidebarProjectVisibility[] = ["all", "unarchived"];
 const SORTING_LABEL_KEYS: Record<SidebarSortMode, string> = {
   project: "sidebar.display.sorting.project",
   status: "sidebar.display.sorting.status",
   custom: "sidebar.display.sorting.custom",
 };
-const VISIBILITY_LABEL_KEYS: Record<SidebarProjectVisibility, string> = {
-  all: "sidebar.display.projectVisibility.all",
-  unarchived: "sidebar.display.projectVisibility.unarchived",
-};
-
 const TITLE_SOURCE_ICONS: Record<WorkspaceTitleSource, OptionIcon> = {
   title: withUnistyles(Type),
   branch: withUnistyles(GitBranch),
@@ -232,8 +232,6 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
     preferences.groupEmptyProjects &&
     projects.some((project) => project.workspaces.length === 0);
 
-  const handleToggleEmptyProjects = preferences.toggleGroupEmptyProjects;
-
   const pages = useMemo<MenuPageDefinition[]>(() => {
     const definitions: MenuPageDefinition[] = [
       {
@@ -289,16 +287,16 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
         ),
       },
       {
-        id: "projectVisibility",
-        title: t("sidebar.display.projectVisibility.label"),
+        id: "emptyWorkspaces",
+        title: t("sidebar.display.emptyWorkspaces.label"),
         content: (
           <OptionList
-            values={PROJECT_VISIBILITIES}
-            icons={VISIBILITY_ICONS}
-            labelKeys={VISIBILITY_LABEL_KEYS}
-            selectedValue={preferences.projectVisibility}
-            onSelect={preferences.setProjectVisibility}
-            testIDPrefix="sidebar-project-visibility"
+            values={EMPTY_WORKSPACE_MODES}
+            icons={EMPTY_WORKSPACE_ICONS}
+            labelKeys={EMPTY_WORKSPACE_LABEL_KEYS}
+            selectedValue={preferences.emptyWorkspaces}
+            onSelect={preferences.setEmptyWorkspaces}
+            testIDPrefix="sidebar-empty-workspaces"
           />
         ),
       },
@@ -422,15 +420,6 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
             >
               {t("paseoPlusPlus.workspaceLimit.title")}
             </MenuSubTrigger>
-            <OptionItem
-              value="emptyProjects"
-              icon={GROUPING_ICONS.project}
-              label={t("sidebar.display.grouping.emptyProjects")}
-              selected={preferences.groupEmptyProjects}
-              closeOnSelect={false}
-              onSelect={handleToggleEmptyProjects}
-              testID="sidebar-grouping-empty-projects"
-            />
             {preferences.grouping === "project" ? (
               <MenuSubTrigger
                 disabled={preferences.preferencesDisabled}
@@ -461,11 +450,11 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
             ) : null}
             <MenuSubTrigger
               disabled={preferences.preferencesDisabled}
-              id="projectVisibility"
-              value={t(VISIBILITY_LABEL_KEYS[preferences.projectVisibility])}
-              testID="sidebar-display-project-visibility"
+              id="emptyWorkspaces"
+              value={t(EMPTY_WORKSPACE_LABEL_KEYS[preferences.emptyWorkspaces])}
+              testID="sidebar-display-empty-workspaces"
             >
-              {t("sidebar.display.projectVisibility.label")}
+              {t("sidebar.display.emptyWorkspaces.label")}
             </MenuSubTrigger>
             <MenuSubTrigger
               disabled={preferences.preferencesDisabled}

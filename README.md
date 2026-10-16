@@ -62,7 +62,7 @@ Expand or collapse visible sidebar groups together while retaining hidden groups
 
 ### Pin workspaces within projects
 
-Keep selected workspaces at the top of their project, alongside the existing option to pin at the top of the whole sidebar. Project-pinned workspaces show a pin in the gutter to the left of their name. The shared pin rail keeps workspace names aligned and leaves project icons, status indicators, and shortcuts in place. A global sidebar pin alone does not show this project-pin marker. Turning the feature off hides the rail; saved project pins return when it is re-enabled.
+Keep selected workspaces at the top of their project, alongside the existing option to pin at the top of the whole sidebar. Project-pinned workspaces show a pin in the gutter to the left of their name. The marker uses the existing gutter without shifting workspace names; project icons and operation loaders retain their place. A global sidebar pin alone does not show this project-pin marker. Turning the feature off hides the marker; saved project pins return when it is re-enabled.
 
 [View example](packages/app/assets/settings-examples/annotated/projectPinning-project-pin.svg)
 
@@ -92,11 +92,13 @@ Choose a muted accent color in **Paseo++** settings for primary controls and you
 
 ### Sidebar display options
 
-Use the bell beside expand and collapse to switch between Project and Status modes. Each mode remembers its own sorting, filters, and display choices. Choose hosts and their projects together in the workspace chooser. Newly created projects stay visible when a project selection is active.
+Use the bell beside expand and collapse to switch between Project and Status modes. Each mode remembers its own sorting, filters, and display choices. The workspace chooser lists projects directly; **Host** keeps host selection and host-specific projects together. Newly created projects stay visible when a project selection is active.
 
 Find sorting, row details, and **Workspace list** controls in the sidebar's **Display** menu. Dragging is available only when the applicable project or workspace sort is **Custom**; it never changes the sort mode. Moving a filtered project places it before or after the same project when **All** is shown, while other projects keep their relative order. Pinned workspaces retain their independent manual ordering. Project status sorting places **Done** before **No status**, keeping other status priorities unchanged. Show agent activity and code-change totals together. Project labels start visible; branch labels are optional and start hidden. Choose a count limit (20 by default), an update-age limit, or both. **Show more** reveals every matching workspace in the group, including older entries.
 
 The filter icon beside the bell opens a quick text filter for the current mode. Match project or workspace names, titles and visible branches without changing the active workspace, saved order or sort. Project-name matches retain their scoped children; other matches retain the matching workspace and its project. Each mode keeps its own text for the current app session. Clear, close or press Escape to restore the list; collapsed sections keep their existing state. Text matching runs before the count window, so a match beyond the first 20 can still appear.
+
+In **Display → Empty workspaces**, choose **Show**, **Group**, or **Hide** for project groups with no visible workspaces.
 
 ### Explorer and Changes
 
