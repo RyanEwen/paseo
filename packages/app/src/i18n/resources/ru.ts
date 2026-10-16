@@ -1408,6 +1408,7 @@ export const ru: TranslationResources = {
         countLimit: "Ограничение количества",
         updatedWithin: "Обновлено за",
         day: "1 день",
+        twoDays: "2 дня",
         threeDays: "3 дня",
         fiveDays: "5 дней",
         week: "1 неделю",

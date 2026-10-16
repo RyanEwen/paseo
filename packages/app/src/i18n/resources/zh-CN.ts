@@ -1372,6 +1372,7 @@ export const zhCN: TranslationResources = {
         countLimit: "数量限制",
         updatedWithin: "最近更新时间",
         day: "1天",
+        twoDays: "2 天",
         threeDays: "3天",
         fiveDays: "5天",
         week: "1周",

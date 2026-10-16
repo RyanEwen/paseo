@@ -1402,6 +1402,7 @@ export const ja: TranslationResources = {
         countLimit: "表示件数の上限",
         updatedWithin: "更新期間",
         day: "1日",
+        twoDays: "2日",
         threeDays: "3日",
         fiveDays: "5日",
         week: "1週間",

@@ -1418,6 +1418,7 @@ export const ptBR: TranslationResources = {
         countLimit: "Limite de quantidade",
         updatedWithin: "Atualizado nos últimos",
         day: "1 dia",
+        twoDays: "2 dias",
         threeDays: "3 dias",
         fiveDays: "5 dias",
         week: "1 semana",

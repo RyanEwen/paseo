@@ -1395,6 +1395,7 @@ export const en = {
         countLimit: "Count limit",
         updatedWithin: "Updated within",
         day: "1 day",
+        twoDays: "2 days",
         threeDays: "3 days",
         fiveDays: "5 days",
         week: "1 week",

@@ -1418,6 +1418,7 @@ export const fr: TranslationResources = {
         countLimit: "Limite du nombre",
         updatedWithin: "Mis à jour depuis",
         day: "1 jour",
+        twoDays: "2 jours",
         threeDays: "3 jours",
         fiveDays: "5 jours",
         week: "1 semaine",
