@@ -136,7 +136,7 @@ export const en = {
       },
       sidebarWorkspaceTransitions: {
         label: "Animate workspace moves",
-        hint: "Use quick transitions when sidebar workspace positions change",
+        hint: "Use quick transitions when workspace positions change, including when projects expand or collapse",
       },
       androidAutomaticUpdateChecks: {
         label: "Automatic Android update checks",

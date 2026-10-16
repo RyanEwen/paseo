@@ -350,3 +350,70 @@ it("paints only project pins without reserving another name rail", async () => {
   );
   expect(container!.querySelector('[data-testid^="sidebar-project-pin-rail-"]')).toBeNull();
 });
+
+it("animates unchanged rows when surrounding groups collapse or expand and respects disabled motion", () => {
+  let top = 0;
+  const cancel = vi.fn();
+  const animate = vi.fn(() => ({ cancel }));
+  const properties = ["offsetTop", "offsetWidth", "getClientRects", "animate"] as const;
+  const descriptors = properties.map((key) =>
+    Object.getOwnPropertyDescriptor(HTMLElement.prototype, key),
+  );
+  Object.defineProperty(HTMLElement.prototype, "offsetTop", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this.hasAttribute("data-position-transition") ? top : 0;
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
+    configurable: true,
+    get: () => 100,
+  });
+  Object.defineProperty(HTMLElement.prototype, "getClientRects", {
+    configurable: true,
+    value: () => [{ width: 100, height: 20 }],
+  });
+  Object.defineProperty(HTMLElement.prototype, "animate", { configurable: true, value: animate });
+  const render = (revision: boolean, duration = 100) => (
+    <DraggableList
+      data={items}
+      keyExtractor={keyExtractor}
+      renderItem={renderRow}
+      onDragEnd={onDragEnd}
+      positionTransitionDuration={duration}
+      positionTransitionRevision={revision}
+    />
+  );
+  try {
+    act(() => root?.render(render(false)));
+    const node = container!.querySelector<HTMLElement>("[data-position-transition]")!;
+    node.style.transform = "none";
+    // Stable hydrated membership establishes the motion policy without moving a row.
+    act(() => root?.render(render(false)));
+    expect(animate).not.toHaveBeenCalled();
+    top = -80;
+    act(() => root?.render(render(true)));
+    expect(animate).toHaveBeenLastCalledWith(
+      [{ transform: "translateY(80px)" }, { transform: "translateY(0px)" }],
+      { duration: 100, easing: "ease-in-out" },
+    );
+    top = 0;
+    act(() => root?.render(render(false)));
+    expect(animate).toHaveBeenLastCalledWith(
+      [{ transform: "translateY(-80px)" }, { transform: "translateY(0px)" }],
+      { duration: 100, easing: "ease-in-out" },
+    );
+    expect(cancel).toHaveBeenCalledTimes(1);
+    top = 200;
+    act(() => root?.render(render(true, 0)));
+    expect(animate).toHaveBeenCalledTimes(2);
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(container!.querySelector("[data-position-transition]")).toBe(node);
+  } finally {
+    properties.forEach((key, index) => {
+      const descriptor = descriptors[index];
+      if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+      else Reflect.deleteProperty(HTMLElement.prototype, key);
+    });
+  }
+});

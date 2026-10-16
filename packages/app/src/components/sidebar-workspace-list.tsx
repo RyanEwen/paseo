@@ -2631,6 +2631,11 @@ function ProjectModeList({
     ],
   );
 
+  const projectLayoutRevision = useMemo(
+    () => [collapsedProjectKeys, pinnedCollapsed, visiblePinnedChats],
+    [collapsedProjectKeys, pinnedCollapsed, visiblePinnedChats],
+  );
+
   const projectBody =
     projects.length === 0 ? (
       <SidebarProjectEmptyState onAddProject={onAddProject} onImportSession={onImportSession} />
@@ -2638,6 +2643,7 @@ function ProjectModeList({
       <DraggableList
         testID="sidebar-project-list"
         positionTransitionDuration={positionTransitionDuration}
+        positionTransitionRevision={projectLayoutRevision}
         data={unpinnedProjects}
         keyExtractor={projectViewKeyExtractor}
         renderItem={renderProject}

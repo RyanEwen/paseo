@@ -101,7 +101,7 @@ interface SortableItemProps<T> {
   useDragHandle: boolean;
   dragDisabled: boolean;
   positionTransitionDuration: number | undefined;
-  positionRevision: string;
+  positionRevision: unknown;
 }
 
 function SortableItemInner<T>({
@@ -207,6 +207,7 @@ export function DraggableList<T>({
   onDragEnd,
   getDragGroupKey,
   positionTransitionDuration,
+  positionTransitionRevision,
   style,
   containerStyle,
   contentContainerStyle,
@@ -277,7 +278,10 @@ export function DraggableList<T>({
     keys: motionKeys,
     dragging: activeId !== null,
   });
-  const positionRevision = JSON.stringify(ids);
+  const positionRevision = useMemo(
+    () => [JSON.stringify(ids), positionTransitionRevision],
+    [ids, positionTransitionRevision],
+  );
 
   const wrapperStyle = useMemo(
     () => [
