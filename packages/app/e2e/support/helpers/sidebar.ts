@@ -234,24 +234,28 @@ export async function openSidebarDisplayPage(page: Page, branchTestID: string): 
   await page.getByTestId(branchTestID).click();
 }
 
-// Project filters live a page below the display-preferences root, like the host filters.
+// The heading chooser owns local host/project filters even when the rich heading is off.
 export async function openSidebarProjectFilter(page: Page): Promise<void> {
-  await openSidebarDisplayPage(page, "sidebar-display-project-filter");
+  await page.getByTestId("sidebar-project-selector").click();
 }
 
 // The filter rows are keyed by the project's sidebar view key. A project seeded from its own temp
 // repo has a `projectKey` unique on the host, so the view key IS that key — see
 // `buildWorkspaceStructureProjects`.
 export async function toggleProjectFilter(page: Page, projectViewKey: string): Promise<void> {
-  await page.getByTestId(`sidebar-project-filter-${projectViewKey}`).click();
+  await page.getByTestId(`sidebar-project-selector-root-${projectViewKey}-checkbox`).click();
 }
 
 export async function selectAllProjectsFilter(page: Page): Promise<void> {
-  await page.getByTestId("sidebar-project-filter-all").click();
+  await page.getByTestId("sidebar-project-selector-all").click();
 }
 
 /** Dismiss the compact sheet through its backdrop, or the desktop popover with Escape. */
 export async function closeSidebarDisplayPreferences(page: Page): Promise<void> {
+  const surfaces = page.locator(
+    '[data-testid="sidebar-display-preferences-content"], [data-testid="sidebar-project-selector-content"], [data-testid="sidebar-project-selector-content-content"]',
+  );
+  if ((await surfaces.count()) === 0) return;
   const backdrop = page.getByRole("button", { name: "Bottom sheet backdrop" }).first();
   if (await backdrop.isVisible()) {
     await backdrop.click({ position: { x: 12, y: 12 } });
@@ -259,12 +263,19 @@ export async function closeSidebarDisplayPreferences(page: Page): Promise<void> 
   } else {
     await page.keyboard.press("Escape");
   }
-  await expect(page.getByTestId("sidebar-display-preferences-content")).toHaveCount(0);
+  await expect(surfaces).toHaveCount(0);
 }
 
 export async function selectSidebarStatusGrouping(page: Page): Promise<void> {
-  await openSidebarDisplayPage(page, "sidebar-display-grouping");
-  await page.getByTestId("sidebar-grouping-status").click();
+  const toggle = page.getByTestId("sidebar-view-mode-toggle");
+  if ((await toggle.getAttribute("aria-checked")) !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+}
+
+export async function selectSidebarProjectGrouping(page: Page): Promise<void> {
+  const toggle = page.getByTestId("sidebar-view-mode-toggle");
+  if ((await toggle.getAttribute("aria-checked")) !== "false") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
 }
 
 export async function openMobileAgentSidebar(page: Page): Promise<void> {
