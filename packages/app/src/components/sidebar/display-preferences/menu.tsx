@@ -1,4 +1,8 @@
-import { WorkspaceListPage, WorkspaceUpdatedWithinPage } from "./workspace-list";
+import {
+  WorkspaceCountPage,
+  WorkspaceListPage,
+  WorkspaceUpdatedWithinPage,
+} from "./workspace-list";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useSidebarBulkCollapse } from "../use-sidebar-bulk-collapse";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -238,6 +242,11 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
         id: "workspaceList",
         title: t("paseoPlusPlus.workspaceLimit.title"),
         content: <WorkspaceListPage preferences={preferences} />,
+      },
+      {
+        id: "workspaceCount",
+        title: t("sidebar.display.workspaceList.countLimit"),
+        content: <WorkspaceCountPage preferences={preferences} />,
       },
       {
         id: "workspaceUpdatedWithin",

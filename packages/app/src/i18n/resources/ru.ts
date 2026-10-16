@@ -1405,6 +1405,7 @@ export const ru: TranslationResources = {
     display: {
       modeToggle: "Вид «{{current}}». Переключить на «{{next}}».",
       workspaceList: {
+        countLimit: "Ограничение количества",
         updatedWithin: "Обновлено за",
         day: "1 день",
         threeDays: "3 дня",
@@ -1417,7 +1418,7 @@ export const ru: TranslationResources = {
       },
       expandAll: "Развернуть всё",
       collapseAll: "Свернуть всё",
-      oneProjectAtATime: "Один проект за раз",
+      oneProjectAtATime: "Разворачивать один проект за раз",
       reorderGuidance:
         "Перетаскивание доступно только при ручной сортировке. После показа всех проектов перемещённый проект остаётся перед или после того же соседа. Закреплённые элементы всегда упорядочиваются вручную.",
       showBackground: "Показать фоновые пространства",

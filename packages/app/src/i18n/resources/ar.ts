@@ -1382,6 +1382,7 @@ export const ar: TranslationResources = {
     display: {
       modeToggle: "عرض {{current}}. التبديل إلى عرض {{next}}.",
       workspaceList: {
+        countLimit: "حد العدد",
         updatedWithin: "تم التحديث خلال",
         day: "يوم واحد",
         threeDays: "3 أيام",
@@ -1394,7 +1395,7 @@ export const ar: TranslationResources = {
       },
       expandAll: "توسيع الكل",
       collapseAll: "طي الكل",
-      oneProjectAtATime: "مشروع واحد في كل مرة",
+      oneProjectAtATime: "توسيع مشروع واحد في كل مرة",
       reorderGuidance:
         "السحب لإعادة الترتيب متاح فقط مع الفرز المخصص. تحتفظ المشاريع المنقولة أثناء التصفية بنفس الجار قبلها أو بعدها عند إظهار جميع المشاريع. ترتيب العناصر المثبتة يدوي دائمًا.",
       showBackground: "إظهار مساحات العمل في الخلفية",

@@ -84,7 +84,7 @@ Choose an accent color in Appearance for primary controls and your messages, inc
 
 ### Sidebar display options
 
-In Project mode, enable **Display → One project at a time** to collapse other known project groups when you expand one. It starts off. Pinned and Status groups retain their existing behavior; **Expand all** still expands all visible groups.
+In Project mode, enable **Display → Expand one project at a time** to collapse other known project groups when you expand one. It starts off. Pinned and Status groups retain their existing behavior; **Expand all** still expands all visible groups.
 
 Switch between Project and Status views with the bell beside the workspace heading. Each view keeps its own Display preferences and device-local host/project filters. Display includes sorting, labels, background workspaces, row details and activity. **Show background workspaces** reveals workspaces explicitly created for background work, which are normally hidden; it does not mean every workspace you are not currently viewing. Project labels start visible; branch labels start hidden. A selected settings host must support separate sidebar modes before these synchronized controls can be edited.
 
@@ -96,7 +96,7 @@ The filter icon beside the bell opens a quick text filter for the current mode. 
 
 In **Display → Empty workspaces**, choose **Show**, **Group**, or **Hide** for project groups with no visible workspaces.
 
-In **Display → Workspace limits**, choose each view’s workspace count and updated-within limit independently. The count defaults to 20 and the age limit to All. Quick text matching runs before the count window, so a match beyond the first 20 can still appear. **Show more** reveals every matching workspace in that group, including older entries.
+In **Display → Workspace limits**, open **Count limit** or **Updated within** to choose each view’s limits independently. The count defaults to 20 and the age limit to All. Quick text matching runs before the count window, so a match beyond the first 20 can still appear. **Show more** reveals every matching workspace in that group, including older entries.
 
 ### Explorer and Changes
 
