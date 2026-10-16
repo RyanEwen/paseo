@@ -76,6 +76,10 @@ Check for published Paseo++ releases on startup and resume. Available updates ap
 
 ## Display and reading preferences
 
+### Tool call display
+
+New preferences start in **Summary**. Choose **Full detail** in Settings → Chat; saved choices are preserved.
+
 ### Split layout controls
 
 Use the split icon beside a creation item in the workspace **+** menu to open that view on a side. Visual diagrams show the new pane and its proportions; clicking the item itself keeps its normal behavior. Hover a workspace divider to choose 50/50, 60/40, 40/60, 70/30, or 30/70 proportions. Right-click a tab and choose **Move tab** to move it into an existing pane or create a split on a side. Turn **Split layout controls** off in Paseo++ settings to hide these controls without changing your layout.
@@ -95,6 +99,8 @@ Enable **Wider workspace tabs** in Paseo++ settings to give long tab titles up t
 Choose a muted accent color in **Paseo++** settings for primary controls and your messages, including pinned prompts. Every choice shows its message-bubble colors before you select it. Colors adapt to light and dark themes; Default restores your theme’s original appearance. If you sync settings, update the selected settings host to enable this preference.
 
 ### Sidebar display options
+
+Workspace hover details wait 250 ms before opening. Moving away cancels the popup before its content mounts. Keyboard activation stays immediate.
 
 Use the bell beside expand and collapse to switch between Project and Status modes. Each mode remembers its own sorting, filters, and display choices. The workspace chooser lists projects directly; **Hosts** appears only with multiple hosts and filters which hosts supply the project list below it. Newly created projects stay visible when a project selection is active.
 
