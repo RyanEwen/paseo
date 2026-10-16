@@ -92,7 +92,7 @@ Choose a muted accent color in **Paseo++** settings for primary controls and you
 
 ### Sidebar display options
 
-Use the bell beside expand and collapse to switch between Project and Status modes. Each mode remembers its own sorting, filters, and display choices. The workspace chooser lists projects directly; **Host** filters hosts, with projects from the selected hosts directly below it. Newly created projects stay visible when a project selection is active.
+Use the bell beside expand and collapse to switch between Project and Status modes. Each mode remembers its own sorting, filters, and display choices. The workspace chooser lists projects directly; **Hosts** appears only with multiple hosts and filters which hosts supply the project list below it. Newly created projects stay visible when a project selection is active.
 
 Find sorting, row details, and **Workspace list** controls in the sidebar's **Display** menu. Dragging is available only when the applicable project or workspace sort is **Custom**; it never changes the sort mode. Moving a filtered project places it before or after the same project when **All** is shown, while other projects keep their relative order. Pinned workspaces retain their independent manual ordering. Project status sorting places **Done** before **No status**, keeping other status priorities unchanged. Show agent activity and code-change totals together. Project labels start visible; branch labels are optional and start hidden. Choose a count limit (20 by default), an update-age limit, or both. **Show more** reveals every matching workspace in the group, including older entries.
 

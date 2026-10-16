@@ -1531,7 +1531,7 @@ export const fr: TranslationResources = {
         none: "Masqué",
       },
       hostFilter: {
-        label: "Hôte",
+        label: "Hôtes",
         all: "Tous les hôtes",
       },
       projectFilter: {

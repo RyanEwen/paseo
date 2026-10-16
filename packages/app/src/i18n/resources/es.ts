@@ -1540,7 +1540,7 @@ export const es: TranslationResources = {
         none: "Oculto",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "Todos los hosts",
       },
       projectFilter: {

@@ -1521,7 +1521,7 @@ export const ru: TranslationResources = {
         none: "Скрыто",
       },
       hostFilter: {
-        label: "Хост",
+        label: "Хосты",
         all: "Все хосты",
       },
       projectFilter: {

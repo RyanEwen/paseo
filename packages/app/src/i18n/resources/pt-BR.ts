@@ -1531,7 +1531,7 @@ export const ptBR: TranslationResources = {
         none: "Oculto",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "Todos os hosts",
       },
       projectFilter: {
