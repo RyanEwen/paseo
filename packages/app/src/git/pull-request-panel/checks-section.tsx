@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, Text, View, type GestureResponderEvent } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -201,34 +202,36 @@ function CheckRow({
     [check, onAddLogsToChat],
   );
   return (
-    <Pressable onPress={handlePress} style={rowPressableStyle} testID="pr-pane-check-row">
-      <CheckPresentationIcon presentation={classifyCheck(check)} size={14} />
-      <Text style={sectionKitStyles.checkName} numberOfLines={1}>
-        {check.name}
-      </Text>
-      {check.workflow && (
-        <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
-          {check.workflow}
+    <WorkspaceHttpLinkMenu url={check.url}>
+      <Pressable onPress={handlePress} style={rowPressableStyle} testID="pr-pane-check-row">
+        <CheckPresentationIcon presentation={classifyCheck(check)} size={14} />
+        <Text style={sectionKitStyles.checkName} numberOfLines={1}>
+          {check.name}
         </Text>
-      )}
-      <View style={sectionKitStyles.checkTrailing}>
-        {attachEnabled && canAddPullRequestCheckLogsToChat(check) ? (
-          <Button
-            variant="ghost"
-            size="xs"
-            leftIcon={MessageSquarePlus}
-            loading={isAddingLogsToChat}
-            onPress={handleAddLogsToChat}
-            style={styles.addButton}
-          >
-            {isAddingLogsToChat
-              ? t("workspace.git.pr.actions.addingToChat")
-              : t("workspace.git.pr.actions.addToChat")}
-          </Button>
-        ) : null}
-        {check.timing && <Text style={sectionKitStyles.checkDuration}>{check.timing}</Text>}
-      </View>
-    </Pressable>
+        {check.workflow && (
+          <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
+            {check.workflow}
+          </Text>
+        )}
+        <View style={sectionKitStyles.checkTrailing}>
+          {attachEnabled && canAddPullRequestCheckLogsToChat(check) ? (
+            <Button
+              variant="ghost"
+              size="xs"
+              leftIcon={MessageSquarePlus}
+              loading={isAddingLogsToChat}
+              onPress={handleAddLogsToChat}
+              style={styles.addButton}
+            >
+              {isAddingLogsToChat
+                ? t("workspace.git.pr.actions.addingToChat")
+                : t("workspace.git.pr.actions.addToChat")}
+            </Button>
+          ) : null}
+          {check.timing && <Text style={sectionKitStyles.checkDuration}>{check.timing}</Text>}
+        </View>
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

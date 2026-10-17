@@ -13,7 +13,9 @@ async function closeMenuSheet(page: Page): Promise<void> {
   await expect(backdrop).not.toBeVisible({ timeout: 10_000 });
 }
 
-test("project and workspace kebabs open action sheets on compact layouts", async ({ page }) => {
+test("project and workspace kebabs open action sheets on compact layouts", async ({
+  page,
+}, testInfo) => {
   const seeded = await seedWorkspace({ repoPrefix: "sidebar-mobile-menu-sheet-" });
 
   try {
@@ -23,7 +25,12 @@ test("project and workspace kebabs open action sheets on compact layouts", async
 
     await page.getByTestId("sidebar-display-preferences-menu").click();
     await expect(page.getByRole("menuitem")).toHaveText([
+      "Expand all",
+      "Collapse all",
       /^Grouping/,
+      /^Sort projects/,
+      /^Sort workspaces/,
+      /^Filter/,
       /^Title/,
       "Show",
       "Show background",
@@ -52,6 +59,32 @@ test("project and workspace kebabs open action sheets on compact layouts", async
       timeout: 10_000,
     });
     await expect(page.getByText("Workspace actions", { exact: true })).toBeVisible();
+    const key = `${getServerId()}:${seeded.workspaceId}`;
+    await expect(page.getByTestId(`sidebar-workspace-menu-pin-${key}`)).toHaveText(
+      "Pin to sidebar top",
+    );
+    await page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`).click();
+    await expect
+      .poll(
+        async () =>
+          (await seeded.client.fetchWorkspaces()).entries.find(
+            (entry) => entry.id === seeded.workspaceId,
+          )?.projectPinnedAt,
+      )
+      .toBeTruthy();
+    await expect(page.getByTestId("sidebar-pinned-section")).toHaveCount(0);
+    await workspaceRow.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+    await expect(page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`)).toHaveText(
+      "Unpin in project",
+    );
+    const projectPinItem = page.getByTestId(`sidebar-workspace-menu-project-pin-${key}`);
+    await expect
+      .poll(async () => {
+        const bounds = await projectPinItem.boundingBox();
+        return bounds !== null && bounds.y >= 0 && bounds.y + bounds.height < 844;
+      })
+      .toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("project-pin-compact-menu.png") });
   } finally {
     await seeded.cleanup();
   }

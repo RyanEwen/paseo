@@ -2,6 +2,199 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  settingsSync: {
+    title: "설정 동기화",
+    hint: "선택한 호스트를 통해 앱 환경설정과 사이드바 항목 표시를 동기화합니다. 호스트/프로젝트 필터, 작업공간 순서와 접힌 그룹은 로컬에 유지됩니다. 전환하면 설정을 읽은 후 편집할 수 있습니다.",
+    host: "설정 호스트",
+    deviceOnly: "이 기기만",
+    unavailableHost: "선택한 호스트를 사용할 수 없음",
+    status: "상태",
+    publish: "이 기기의 설정 사용",
+    publishHint:
+      "이 호스트에는 저장된 앱 설정이 없습니다. 게시하면 현재 환경설정을 호스트로 복사합니다.",
+    useHost: "호스트 설정 사용",
+    keepDevice: "내 변경사항 게시",
+    keepDeviceHint:
+      "{{host}}에서 충돌한 환경설정을 대기 중인 변경사항으로 명시적으로 덮어씁니다. 다른 환경설정은 유지됩니다.",
+    restore: "기기 설정 복원",
+    restoreHint: "동기화를 중지하고 이 호스트를 선택하기 전에 저장한 환경설정을 복원합니다.",
+    conflictHint:
+      "이 환경설정은 다른 클라이언트에서 변경되었습니다. {{host}}의 설정을 사용하면 이 호스트의 대기 중인 변경사항만 버립니다.",
+    retryHint: "다시 연결하여 설정을 읽으세요. 대기 중인 변경사항은 원래 호스트에 유지됩니다.",
+    states: {
+      loading: "동기화 설정 불러오는 중",
+      local: "환경설정이 이 기기에 저장됩니다",
+      reading: "선택한 호스트의 설정을 기다리는 중",
+      ready: "연결됨. 대기 중인 변경사항: {{count}}",
+      offline: "오프라인. 대기 중인 변경사항: {{count}}",
+      empty: "이 호스트에 게시된 설정이 없음",
+      unsupported: "앱 설정을 동기화하려면 이 호스트를 업데이트하세요",
+      error: "설정을 동기화할 수 없습니다. 대기 중인 변경사항은 유지됩니다.",
+      conflict: "충돌하는 변경사항 처리 방법을 선택하세요",
+      readonly: "이 연결은 설정을 읽을 수 있지만 변경할 수는 없습니다",
+    },
+  },
+  paseoPlusPlus: {
+    workspaceLimit: {
+      save: "저장",
+      title: "작업 공간 표시 제한",
+      label: "그룹별 초기 표시",
+      limited: "개수 지정",
+      all: "모두 표시",
+      count: "작업 공간 수",
+      invalid: "양의 정수를 입력하세요.",
+    },
+    examples: {
+      annotated: "화살표는 해당 기능을 가리킵니다.",
+      before: "상태 변경 전",
+      after: "상태 변경 후",
+      imageLabel: "{{title}} 예시",
+      positions:
+        "상태 변경 전후의 최종 위치입니다. 정지 이미지는 애니메이션 시간을 보여주지 않습니다.",
+      explorer: "변경 목록과 작업 사본 차이의 예입니다.",
+      workspaceLimit:
+        "그룹별 초기 표시 개수를 선택하거나 모두 표시하세요. 이미 펼친 그룹은 펼쳐진 상태를 유지합니다.",
+    },
+    loadFailed: "저장된 설정을 불러오지 못했습니다. 기능 변경 전에 다시 시도하세요.",
+    saving: "저장 중...",
+    title: "Paseo++",
+    optional: "선택 기능",
+    optionalHint:
+      "선택 기능 스위치는 기본으로 켜져 있습니다. 표시 환경설정에는 각각 독립적인 기본값이 있으며, 한 번에 프로젝트 하나만 펼치기는 기본으로 꺼져 있습니다. 동기화 시 선택한 설정 호스트를 따릅니다. 기능을 꺼도 저장된 데이터와 설정은 유지됩니다.",
+    preferences: "워크스페이스 사이드바 설정",
+    fixes: "수정 사항과 포크 기본 기능",
+    fixesHint: "이 개선 사항은 항상 활성화됩니다",
+    additions: "기타 추가 기능",
+    additionsHint: "이 작업은 계속 사용할 수 있습니다",
+    saveFailed: "저장하지 못했습니다. 다시 시도하세요.",
+    features: {
+      workspaceChatLinks: {
+        label: "채팅 링크를 Paseo에서 열기",
+        hint: "데스크톱에서 채팅 웹 링크를 해당 작업공간의 브라우저로 엽니다. 끄면 외부 브라우저를 사용합니다. 링크 메뉴의 Paseo에서 열기는 계속 사용할 수 있습니다.",
+      },
+      sidebarHostUpdates: {
+        label: "사이드바의 호스트 업데이트",
+        hint: "호스트 메뉴에 업데이트 작업을 표시합니다. 꺼도 호스트 설정은 계속 사용할 수 있습니다.",
+      },
+      splitLayoutPresets: {
+        label: "분할 레이아웃 제어",
+        hint: "분할 그림에서 원하는 영역을 클릭해 탭을 열거나 이동하세요. 60/40에서 오른쪽 또는 아래쪽 영역은 40%입니다. 구분선 프리셋은 기존 창의 크기를 조절합니다. 끄면 레이아웃을 변경하지 않고 컨트롤을 숨깁니다.",
+      },
+      mobileWorkspaceTabs: {
+        label: "모바일 작업공간 탭",
+        hint: "작은 화면에서 스크롤 가능한 탭 막대를 표시합니다. 끄면 선택한 탭을 유지하며 이전 탭 선택기를 사용합니다.",
+      },
+
+      descriptiveToolCalls: {
+        label: "읽기 쉬운 도구 활동",
+        hint: "알려진 작업을 설명하고 정확한 명령과 출력은 세부 정보에 보존합니다. 끄면 기존 레이블로 돌아갑니다.",
+      },
+
+      sidebarProjectSelector: {
+        label: "제목에 선택한 프로젝트 표시",
+        hint: "워크스페이스 제목에 선택한 프로젝트 이름을 표시합니다. 끄면 워크스페이스로 표시되며 호스트와 프로젝트 선택은 계속 사용할 수 있습니다.",
+      },
+      stickyUserPrompts: {
+        label: "사용자 메시지 계속 표시",
+        hint: "현재 메시지를 채팅 위에 표시하고 펼치기와 이전/다음 이동을 제공합니다",
+      },
+      previousAgents: {
+        label: "이전 에이전트",
+        hint: "워크스페이스 + 메뉴에서 닫히거나 보관된 대화를 다시 엽니다",
+      },
+      sidebarActivityChips: {
+        label: "프로젝트 활동 표시",
+        hint: "활동과 작업 중인 워크스페이스 수를 표시합니다",
+      },
+      sidebarProjectEmphasis: {
+        label: "프로젝트 이름 굵게",
+        hint: "사이드바의 프로젝트 제목을 강조합니다",
+      },
+      sidebarBulkActions: {
+        label: "모두 펼치기 및 접기",
+        hint: "보이는 모든 그룹의 제어를 표시합니다",
+      },
+      projectPinning: {
+        label: "프로젝트 안에 고정",
+        hint: "선택한 워크스페이스를 프로젝트 맨 위에 두고 이름 옆에 핀을 표시합니다. 다시 켜면 저장된 고정 상태가 복원됩니다.",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "이동 애니메이션",
+        hint: "사이드바 위치 변경에 빠른 전환을 사용합니다",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Android 자동 업데이트 확인",
+        hint: "시작 및 복귀 시 미리보기 버전을 확인합니다. 수동 확인과 설치는 계속 가능합니다.",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "모드, 필터 및 표시",
+        hint: "사이드바의 벨로 프로젝트와 상태 모드를 전환하세요. 필터 아이콘은 빠른 텍스트 필터를 엽니다. 표시의 워크스페이스 제한에서는 개수와 업데이트 기간을 따로 설정하고, 빈 프로젝트에서는 표시, 그룹화 또는 숨기기를 선택할 수 있습니다. 각 모드의 환경설정은 별도로 유지됩니다.",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ 링크",
+        hint: "포크 저장소와 게시된 릴리스 노트를 엽니다. 원본의 이슈, 후원 및 Discord 작업은 제거되었습니다.",
+      },
+      backgroundBrowser: {
+        label: "백그라운드 브라우저 자동화",
+        hint: "데스크톱 에이전트는 패널이 숨겨지거나 창이 최소화되어도 탭을 사용합니다",
+      },
+      notifications: {
+        label: "알림 대상",
+        hint: "데스크톱 재시작 후에도 해당 워크스페이스와 채팅을 엽니다",
+      },
+      reading: {
+        label: "안정적인 읽기",
+        hint: "이미지 크기 변경 시 데스크톱과 웹의 보이는 텍스트를 유지하고 메시지와 기록 로딩을 복구합니다",
+      },
+      mobile: {
+        label: "모바일 탐색",
+        hint: "더 큰 터치 영역, 안전한 Android 뒤로 가기 및 개발 알림 분리",
+      },
+      pickers: {
+        label: "워크스페이스 선택과 상태",
+        hint: "명확한 설정 순서, 전체 값 도움말, 최신 상태 정렬 및 접기 설정 유지",
+      },
+      identity: {
+        label: "독립된 포크 설치",
+        hint: "별도의 Paseo++ 앱과 데몬 ID, 설정 및 업데이트; Android 다운로드 검증",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android SSH 호스트",
+        hint: "키를 가져오고 지문을 확인하며 암호화된 자격 증명으로 직접 연결합니다",
+      },
+      worktrees: {
+        label: "브랜치와 worktree 선택",
+        hint: "지원하는 호스트에서 이름을 지정해 생성하거나 사용합니다. 재시도 시 기존 작업을 유지합니다",
+      },
+      video: {
+        label: "Android 플러그인 비디오",
+        hint: "호환 플러그인이 인코딩된 비디오를 재생하고 디코더를 복구합니다. 비디오를 제공하는 플러그인이 필요합니다.",
+      },
+    },
+  },
+
+  androidUpdates: {
+    title: "앱 업데이트",
+    idle: "포크의 새 프리뷰를 확인합니다.",
+    checking: "업데이트 확인 중…",
+    current: "최신 공개 프리뷰를 사용 중입니다.",
+    available: "프리뷰 {{version}}을 사용할 수 있습니다.",
+    downloading: "업데이트 다운로드 및 검증 중…",
+    downloadProgress: "다운로드 중 {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "다운로드 중 {{downloaded}}…",
+    verifying: "다운로드한 업데이트 확인 중…",
+    permission:
+      "Android 설정에서 이 앱의 업데이트를 허용한 후 돌아와서 업데이트 설치를 다시 누르세요.",
+    installer: "Android에서 설치를 완료하세요. 취소했다면 업데이트 설치를 눌러 다시 시도하세요.",
+    install: "업데이트 설치",
+    failed: "업데이트할 수 없습니다. 다시 시도하세요.",
+  },
   paneFind: {
     connectionFailure: "이 채팅을 검색할 수 없습니다. 호스트 연결을 확인하고 다시 시도하세요.",
     historyChangedFailure: "검색 중에 채팅이 변경되었습니다. 다시 검색하세요.",
@@ -230,6 +423,23 @@ export const ko: TranslationResources = {
       mode: "모드 변경",
     },
   },
+  stickyPrompt: {
+    goToMessage: "이 메시지로 이동",
+    more: "더 보기…",
+    less: "접기…",
+    none: "이 채팅에는 사용자 메시지가 없습니다.",
+    cancelled: "불러오기가 취소되었습니다.",
+    moreHistory: "이전 기록이 더 있습니다. 다시 시도하여 계속 찾아보세요.",
+
+    latest: "최근 사용자 메시지",
+    selected: "사용자 메시지",
+    expand: "사용자 메시지 펼치기",
+    collapse: "사용자 메시지 접기",
+    previous: "이전 사용자 메시지",
+    next: "다음 사용자 메시지",
+    failed: "사용자 메시지를 불러올 수 없습니다.",
+    attachments: "첨부 파일 {{count}}개",
+  },
   agentStream: {
     empty: "이 에이전트와 대화를 시작하세요...",
     scrollToBottom: "맨 아래로 스크롤",
@@ -278,6 +488,10 @@ export const ko: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "닫힌 에이전트 다시 열기",
+    previousEmpty: "이 작업 공간에는 이전 에이전트가 없습니다",
+    workspaceHistoryUpdateRequired: "이전 작업 공간 에이전트를 보려면 이 호스트를 업데이트하세요.",
+
     title: "기록",
     empty: "아직 세션이 없습니다",
     noMatches: "일치하는 세션이 없습니다",
@@ -437,6 +651,22 @@ export const ko: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "{{item}} 열기: {{side}}, {{percent}}%",
+      moveRegion: "탭 이동: {{side}}, {{percent}}%",
+      openToSide: "{{item}}을 옆에 열기",
+      chooseRatio: "분할 비율 선택",
+      ratio: "{{ratio}} 분할 사용",
+      moveTab: "탭 이동",
+      left: "왼쪽",
+      right: "오른쪽",
+      top: "위",
+      bottom: "아래",
+      columns: "왼쪽 / 오른쪽",
+      rows: "위 / 아래",
+      pane: "창 {{index}}",
+    },
+
     route: {
       loading: "워크스페이스 불러오는 중",
       connecting: "연결 중",
@@ -572,6 +802,8 @@ export const ko: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Paseo 브라우저에서 열기",
+      openExternally: "외부 브라우저에서 열기",
       unavailable: {
         title: "브라우저는 데스크톱 전용입니다",
         subtitle: "내장 브라우저를 사용하려면 이 워크스페이스를 Electron에서 여세요.",
@@ -1155,16 +1387,58 @@ export const ko: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      noKnownProjects: "이 호스트의 알려진 프로젝트가 아직 없습니다.",
+      selectOnlyProject: "{{project}}만 표시",
+      includeProject: "{{project}} 포함",
+      workspaces: "워크스페이스",
+      all: "모두",
+      allWorkspaces: "모든 워크스페이스",
+      projectWorkspaces: "{{project}} 워크스페이스",
+      multipleWorkspaces_one: "{{count}}개 프로젝트의 워크스페이스",
+      multipleWorkspaces_other: "{{count}}개 프로젝트의 워크스페이스",
+      title: "프로젝트",
+    },
     statusGroupAccessibility: "{{label}} 그룹",
     statusBucket: {
+      workingCount: "{{count}}개 작업 중",
       needsInput: "입력 필요",
       failed: "실패",
       readyToReview: "검토 대기",
       working: "실행 중",
       done: "완료",
     },
+    quickFilter: {
+      open: "프로젝트 및 워크스페이스 필터링",
+      close: "빠른 필터 닫기 및 지우기",
+      placeholder: "프로젝트 또는 워크스페이스 필터링…",
+      clear: "빠른 필터 지우기",
+      emptyTitle: "일치하는 프로젝트 또는 워크스페이스 없음",
+      emptyDescription: "다른 이름을 입력하거나 이 모드의 빠른 필터를 지우세요.",
+      guidance:
+        "필터 아이콘으로 이 모드의 이름과 표시된 브랜치를 검색하세요. 개수 및 기간 제한은 유지되며 더 보기로 일치하는 모든 항목을 표시합니다.",
+    },
     display: {
-      showBackground: "백그라운드 표시",
+      modeToggle: "{{current}} 보기. {{next}} 보기로 전환.",
+      workspaceList: {
+        countLimit: "개수 제한",
+        updatedWithin: "최근 업데이트 기간",
+        day: "1일",
+        twoDays: "2일",
+        threeDays: "3일",
+        fiveDays: "5일",
+        week: "1주",
+        twoWeeks: "2주",
+        month: "1개월",
+        twoMonths: "2개월",
+        threeMonths: "3개월",
+      },
+      expandAll: "모두 펼치기",
+      collapseAll: "모두 접기",
+      oneProjectAtATime: "한 번에 하나의 프로젝트 펼치기",
+      reorderGuidance:
+        "사용자 지정 정렬에서만 끌어서 순서를 바꿀 수 있습니다. 필터링한 프로젝트를 이동해도 전체 표시 시 같은 프로젝트의 앞뒤에 유지됩니다. 고정 항목은 항상 수동으로 정렬됩니다.",
+      showBackground: "백그라운드 작업 공간 표시",
       trigger: "표시 설정",
       heading: "표시",
       grouping: {
@@ -1172,6 +1446,28 @@ export const ko: TranslationResources = {
         project: "프로젝트",
         status: "상태",
         labels: "레이블",
+        emptyProjects: "빈 프로젝트를 별도로 그룹화",
+      },
+      sorting: {
+        label: "프로젝트 정렬",
+        workspaces: "작업 공간 정렬",
+        workspaceName: "작업 공간 이름",
+        project: "프로젝트 이름",
+        status: "상태",
+        custom: "사용자 지정 순서",
+        emptyProjects: "빈 프로젝트 정렬",
+      },
+      emptyWorkspaces: {
+        label: "빈 프로젝트",
+        show: "표시",
+        group: "그룹화",
+        hide: "숨기기",
+      },
+      projectVisibility: {
+        label: "필터",
+        all: "모든 프로젝트",
+        unarchived: "빈 프로젝트 숨기기",
+        emptyGroup: "빈 프로젝트",
       },
       titleSource: {
         label: "제목",
@@ -1232,9 +1528,6 @@ export const ko: TranslationResources = {
       sectionHelp: "도움말",
       diagnostics: "진단 실행",
       shortcuts: "키보드 단축키",
-      reportIssue: "문제 신고",
-      discord: "Discord",
-      github: "GitHub 이슈 만들기",
       whatsNew: "새로운 소식",
       appName: "Paseo",
     },
@@ -1300,7 +1593,9 @@ export const ko: TranslationResources = {
         copyPath: "경로 복사",
         copyBranchName: "브랜치 이름 복사",
         rename: "워크스페이스 이름 변경",
-        pin: "상단에 고정",
+        pin: "사이드바 맨 위에 고정",
+        pinInProject: "프로젝트에 고정",
+        unpinInProject: "프로젝트 고정 해제",
         unpin: "고정 해제",
         archive: "보관",
         archiveWorkspace: "워크스페이스 보관",
@@ -1321,6 +1616,7 @@ export const ko: TranslationResources = {
         invalidBranchName: "잘못된 브랜치 이름",
       },
       toasts: {
+        updateHostToPinInProject: "프로젝트에 작업 공간을 고정하려면 이 호스트를 업데이트하세요.",
         workspacePathUnavailable: "워크스페이스 경로를 사용할 수 없습니다",
         pathCopied: "경로가 복사되었습니다",
         branchNameCopied: "브랜치 이름이 복사되었습니다",
@@ -1351,9 +1647,11 @@ export const ko: TranslationResources = {
       selectModel: "모델을 선택하세요",
     },
     tooltips: {
+      branchChoice: "새 브랜치를 만들거나 기존 브랜치를 체크아웃",
+      baseBranch: "새 브랜치의 기반이 될 브랜치 선택",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "로컬을 사용하거나 작업 트리 선택",
       startingRef: "시작 위치를 선택하세요",
       launch: "Choose what to launch",
     },
@@ -1728,7 +2026,7 @@ export const ko: TranslationResources = {
       },
       remoteSsh: {
         title: "원격 SSH",
-        description: "데스크톱 SSH 클라이언트를 통해 연결합니다.",
+        description: "SSH를 통해 연결합니다.",
       },
       scanQr: {
         title: "QR 코드 스캔",
@@ -1783,6 +2081,15 @@ export const ko: TranslationResources = {
     remoteSsh: {
       title: "원격 SSH",
       helper: "원격 호스트에서 실행 중인 Paseo 데몬에 연결합니다.",
+      keyImport: {
+        key: "개인 키",
+        import: "개인 키 가져오기",
+        passphrase: "키 암호문구 (선택 사항)",
+        fingerprint: "서버 지문",
+        verify: "신뢰하기 전에 이 지문을 서버의 지문과 비교하세요.",
+        trustAndConnect: "신뢰하고 연결",
+        required: "연결하려면 개인 키를 가져오세요.",
+      },
       fields: {
         target: "SSH 호스트",
         password: "데몬 비밀번호",
@@ -1986,6 +2293,69 @@ export const ko: TranslationResources = {
     input: "입력",
     output: "출력",
   },
+  toolActivity: {
+    files: { intent: "파일 변경", running: "파일 변경 중", completed: "파일 변경함" },
+    read: {
+      intent: "파일 읽기",
+      running: "파일 읽는 중",
+      completed: "파일 읽음",
+    },
+    edit: {
+      intent: "파일 편집",
+      running: "파일 편집 중",
+      completed: "파일 편집함",
+    },
+    write: {
+      intent: "파일 쓰기",
+      running: "파일 쓰는 중",
+      completed: "파일 씀",
+    },
+    create: {
+      intent: "파일 생성",
+      running: "파일 생성 중",
+      completed: "파일 생성함",
+    },
+    delete: {
+      intent: "파일 삭제",
+      running: "파일 삭제 중",
+      completed: "파일 삭제함",
+    },
+    search: {
+      intent: "검색",
+      running: "검색 중",
+      completed: "검색함",
+    },
+    list: {
+      intent: "파일 목록 조회",
+      running: "파일 목록 조회 중",
+      completed: "파일 목록 조회함",
+    },
+    command: {
+      intent: "명령 실행",
+      running: "명령 실행 중",
+      completed: "명령 실행함",
+    },
+    script: {
+      intent: "스크립트 실행",
+      running: "스크립트 실행 중",
+      completed: "스크립트 실행함",
+    },
+    activity: {
+      intent: "작업 실행",
+      running: "작업 실행 중",
+      completed: "작업 실행함",
+    },
+    failed: "실패: {{action}}",
+    canceled: "취소됨: {{action}}",
+    counts: {
+      editedFiles: { one: "파일 작업 {{count}}개", other: "파일 작업 {{count}}개" },
+      commands: { one: "명령 {{count}}개", other: "명령 {{count}}개" },
+      readFiles: { one: "파일 읽기 {{count}}개", other: "파일 읽기 {{count}}개" },
+      searches: { one: "검색 {{count}}개", other: "검색 {{count}}개" },
+      otherTools: { one: "기타 작업 {{count}}개", other: "기타 작업 {{count}}개" },
+      paseoCalls: { one: "Paseo 호출 {{count}}개", other: "Paseo 호출 {{count}}개" },
+    },
+  },
   toolCallGroup: {
     editedFiles: {
       one: "{{count}} 파일을 편집했습니다.",
@@ -2088,7 +2458,31 @@ export const ko: TranslationResources = {
       diagnostics: "진단",
       about: "정보",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "탐색기",
+        comparison: {
+          label: "기본 비교",
+          description: "이 작업 공간에 저장된 비교가 없을 때 사용합니다.",
+          options: { uncommitted: "커밋되지 않음", base: "커밋됨" },
+        },
+        autoSwitch: {
+          label: "비교 자동 전환",
+          description:
+            "로컬 변경 사항이 있으면 커밋되지 않은 변경을, 없으면 커밋된 변경을 표시합니다. 끄면 선택을 기억합니다.",
+        },
+        autoOpen: {
+          label: "새 작업 공간에서 사이드바 열기",
+          description: "새 데스크톱 작업 공간에서 탐색기 사이드바를 자동으로 표시합니다.",
+        },
+        diffScope: {
+          label: "변경 사항에서 파일을 클릭할 때",
+          description: "차이 보기에 표시할 변경된 파일의 범위를 선택합니다.",
+          options: { all: "변경된 모든 파일", single: "선택한 파일만" },
+        },
+      },
+    },
     editor: {
       title: "편집기",
       vimKeybindings: "Vim 키 바인딩",
@@ -2265,6 +2659,21 @@ export const ko: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "강조 색상",
+        hint: "주요 컨트롤과 내 메시지에 사용됩니다",
+        updateHost: "강조 색상을 변경하려면 선택한 설정 호스트를 업데이트하세요",
+        preview: "메시지가 이렇게 표시됩니다",
+        options: {
+          default: "기본값",
+          blue: "파랑",
+          green: "초록",
+          purple: "보라",
+          rose: "장미색",
+          orange: "주황",
+          teal: "청록",
+        },
+      },
       theme: {
         title: "테마",
         accessibilityLabel: "테마: {{value}}",

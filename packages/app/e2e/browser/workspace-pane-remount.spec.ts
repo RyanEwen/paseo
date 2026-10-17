@@ -1,4 +1,8 @@
-import { buildHostAgentDetailRoute, buildHostWorkspaceRoute } from "@/utils/host-routes";
+import {
+  buildDefaultSettingsRoute,
+  buildHostAgentDetailRoute,
+  buildHostWorkspaceRoute,
+} from "@/utils/host-routes";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures";
 import { createIdleAgent } from "../support/helpers/archive-tab";
@@ -9,6 +13,7 @@ import { seedWorkspace } from "../support/helpers/seed-client";
 import { getServerId } from "../support/helpers/server-id";
 import { clickSettingsBackToWorkspace, openCompactSettings } from "../support/helpers/settings";
 import { openSettings } from "../support/helpers/app";
+import { expectAppRoute } from "../support/helpers/route-assertions";
 import { runWorkspaceActionFromCommandCenter } from "../support/helpers/command-center-workspace-actions";
 import {
   clickFirstTerminalTab,
@@ -101,7 +106,7 @@ test.describe("Workspace pane mounting", () => {
 
         const settingsShortcut = await getSettingsShortcut(page);
         await page.keyboard.press(settingsShortcut);
-        await expect(page).toHaveURL(/\/settings\/general$/);
+        await expectAppRoute(page, buildDefaultSettingsRoute());
         await expect(renameInput).not.toBeVisible();
         await clickSettingsBackToWorkspace(page);
         await expectSameRenderedNode(originalComposer!, composer);

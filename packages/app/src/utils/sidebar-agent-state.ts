@@ -57,3 +57,38 @@ export function aggregateSidebarStateBuckets(
   }
   return STATUS_BUCKET_PRIORITY[bestRank] ?? "done";
 }
+
+/** Compare status timestamps newest first, placing unknown times last and preserving ties. */
+export function compareSidebarStatusRecency(a: Date | null, b: Date | null): number {
+  const aTime = a?.getTime() ?? null;
+  const bTime = b?.getTime() ?? null;
+  if (aTime !== null && bTime !== null) {
+    return bTime - aTime;
+  }
+  if (aTime !== null) return -1;
+  if (bTime !== null) return 1;
+  return 0;
+}
+
+/** Summarize known children without presenting empty or partly unavailable projects as done. */
+export function aggregateKnownSidebarStateBuckets(
+  buckets: Iterable<SidebarStateBucket | null>,
+): SidebarStateBucket | null {
+  const known: SidebarStateBucket[] = [];
+  let hasUnknown = false;
+  for (const bucket of buckets) {
+    if (bucket === null) {
+      hasUnknown = true;
+    } else {
+      known.push(bucket);
+    }
+  }
+  if (known.length === 0) {
+    return null;
+  }
+  const aggregate = aggregateSidebarStateBuckets(known);
+  if (aggregate === "done" && hasUnknown) {
+    return null;
+  }
+  return aggregate;
+}

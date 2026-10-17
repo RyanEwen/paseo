@@ -11,7 +11,37 @@ Controlled by `APP_VARIANT` in `packages/app/app.config.js` (vanilla Expo, no cu
 
 EAS profiles: `development`, `production`, and `production-apk` in `packages/app/eas.json`.
 
+Fork preview builds use the Paseo++ app name, `sh.paseo.plusplus` package, and `paseo-plus-plus`
+link scheme. They install separately from upstream and former Debug previews, with fresh settings
+and connections. They check for
+published fork builds at startup, on resume, and every 30 minutes while active. Use Settings >
+About to check manually. Available updates also appear in the sidebar. Tap Install update to
+download the APK; Settings and the sidebar show downloaded bytes and a percentage when the
+download size is known, followed by verification. Approve Android's installer to finish.
+If Android asks you to allow this app to install packages, enable that permission,
+return to Paseo++, and tap Install update again. Cancelling installation leaves the update available.
+
+Updates require the same signing key and a newer preview build number. Draft releases are invisible.
+The install permission is enabled only for fork preview builds; store and F-Droid builds keep their
+existing update channels. See [fork distribution](release.md#fork-preview-distribution) and the
+[final prerelease bridge](release.md#final-prerelease-bridge-and-normal-latest-releases) for discovery
+across GitHub release classifications.
+
 `development` uses Android `debug`.
+
+## SSH connections
+
+`modules/paseo-ssh` owns Android's SSH transport and credential storage. A native rebuild
+is required; Expo Go cannot load it. Desktop credentials never cross into the phone.
+The native bridge and Electron bridge use the same event-based client transport lifecycle.
+
+Private keys and passphrases are encrypted with a non-exportable Android Keystore key in
+`noBackupFilesDir`. Host registry entries contain only the destination. Discovery rejects
+the SSH handshake before login; the user approves the observed SHA-256 fingerprint before
+credentials are staged for a daemon probe. Commit credentials before publishing a successful
+host, so reconnects can use them immediately. Reject changed fingerprints on reconnect.
+
+User setup and platform limits live in [Connectivity](../public-docs/connectivity.md#android).
 
 ## Version codes
 
@@ -158,7 +188,9 @@ Supported values are `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`. The F-Droi
 
 Keep the excluded npm packages installed. Normal builds use them, while the F-Droid profile removes only their Android native modules and config plugins. Paseo always applies `expo-gradle-jvmargs` with `-Xmx4096m` and `-XX:MaxMetaspaceSize=1024m` so local Expo prebuilds have enough Gradle heap whether they use precompiled AARs or source-built Expo modules.
 
-The EAS `production-apk` profile uses the large Android resource class. Release builds compile the native ABIs and run Hermes bundling in the same Gradle invocation; the default worker can exhaust its remaining memory and kill Hermes with exit code 137 even when Gradle's own heap is correctly sized.
+The EAS `production-apk` profile uses the large Android resource class. Release builds compile the native ABIs and run Hermes bundling in the same Gradle invocation; the default worker can exhaust its remaining memory and kill Hermes with exit code 137 even when Gradle's own heap is correctly sized. Serial Gradle tasks still retain Java's heap during Hermes compilation. Fork previews export the generated release task configuration and run Metro, optimized Hermes, and source-map composition after Gradle exits, before native assembly and signing. Keep those phases separate; changing Hermes to development optimization changes the shipped app.
+
+The preview runner also needs headroom for optimized Hermes itself. Its compiler-only memory budget protects the runner, streams memory and OOM counters, and bounds compilation to 30 minutes. Temporary swap requires 28 GiB free on its filesystem, including a provisional 12 GiB disk reserve. Do not delete SDKs or reduce optimization to fit. Reclaim swap before native assembly only when available RAM can hold its occupied pages plus runner headroom. A runner-service shutdown message alone does not establish OOM; use the compiler cgroup counters or kernel records. Retain the JavaScript input and compiler identity when investigating a failure.
 
 ### F-Droid store metadata
 

@@ -1,0 +1,38 @@
+{
+  "id": "project-selector",
+  "source": "project-selector-1791840834825.png",
+  "sourceManifestSha256": "8507b37ee58fcc422c8aa8a7cc91e9ca0789facb1e9548e558e2e7ba204ecdd9",
+  "sourceSha256": "9f34c617084382ba13506830a4fb1487e06e2ef4d8c0d775c8f8034d9a4da0da",
+  "capturedAtUtc": "2026-10-12T21:33:54.999Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 8,
+    "top": 163,
+    "width": 304,
+    "height": 110
+  },
+  "description": "The real multi-select project dropdown with live project activity.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/project-selector-1791840834825.json",
+  "captureSuggestedCrop": {
+    "left": 8,
+    "top": 163,
+    "width": 304,
+    "height": 110
+  },
+  "asset": "project-selector.png",
+  "assetSha256": "6052b8debfc5cad7784fd467dcbaeeb84f1a95754b7c6cbc1897810ac66f79d2",
+  "assetPixels": {
+    "width": 304,
+    "height": 110
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

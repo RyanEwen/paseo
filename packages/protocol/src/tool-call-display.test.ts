@@ -1,3 +1,4 @@
+import { describeToolActivity } from "./tool-call-activity.js";
 import { describe, expect, it } from "vitest";
 
 import { buildToolCallDisplayModel } from "./tool-call-display.js";
@@ -190,4 +191,43 @@ describe("shared tool-call display mapping", () => {
       displayName: "Plan",
     });
   });
+});
+
+describe("provider-neutral activity classification", () => {
+  it("classifies canonical details without relying on provider-specific tool names", () => {
+    expect(describeToolActivity({ detail: { type: "read", filePath: "../a.ts" } })).toEqual([
+      { kind: "read", target: "../a.ts" },
+    ]);
+    expect(
+      describeToolActivity({
+        detail: { type: "edit", filePath: "a.ts", oldString: "x", newString: "y" },
+      }),
+    ).toEqual([{ kind: "edit", target: "a.ts" }]);
+    expect(
+      describeToolActivity({ detail: { type: "write", filePath: "a.ts", content: "x" } }),
+    ).toEqual([{ kind: "write", target: "a.ts" }]);
+    expect(describeToolActivity({ detail: { type: "search", query: "needle" } })).toEqual([
+      { kind: "search", target: "needle" },
+    ]);
+  });
+  it("recognizes script invocations without interpreting effects or compound scripts", () => {
+    expect(describeToolActivity({ detail: { type: "shell", command: "npm run test" } })).toEqual([
+      { kind: "script", target: "npm run test" },
+    ]);
+    expect(
+      describeToolActivity({ detail: { type: "shell", command: "npm run test && rm a.ts" } }),
+    ).toEqual([{ kind: "command" }]);
+    expect(describeToolActivity({ detail: { type: "shell", command: "cat a.ts b.ts" } })).toEqual([
+      { kind: "command" },
+    ]);
+  });
+});
+
+it("keeps future patch kinds generic rather than claiming creation or writing", () => {
+  expect(
+    describeToolActivity({
+      detail: { type: "unknown", input: null, output: null },
+      metadata: { fileChanges: [{ path: "future.ts", kind: "unknown", diff: "opaque" }] },
+    }),
+  ).toEqual([{ kind: "change", target: "future.ts" }]);
 });

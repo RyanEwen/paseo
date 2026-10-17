@@ -111,6 +111,16 @@ rendered while the menu is up. `useOpenKebabMenuVisibility`
 sidebar rows: it owns `open`, hands the menu its controlled props, and ORs `open` into the
 row's own `showKebab`.
 
+## Explicit navigation visibility
+
+Chat message arrows land with the destination pinned, keeping the controls in place for another click.
+Keep its actions visible until the mouse moves. Do not clear that ownership on pointerdown:
+the control must survive through pointerup and click. Clicking the pinned content reveals its original.
+This is navigation ownership, separate from the plain View's actual hover state. Clear the hold
+on cancellation, manual scroll input, epoch replacement, opt-out, or the next navigation. A late
+history response must not restore a hold already cleared by mouse movement. Touch layouts keep
+their existing always-visible actions.
+
 ## Native fallback
 
 Hover doesn't exist on touch devices. Anything you hide behind hover must have a non-hover path on native and compact layouts:

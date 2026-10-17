@@ -19,9 +19,15 @@ done
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
 RESOURCES_DIR=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
+EXECUTABLE_NAME=$(cat "${RESOURCES_DIR}/paseo-executable-name")
+
+if [ -f "${RESOURCES_DIR}/paseo-daemon-home-name" ]; then
+  export PASEO_HOME="${PASEO_HOME:-${HOME}/$(cat "${RESOURCES_DIR}/paseo-daemon-home-name")}"
+  export PASEO_LISTEN="${PASEO_LISTEN:-$(cat "${RESOURCES_DIR}/paseo-daemon-listen")}"
+fi
 
 MACOS_DIR="${RESOURCES_DIR}/../MacOS"
-MACOS_HELPER_EXECUTABLE="${RESOURCES_DIR}/../Frameworks/Paseo Helper.app/Contents/MacOS/Paseo Helper"
+MACOS_HELPER_EXECUTABLE="${RESOURCES_DIR}/../Frameworks/${EXECUTABLE_NAME} Helper.app/Contents/MacOS/${EXECUTABLE_NAME} Helper"
 
 # macOS CLI invocations must enter Electron through the agent Helper. Launching
 # the main APPL executable here makes later daemon supervision inherit app UI
@@ -32,10 +38,10 @@ if [ -d "${MACOS_DIR}" ]; then
     exit 1
   fi
   APP_EXECUTABLE="${MACOS_HELPER_EXECUTABLE}"
-elif [ -x "${RESOURCES_DIR}/../Paseo.bin" ]; then
-  APP_EXECUTABLE="${RESOURCES_DIR}/../Paseo.bin"
-elif [ -x "${RESOURCES_DIR}/../Paseo" ]; then
-  APP_EXECUTABLE="${RESOURCES_DIR}/../Paseo"
+elif [ -x "${RESOURCES_DIR}/../${EXECUTABLE_NAME}.bin" ]; then
+  APP_EXECUTABLE="${RESOURCES_DIR}/../${EXECUTABLE_NAME}.bin"
+elif [ -x "${RESOURCES_DIR}/../${EXECUTABLE_NAME}" ]; then
+  APP_EXECUTABLE="${RESOURCES_DIR}/../${EXECUTABLE_NAME}"
 else
   echo "Bundled Paseo executable not found relative to ${RESOURCES_DIR}" >&2
   exit 1

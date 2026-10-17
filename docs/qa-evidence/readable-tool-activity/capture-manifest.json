@@ -1,0 +1,287 @@
+{
+  "sourceManifest": "qualified-source-manifest.json",
+  "captures": [
+    {
+      "mode": "desktop-on",
+      "name": "labels",
+      "path": "desktop-on-labels.png",
+      "sha256": "a8c8e9593564d32be9cf87e4557c5054633c4e656bb953785eec0a39fb59c871",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_f0233d98442c570f",
+      "detailsText": "5 file operations, 2 commands, 1 file read, and 1 search\n5 file operations, 2 commands, 1 file read, and 1 search\nRead\nsrc/notifications.ts\nFailed: Edit\nsrc/failed-edit.ts\nCanceled: Write\nsrc/canceled-write.ts\nSearched\nnotification\nChanged files\nsrc/created.ts, src/updated.ts, src/deleted.ts\nRunning script\nnpm run test\nRunning script\nnpm run test\nFailed: Run command",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-labels.png"
+    },
+    {
+      "mode": "desktop-on",
+      "name": "read",
+      "path": "desktop-on-read.png",
+      "sha256": "09d73a7aadefd5baa30679505614fda29be1e39442a763357aa2c784b6734494",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_f0233d98442c570f",
+      "detailsText": "Read\nsrc/notifications.ts\n$ cat src/notifications.ts\n\nexport const notification = 'exact preserved output';",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-read.png"
+    },
+    {
+      "mode": "desktop-on",
+      "name": "files",
+      "path": "desktop-on-files.png",
+      "sha256": "e2e2d70fbb9e1aa5f831d6d86125a503d4a80a32310883224932e41fed0d742f",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_f0233d98442c570f",
+      "detailsText": "Changed files\nsrc/created.ts, src/updated.ts, src/deleted.ts\nInput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\"\n    }\n  ]\n}\nOutput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\",\n      \"diff\": \"+created-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\",\n      \"diff\": \"-before\\n+updated-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\",\n      \"diff\": \"-deleted-file-exact-diff\"\n    }\n  ]\n}",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-files.png"
+    },
+    {
+      "mode": "desktop-on",
+      "name": "opaque",
+      "path": "desktop-on-opaque.png",
+      "sha256": "75e360b97cc57210106b8fe360338a44bebc56f0bac69872959a62b8a59899bc",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_f0233d98442c570f",
+      "detailsText": "Failed: Run command\n$ python - <<'PY'\nprint('opaque script output')\nPY\n\nopaque script output\nERROR\n{\n  \"message\": \"Tool call failed\"\n}",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-opaque.png"
+    },
+    {
+      "mode": "desktop-off",
+      "name": "labels",
+      "path": "desktop-off-labels.png",
+      "sha256": "18fee5f9f2adae4c52e9caf339ad442f1c96f15cd1b2cb72a3a0fca05317aa61",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_4293328c4016e6b3",
+      "detailsText": "Edited 3 files, ran 3 commands, and searched 1 time\nEdited 3 files, ran 3 commands, and searched 1 time\nShell\ncat src/notifications.ts\nEdit\nsrc/failed-edit.ts\nWrite\nsrc/canceled-write.ts\nSearch\nnotification\nEdit\nsrc/created.ts\nShell\nnpm run test\nShell\nnpm run test\nShell\npython - <<'PY' print('opaque script output') PY",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-labels.png"
+    },
+    {
+      "mode": "desktop-off",
+      "name": "read",
+      "path": "desktop-off-read.png",
+      "sha256": "10e5e2e3f1417f9adcb46ff2d31607532e11a139c7ebae8a348f45c1f64f6ebe",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_4293328c4016e6b3",
+      "detailsText": "Shell\ncat src/notifications.ts\n$ cat src/notifications.ts\n\nexport const notification = 'exact preserved output';",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-read.png"
+    },
+    {
+      "mode": "desktop-off",
+      "name": "files",
+      "path": "desktop-off-files.png",
+      "sha256": "bd57c77540bf5a3f9e75ea86430ca3fce0cf2a6c44ba5e68dc2d59116c248e0d",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_4293328c4016e6b3",
+      "detailsText": "Edit\nsrc/created.ts\nInput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\"\n    }\n  ]\n}\nOutput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\",\n      \"diff\": \"+created-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\",\n      \"diff\": \"-before\\n+updated-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\",\n      \"diff\": \"-deleted-file-exact-diff\"\n    }\n  ]\n}",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-files.png"
+    },
+    {
+      "mode": "desktop-off",
+      "name": "opaque",
+      "path": "desktop-off-opaque.png",
+      "sha256": "e9c0c8ca5a45051035ebdcbecb91b5ead7a72165164df41f918ed7d062849d1a",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_4293328c4016e6b3",
+      "detailsText": "Shell\npython - <<'PY' print('opaque script output') PY\n$ python - <<'PY'\nprint('opaque script output')\nPY\n\nopaque script output\nERROR\n{\n  \"message\": \"Tool call failed\"\n}",
+      "pngDimensions": {
+        "width": 1280,
+        "height": 900
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-opaque.png"
+    },
+    {
+      "mode": "compact-on",
+      "name": "labels",
+      "path": "compact-on-labels.png",
+      "sha256": "17d6ef82b592aeaedcbd34e3f8965d670f6125da7515dd9f67b51b01cde1bcf7",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_2da76247bd94eb98",
+      "detailsText": "5 file operations, 2 commands, 1 file read, and 1 search\nRead\nsrc/notifications.ts\nFailed: Edit\nsrc/failed-edit.ts\nCanceled: Write\nsrc/canceled-write.ts\nSearched\nnotification\nChanged files\nsrc/created.ts, src/updated.ts, src/deleted.ts\nRunning script\nnpm run test\nRunning script\nnpm run test\nFailed: Run command",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-labels.png"
+    },
+    {
+      "mode": "compact-on",
+      "name": "read",
+      "path": "compact-on-read.png",
+      "sha256": "02c6586f8715adc9cb2c5858e810284c0d4abac5ae5b872fe2a08b75bfeb5768",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_2da76247bd94eb98",
+      "detailsText": "Read\n$ cat src/notifications.ts\n\nexport const notification = 'exact preserved output';",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-read.png"
+    },
+    {
+      "mode": "compact-on",
+      "name": "files",
+      "path": "compact-on-files.png",
+      "sha256": "cc641de9538e419b618a92d23d9a46b117eea10709945cf3aa1e3077c2518843",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_2da76247bd94eb98",
+      "detailsText": "Changed files\nInput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\"\n    }\n  ]\n}\nOutput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\",\n      \"diff\": \"+created-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\",\n      \"diff\": \"-before\\n+updated-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\",\n      \"diff\": \"-deleted-file-exact-diff\"\n    }\n  ]\n}",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-files.png"
+    },
+    {
+      "mode": "compact-on",
+      "name": "opaque",
+      "path": "compact-on-opaque.png",
+      "sha256": "1c0f0bfcf5f5c42bbde84f04852d8b6342825f85d4dd0a5628279719e22804b0",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_2da76247bd94eb98",
+      "detailsText": "Failed: Run command\n$ python - <<'PY'\nprint('opaque script output')\nPY\n\nopaque script output\nERROR\n{\n  \"message\": \"Tool call failed\"\n}",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-opaque.png"
+    },
+    {
+      "mode": "compact-off",
+      "name": "labels",
+      "path": "compact-off-labels.png",
+      "sha256": "de150ac46dd7e2d6971b51362a21b896255d537e48494cdd3fb4eb41c2e20c4d",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_363ab3f9cb14b881",
+      "detailsText": "Edited 3 files, ran 3 commands, and searched 1 time\nShell\ncat src/notifications.ts\nEdit\nsrc/failed-edit.ts\nWrite\nsrc/canceled-write.ts\nSearch\nnotification\nEdit\nsrc/created.ts\nShell\nnpm run test\nShell\nnpm run test\nShell\npython - <<'PY' print('opaque script output') PY",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-labels.png"
+    },
+    {
+      "mode": "compact-off",
+      "name": "read",
+      "path": "compact-off-read.png",
+      "sha256": "d74233ea9cb6889a0467cf546ac44142f87433091854830878ade9eb7340e442",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_363ab3f9cb14b881",
+      "detailsText": "Shell\n$ cat src/notifications.ts\n\nexport const notification = 'exact preserved output';",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-read.png"
+    },
+    {
+      "mode": "compact-off",
+      "name": "files",
+      "path": "compact-off-files.png",
+      "sha256": "26a4ec52a61aedcb38a61a74630d8582a518c7f004de55697337fe1c39495250",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_363ab3f9cb14b881",
+      "detailsText": "Edit\nInput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\"\n    }\n  ]\n}\nOutput\n{\n  \"files\": [\n    {\n      \"path\": \"src/created.ts\",\n      \"kind\": \"add\",\n      \"diff\": \"+created-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/updated.ts\",\n      \"kind\": \"update\",\n      \"diff\": \"-before\\n+updated-file-exact-diff\"\n    },\n    {\n      \"path\": \"src/deleted.ts\",\n      \"kind\": \"delete\",\n      \"diff\": \"-deleted-file-exact-diff\"\n    }\n  ]\n}",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-files.png"
+    },
+    {
+      "mode": "compact-off",
+      "name": "opaque",
+      "path": "compact-off-opaque.png",
+      "sha256": "c4aeb4ef43499446d9249cbdd3230b577a2dafed7085f7e1e1eaa7251c80d086",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "url": "http://localhost:40997/h/srv_e2e_worker_0/workspace/wks_363ab3f9cb14b881",
+      "detailsText": "Shell\n$ python - <<'PY'\nprint('opaque script output')\nPY\n\nopaque script output\nERROR\n{\n  \"message\": \"Tool call failed\"\n}",
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "originalCapturePath": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-opaque.png"
+    }
+  ],
+  "qualifiedPatchSha256": "1919afcf502c06ebee92f7d6b75e528dd337f3f80e92c6ba89cc91c62245a7d2",
+  "result": "One supplemental scene passed in55.0s; four modes,16 durablePNG files",
+  "platform": "Headless installed Chromium web, desktop1280x900 and compact390x844; native and packaged Electron not validated",
+  "limits": [
+    "Compact group screenshot captures initial peek position; compactOff screenshot was during sheet entrance, with only handle visible. Do not use these frames as proof of all seven visible rows.",
+    "Compact file details contain all three exact diffs, but output deletion tail is below the captured viewport. Compact command output line extends horizontally beyond the viewport. DOMtext is preserved in this manifest; offscreen pixels are not claimed.",
+    "The prior304 checks and four accepted UIcase logs were lost at WSLrestart and remain conversation-reported only. This capture run is fresh durable evidence, not reconstructed prior evidence."
+  ],
+  "setupFailure": "First capture scene timed out in openAgentRoute60s before semantic capture; bounded retry restored existinglocalhost origin/seednonce/composerwait and passed. Exact first-stall cause not isolated.",
+  "pixelInspection": "All16 PNGs viewed; declared compact offscreen/entrance limits retained"
+}

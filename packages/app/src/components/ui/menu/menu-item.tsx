@@ -1,3 +1,5 @@
+import { MenuItemActions, type MenuItemSecondaryToggle } from "./menu-secondary-toggle";
+export type { MenuItemSecondaryToggle } from "./menu-secondary-toggle";
 import {
   useCallback,
   useMemo,
@@ -221,8 +223,25 @@ function resolveItemLabel(input: {
   return children;
 }
 
+function resolveItemTrailing(
+  trailing: ReactElement | null | undefined,
+  showSelectedCheck: boolean,
+  selected: boolean | undefined,
+): ReactElement | null {
+  return (
+    trailing ??
+    (!showSelectedCheck && selected ? <ThemedCheck size={16} uniProps={mutedMapping} /> : null)
+  );
+}
+
 export interface MenuItemProps {
   description?: string;
+  accessibilityLabel?: string;
+  secondaryToggle?: MenuItemSecondaryToggle;
+  /** Independent sibling control, such as a creation row’s split-layout menu. */
+  secondaryAction?: ReactElement;
+  /** Compact menu action for an icon-only submenu trigger. */
+  iconOnly?: boolean;
   onSelect?: () => void;
   disabled?: boolean;
   muted?: boolean;
@@ -256,6 +275,10 @@ export interface MenuItemProps {
 export function MenuItem({
   children,
   description,
+  accessibilityLabel,
+  secondaryToggle,
+  secondaryAction,
+  iconOnly = false,
   onSelect,
   disabled,
   muted = false,
@@ -286,9 +309,7 @@ export function MenuItem({
 
   const label = resolveItemLabel({ children, isPending, isSuccess, pendingLabel, successLabel });
 
-  const trailingContent =
-    trailing ??
-    (!showSelectedCheck && selected ? <ThemedCheck size={16} uniProps={mutedMapping} /> : null);
+  const trailingContent = resolveItemTrailing(trailing, showSelectedCheck, selected);
 
   const handleItemPress = useCallback(() => {
     if (isDisabled) return;
@@ -310,6 +331,8 @@ export function MenuItem({
       focused = false,
     }: PressableStateCallbackType & { hovered?: boolean; focused?: boolean }) => [
       styles.item,
+      secondaryToggle || secondaryAction ? styles.splitPrimary : null,
+      iconOnly ? styles.iconOnly : null,
       active ? styles.itemActive : null,
       isDisabled ? styles.itemDisabled : null,
       muted && !isDisabled ? styles.itemMuted : null,
@@ -317,7 +340,7 @@ export function MenuItem({
       focused && !isDisabled ? styles.itemHovered : null,
       pressed && !isDisabled ? styles.itemPressed : null,
     ],
-    [active, isDisabled, muted],
+    [active, isDisabled, muted, secondaryToggle, secondaryAction, iconOnly],
   );
 
   const itemTextStyle = useMemo(
@@ -334,10 +357,11 @@ export function MenuItem({
     [isDisabled],
   );
 
-  const content = (
+  const primaryContent = (
     <Pressable
       testID={testID}
       accessibilityRole="menuitem"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
       aria-checked={selected}
       tabIndex={-1}
@@ -352,7 +376,7 @@ export function MenuItem({
         </View>
       ) : null}
       {leadingContent ? <View style={styles.leadingSlot}>{leadingContent}</View> : null}
-      <View style={styles.itemContent}>
+      <View style={iconOnly ? styles.hiddenLabel : styles.itemContent}>
         <Text numberOfLines={1} style={itemTextStyle}>
           {label}
         </Text>
@@ -366,13 +390,29 @@ export function MenuItem({
     </Pressable>
   );
 
-  if (!tooltip) {
-    return content;
-  }
+  return (
+    <MenuItemActions
+      toggle={secondaryToggle}
+      action={secondaryAction}
+      disabled={Boolean(isDisabled)}
+    >
+      <MenuItemTooltip tooltip={tooltip}>{primaryContent}</MenuItemTooltip>
+    </MenuItemActions>
+  );
+}
 
+/** Attach hover handlers and the anchor ref to the primary pressable, including in a split row. */
+function MenuItemTooltip({
+  children,
+  tooltip,
+}: {
+  children: ReactElement;
+  tooltip?: string;
+}): ReactElement {
+  if (!tooltip) return children;
   return (
     <Tooltip delayDuration={250} enabledOnDesktop enabledOnMobile={false}>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side="right" align="center" offset={10}>
         <Text style={styles.tooltipText}>{tooltip}</Text>
       </TooltipContent>
@@ -476,6 +516,18 @@ const styles = StyleSheet.create((theme) => ({
     lineHeight: MENU_ITEM_LINE_HEIGHT,
     paddingVertical: 0,
     paddingHorizontal: 0,
+  },
+  iconOnly: {
+    marginHorizontal: 0,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+    minWidth: MENU_ITEM_HEIGHT,
+  },
+  hiddenLabel: { display: "none" },
+  splitPrimary: {
+    flex: 1,
+    minWidth: 0,
+    marginHorizontal: 0,
   },
   itemHovered: {
     backgroundColor: theme.colors.surface2,

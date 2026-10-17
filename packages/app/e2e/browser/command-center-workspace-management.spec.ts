@@ -167,13 +167,13 @@ test.describe("Command center workspace management", () => {
       await gotoAppShell(page);
       await openWorkspace(page, workspace.workspaceId);
 
-      await runCommand(page, "pin", "Pin to top");
+      await runCommand(page, "pin", "Pin to sidebar top");
       await expect(page.getByTestId("sidebar-pinned-section")).toBeVisible({ timeout: 15_000 });
 
       const panel = await openCommandCenter(page);
       await panel.getByTestId("command-center-input").fill("pin");
       await expect(action(panel, "Unpin")).toBeVisible({ timeout: 15_000 });
-      await expect(action(panel, "Pin to top")).toHaveCount(0);
+      await expect(action(panel, "Pin to sidebar top")).toHaveCount(0);
     } finally {
       await workspace.cleanup();
     }

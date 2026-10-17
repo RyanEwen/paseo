@@ -1,3 +1,5 @@
+import { loadProtocolSchemas } from "./daemon-client-loader";
+import { createTimelineRequestLedger } from "./timeline-request-ledger";
 import type { Page } from "@playwright/test";
 import { loadSessionMessageReaders } from "./new-workspace";
 import { daemonWsRoutePattern, wsRoutePatternForPort } from "./daemon-port";
@@ -18,6 +20,8 @@ export interface AgentTimelineResponseGate {
 
 export interface OlderTimelinePagesGate {
   getRequestCount(): number;
+  getReadAccounting(): ReturnType<ReturnType<typeof createTimelineRequestLedger>["summary"]>;
+  flushContentReads(): number;
   getRepeatedEntryCount(): number;
   getOwnedEntryCountContaining(text: string): number;
   releasePage(pageNumber: number): void;
@@ -343,6 +347,8 @@ export async function holdAgentOlderTimelinePages(
   agentId: string,
   daemonPort?: number,
 ): Promise<OlderTimelinePagesGate> {
+  const ledger = createTimelineRequestLedger(agentId, await loadProtocolSchemas());
+  const contentForwards: Array<() => void> = [];
   let requestCount = 0;
   let responseCount = 0;
   let repeatedEntryCount = 0;
@@ -354,7 +360,7 @@ export async function holdAgentOlderTimelinePages(
 
   const resolveRequestWaiters = () => {
     for (const [count, resolvers] of requestWaiters) {
-      if (requestCount < count) continue;
+      if (requestCount < count && ledger.summary().errors.length === 0) continue;
       requestWaiters.delete(count);
       for (const resolve of resolvers) resolve();
     }
@@ -371,44 +377,79 @@ export async function holdAgentOlderTimelinePages(
         sessionMessage.agentId === agentId &&
         sessionMessage.direction === "before"
       ) {
-        requestCount += 1;
+        if (ledger.classify(sessionMessage) === "window") requestCount += 1;
         resolveRequestWaiters();
       }
       server.send(message);
     });
+    /** Consume cache-only or invalid owned responses without entering the held-window ledger. */
+    const routeContentResponse = (payload: Record<string, unknown>, forward: () => void) => {
+      const belongsToLedger =
+        (payload.agentId === agentId && payload.direction === "before") ||
+        ledger.ownsRequest(payload.requestId);
+      if (!belongsToLedger) return false;
+      const purpose = ledger.beforeResponsePurpose(payload);
+      if (purpose === "window") return false;
+      if (purpose === "content" || purpose === "context") {
+        if (purpose === "content") ledger.completeContent(payload);
+        else ledger.completeContext(payload);
+        contentForwards.push(forward);
+      } else {
+        forward();
+      }
+      resolveRequestWaiters();
+      return true;
+    };
     server.onMessage((message) => {
       const sessionMessage = getSessionMessage(message);
       const payload = sessionMessage ? getPayload(sessionMessage) : null;
-      if (
-        sessionMessage?.type === "fetch_agent_timeline_response" &&
-        payload?.agentId === agentId &&
-        (payload.direction === "tail" || payload.direction === "before")
-      ) {
-        recordOwnedTimelineEntries(payload, ownedEntries);
-      }
-      if (
-        sessionMessage?.type === "fetch_agent_timeline_response" &&
-        payload?.agentId === agentId &&
-        payload.direction === "before"
-      ) {
-        responseCount += 1;
-        repeatedEntryCount += recordRepeatedTimelineEntries(payload, entryKeys);
-        const pageNumber = responseCount;
-        if (releasedPages.has(pageNumber)) {
-          ws.send(message);
-          return;
-        }
-        const forwards = delayedForwards.get(pageNumber) ?? [];
-        forwards.push(() => ws.send(message));
-        delayedForwards.set(pageNumber, forwards);
+      // Server-info can be a direct envelope; prompt indexes use session messages.
+      const inbound =
+        sessionMessage ?? (parseWebSocketJson(message) as Record<string, unknown> | null);
+      if (inbound) ledger.observe(inbound, getPayload(inbound));
+      const forward = () => ws.send(message);
+      if (sessionMessage?.type !== "fetch_agent_timeline_response" || !payload) {
+        forward();
         return;
       }
-      ws.send(message);
+      if (routeContentResponse(payload, forward)) return;
+      if (payload.agentId !== agentId || !["tail", "before"].includes(String(payload.direction))) {
+        forward();
+        return;
+      }
+
+      recordOwnedTimelineEntries(payload, ownedEntries);
+      if (payload.direction === "tail") {
+        ledger.observeWindow(payload);
+        forward();
+        return;
+      }
+
+      responseCount += 1;
+      repeatedEntryCount += recordRepeatedTimelineEntries(payload, entryKeys);
+      const pageNumber = responseCount;
+      const forwardWindow = () => {
+        ledger.observeWindow(payload);
+        forward();
+      };
+      if (releasedPages.has(pageNumber)) {
+        forwardWindow();
+        return;
+      }
+      const forwards = delayedForwards.get(pageNumber) ?? [];
+      forwards.push(forwardWindow);
+      delayedForwards.set(pageNumber, forwards);
     });
   });
 
   return {
     getRequestCount: () => requestCount,
+    getReadAccounting: ledger.summary,
+    flushContentReads() {
+      const forwards = contentForwards.splice(0);
+      for (const forward of forwards) forward();
+      return forwards.length;
+    },
     getRepeatedEntryCount: () => repeatedEntryCount,
     getOwnedEntryCountContaining: (value) =>
       [...ownedEntries.values()].filter((text) => text.includes(value)).length,
@@ -418,7 +459,7 @@ export async function holdAgentOlderTimelinePages(
       delayedForwards.delete(pageNumber);
     },
     waitForRequestCount(count) {
-      if (requestCount >= count) return Promise.resolve();
+      if (requestCount >= count || ledger.summary().errors.length > 0) return Promise.resolve();
       return new Promise<void>((resolve) => {
         const resolvers = requestWaiters.get(count) ?? [];
         resolvers.push(resolve);

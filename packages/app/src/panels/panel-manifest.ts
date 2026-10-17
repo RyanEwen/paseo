@@ -128,7 +128,8 @@ const manifests = {
     showCloseButton: true,
     singleton: false,
     compactSheet: null,
-    resourceKey: () => "working_diff",
+    resourceKey: (target) =>
+      target.filePath ? `working_diff_file_${target.filePath}` : "working_diff",
   },
   plugin: {
     kind: "plugin",

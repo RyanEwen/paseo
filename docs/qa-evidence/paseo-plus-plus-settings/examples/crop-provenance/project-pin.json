@@ -1,0 +1,38 @@
+{
+  "id": "project-pin",
+  "source": "project-pin-1791840835441.png",
+  "sourceManifestSha256": "8507b37ee58fcc422c8aa8a7cc91e9ca0789facb1e9548e558e2e7ba204ecdd9",
+  "sourceSha256": "9947e3d5c0893c1f9654853ec6a27d03b0534edb22bb8e38a298ac6be1143e6a",
+  "capturedAtUtc": "2026-10-12T21:33:55.557Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 60,
+    "top": 347,
+    "width": 276,
+    "height": 222
+  },
+  "description": "The actual Pin in project menu entry. This still does not demonstrate saved priority or reorder behavior.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/project-pin-1791840835441.json",
+  "captureSuggestedCrop": {
+    "left": 60,
+    "top": 347,
+    "width": 276,
+    "height": 222
+  },
+  "asset": "project-pin.png",
+  "assetSha256": "158f4f3418c89d4e11561fb660560eda0a4c416e7114f034fe2ef7ea39417f21",
+  "assetPixels": {
+    "width": 276,
+    "height": 222
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

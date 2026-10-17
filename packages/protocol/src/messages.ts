@@ -1,3 +1,10 @@
+import {
+  AppSettingsGetRequestSchema,
+  AppSettingsPatchRequestSchema,
+  AppSettingsGetResponseSchema,
+  AppSettingsPatchResponseSchema,
+  AppSettingsChangedSchema,
+} from "./app-settings.js";
 import { AgentMessageSchema } from "./agent-message.js";
 import { PluginRegistryIdentitySchema } from "./plugin-registry.js";
 import { AgentProfileSchema, AgentSkillSelectionSchema } from "./agent-profile.js";
@@ -984,6 +991,8 @@ export const WorkspacePinSetRequestSchema = z.object({
   type: z.literal("workspace.pin.set.request"),
   workspaceId: z.string(),
   pinned: z.boolean(),
+  // COMPAT(projectWorkspacePinning): added in v0.11.2, remove optional after 2027-02-11.
+  scope: z.enum(["global", "project"]).optional(),
   requestId: z.string(),
 });
 
@@ -1323,6 +1332,7 @@ export const ProjectListRequestMessageSchema = z.object({
 export const FetchAgentHistoryRequestMessageSchema = z.object({
   type: z.literal("fetch_agent_history_request"),
   requestId: z.string(),
+  workspaceId: z.string().min(1).optional(),
   filter: AgentDirectoryFilterSchema.optional(),
   // A free-text filter over agent title, workspace name, branch, and project name.
   // Matching rows follow the requested sort and cursor pagination.
@@ -1854,6 +1864,11 @@ export const RestartServerRequestMessageSchema = z.object({
 
 export const ShutdownServerRequestMessageSchema = z.object({
   type: z.literal("shutdown_server_request"),
+  requestId: z.string(),
+});
+
+export const DaemonUpdateAvailabilityRequestMessageSchema = z.object({
+  type: z.literal("daemon.update.check_availability.request"),
   requestId: z.string(),
 });
 
@@ -2498,6 +2513,7 @@ export const DirectorySuggestionsRequestSchema = z.object({
 
 export const PaseoWorktreeListRequestSchema = z.object({
   type: z.literal("paseo_worktree_list_request"),
+  includeAll: z.boolean().optional(),
   cwd: z.string().optional(),
   repoRoot: z.string().optional(),
   requestId: z.string(),
@@ -2678,6 +2694,8 @@ export const WorkspaceCreateRequestSchema = z.object({
       // the supported client floor is >= v0.2.0.
       githubPrNumber: z.number().int().positive().optional(),
       worktreeSlug: z.string().optional(),
+      // Reject name conflicts instead of choosing a different branch or path.
+      exactNames: z.boolean().optional(),
     }),
   ]),
 });
@@ -3196,6 +3214,8 @@ export const SubscriptionReleaseResponseSchema = z.object({
 });
 
 export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
+  AppSettingsGetRequestSchema,
+  AppSettingsPatchRequestSchema,
   BrowserHostRegisterRequestSchema,
   SubscriptionReleaseRequestSchema,
   SessionEventsSetSubscriptionRequestSchema,
@@ -3284,6 +3304,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   CancelAgentRequestMessageSchema,
   ShutdownServerRequestMessageSchema,
   RestartServerRequestMessageSchema,
+  DaemonUpdateAvailabilityRequestMessageSchema,
   DaemonUpdateRequestMessageSchema,
   FetchAgentTimelineRequestMessageSchema,
   AgentTimelineSearchRequestMessageSchema,
@@ -3592,6 +3613,12 @@ export const ServerInfoStatusPayloadSchema = z
         directorySync: z.boolean().optional(),
         // COMPAT(workspaceLabels): added in v0.5.0, remove after 2027-08-14.
         workspaceLabels: z.boolean().optional(),
+        // COMPAT(appSettingsSync): added in v0.11.2, remove after 2027-10-12.
+        appSettingsSync: z.boolean().optional(),
+        // COMPAT(appSettingsSidebarModeProfiles): added in v0.11.2, remove after 2027-10-16.
+        appSettingsSidebarModeProfiles: z.boolean().optional(),
+        // COMPAT(appSettingsAccentColor): added in v0.11.2, remove gate after 2027-10-14.
+        appSettingsAccentColor: z.boolean().optional(),
         // COMPAT(workspaceSetupRun): added in v0.8.0, remove gate after 2027-09-02.
         workspaceSetupRun: z.boolean().optional(),
         // COMPAT(workspaceTerminals): added in v0.8.0, remove gate after 2027-09-05.
@@ -3656,10 +3683,12 @@ export const ServerInfoStatusPayloadSchema = z
         agentTimelinePromptIndex: z.boolean().optional(),
         // COMPAT(agentHistorySearch): added in v0.3.0, remove gate after 2027-02-07.
         agentHistorySearch: z.boolean().optional(),
+        workspaceAgentHistory: z.boolean().optional(),
         // COMPAT(checkoutRefresh): added in v0.1.86, remove gate after 2026-11-29.
         checkoutRefresh: z.boolean().optional(),
         // COMPAT(workspaceMultiplicity): added in v0.1.97, drop the gate when floor >= v0.1.97
         workspaceMultiplicity: z.boolean().optional(),
+        workspaceWorktreeOptions: z.boolean().optional(),
         // COMPAT(projectRemove): added in v0.1.97, drop the gate when floor >= v0.1.97.
         projectRemove: z.boolean().optional(),
         // COMPAT(projectAdd): added in v0.1.97, drop the gate when floor >= v0.1.97.
@@ -3680,6 +3709,8 @@ export const ServerInfoStatusPayloadSchema = z
         daemonDiagnostics: z.boolean().optional(),
         // COMPAT(daemonSelfUpdate): added in v0.1.93, remove gate after 2026-12-13.
         daemonSelfUpdate: z.boolean().optional(),
+        // COMPAT(daemonUpdateAvailability): added after v0.11.2, remove gate after 2027-04-14.
+        daemonUpdateAvailability: z.boolean().optional(),
         // COMPAT(agentForkContext): added in v0.1.102, remove gate after 2026-12-28.
         agentForkContext: z.boolean().optional(),
         // COMPAT(agentForkContextCursor): added in v0.1.108, remove gate after 2027-01-14.
@@ -3692,6 +3723,8 @@ export const ServerInfoStatusPayloadSchema = z
         providerSubagentNesting: z.boolean().optional(),
         // COMPAT(workspacePinning): added in v0.1.107, remove gate after 2027-01-12.
         workspacePinning: z.boolean().optional(),
+        // COMPAT(projectWorkspacePinning): added in v0.11.2, remove gate after 2027-02-11.
+        projectWorkspacePinning: z.boolean().optional(),
         // COMPAT(workspaceMarkUnread): added in v0.5.0, remove after 2027-08-20.
         workspaceMarkUnread: z.boolean().optional(),
         // COMPAT(hubRelationship): added in v0.1.X, drop the gate when floor >= v0.1.X.
@@ -4050,6 +4083,8 @@ export const WorkspaceDescriptorPayloadSchema = z
     title: z.string().nullable().optional(),
     // COMPAT(workspacePinning): added in v0.1.107, remove optional after 2027-01-12.
     pinnedAt: z.string().nullable().optional(),
+    // COMPAT(projectWorkspacePinning): added in v0.11.2, remove optional after 2027-02-11.
+    projectPinnedAt: z.string().nullable().optional(),
     // COMPAT(workspaceLabels): added in v0.5.0, remove optional after 2027-08-14.
     labels: z.array(z.string()).optional(),
     // Retained for wire parsing of older daemon descriptors.
@@ -6516,6 +6551,18 @@ export const TerminalAttentionRequiredSchema = z.object({
   }),
 });
 
+export const DaemonUpdateAvailabilityResponseSchema = z.object({
+  type: z.literal("daemon.update.check_availability.response"),
+  payload: z.object({
+    requestId: z.string(),
+    version: z.string().nullable(),
+    reason: z.string().nullable(),
+  }),
+});
+export type DaemonUpdateAvailabilityResponse = z.infer<
+  typeof DaemonUpdateAvailabilityResponseSchema
+>;
+
 export const DaemonUpdateResponseSchema = z.object({
   type: z.literal("daemon.update.response"),
   payload: z.object({
@@ -6845,6 +6892,9 @@ export const AgentSkillsImportLegacySelectionResponseSchema = z.object({
 });
 
 export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
+  AppSettingsGetResponseSchema,
+  AppSettingsPatchResponseSchema,
+  AppSettingsChangedSchema,
   BrowserHostRegisterResponseSchema,
   SubscriptionReleaseResponseSchema,
   SessionEventsSetSubscriptionResponseSchema,
@@ -7068,6 +7118,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   LoopLogsResponseSchema,
   LoopStopResponseSchema,
   DaemonUpdateProgressMessageSchema,
+  DaemonUpdateAvailabilityResponseSchema,
   DaemonUpdateResponseSchema,
 ]);
 

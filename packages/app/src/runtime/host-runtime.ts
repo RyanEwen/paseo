@@ -1,3 +1,4 @@
+import { createSshTransportFactory, removeSshCredentials } from "@/hosts/ssh/ssh-transport";
 import { useSyncExternalStore, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import equal from "fast-deep-equal/es6";
@@ -82,6 +83,10 @@ import {
   type ViewedTimelineOwner,
   type ViewedTimelineOwnerPorts,
 } from "@/timeline/viewed-timeline-sync";
+import {
+  fetchViewedTimelinePage,
+  type TimelinePageAcceptance,
+} from "@/timeline/fetch-viewed-timeline-page";
 import { projectIconCache } from "@/projects/icon-cache";
 import { nativePerformanceTrace } from "@/performance/native-trace";
 import { revokePushNotifications } from "@/push-notifications";
@@ -560,12 +565,13 @@ function createDefaultDeps(): HostRuntimeControllerDeps {
         });
       }
       if (connection.type === "remoteSsh") {
-        if (!desktopTransportFactory) {
-          throw new Error("Remote SSH is only available in the desktop app.");
+        const sshTransportFactory = createSshTransportFactory();
+        if (!sshTransportFactory) {
+          throw new Error("Remote SSH is unavailable in this app build.");
         }
         return new DaemonClient({
           ...base,
-          transportFactory: desktopTransportFactory,
+          transportFactory: sshTransportFactory,
           url: buildDesktopDaemonTransportUrl({
             transportType: "ssh",
             host: connection.host,
@@ -1862,6 +1868,7 @@ export class HostRuntimeStore {
     password?: string;
     label?: string;
     timeoutMs?: number;
+    beforeSave?: () => Promise<void>;
   }): Promise<{ profile: HostProfile; serverId: string; hostname: string | null }> {
     if (input.connection.type === "relay") {
       throw new Error("Cannot probe a relay connection without a server id.");
@@ -1882,6 +1889,13 @@ export class HostRuntimeStore {
       connection: input.connection,
       ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
     });
+    // Commit device-local credentials after the probe, before the saved host can reconnect.
+    try {
+      await input.beforeSave?.();
+    } catch (error) {
+      await client.close();
+      throw error;
+    }
     const profile = await this.upsertHostConnection({
       serverId,
       label: input.label ?? hostname ?? undefined,
@@ -1918,6 +1932,7 @@ export class HostRuntimeStore {
     daemonPort?: number;
     password?: string;
     label?: string;
+    beforeSave?: () => Promise<void>;
   }): Promise<{ profile: HostProfile; serverId: string; hostname: string | null }> {
     return this.probeAndUpsertConnection({
       label: input.label,
@@ -1925,6 +1940,7 @@ export class HostRuntimeStore {
       // set-password` keeps what it reads), so whitespace is significant here.
       password: input.password ? input.password : undefined,
       connection: createRemoteSshHostConnection(input),
+      beforeSave: input.beforeSave,
     });
   }
 
@@ -2143,9 +2159,13 @@ export class HostRuntimeStore {
 
   async removeHost(serverId: string): Promise<void> {
     await this.revokePushNotifications({ client: this.getClient(serverId), serverId });
+    const removed = this.hosts.find((host) => host.serverId === serverId);
     const remaining = this.hosts.filter((daemon) => daemon.serverId !== serverId);
     this.setHostsAndSync(remaining);
     await this.persistHosts();
+    for (const connection of removed?.connections ?? []) {
+      if (connection.type === "remoteSsh") await removeSshCredentials(connection.id);
+    }
   }
 
   async removeConnection(serverId: string, connectionId: string): Promise<void> {
@@ -2176,6 +2196,13 @@ export class HostRuntimeStore {
       .filter((entry): entry is HostProfile => entry !== null);
     this.setHostsAndSync(next);
     await this.persistHosts();
+    if (
+      host?.connections.some(
+        (connection) => connection.id === connectionId && connection.type === "remoteSsh",
+      )
+    ) {
+      await removeSshCredentials(connectionId);
+    }
   }
 
   private async upsertHostConnection(input: {
@@ -2632,20 +2659,22 @@ export class HostRuntimeStore {
     await replica.prepare(agentId);
   }
 
+  /** Fetch through the viewed owner. Cancelling this caller's acceptance suppresses
+   * its page application without aborting transport shared with unrelated reads. */
   async fetchAgentTimeline(
     serverId: string,
     agentId: string,
     request: Parameters<DaemonClient["fetchAgentTimeline"]>[1],
+    acceptance?: TimelinePageAcceptance,
   ): Promise<Awaited<ReturnType<DaemonClient["fetchAgentTimeline"]>>> {
     const directory = this.directorySyncByServer.get(serverId);
     if (!directory) throw new Error(`Unknown host runtime for serverId ${serverId}`);
-    const owner = useSessionStore.getState().sessions[serverId]?.viewedTimelineSync;
-    const page = await directory.fetchTimeline(agentId, request);
-    if (owner && useSessionStore.getState().sessions[serverId]?.viewedTimelineSync === owner) {
-      owner.flushStreamAgent(agentId);
-      owner.applyTimelineResponse(page);
-    }
-    return page;
+    return fetchViewedTimelinePage({
+      agentId,
+      fetchPage: () => directory.fetchTimeline(agentId, request),
+      getOwner: () => useSessionStore.getState().sessions[serverId]?.viewedTimelineSync,
+      signal: acceptance?.signal,
+    });
   }
 
   createViewedTimelineOwner(
@@ -2863,6 +2892,7 @@ export interface HostMutations {
     daemonPort?: number;
     password?: string;
     label?: string;
+    beforeSave?: () => Promise<void>;
   }) => Promise<{ profile: HostProfile; serverId: string; hostname: string | null }>;
   beginLinkPairing: () => LinkPairing;
   renameHost: (serverId: string, label: string) => Promise<void>;

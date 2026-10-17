@@ -1,5 +1,7 @@
 import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
 import { describe, expect, it } from "vitest";
+import { createInstance } from "i18next";
+import { en } from "@/i18n/resources/en";
 
 import { buildToolCallPresentation, type ToolCallPresentationIcon } from "./presentation";
 
@@ -26,6 +28,129 @@ function fakeResolveIcon(
 }
 
 describe("tool-call presentation", () => {
+  const translation = createInstance();
+  void translation.init({ lng: "en", resources: { en: { translation: en } }, initAsync: false });
+
+  it.each(["running", "completed", "failed", "canceled"] as const)(
+    "uses truthful %s labels while retaining exact shell details and classic opt-out",
+    (status) => {
+      const detail = {
+        type: "shell",
+        command: "cat src/notifications.ts",
+        output: "exact output",
+        cwd: "/work",
+      } satisfies ToolCallDetail;
+      const input = {
+        toolName: "shell",
+        status,
+        error: status === "failed" ? "failure" : null,
+        detail,
+        cwd: "/work",
+        metadata: {
+          commandActions: [
+            {
+              type: "read",
+              command: detail.command,
+              name: "notifications.ts",
+              path: "/work/src/notifications.ts",
+            },
+          ],
+        },
+        resolveIcon: fakeResolveIcon,
+      };
+      const readable = buildToolCallPresentation({ ...input, activityTranslation: translation.t });
+      const expected = {
+        running: "Reading",
+        completed: "Read",
+        failed: "Failed: Read",
+        canceled: "Canceled: Read",
+      };
+      expect(readable.displayName).toBe(expected[status]);
+      expect(readable.summary).toBe("src/notifications.ts");
+      expect(readable.detail).toBe(detail);
+      expect(readable.canOpenDetails).toBe(true);
+      expect(readable.icon).toBe(fakeIcons.eye);
+      const classic = buildToolCallPresentation(input);
+      expect(classic.displayName).toBe("Shell");
+      expect(classic.summary).toBe(detail.command);
+      expect(classic.detail).toBe(detail);
+    },
+  );
+
+  it("does not invent writes for opaque scripts or malformed actions", () => {
+    const detail = {
+      type: "shell",
+      command: "python - <<'PY'\nopen('new.ts','w').write('x')\nPY",
+      output: "done",
+    } satisfies ToolCallDetail;
+    const result = buildToolCallPresentation({
+      toolName: "shell",
+      status: "completed",
+      error: null,
+      detail,
+      metadata: { commandActions: [{ type: "read", path: 42 }] },
+      activityTranslation: translation.t,
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(result.displayName).toBe("Ran command");
+    expect(result.summary).toBeUndefined();
+    expect(result.detail).toBe(detail);
+  });
+
+  it("distinguishes generic writes from proven creation and handles mixed batches", () => {
+    const detail = { type: "write", filePath: "/work/a.ts", content: "x" } satisfies ToolCallDetail;
+    const input = {
+      toolName: "Write",
+      status: "completed" as const,
+      error: null,
+      detail,
+      cwd: "/work",
+      activityTranslation: translation.t,
+      resolveIcon: fakeResolveIcon,
+    };
+    expect(buildToolCallPresentation(input).displayName).toBe("Wrote");
+    expect(
+      buildToolCallPresentation({
+        ...input,
+        metadata: { fileChanges: [{ path: "/work/a.ts", kind: "add" }] },
+      }).displayName,
+    ).toBe("Created");
+    const mixed = buildToolCallPresentation({
+      ...input,
+      metadata: {
+        fileChanges: [
+          { path: "/work/a.ts", kind: "add", diff: "+a" },
+          { path: "/work/b.ts", kind: "update", diff: "-b\n+c" },
+          { path: "/work/c.ts", kind: "delete", diff: "-c" },
+        ],
+      },
+    });
+    expect(mixed.displayName).toBe("Changed files");
+    expect(mixed.summary).toBe("a.ts, b.ts, c.ts");
+    const classicBatch = buildToolCallPresentation({
+      ...input,
+      activityTranslation: undefined,
+      metadata: {
+        fileChanges: [
+          { path: "/work/a.ts", kind: "add", diff: "+a" },
+          { path: "/work/b.ts", kind: "update", diff: "-b\n+c" },
+          { path: "/work/c.ts", kind: "delete", diff: "-c" },
+        ],
+      },
+    });
+    expect(classicBatch.displayName).toBe("Write");
+    expect(classicBatch.detail).toEqual(mixed.detail);
+    expect(mixed.detail).toMatchObject({
+      type: "unknown",
+      output: {
+        files: [
+          { path: "/work/a.ts", kind: "add", diff: "+a" },
+          { path: "/work/b.ts", kind: "update", diff: "-b\n+c" },
+          { path: "/work/c.ts", kind: "delete", diff: "-c" },
+        ],
+      },
+    });
+  });
   it("builds badge, detail, icon, and file-open policy in one model", () => {
     const presentation = buildToolCallPresentation({
       toolName: "read_file",

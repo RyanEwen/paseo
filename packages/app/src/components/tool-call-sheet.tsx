@@ -159,7 +159,7 @@ function ToolCallSheetContent({ data, onClose }: ToolCallSheetContentProps) {
   } = data;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="tool-call-sheet">
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>

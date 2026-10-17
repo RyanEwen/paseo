@@ -51,6 +51,7 @@ async function removeProjectFromSidebar(page: Page, projectViewKey: string): Pro
   await removeItem.click();
 }
 
+/** Add through the picker and return the UI equivalence key, not a daemon registry ID. */
 async function addProjectFromPicker(page: Page, projectPath: string): Promise<string> {
   await openAddProjectFlow(page);
   await chooseAddProjectMethod(page, "directory-search");
@@ -117,7 +118,9 @@ test.describe("Project picker search", () => {
 // Projects are parents in the sidebar. Archiving the last workspace leaves the
 // project row in place with a ghost "+ New workspace" child row.
 test.describe("Project with no workspaces persists", () => {
-  test("adding a project starts with only a new-workspace child row", async ({ page }) => {
+  test("adding a project starts with only a new-workspace child row", async ({
+    page,
+  }, testInfo) => {
     const repo = await createTempGitRepo("empty-project-add-");
     const client = await connectSeedClient();
     let projectId: string | null = null;
@@ -126,24 +129,48 @@ test.describe("Project with no workspaces persists", () => {
       await gotoAppShell(page);
       await waitForSidebarProjectListReady(page);
 
-      projectId = await addProjectFromPicker(page, repo.path);
-      const projectRow = page.getByTestId(`sidebar-project-row-${projectId}`);
+      const projectViewKey = await addProjectFromPicker(page, repo.path);
+      const matches = (await client.listProjects()).projects.filter(
+        (project) =>
+          project.projectKey && projectEquivalenceViewKey(project.projectKey) === projectViewKey,
+      );
+      expect(matches).toHaveLength(1);
+      const descriptor = matches[0];
+      if (!descriptor) throw new Error(`Added project descriptor missing for ${projectViewKey}`);
+      projectId = descriptor.projectId;
+      await testInfo.attach("added-project-identity", {
+        body: JSON.stringify({ projectViewKey, descriptor }),
+        contentType: "application/json",
+      });
+      const projectRow = page.getByTestId(`sidebar-project-row-${projectViewKey}`);
       await expect(projectRow).toBeVisible({ timeout: 30_000 });
       await expect(projectRow).toContainText(path.basename(repo.path));
-      await expect(page.getByTestId(`sidebar-workspace-list-${projectId}`)).toHaveCount(0);
+      await expect(page.getByTestId(`sidebar-workspace-list-${projectViewKey}`)).toHaveCount(0);
 
-      const newWorkspaceRow = page.getByTestId(`sidebar-project-new-workspace-row-${projectId}`);
+      const newWorkspaceRow = page.getByTestId(
+        `sidebar-project-new-workspace-row-${projectViewKey}`,
+      );
       await expect(newWorkspaceRow).toBeVisible({ timeout: 30_000 });
       await expect(newWorkspaceRow).toContainText("New workspace");
 
       const workspaces = await client.fetchWorkspaces({ filter: { projectId } });
       expect(workspaces.entries).toEqual([]);
     } finally {
-      if (projectId) {
-        await client.removeProject(projectId).catch(() => undefined);
+      try {
+        if (projectId) {
+          await client.removeProject(projectId);
+          const remaining = (await client.listProjects()).projects.map(
+            (project) => project.projectId,
+          );
+          expect(remaining).not.toContain(projectId);
+        }
+      } finally {
+        try {
+          await client.close();
+        } finally {
+          await repo.cleanup();
+        }
       }
-      await client.close().catch(() => undefined);
-      await repo.cleanup().catch(() => undefined);
     }
   });
 

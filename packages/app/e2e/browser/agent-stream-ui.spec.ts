@@ -222,9 +222,21 @@ test.describe("Agent stream UI", () => {
       minDistanceFromBottom: 300,
     });
 
-    timelineGate.release();
-    await timelineGate.waitForForwardedResponse();
-    await expectScrollStaysFixed(page, baseline);
+    // Hydration must retain the viewport owner, including its manual reading anchor.
+    const viewport = page.getByTestId("agent-chat-scroll").filter({ visible: true });
+    const originalViewport = await viewport.elementHandle();
+    expect(originalViewport).not.toBeNull();
+    try {
+      timelineGate.release();
+      await timelineGate.waitForForwardedResponse();
+      expect(
+        await viewport.evaluate((current, original) => current === original, originalViewport),
+      ).toBe(true);
+      expect(await originalViewport!.evaluate((element) => element.isConnected)).toBe(true);
+      await expectScrollStaysFixed(page, baseline);
+    } finally {
+      await originalViewport?.dispose();
+    }
   });
 
   test("keeps tool calls clickable beside the scroll-to-bottom button", async ({ page }) => {

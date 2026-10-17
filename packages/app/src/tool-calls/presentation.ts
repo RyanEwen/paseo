@@ -1,3 +1,6 @@
+import { parseFileChanges } from "@getpaseo/protocol/tool-call-activity";
+import type { TFunction } from "i18next";
+import { buildActivityDisplay } from "./activity";
 import type { AgentMessage } from "@getpaseo/protocol/agent-message";
 import { buildAgentMessageDisplay } from "@getpaseo/protocol/agent-message-display";
 import type { PlanOutcome } from "@/components/plan-card";
@@ -23,6 +26,7 @@ interface BuildToolCallPresentationInput {
   cwd?: string;
   metadata?: Record<string, unknown>;
   resolveIcon: ToolCallIconResolver;
+  activityTranslation?: TFunction;
 }
 
 export interface ToolCallPresentation {
@@ -52,13 +56,15 @@ function displayDetail(detail: ToolCallDetail | undefined): ToolCallDetail {
   return detail ?? { type: "unknown", input: null, output: null };
 }
 
+/** Build one row/detail policy; an absent translator retains classic tool labels. */
 export function buildToolCallPresentation(
   input: BuildToolCallPresentationInput,
 ): ToolCallPresentation {
-  const detail = input.agentMessage
+  const sourceDetail = input.agentMessage
     ? buildAgentMessageDisplay(input.agentMessage).detail
     : input.detail;
-  const detailForDisplay = displayDetail(detail);
+  const detail = detailForExpansion(sourceDetail, input);
+  const detailForDisplay = displayDetail(sourceDetail);
   const displayModel = buildToolCallDisplayModel({
     name: input.toolName,
     agentMessage: input.agentMessage,
@@ -68,6 +74,21 @@ export function buildToolCallPresentation(
     metadata: input.metadata,
     cwd: input.cwd,
   });
+  const activity = input.activityTranslation
+    ? buildActivityDisplay(
+        {
+          name: input.toolName,
+          agentMessage: input.agentMessage,
+          status: displayStatus(input.status),
+          error: input.error,
+          detail: detailForDisplay,
+          metadata: input.metadata,
+          cwd: input.cwd,
+        },
+        input.activityTranslation,
+      )
+    : undefined;
+  const iconDetail = activityIconDetail(sourceDetail, activity?.kind);
   const isLoadingDetails = isPendingToolCallDetail({
     detail,
     status: input.status,
@@ -77,10 +98,10 @@ export function buildToolCallPresentation(
 
   return {
     detail,
-    displayName: displayModel.displayName,
-    summary: displayModel.summary,
+    displayName: activity?.displayName ?? displayModel.displayName,
+    summary: activity ? activity.summary : displayModel.summary,
     errorText: displayModel.errorText,
-    icon: input.resolveIcon(input.toolName, detail),
+    icon: input.resolveIcon(input.toolName, iconDetail),
     isLoadingDetails,
     hasDetails,
     canOpenDetails: hasDetails || isLoadingDetails,
@@ -96,4 +117,30 @@ function resolvePlanOutcome(input: BuildToolCallPresentationInput): PlanOutcome 
   if (input.metadata?.approved === true) return "approved";
   if (input.status === "running" || input.status === "executing") return "pending";
   return undefined;
+}
+
+/** Keep the complete source patch batch inspectable without inventing new wire details. */
+function detailForExpansion(
+  source: ToolCallDetail | undefined,
+  input: BuildToolCallPresentationInput,
+): ToolCallDetail | undefined {
+  if (input.agentMessage) return source;
+  const files = parseFileChanges(input.metadata?.fileChanges);
+  if (!files || files.length < 2) return source;
+  return {
+    type: "unknown",
+    input: { files: files.map(({ path, kind }) => ({ path, kind })) },
+    output: { files },
+  };
+}
+
+/** Shell read/search activities use the same icon as canonical provider details. */
+function activityIconDetail(
+  source: ToolCallDetail | undefined,
+  kind: NonNullable<ReturnType<typeof buildActivityDisplay>>["kind"] | undefined,
+): ToolCallDetail | undefined {
+  if (kind === "read" || kind === "list") return { type: "read", filePath: "" };
+  if (kind === "files") return { type: "edit", filePath: "" };
+  if (kind === "search") return { type: "search", query: "" };
+  return source;
 }

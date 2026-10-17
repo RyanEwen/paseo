@@ -15,7 +15,8 @@ export function parsePassthroughCliArgs(input: {
   const effective: string[] = [];
 
   for (const arg of input.argv.slice(startIndex)) {
-    if (IGNORED_ARG_PREFIXES.some((prefix) => arg.startsWith(prefix))) {
+    // NSIS passes this GUI lifecycle flag after an update. It is not a CLI command.
+    if (arg === "--updated" || IGNORED_ARG_PREFIXES.some((prefix) => arg.startsWith(prefix))) {
       continue;
     }
     effective.push(arg);

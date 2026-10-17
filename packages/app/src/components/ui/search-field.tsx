@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ReactElement } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, View, type TextInputProps } from "react-native";
 import { Search, X } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { Theme } from "@/styles/theme";
@@ -19,6 +19,9 @@ const ThemedTextInput = withUnistyles(TextInput, (theme: Theme) => ({
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 export interface SearchFieldProps {
+  autoFocus?: boolean;
+  onEscape?: () => void;
+  clearTouchTargetSize?: number;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
@@ -38,6 +41,9 @@ export interface SearchFieldProps {
  */
 export function SearchField({
   value,
+  autoFocus = false,
+  onEscape,
+  clearTouchTargetSize,
   onChangeText,
   placeholder,
   accessibilityLabel,
@@ -47,6 +53,16 @@ export function SearchField({
 }: SearchFieldProps): ReactElement {
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<EditingTextInputHandle>(null);
+  const handleKeyPress = useCallback<NonNullable<TextInputProps["onKeyPress"]>>(
+    (event) => {
+      if (event.nativeEvent.key === "Escape" && onEscape) {
+        event.preventDefault();
+        event.stopPropagation();
+        onEscape();
+      }
+    },
+    [onEscape],
+  );
   const handleFocus = useCallback(() => setIsFocused(true), []);
   const handleBlur = useCallback(() => setIsFocused(false), []);
   const handleClear = useCallback(() => {
@@ -55,12 +71,20 @@ export function SearchField({
   }, [onChangeText]);
 
   return (
-    <View style={[styles.field, isFocused && styles.fieldFocused]}>
+    <View
+      style={[
+        styles.field,
+        isFocused && styles.fieldFocused,
+        clearTouchTargetSize !== undefined && styles.touchField(clearTouchTargetSize),
+      ]}
+    >
       <ThemedSearch size={14} uniProps={mutedColorMapping} />
       <ThemedTextInput
         testID={testID}
         ref={inputRef}
         initialValue={value}
+        autoFocus={autoFocus}
+        onKeyPress={handleKeyPress}
         onChangeText={onChangeText}
         onFocus={handleFocus}
         onBlur={handleBlur}
@@ -78,6 +102,11 @@ export function SearchField({
           accessibilityRole="button"
           accessibilityLabel={clearAccessibilityLabel}
           hitSlop={8}
+          style={
+            clearTouchTargetSize !== undefined
+              ? styles.clearTouchTarget(clearTouchTargetSize)
+              : undefined
+          }
         >
           <ThemedX size={14} uniProps={mutedColorMapping} />
         </Pressable>
@@ -103,6 +132,13 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: theme.borderWidth[1],
     borderColor: theme.colors.border,
   },
+  touchField: (size: number) => ({ minHeight: size }),
+  clearTouchTarget: (size: number) => ({
+    minWidth: size - 2 * theme.spacing[1.5],
+    minHeight: size - 2 * theme.spacing[1.5],
+    alignItems: "center",
+    justifyContent: "center",
+  }),
   fieldFocused: {
     borderColor: theme.colors.borderAccent,
     backgroundColor: theme.colors.surface2,

@@ -1,3 +1,15 @@
+import {
+  SidebarQuickFilterButton,
+  SidebarQuickFilterInput,
+} from "@/components/sidebar/quick-filter";
+import { useAppSettings } from "@/hooks/use-settings";
+import { useShallow } from "zustand/react/shallow";
+import { useSessionStore, type DaemonServerInfo } from "@/stores/session-store";
+import type { HostProfile } from "@/types/host-connection";
+import { HostUpdateAction, HostUpdateSheet } from "@/components/hosts/host-update-action";
+import { SidebarViewModeButton } from "@/components/sidebar/view-mode-button";
+import { SidebarProjectSelector } from "@/components/sidebar/sidebar-project-selector";
+import { SidebarBulkCollapseControls } from "@/components/sidebar/bulk-collapse-controls";
 import { router } from "expo-router";
 import {
   CircleGauge,
@@ -9,7 +21,16 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useReducer,
+  type RefObject,
+} from "react";
 import {
   Pressable,
   StyleSheet as RNStyleSheet,
@@ -36,7 +57,6 @@ import { SidebarFooterIconHighlight } from "@/components/sidebar/sidebar-footer-
 import { SidebarHelpMenu } from "@/components/sidebar/sidebar-help-menu";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
 import { DensityIcon } from "@/components/ui/density-icon";
-import { SidebarSectionHeader } from "@/components/sidebar/sidebar-section-header";
 import { Shortcut } from "@/components/ui/shortcut";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HEADER_INNER_HEIGHT, useIsCompactFormFactor } from "@/constants/layout";
@@ -62,7 +82,7 @@ import { usePanelStore } from "@/stores/panel-store";
 import { useOwnsWindowChromeCorner, WindowChromeSafeArea } from "@/utils/desktop-window";
 import { useCloseAgentListGesture } from "@/mobile-panels/gestures";
 import { MobilePanelOverlay } from "@/mobile-panels/presentation";
-import { buildSettingsAddHostRoute, buildSettingsRoute } from "@/utils/host-routes";
+import { buildSettingsAddHostRoute, buildDefaultSettingsRoute } from "@/utils/host-routes";
 import { openHostOverview } from "@/navigation/settings-navigation";
 import {
   UsageSidebarItem,
@@ -176,11 +196,11 @@ export const LeftSidebar = memo(function LeftSidebar({ active }: { active: boole
 
   const handleSettingsMobile = useCallback(() => {
     showMobileAgent();
-    router.push(buildSettingsRoute());
+    router.push(buildDefaultSettingsRoute());
   }, [showMobileAgent]);
 
   const handleSettingsDesktop = useCallback(() => {
-    router.push(buildSettingsRoute());
+    router.push(buildDefaultSettingsRoute());
   }, []);
 
   const handleAddHostMobile = useCallback(() => {
@@ -338,6 +358,33 @@ function FooterIconButton({
   );
 }
 
+interface HostUpdatePresentation {
+  host: HostProfile | null;
+  busy: boolean;
+  attempt: number;
+}
+
+type HostUpdatePresentationAction =
+  | { type: "start"; host: HostProfile }
+  | { type: "finished" }
+  | { type: "close" };
+
+/** Keep dismissed operations mounted until settled; each retry owns a fresh confirmation flow. */
+function reduceHostUpdate(
+  state: HostUpdatePresentation,
+  action: HostUpdatePresentationAction,
+): HostUpdatePresentation {
+  switch (action.type) {
+    case "start":
+      if (state.busy) return state;
+      return { host: action.host, busy: true, attempt: state.attempt + 1 };
+    case "finished":
+      return { ...state, busy: false };
+    case "close":
+      return { ...state, host: null };
+  }
+}
+
 function SidebarHostPicker({
   label,
   onAddHost,
@@ -347,9 +394,58 @@ function SidebarHostPicker({
   onAddHost: () => void;
   onOpenHostSettings: (serverId: string) => void;
 }) {
+  const { settings } = useAppSettings();
+  const showHostUpdates = settings.paseoPlusPlus.sidebarHostUpdates;
   const hosts = useHosts();
   const triggerRef = useRef<View | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  const [update, dispatchUpdate] = useReducer(reduceHostUpdate, {
+    host: null,
+    busy: false,
+    attempt: 0,
+  });
+  // The collection owns the hot session subscription; action rows receive stable server-info facts.
+  const selectHostInfo = useMemo(() => {
+    let previousSessions: ReturnType<typeof useSessionStore.getState>["sessions"] | null = null;
+    let previousInfo: Array<DaemonServerInfo | null> = [];
+    return (state: ReturnType<typeof useSessionStore.getState>) => {
+      if (state.sessions === previousSessions) return previousInfo;
+      previousSessions = state.sessions;
+      previousInfo = hosts.map((host) => state.sessions[host.serverId]?.serverInfo);
+      return previousInfo;
+    };
+  }, [hosts]);
+  const hostInfo = useSessionStore(useShallow(selectHostInfo));
+  const finishUpdate = useCallback(() => dispatchUpdate({ type: "finished" }), []);
+  const closeUpdate = useCallback(() => dispatchUpdate({ type: "close" }), []);
+  const beginUpdate = useCallback((host: HostProfile) => {
+    setIsOpen(false);
+    dispatchUpdate({ type: "start", host });
+  }, []);
+  const renderHostAction = useCallback(
+    (serverId: string) => {
+      // Unmount availability observers without interrupting an already-started update sheet.
+      if (!showHostUpdates) return null;
+      const index = hosts.findIndex((host) => host.serverId === serverId);
+      const host = hosts[index];
+      if (!host) return null;
+      const info = hostInfo[index];
+      return (
+        <HostUpdateAction
+          host={host}
+          // COMPAT(daemonUpdateAvailability): added after v0.11.2, remove gate after 2027-04-14.
+          supportsAvailability={info?.features?.daemonUpdateAvailability === true}
+          legacyManualUpdate={info != null && info.features?.daemonUpdateAvailability === undefined}
+          daemonVersion={info?.version ?? null}
+          enabled={isOpen}
+          busy={update.busy}
+          onUpdate={beginUpdate}
+        />
+      );
+    },
+    [hosts, hostInfo, isOpen, update.busy, beginUpdate, showHostUpdates],
+  );
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -361,33 +457,44 @@ function SidebarHostPicker({
   const handleOpen = useCallback(() => setIsOpen(true), []);
 
   return (
-    <HostPicker
-      hosts={hosts}
-      value=""
-      onSelect={handleSelect}
-      open={isOpen}
-      onOpenChange={setIsOpen}
-      anchorRef={triggerRef}
-      includeAddHost
-      onAddHost={onAddHost}
-      showActiveConnection
-      onOpenHostSettings={onOpenHostSettings}
-      searchable
-      desktopPlacement="top-start"
-      desktopMinWidth={240}
-      addHostTestID="sidebar-host-add"
-      hostOptionTestID={sidebarHostOptionTestID}
-    >
-      <FooterIconButton
-        buttonRef={triggerRef}
-        onPress={handleOpen}
-        testID="sidebar-hosts-trigger"
-        label={label}
-        icon={Server}
-        // Server's two boxes fill more of the square than the other glyphs.
-        iconSizeAdjustment={-1}
-      />
-    </HostPicker>
+    <>
+      <HostPicker
+        hosts={hosts}
+        value=""
+        onSelect={handleSelect}
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        anchorRef={triggerRef}
+        includeAddHost
+        onAddHost={onAddHost}
+        showActiveConnection
+        onOpenHostSettings={onOpenHostSettings}
+        renderHostAction={renderHostAction}
+        searchable
+        desktopPlacement="top-start"
+        desktopMinWidth={240}
+        addHostTestID="sidebar-host-add"
+        hostOptionTestID={sidebarHostOptionTestID}
+      >
+        <FooterIconButton
+          buttonRef={triggerRef}
+          onPress={handleOpen}
+          testID="sidebar-hosts-trigger"
+          label={label}
+          icon={Server}
+          // Server's two boxes fill more of the square than the other glyphs.
+          iconSizeAdjustment={-1}
+        />
+      </HostPicker>
+      {update.host ? (
+        <HostUpdateSheet
+          key={update.attempt}
+          host={update.host}
+          onFinished={finishUpdate}
+          onClose={closeUpdate}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -433,6 +540,7 @@ function SidebarFooter({
   // One line of icons: Add project, Usage, Hosts, then Help and Settings at the end.
   return (
     <UsageSidebarRoot>
+      <SidebarCalloutSlot />
       <View style={styles.footerContainer} testID="sidebar-footer">
         <SidebarFooterRows onBeforeNavigate={onBeforeNavigate} />
         <View style={styles.sidebarFooter} testID="sidebar-footer-bottom-line">
@@ -587,6 +695,8 @@ function MobileSidebar({
           </Pressable>
         </WindowChromeSafeArea>
 
+        {workspacesSectionHeaderElement}
+
         {isInitialLoad && !hasActiveHostFilter ? (
           <SidebarAgentListSkeleton />
         ) : (
@@ -609,7 +719,6 @@ function MobileSidebar({
             onImportSession={handleImportSession}
             parentGestureRef={closeGestureRef}
             dragGestureHostActive={active}
-            listHeaderComponent={workspacesSectionHeaderElement}
           />
         )}
 
@@ -764,6 +873,8 @@ function DesktopSidebar({
           <SidebarNavRows style={sidebarHeaderGroupStyle} />
         </View>
 
+        {workspacesSectionHeaderElement}
+
         {isInitialLoad && !hasActiveHostFilter ? (
           <SidebarAgentListSkeleton />
         ) : (
@@ -783,11 +894,8 @@ function DesktopSidebar({
             onRefresh={handleRefresh}
             onAddProject={handleOpenProject}
             onImportSession={handleImportSession}
-            listHeaderComponent={workspacesSectionHeaderElement}
           />
         )}
-
-        <SidebarCalloutSlot />
 
         <SidebarFooter
           handleOpenProject={handleOpenProject}
@@ -809,23 +917,33 @@ function DesktopSidebar({
 }
 
 function WorkspacesSectionHeader() {
+  const isCompact = useIsCompactFormFactor();
   return (
-    <SidebarSectionHeader title="Workspaces">
-      <Tooltip delayDuration={300}>
-        <TooltipTrigger asChild>
-          <View>
-            <SidebarDisplayPreferencesMenu />
-          </View>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" align="center" offset={8}>
-          <IconTooltipContent label="Display preferences" />
-        </TooltipContent>
-      </Tooltip>
-    </SidebarSectionHeader>
+    <View>
+      <View style={styles.workspacesSectionHeader}>
+        <SidebarProjectSelector />
+        <View style={styles.workspacesSectionActions}>
+          {!isCompact ? <SidebarBulkCollapseControls /> : null}
+          <SidebarViewModeButton />
+          <SidebarQuickFilterButton />
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <View>
+                <SidebarDisplayPreferencesMenu />
+              </View>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="center" offset={8}>
+              <IconTooltipContent label="Display preferences" />
+            </TooltipContent>
+          </Tooltip>
+        </View>
+      </View>
+      <SidebarQuickFilterInput />
+    </View>
   );
 }
 
-// Stable element so the sidebar list's listHeaderComponent prop keeps identity across
+// Stable element above the scrollable list keeps header controls anchored across
 // renders (WorkspacesSectionHeader takes no props).
 const workspacesSectionHeaderElement = <WorkspacesSectionHeader />;
 
@@ -851,6 +969,24 @@ const styles = StyleSheet.create((theme) => ({
   },
   sidebarHeaderGroupBelowChrome: {
     paddingTop: 0,
+  },
+  workspacesSectionHeader: {
+    minHeight: density.rowHeight,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing[2],
+    // Preserve the list's horizontal inset now that the header lives outside its scroll.
+    // Settings2's painted path stops inside its SVG, so retain the optical right inset.
+    paddingLeft: theme.spacing[4],
+    paddingRight: theme.spacing[2] + 4,
+    paddingTop: theme.spacing[1],
+    paddingBottom: theme.spacing[1],
+  },
+  workspacesSectionActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
   },
   sidebarContent: {
     flex: 1,

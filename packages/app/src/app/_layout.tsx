@@ -1,3 +1,5 @@
+import { SettingsSyncBootstrap } from "@/settings-sync/bootstrap";
+import { AndroidUpdateCalloutSource } from "@/app-updates/callout-source";
 import { ComposerEditingSessionsProvider } from "@/composer/editing-session";
 import "@/styles/unistyles";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -165,7 +167,7 @@ function PushNotificationRouter() {
     const serverId = target.serverId;
     const workspaceId = target.workspaceId;
     const agentId = target.agentId;
-    if (serverId && workspaceId && agentId) {
+    if (serverId && agentId) {
       navigateToAgent({ serverId, workspaceId, agentId, pin: true });
       return;
     }
@@ -599,6 +601,7 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
         <DownloadToast />
         <RosettaCalloutSource />
         <UpdateCalloutSource />
+        <AndroidUpdateCalloutSource />
         <LegacyAgentSkillsMigration />
         <WorktreeSetupCalloutSource />
         <CommandCenterRootActions />
@@ -941,6 +944,7 @@ function RuntimeProviders({ children }: { children: ReactNode }) {
   return (
     <HostRuntimeBootstrapProvider>
       <PushNotificationRouter />
+      <SettingsSyncBootstrap />
       <SidebarCalloutProvider>
         <ProvidersWrapper>{children}</ProvidersWrapper>
       </SidebarCalloutProvider>

@@ -13,6 +13,8 @@ export interface WorkspaceDraftTabSetup {
 
 export interface WorkspaceWorkingDiffTabTarget {
   kind: "working_diff";
+  /** Restricts the document to one changed file; absent means all changes. */
+  filePath?: string;
   focusPath?: string;
   focusRequestId?: number;
 }

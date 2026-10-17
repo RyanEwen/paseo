@@ -1,0 +1,61 @@
+{
+  "qualifiedSourcePatchSha256": "e5f0ccba1c45e811908816527ca555d28dc5e35d5e8da1c6ec6038d76848e93c",
+  "base": "61ad3bc91cbc4ee263575d18ac9787aa04f72eb1",
+  "fixtureDependencies": [
+    "sidebarInitialWorkspaceCount: positive safe integer or null, default 20",
+    "Portable classification includes sidebarInitialWorkspaceCount (33 AppSettings keys)"
+  ],
+  "browser": {
+    "case": "settings-host-selection.spec.ts: explicit settings host sync",
+    "result": "passed",
+    "caseSeconds": 57.7,
+    "workers": 1,
+    "cpuLimit": 2,
+    "checks": [
+      "Empty host selection does not publish; initialization is explicit",
+      "Two independent browser clients adopt shared preferences",
+      "Usage sidebarFooterItems visibility propagates on, survives client reload, and propagates off",
+      "Switching to an initialized host preserves its complete snapshot"
+    ],
+    "platforms": ["Web browser, 1440 x 900", "Web browser, 390 x 900"],
+    "notTested": ["Native devices", "Electron desktop"],
+    "captureLimit": "shared-preferences-1440.png shows a transient waiting status; the compact capture shows connected with zero pending changes"
+  },
+  "screenshots": [
+    {
+      "file": "empty-host-1440.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "b49127af51a4017e76e85bfe51c899eb0583fde9c632ec3de33c3b50438fd578"
+    },
+    {
+      "file": "shared-preferences-1440.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "4d4d80a707f7c48edc909a184af29a8838d1f19e2e3a9361ec168bae3a7a87f8"
+    },
+    {
+      "file": "shared-preferences-390.png",
+      "width": 390,
+      "height": 900,
+      "sha256": "faaab5ef66f37a2dfb1a83dd7e758ba7d5d122ffe850f26b1511eec232aa9a4c"
+    },
+    {
+      "file": "usage-enabled-on-client-a.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "a2aac212f1bdc4cf33511bd46a905c87c7b7f8bce1f043a9a3918eade54ea417"
+    },
+    {
+      "file": "usage-enabled-on-client-b-after-reload.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "e0e6ce59d4ca604b6d544e12a4cc51be41494120a5667715b588969d94da6455"
+    }
+  ],
+  "teardown": {
+    "ownedListenersReleased": true,
+    "ownedDaemonProcessesStopped": true,
+    "secondaryHomeRemoved": true
+  }
+}

@@ -490,6 +490,7 @@ export function resolveKnownHostRoute(input: {
 }
 
 export const SETTINGS_SECTION_SLUGS = [
+  "paseo-plus-plus",
   "general",
   "appearance",
   "sidebar",
@@ -541,6 +542,11 @@ export function normalizeHostSectionSlug(value: string): HostSectionSlug | null 
     return value;
   }
   return LEGACY_HOST_SECTION_SLUGS[value] ?? null;
+}
+
+/** Open the fork preferences from app entry points; /settings remains the section-navigation root. */
+export function buildDefaultSettingsRoute() {
+  return buildSettingsSectionRoute("paseo-plus-plus");
 }
 
 export function buildSettingsRoute() {

@@ -1,6 +1,14 @@
 import { describe, expect, test } from "vitest";
-import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
-import { filterWorkspacesByProjects, resolveActiveProjectFilters } from "./sidebar-project-filter";
+import type {
+  SidebarProjectEntry,
+  SidebarWorkspaceEntry,
+} from "@/hooks/use-sidebar-workspaces-list";
+import {
+  filterWorkspacesByProjects,
+  includeCreatedProjectFilter,
+  resolveActiveProjectFilters,
+  resolveSidebarProjectLabels,
+} from "./sidebar-project-filter";
 
 function workspace(workspaceId: string, projectViewKey: string): SidebarWorkspaceEntry {
   return {
@@ -54,6 +62,101 @@ describe("resolveActiveProjectFilters", () => {
   });
 });
 
+describe("includeCreatedProjectFilter", () => {
+  const projects = [
+    {
+      viewKey: "alpha",
+      hosts: [
+        {
+          serverId: "home",
+          projectId: "old",
+          iconWorkingDir: "/old",
+          worktreeSupport: "supported" as const,
+        },
+      ],
+    },
+    {
+      viewKey: "new-shared-key",
+      hosts: [
+        {
+          serverId: "home",
+          projectId: "new",
+          iconWorkingDir: "/new",
+          worktreeSupport: "supported" as const,
+        },
+      ],
+    },
+    {
+      viewKey: '["remote","new"]',
+      hosts: [
+        {
+          serverId: "remote",
+          projectId: "new",
+          iconWorkingDir: "/remote",
+          worktreeSupport: "supported" as const,
+        },
+      ],
+    },
+  ];
+
+  test("appends the created project's actual view key and preserves existing and offline choices", () => {
+    const result = includeCreatedProjectFilter({
+      projectFilters: ["alpha", "offline"],
+      projects,
+      serverId: "home",
+      projectId: "new",
+    });
+    expect(result).toEqual(["alpha", "offline", "new-shared-key"]);
+    expect(
+      resolveActiveProjectFilters(result, new Set(projects.map((project) => project.viewKey))),
+    ).toEqual(["alpha", "new-shared-key"]);
+  });
+
+  test("uses the host-specific placement when project IDs collide", () => {
+    expect(
+      includeCreatedProjectFilter({
+        projectFilters: ["alpha"],
+        projects,
+        serverId: "remote",
+        projectId: "new",
+      }),
+    ).toEqual(["alpha", '["remote","new"]']);
+  });
+
+  test.each([{ projectFilters: [] }, { projectFilters: ["offline"] }])(
+    "preserves the all-projects view for stored selection $projectFilters",
+    ({ projectFilters }) => {
+      expect(
+        includeCreatedProjectFilter({
+          projectFilters,
+          projects,
+          serverId: "home",
+          projectId: "new",
+        }),
+      ).toBe(projectFilters);
+    },
+  );
+
+  test("does not toggle an already visible project off", () => {
+    const projectFilters = ["alpha", "new-shared-key"];
+    expect(
+      includeCreatedProjectFilter({ projectFilters, projects, serverId: "home", projectId: "new" }),
+    ).toBe(projectFilters);
+  });
+
+  test("leaves projects outside the current host projection unchanged", () => {
+    const projectFilters = ["alpha"];
+    expect(
+      includeCreatedProjectFilter({
+        projectFilters,
+        projects: projects.slice(0, 1),
+        serverId: "remote",
+        projectId: "new",
+      }),
+    ).toBe(projectFilters);
+  });
+});
+
 describe("filterWorkspacesByProjects", () => {
   const workspaces = [
     workspace("one", "alpha"),
@@ -79,5 +182,72 @@ describe("filterWorkspacesByProjects", () => {
 
   test("keeps nothing for a project with no workspaces", () => {
     expect(filtered(["gamma"])).toEqual([]);
+  });
+});
+
+describe("resolveSidebarProjectLabels", () => {
+  function project(
+    viewKey: string,
+    projectName: string,
+    serverId: string,
+    path = "/repo",
+  ): SidebarProjectEntry {
+    return {
+      viewKey,
+      projectName,
+      projectKind: "git",
+      iconWorkingDir: path,
+      hosts: [{ serverId, projectId: viewKey, iconWorkingDir: path, worktreeSupport: "supported" }],
+      workspaces: [],
+    };
+  }
+  const hosts = [
+    { serverId: "home", label: "Home" },
+    { serverId: "wsl", label: "WSL" },
+  ];
+
+  test("leaves unique names alone and keeps project IDs separate from labels", () => {
+    expect([...resolveSidebarProjectLabels([project("id", "PrintStream", "home")], hosts)]).toEqual(
+      [["id", "PrintStream"]],
+    );
+  });
+
+  test("qualifies duplicate project names with host names", () => {
+    expect([
+      ...resolveSidebarProjectLabels(
+        [project("one", "PrintStream", "home"), project("two", "PrintStream", "wsl")],
+        hosts,
+      ),
+    ]).toEqual([
+      ["one", "PrintStream (Home)"],
+      ["two", "PrintStream (WSL)"],
+    ]);
+  });
+
+  test("uses paths when names also collide on the same host", () => {
+    expect([
+      ...resolveSidebarProjectLabels(
+        [
+          project("one", "PrintStream", "home", "/repo/one"),
+          project("two", "PrintStream", "home", "/repo/two"),
+        ],
+        hosts,
+      ),
+    ]).toEqual([
+      ["one", "PrintStream (Home) (/repo/one)"],
+      ["two", "PrintStream (Home) (/repo/two)"],
+    ]);
+  });
+
+  test("uses stable host identity when a host has no display name", () => {
+    expect([
+      ...resolveSidebarProjectLabels(
+        [project("one", "PrintStream", "home"), project("two", "PrintStream", "wsl")],
+        [{ serverId: "home", label: "  " }],
+      ),
+    ]).toEqual([
+      ["one", "PrintStream (home)"],
+      ["two", "PrintStream (wsl)"],
+    ]);
   });
 });

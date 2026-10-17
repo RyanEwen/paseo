@@ -63,6 +63,18 @@ describe("working diff tab identity", () => {
     focusRequestId: 1,
   };
 
+  it("normalizes single-file scopes and distinguishes their tab identities", () => {
+    const scoped = { ...target, filePath: "src/example.ts" };
+    expect(normalizeWorkspaceTabTarget({ ...scoped, filePath: " src\\example.ts " })).toEqual(
+      scoped,
+    );
+    expect(buildDeterministicWorkspaceTabId(scoped)).toBe("working_diff_file_src/example.ts");
+    expect(buildDeterministicWorkspaceTabId(scoped)).not.toBe(
+      buildDeterministicWorkspaceTabId(target),
+    );
+    expect(workspaceTabTargetsEqual(scoped, target)).toBe(false);
+  });
+
   it("normalizes file focus navigation", () => {
     expect(
       normalizeWorkspaceTabTarget({

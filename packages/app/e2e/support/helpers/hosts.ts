@@ -130,11 +130,11 @@ export async function openSidebarDisplayPreferences(page: Page): Promise<void> {
   });
 }
 
-// Host filters live a page below the display-preferences root, so the filter rows only exist
-// after walking into that branch.
+// The essential heading chooser exposes Hosts when more than one host is registered.
+// These local selections belong to the currently rendered sidebar mode.
 export async function openSidebarHostFilter(page: Page): Promise<void> {
-  await openSidebarDisplayPreferences(page);
-  await page.getByTestId("sidebar-display-host-filter").click();
+  await page.getByTestId("sidebar-project-selector").click();
+  await page.getByTestId("sidebar-chooser-hosts").click();
 }
 
 // A host's filter row carries a status dot on the left next to its label.

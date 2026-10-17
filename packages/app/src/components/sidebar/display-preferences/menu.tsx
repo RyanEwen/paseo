@@ -1,4 +1,18 @@
 import {
+  WorkspaceCountPage,
+  WorkspaceListPage,
+  WorkspaceUpdatedWithinPage,
+} from "./workspace-list";
+import { useAppSettings } from "@/hooks/use-settings";
+import { useSidebarBulkCollapse } from "../use-sidebar-bulk-collapse";
+import { useIsCompactFormFactor } from "@/constants/layout";
+import {
+  isSidebarTrailingItemEnabled,
+  type SidebarTrailingChoice,
+} from "../workspace-trailing/selection";
+import {
+  createContext,
+  useContext,
   useCallback,
   useMemo,
   useState,
@@ -7,7 +21,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { View, type PressableStateCallbackType } from "react-native";
+import { type PressableStateCallbackType } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import {
   Captions,
@@ -25,8 +39,11 @@ import {
   Settings2,
   Tag,
   Type,
+  ArrowDownAZ,
+  GripVertical,
 } from "lucide-react-native";
 import {
+  MenuHint,
   MenuItem,
   MenuRoot,
   MenuSeparator,
@@ -35,29 +52,27 @@ import {
   MenuTrigger,
   type MenuPageDefinition,
 } from "@/components/ui/menu";
-import { HostStatusDot } from "@/components/host-status-dot";
-import { isWeb } from "@/constants/platform";
-import { useHosts } from "@/runtime/host-runtime";
+import { CONTROL_HEIGHTS } from "@/components/ui/control-geometry";
+import { isNative, isWeb } from "@/constants/platform";
 import { useSidebarModel } from "@/components/sidebar/sidebar-model";
-import { ProjectIconView } from "@/components/project-icon-view";
-import { useProjectIcons } from "@/projects/icons";
-import { resolveSidebarProjectIconTargets } from "@/utils/sidebar-project-row-model";
-import { projectIconPlaceholderLabelFromDisplayName } from "@/utils/project-display-name";
-import type { SidebarProjectEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { Theme } from "@/styles/theme";
 import {
   hasActiveSidebarLabelFilter,
   SIDEBAR_UNLABELLED_LABEL_KEY,
   type SidebarGroupMode,
+  type SidebarSortMode,
+  type SidebarEmptyProjectSortMode,
 } from "@/stores/sidebar-view-store";
 import { workspaceLabelKey, type WorkspaceLabelColor } from "@getpaseo/protocol/workspace-labels";
 import type { WorkspaceTitleSource } from "@/hooks/use-settings";
 import { SIDEBAR_CHECKS_DISPLAYS, type SidebarChecksDisplay } from "./checks-display";
-import { useSidebarDisplayPreferences, type SidebarTrailingChoice } from "./model";
+import { useSidebarDisplayPreferences } from "./model";
 import { SIDEBAR_ROW_ITEMS, type SidebarRowItem } from "./row-items";
 import { useWorkspaceLabelProjection } from "@/workspace-labels";
 import { WorkspaceLabelDot } from "@/workspace-labels/swatch";
 import { WorkspaceLabelManagerModal } from "@/workspace-labels/manager-modal";
+
+const PreferencesDisabledContext = createContext(false);
 
 const mutedIconMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
@@ -68,7 +83,7 @@ const ThemedCircle = withUnistyles(Circle);
 
 /** Fits the item's 16pt leading slot with a hair of room, matching the trailing check. */
 const OPTION_ICON_SIZE = 14;
-const MENU_WIDTH = 232;
+const MENU_WIDTH = 288;
 
 /**
  * Unlabelled's stand-in for a color dot: the same circle at the same size, hollow.
@@ -84,13 +99,48 @@ type OptionIcon = ComponentType<{
   uniProps: (theme: Theme) => { color: string };
 }>;
 
-// Options carry icons; the root rows deliberately do not. The root is four labels with their
+// Options carry icons; the root rows deliberately do not. The root is labels with their
 // current values, and a column of icons there would be decoration competing with the values.
 const GROUPING_ICONS: Record<SidebarGroupMode, OptionIcon> = {
   project: withUnistyles(Folder),
   status: withUnistyles(CircleDashed),
 };
 
+const SORTING_ICONS: Record<SidebarSortMode, OptionIcon> = {
+  project: withUnistyles(ArrowDownAZ),
+  status: GROUPING_ICONS.status,
+  custom: withUnistyles(GripVertical),
+};
+const EMPTY_WORKSPACE_ICONS = {
+  show: GROUPING_ICONS.project,
+  group: GROUPING_ICONS.status,
+  hide: withUnistyles(EyeOff),
+};
+const EMPTY_WORKSPACE_MODES = ["show", "group", "hide"] as const;
+const EMPTY_WORKSPACE_LABEL_KEYS = {
+  show: "sidebar.display.emptyWorkspaces.show",
+  group: "sidebar.display.emptyWorkspaces.group",
+  hide: "sidebar.display.emptyWorkspaces.hide",
+};
+const WORKSPACE_SORTING_MODES = ["name", "status", "custom"] as const;
+const WORKSPACE_SORTING_ICONS = {
+  name: SORTING_ICONS.project,
+  status: SORTING_ICONS.status,
+  custom: SORTING_ICONS.custom,
+};
+const WORKSPACE_SORTING_LABEL_KEYS = {
+  name: "sidebar.display.sorting.workspaceName",
+  status: "sidebar.display.sorting.status",
+  custom: "sidebar.display.sorting.custom",
+};
+const SORTING_MODES: readonly SidebarSortMode[] = ["project", "status", "custom"];
+const EMPTY_PROJECT_SORTING_MODES: readonly SidebarEmptyProjectSortMode[] = ["project", "custom"];
+
+const SORTING_LABEL_KEYS: Record<SidebarSortMode, string> = {
+  project: "sidebar.display.sorting.project",
+  status: "sidebar.display.sorting.status",
+  custom: "sidebar.display.sorting.custom",
+};
 const TITLE_SOURCE_ICONS: Record<WorkspaceTitleSource, OptionIcon> = {
   title: withUnistyles(Type),
   branch: withUnistyles(GitBranch),
@@ -120,14 +170,8 @@ const TRAILING_ICONS: Record<SidebarTrailingChoice, OptionIcon> = {
   timestamp: withUnistyles(Clock),
 };
 
-const GROUPING_MODES: readonly SidebarGroupMode[] = ["project", "status"];
 const TITLE_SOURCES: readonly WorkspaceTitleSource[] = ["title", "branch"];
 const TRAILING_CHOICES: readonly SidebarTrailingChoice[] = ["diff", "timestamp"];
-
-const GROUPING_LABEL_KEYS: Record<SidebarGroupMode, string> = {
-  project: "sidebar.display.grouping.project",
-  status: "sidebar.display.grouping.status",
-};
 
 const TITLE_SOURCE_LABEL_KEYS: Record<WorkspaceTitleSource, string> = {
   title: "sidebar.display.titleSource.title",
@@ -164,10 +208,10 @@ const TRAILING_LABEL_KEYS: Record<SidebarTrailingChoice, string> = {
 export function SidebarDisplayPreferencesMenu(): ReactElement {
   const { t } = useTranslation();
   const preferences = useSidebarDisplayPreferences();
-  const hosts = useHosts();
-  // `allProjects`, never `projects`: the model's `projects` is already filtered, so a picker fed
-  // from it would lose the row that undoes the filter as soon as the filter narrowed to one.
-  const { allProjects, resolvedProjectFilters } = useSidebarModel();
+  const { settings } = useAppSettings();
+  const { projects } = useSidebarModel();
+  const { expandAll, collapseAll } = useSidebarBulkCollapse();
+  const isCompact = useIsCompactFormFactor();
   const { labels } = useWorkspaceLabelProjection();
   const [managerOpen, setManagerOpen] = useState(false);
   const openManager = useCallback(() => setManagerOpen(true), []);
@@ -176,32 +220,92 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
   const triggerStyle = useCallback(
     ({ hovered = false }: PressableStateCallbackType & { hovered?: boolean }) => [
       styles.trigger,
+      (isNative || isCompact) && styles.compactTrigger,
       hovered && styles.triggerHovered,
     ],
-    [],
+    [isCompact],
   );
 
-  const showHostFilter = hosts.length > 1;
-  // One project is the whole sidebar, so filtering to it is a no-op with a menu row attached.
-  const showProjectFilter = allProjects.length > 1;
   // Nothing to filter by means no row at all. The active-filter half is not redundant: the merged
   // catalog only counts hosts that are online, so a host dropping off would otherwise take away
   // the only way back to a filter that is still hiding workspaces.
   const showLabelFilter = labels.length > 0 || hasActiveSidebarLabelFilter(preferences.labelFilter);
 
+  const showEmptyProjectSorting =
+    preferences.grouping === "status" &&
+    preferences.groupEmptyProjects &&
+    projects.some((project) => project.workspaces.length === 0);
+
   const pages = useMemo<MenuPageDefinition[]>(() => {
     const definitions: MenuPageDefinition[] = [
       {
-        id: "grouping",
-        title: t("sidebar.display.grouping.label"),
+        id: "workspaceList",
+        title: t("paseoPlusPlus.workspaceLimit.title"),
+        content: <WorkspaceListPage preferences={preferences} />,
+      },
+      {
+        id: "workspaceCount",
+        title: t("sidebar.display.workspaceList.countLimit"),
+        content: <WorkspaceCountPage preferences={preferences} />,
+      },
+      {
+        id: "workspaceUpdatedWithin",
+        title: t("sidebar.display.workspaceList.updatedWithin"),
+        content: <WorkspaceUpdatedWithinPage preferences={preferences} />,
+      },
+      {
+        id: "sorting",
+        title: t("sidebar.display.sorting.label"),
         content: (
           <OptionList
-            values={GROUPING_MODES}
-            icons={GROUPING_ICONS}
-            labelKeys={GROUPING_LABEL_KEYS}
-            selectedValue={preferences.grouping}
-            onSelect={preferences.setGrouping}
-            testIDPrefix="sidebar-grouping"
+            values={SORTING_MODES}
+            icons={SORTING_ICONS}
+            labelKeys={SORTING_LABEL_KEYS}
+            selectedValue={preferences.sorting}
+            onSelect={preferences.setSorting}
+            testIDPrefix="sidebar-sorting"
+          />
+        ),
+      },
+      {
+        id: "sortingWorkspaces",
+        title: t("sidebar.display.sorting.workspaces"),
+        content: (
+          <OptionList
+            values={WORKSPACE_SORTING_MODES}
+            icons={WORKSPACE_SORTING_ICONS}
+            labelKeys={WORKSPACE_SORTING_LABEL_KEYS}
+            selectedValue={preferences.workspaceSorting}
+            onSelect={preferences.setWorkspaceSorting}
+            testIDPrefix="sidebar-workspace-sorting"
+          />
+        ),
+      },
+      {
+        id: "sortingEmptyProjects",
+        title: t("sidebar.display.sorting.emptyProjects"),
+        content: (
+          <OptionList
+            values={EMPTY_PROJECT_SORTING_MODES}
+            icons={SORTING_ICONS}
+            labelKeys={SORTING_LABEL_KEYS}
+            selectedValue={preferences.emptyProjectSorting}
+            onSelect={preferences.setEmptyProjectSorting}
+            testIDPrefix="sidebar-empty-project-sorting"
+          />
+        ),
+      },
+      {
+        id: "emptyWorkspaces",
+        title: t("sidebar.display.emptyWorkspaces.label"),
+        content: (
+          <OptionList
+            values={EMPTY_WORKSPACE_MODES}
+            icons={EMPTY_WORKSPACE_ICONS}
+            labelKeys={EMPTY_WORKSPACE_LABEL_KEYS}
+            selectedValue={preferences.emptyWorkspaces}
+            onSelect={preferences.setEmptyWorkspaces}
+            testIDPrefix="sidebar-empty-workspaces"
           />
         ),
       },
@@ -240,26 +344,6 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
       },
     ];
 
-    if (showHostFilter) {
-      definitions.push({
-        id: "hostFilter",
-        title: t("sidebar.display.hostFilter.label"),
-        content: <HostFilterPage preferences={preferences} hosts={hosts} />,
-      });
-    }
-    if (showProjectFilter) {
-      definitions.push({
-        id: "projectFilter",
-        title: t("sidebar.display.projectFilter.label"),
-        content: (
-          <ProjectFilterPage
-            projects={allProjects}
-            resolvedProjectFilters={resolvedProjectFilters}
-            preferences={preferences}
-          />
-        ),
-      });
-    }
     if (showLabelFilter) {
       definitions.push({
         id: "labelFilter",
@@ -269,106 +353,149 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
         ),
       });
     }
+    for (const page of definitions) {
+      page.content = (
+        <>
+          {preferences.preferencesDisabledReason ? (
+            <MenuHint>{preferences.preferencesDisabledReason}</MenuHint>
+          ) : null}
+          {page.content}
+        </>
+      );
+    }
     return definitions;
-  }, [
-    t,
-    preferences,
-    hosts,
-    showHostFilter,
-    showProjectFilter,
-    allProjects,
-    resolvedProjectFilters,
-    showLabelFilter,
-    labels,
-    openManager,
-  ]);
+  }, [t, preferences, showLabelFilter, labels, openManager]);
 
   return (
     <>
-      <MenuRoot compactMode="sheet">
-        <MenuTrigger
-          style={triggerStyle}
-          accessibilityRole={isWeb ? undefined : "button"}
-          accessibilityLabel={t("sidebar.display.trigger")}
-          testID="sidebar-display-preferences-menu"
+      <PreferencesDisabledContext.Provider value={preferences.preferencesDisabled}>
+        <MenuRoot
+          key={`${preferences.grouping}:${preferences.preferencesDisabled}`}
+          compactMode="sheet"
         >
-          <ThemedSettings2 size={14} uniProps={mutedIconMapping} />
-        </MenuTrigger>
-        <MenuSurface
-          align="end"
-          width={MENU_WIDTH}
-          pages={pages}
-          sheetTitle={t("sidebar.display.heading")}
-          testID="sidebar-display-preferences-content"
-        >
-          <MenuSubTrigger
-            id="grouping"
-            value={t(GROUPING_LABEL_KEYS[preferences.grouping])}
-            testID="sidebar-display-grouping"
+          <MenuTrigger
+            style={triggerStyle}
+            accessibilityRole={isWeb ? undefined : "button"}
+            accessibilityLabel={`${t(`sidebar.display.grouping.${preferences.grouping}`)}: ${t("sidebar.display.trigger")}`}
+            testID="sidebar-display-preferences-menu"
           >
-            {t("sidebar.display.grouping.label")}
-          </MenuSubTrigger>
-          <MenuSubTrigger
-            id="titleSource"
-            value={t(TITLE_SOURCE_LABEL_KEYS[preferences.titleSource])}
-            testID="sidebar-display-title-source"
+            <ThemedSettings2 size={14} uniProps={mutedIconMapping} />
+          </MenuTrigger>
+          <MenuSurface
+            align="end"
+            width={MENU_WIDTH}
+            scrollable
+            pages={pages}
+            sheetTitle={`${t(`sidebar.display.grouping.${preferences.grouping}`)}: ${t("sidebar.display.heading")}`}
+            testID="sidebar-display-preferences-content"
           >
-            {t("sidebar.display.titleSource.label")}
-          </MenuSubTrigger>
-          <MenuSubTrigger id="show" testID="sidebar-display-show">
-            {t("sidebar.display.show.label")}
-          </MenuSubTrigger>
-          {showHostFilter ? (
-            <>
-              <MenuSeparator />
-              {/* A filtered sidebar looks like workspaces went missing, so the branch says so
-                from the root rather than making you open it to find out. */}
-              <MenuSubTrigger
-                id="hostFilter"
-                indicator={preferences.hostFilters.length > 0}
-                testID="sidebar-display-host-filter"
+            {isCompact && settings.paseoPlusPlus.sidebarBulkActions ? (
+              <>
+                <MenuItem onSelect={expandAll} testID="sidebar-expand-all">
+                  {t("sidebar.display.expandAll")}
+                </MenuItem>
+                <MenuItem onSelect={collapseAll} testID="sidebar-collapse-all">
+                  {t("sidebar.display.collapseAll")}
+                </MenuItem>
+                <MenuSeparator />
+              </>
+            ) : null}
+            {preferences.preferencesDisabledReason ? (
+              <MenuHint>{preferences.preferencesDisabledReason}</MenuHint>
+            ) : null}
+            <MenuItem
+              disabled={preferences.preferencesDisabled}
+              selected={preferences.showBackground}
+              closeOnSelect={false}
+              onSelect={preferences.toggleBackground}
+            >
+              {t("sidebar.display.showBackground")}
+            </MenuItem>
+            {preferences.grouping === "project" ? (
+              <MenuItem
+                disabled={preferences.preferencesDisabled}
+                selected={preferences.oneProjectAtATime}
+                closeOnSelect={false}
+                onSelect={preferences.toggleOneProjectAtATime}
+                testID="sidebar-one-project-at-a-time"
               >
-                {t("sidebar.display.hostFilter.label")}
-              </MenuSubTrigger>
-            </>
-          ) : null}
-          {showProjectFilter ? (
-            <>
-              {/* Host and Project narrow the same list, so they read as one block. The separator
-                belongs above whichever of the two is showing first — with a single host there is
-                no Host row and Project is what has to carry it. */}
-              {showHostFilter ? null : <MenuSeparator />}
+                {t("sidebar.display.oneProjectAtATime")}
+              </MenuItem>
+            ) : null}
+            <MenuSubTrigger
+              disabled={preferences.preferencesDisabled}
+              id="workspaceList"
+              testID="sidebar-display-workspace-list"
+            >
+              {t("paseoPlusPlus.workspaceLimit.title")}
+            </MenuSubTrigger>
+            {preferences.grouping === "project" ? (
               <MenuSubTrigger
-                id="projectFilter"
-                indicator={resolvedProjectFilters.length > 0}
-                testID="sidebar-display-project-filter"
+                disabled={preferences.preferencesDisabled}
+                id="sorting"
+                value={t(SORTING_LABEL_KEYS[preferences.sorting])}
+                testID="sidebar-display-sorting"
               >
-                {t("sidebar.display.projectFilter.label")}
+                {t("sidebar.display.sorting.label")}
               </MenuSubTrigger>
-            </>
-          ) : null}
-          {showLabelFilter ? (
-            <>
-              <MenuSeparator />
+            ) : null}
+            <MenuSubTrigger
+              disabled={preferences.preferencesDisabled}
+              id="sortingWorkspaces"
+              value={t(WORKSPACE_SORTING_LABEL_KEYS[preferences.workspaceSorting])}
+              testID="sidebar-display-workspace-sorting"
+            >
+              {t("sidebar.display.sorting.workspaces")}
+            </MenuSubTrigger>
+            {showEmptyProjectSorting ? (
               <MenuSubTrigger
-                id="labelFilter"
-                indicator={hasActiveSidebarLabelFilter(preferences.labelFilter)}
-                testID="sidebar-display-label-filter"
+                disabled={preferences.preferencesDisabled}
+                id="sortingEmptyProjects"
+                value={t(SORTING_LABEL_KEYS[preferences.emptyProjectSorting])}
+                testID="sidebar-display-empty-project-sorting"
               >
-                {t("workspaceLabels.title")}
+                {t("sidebar.display.sorting.emptyProjects")}
               </MenuSubTrigger>
-            </>
-          ) : null}
-          <MenuSeparator />
-          <MenuItem
-            selected={preferences.showBackground}
-            closeOnSelect={false}
-            onSelect={preferences.toggleBackground}
-          >
-            {t("sidebar.display.showBackground")}
-          </MenuItem>
-        </MenuSurface>
-      </MenuRoot>
+            ) : null}
+            <MenuSubTrigger
+              disabled={preferences.preferencesDisabled}
+              id="emptyWorkspaces"
+              value={t(EMPTY_WORKSPACE_LABEL_KEYS[preferences.emptyWorkspaces])}
+              testID="sidebar-display-empty-workspaces"
+            >
+              {t("sidebar.display.emptyWorkspaces.label")}
+            </MenuSubTrigger>
+            <MenuSubTrigger
+              disabled={preferences.preferencesDisabled}
+              id="titleSource"
+              value={t(TITLE_SOURCE_LABEL_KEYS[preferences.titleSource])}
+              testID="sidebar-display-title-source"
+            >
+              {t("sidebar.display.titleSource.label")}
+            </MenuSubTrigger>
+            <MenuSubTrigger
+              disabled={preferences.preferencesDisabled}
+              id="show"
+              testID="sidebar-display-show"
+            >
+              {t("sidebar.display.show.label")}
+            </MenuSubTrigger>
+            {showLabelFilter ? (
+              <>
+                <MenuSeparator />
+                <MenuSubTrigger
+                  disabled={preferences.preferencesDisabled}
+                  id="labelFilter"
+                  indicator={hasActiveSidebarLabelFilter(preferences.labelFilter)}
+                  testID="sidebar-display-label-filter"
+                >
+                  {t("workspaceLabels.title")}
+                </MenuSubTrigger>
+              </>
+            ) : null}
+          </MenuSurface>
+        </MenuRoot>
+      </PreferencesDisabledContext.Provider>
       <WorkspaceLabelManagerModal visible={managerOpen} onClose={closeManager} />
     </>
   );
@@ -420,6 +547,7 @@ function LabelFilterPage({
           <MenuSeparator />
           <MenuItem
             closeOnSelect={false}
+            disabled={preferences.preferencesDisabled}
             onSelect={preferences.clearLabelFilter}
             testID="sidebar-label-filter-clear"
           >
@@ -460,6 +588,7 @@ function LabelFilterItem({
   onToggle: (name: string) => void;
   testID: string;
 }): ReactElement {
+  const disabled = useContext(PreferencesDisabledContext);
   const handleSelect = useCallback(() => onToggle(name), [name, onToggle]);
   const leading = useMemo(
     () => (color ? <WorkspaceLabelDot color={color} /> : UNLABELLED_MARK),
@@ -468,6 +597,7 @@ function LabelFilterItem({
 
   return (
     <MenuItem
+      disabled={disabled}
       selected={selected}
       leading={leading}
       closeOnSelect={false}
@@ -499,6 +629,7 @@ function OptionItem<Value extends string>({
   onSelect: (value: Value) => void;
   testID: string;
 }): ReactElement {
+  const disabled = useContext(PreferencesDisabledContext);
   const handleSelect = useCallback(() => onSelect(value), [onSelect, value]);
   const leading = useMemo(
     () => <Icon size={OPTION_ICON_SIZE} uniProps={mutedIconMapping} />,
@@ -506,6 +637,7 @@ function OptionItem<Value extends string>({
   );
   return (
     <MenuItem
+      disabled={disabled}
       selected={selected}
       leading={leading}
       closeOnSelect={closeOnSelect}
@@ -549,8 +681,8 @@ function OptionList<Value extends string>({
 
 /**
  * Two groups, split by the separator. Above it, what a row may say about a workspace — each one
- * independent. Below it, the one thing the slot to the right of the title holds, so picking the
- * one already showing empties the slot and gives the width back to the title.
+ * independent. Below it, diff stats and last activity are independent toggles for the slot
+ * to the right of the title. Hiding both gives that width back to the title.
  *
  * CI is the one item above the separator with three answers rather than two, so it opens a page
  * instead of ticking, and it goes last: a row that navigates does not belong in the middle of a
@@ -580,7 +712,7 @@ function ShowPage({ preferences }: { preferences: Preferences }): ReactElement {
           value={choice}
           icon={TRAILING_ICONS[choice]}
           label={t(TRAILING_LABEL_KEYS[choice])}
-          selected={preferences.trailing === choice}
+          selected={isSidebarTrailingItemEnabled({ trailing: preferences.trailing, choice })}
           closeOnSelect={false}
           onSelect={preferences.toggleTrailing}
           testID={`sidebar-workspace-trailing-${choice}`}
@@ -596,168 +728,21 @@ function ShowPage({ preferences }: { preferences: Preferences }): ReactElement {
  * line of label. The chevron alone says there is a decision in here, and the page says what it is.
  */
 function ChecksSubTrigger(): ReactElement {
+  const disabled = useContext(PreferencesDisabledContext);
   const { t } = useTranslation();
   const leading = useMemo(
     () => <ThemedCircleCheck size={OPTION_ICON_SIZE} uniProps={mutedIconMapping} />,
     [],
   );
   return (
-    <MenuSubTrigger id="checks" leading={leading} testID="sidebar-display-checks">
+    <MenuSubTrigger
+      disabled={disabled}
+      id="checks"
+      leading={leading}
+      testID="sidebar-display-checks"
+    >
       {t("sidebar.display.show.checks")}
     </MenuSubTrigger>
-  );
-}
-
-/**
- * Every project the sidebar could show, one row each.
- *
- * A workspace belongs to exactly one project, so this is a plain allowlist — the same shape as the
- * host page, and deliberately not the label page's tri-state.
- *
- * Selection reads `resolvedProjectFilters`, not the stored list. A stored key whose project is not
- * currently visible filters nothing, so showing it as checked here would contradict the sidebar.
- */
-function ProjectFilterPage({
-  projects,
-  resolvedProjectFilters,
-  preferences,
-}: {
-  projects: readonly SidebarProjectEntry[];
-  resolvedProjectFilters: readonly string[];
-  preferences: Preferences;
-}): ReactElement {
-  const { t } = useTranslation();
-  const iconTargets = useMemo(() => resolveSidebarProjectIconTargets(projects), [projects]);
-  // Shares TanStack's cache with the sidebar's own call, so this subscribes rather than refetches.
-  const iconByProjectViewKey = useProjectIcons({ projects: iconTargets });
-
-  return (
-    <>
-      <MenuItem
-        selected={resolvedProjectFilters.length === 0}
-        closeOnSelect={false}
-        onSelect={preferences.clearProjectFilters}
-        testID="sidebar-project-filter-all"
-      >
-        {t("sidebar.display.projectFilter.all")}
-      </MenuItem>
-      {projects.map((project) => (
-        <ProjectFilterItem
-          key={project.viewKey}
-          viewKey={project.viewKey}
-          label={project.projectName}
-          iconDataUri={iconByProjectViewKey.get(project.viewKey) ?? null}
-          selected={resolvedProjectFilters.includes(project.viewKey)}
-          onToggle={preferences.toggleProjectFilter}
-        />
-      ))}
-    </>
-  );
-}
-
-function ProjectFilterItem({
-  viewKey,
-  label,
-  iconDataUri,
-  selected,
-  onToggle,
-}: {
-  viewKey: string;
-  label: string;
-  iconDataUri: string | null;
-  selected: boolean;
-  onToggle: (viewKey: string) => void;
-}): ReactElement {
-  const handleSelect = useCallback(() => onToggle(viewKey), [viewKey, onToggle]);
-  const leading = useMemo(
-    () => (
-      <ProjectIconView
-        iconDataUri={iconDataUri}
-        initial={projectIconPlaceholderLabelFromDisplayName(label).charAt(0).toUpperCase()}
-        projectViewKey={viewKey}
-        size={OPTION_ICON_SIZE}
-        textStyle={styles.projectIconText}
-      />
-    ),
-    [iconDataUri, label, viewKey],
-  );
-
-  return (
-    <MenuItem
-      selected={selected}
-      leading={leading}
-      closeOnSelect={false}
-      onSelect={handleSelect}
-      testID={`sidebar-project-filter-${viewKey}`}
-    >
-      {label}
-    </MenuItem>
-  );
-}
-
-function HostFilterPage({
-  preferences,
-  hosts,
-}: {
-  preferences: Preferences;
-  hosts: ReturnType<typeof useHosts>;
-}): ReactElement {
-  const { t } = useTranslation();
-  return (
-    <>
-      <MenuItem
-        selected={preferences.hostFilters.length === 0}
-        closeOnSelect={false}
-        onSelect={preferences.clearHostFilters}
-        testID="sidebar-host-filter-all"
-      >
-        {t("sidebar.display.hostFilter.all")}
-      </MenuItem>
-      {hosts.map((host) => (
-        <HostFilterItem
-          key={host.serverId}
-          serverId={host.serverId}
-          label={host.label?.trim() || host.serverId}
-          selected={preferences.hostFilters.includes(host.serverId)}
-          onToggle={preferences.toggleHostFilter}
-        />
-      ))}
-    </>
-  );
-}
-
-/** The one option row whose mark is live state rather than an icon. */
-function HostFilterItem({
-  serverId,
-  label,
-  selected,
-  onToggle,
-}: {
-  serverId: string;
-  label: string;
-  selected: boolean;
-  onToggle: (serverId: string) => void;
-}): ReactElement {
-  const handleSelect = useCallback(() => onToggle(serverId), [onToggle, serverId]);
-  const leading = useMemo(
-    () => (
-      <View testID={`sidebar-host-filter-status-${serverId}`}>
-        <HostStatusDot serverId={serverId} />
-      </View>
-    ),
-    [serverId],
-  );
-
-  return (
-    <MenuItem
-      selected={selected}
-      closeOnSelect={false}
-      leading={leading}
-      onSelect={handleSelect}
-      testID={`sidebar-host-filter-${serverId}`}
-    >
-      {label}
-    </MenuItem>
   );
 }
 
@@ -769,12 +754,8 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     borderRadius: theme.borderRadius.md,
   },
+  compactTrigger: { minWidth: CONTROL_HEIGHTS.field, minHeight: CONTROL_HEIGHTS.field },
   triggerHovered: {
     backgroundColor: theme.colors.surfaceSidebarHover,
-  },
-  // The icon sits in a 14pt menu slot, so the fallback initial is sized down to match rather
-  // than reusing the sidebar row's 16pt figure.
-  projectIconText: {
-    fontSize: 8,
   },
 }));

@@ -1,0 +1,34 @@
+extends: ./electron-builder.yml
+appId: sh.paseo.plusplus.desktop
+productName: Paseo++
+executableName: Paseo++
+extraMetadata:
+  name: paseo-plus-plus
+  productName: Paseo++
+  desktopName: paseo-plus-plus.desktop
+  paseoPreview: true
+protocols:
+  - name: Paseo++ agent link
+    schemes:
+      - paseo-plus-plus
+publish:
+  provider: github
+  owner: RyanEwen
+  repo: paseo-plus-plus
+  channel: preview
+  releaseType: prerelease
+  vPrefixedTagName: true
+mac:
+  artifactName: "Paseo-Plus-Plus-${version}-${arch}.${ext}"
+linux:
+  executableName: paseo-plus-plus
+  executableArgs: ["--class=paseo-plus-plus"]
+  desktop:
+    entry:
+      StartupWMClass: paseo-plus-plus
+  artifactName: "Paseo-Plus-Plus-${version}-${arch}.${ext}"
+appImage:
+  artifactName: "Paseo-Plus-Plus-${arch}.${ext}"
+  executableArgs: ["--class=paseo-plus-plus"]
+win:
+  artifactName: "Paseo-Plus-Plus-Setup-${version}-${arch}.${ext}"

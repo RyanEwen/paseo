@@ -1,25 +1,56 @@
-import { useCallback, useMemo } from "react";
 import {
-  useAppSettings,
-  type SidebarWorkspaceTrailing,
-  type WorkspaceTitleSource,
-} from "@/hooks/use-settings";
+  getSettingsEditingBlocked,
+  subscribeSettingsEditingBlocked,
+} from "@/settings-sync/save-handler";
+import { workspaceLabelKey } from "@getpaseo/protocol/workspace-labels";
+import { useSettingsSyncState } from "@/settings-sync/bootstrap";
+import { useHostFeature } from "@/runtime/host-features";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { type SidebarWorkspaceTrailing, type WorkspaceTitleSource } from "@/hooks/use-settings";
 import {
   useSidebarViewStore,
   type SidebarGroupMode,
+  type SidebarSortMode,
+  type SidebarWorkspaceSortMode,
+  type SidebarEmptyProjectSortMode,
+  type SidebarProjectVisibility,
   type SidebarLabelFilter,
 } from "@/stores/sidebar-view-store";
-import { DEFAULT_SIDEBAR_CHECKS_DISPLAY, type SidebarChecksDisplay } from "./checks-display";
-import { DEFAULT_SIDEBAR_ROW_ITEMS, type SidebarRowItem, type SidebarRowItems } from "./row-items";
+import { type SidebarChecksDisplay } from "./checks-display";
+import { type SidebarRowItem, type SidebarRowItems } from "./row-items";
 
-/** The trailing slot holds one thing, so these are a choice rather than toggles. */
-export type SidebarTrailingChoice = Exclude<SidebarWorkspaceTrailing, "none">;
+import {
+  toggleSidebarTrailingItem,
+  type SidebarTrailingChoice,
+} from "../workspace-trailing/selection";
 
 export interface SidebarDisplayPreferences {
+  preferencesDisabled: boolean;
+  preferencesDisabledReason: string | null;
+  initialWorkspaceCount: number | null;
+  setInitialWorkspaceCount: (count: number | null) => void;
+  workspaceUpdatedWithinDays: number | null;
+  setWorkspaceUpdatedWithinDays: (days: number | null) => void;
+  workspaceSorting: SidebarWorkspaceSortMode;
+  setWorkspaceSorting: (mode: SidebarWorkspaceSortMode) => void;
+  sorting: SidebarSortMode;
+  setSorting: (mode: SidebarSortMode) => void;
+  emptyWorkspaces: "show" | "group" | "hide";
+  setEmptyWorkspaces: (mode: "show" | "group" | "hide") => void;
+  projectVisibility: SidebarProjectVisibility;
+  setProjectVisibility: (visibility: SidebarProjectVisibility) => void;
+  emptyProjectSorting: SidebarEmptyProjectSortMode;
+  setEmptyProjectSorting: (mode: SidebarEmptyProjectSortMode) => void;
+  oneProjectAtATime: boolean;
+  toggleOneProjectAtATime: () => void;
+  groupEmptyProjects: boolean;
+  setGroupEmptyProjects: (enabled: boolean) => void;
+  toggleGroupEmptyProjects: () => void;
   showBackground: boolean;
   toggleBackground: () => void;
   grouping: SidebarGroupMode;
   setGrouping: (mode: SidebarGroupMode) => void;
+  toggleGrouping: () => void;
   titleSource: WorkspaceTitleSource;
   setTitleSource: (source: WorkspaceTitleSource) => void;
   rowItems: SidebarRowItems;
@@ -27,7 +58,7 @@ export interface SidebarDisplayPreferences {
   checksDisplay: SidebarChecksDisplay;
   setChecksDisplay: (display: SidebarChecksDisplay) => void;
   trailing: SidebarWorkspaceTrailing;
-  /** Picking the choice that is already showing clears the slot. */
+  /** Each trailing item can be shown independently. */
   toggleTrailing: (choice: SidebarTrailingChoice) => void;
   hostFilters: readonly string[];
   toggleHostFilter: (serverId: string) => void;
@@ -50,10 +81,16 @@ export interface SidebarDisplayPreferences {
  * this for a value and set it; where it lands is this module's problem.
  */
 export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
+  const workspaceSorting = useSidebarViewStore((state) => state.workspaceSortMode);
+  const sorting = useSidebarViewStore((state) => state.sortMode);
+  const projectVisibility = useSidebarViewStore((state) => state.projectVisibility);
+  const emptyProjectSorting = useSidebarViewStore((state) => state.emptyProjectSortMode);
+  const oneProjectAtATime = useSidebarViewStore((state) => state.oneProjectAtATime);
+  const groupEmptyProjects = useSidebarViewStore((state) => state.groupEmptyProjects);
   const showBackground = useSidebarViewStore((state) => state.showBackground);
-  const toggleBackground = useSidebarViewStore((state) => state.toggleBackground);
   const grouping = useSidebarViewStore((state) => state.groupMode);
   const setGrouping = useSidebarViewStore((state) => state.setGroupMode);
+  const toggleGrouping = useSidebarViewStore((state) => state.toggleGroupMode);
   const hostFilters = useSidebarViewStore((state) => state.hostFilters);
   const toggleHostFilter = useSidebarViewStore((state) => state.toggleHostFilter);
   const clearHostFilters = useSidebarViewStore((state) => state.clearHostFilters);
@@ -61,57 +98,171 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
   const toggleProjectFilter = useSidebarViewStore((state) => state.toggleProjectFilter);
   const clearProjectFilters = useSidebarViewStore((state) => state.clearProjectFilters);
   const labelFilter = useSidebarViewStore((state) => state.labelFilter);
-  const toggleLabelFilter = useSidebarViewStore((state) => state.toggleLabelFilter);
-  const clearLabelFilter = useSidebarViewStore((state) => state.clearLabelFilter);
 
-  const {
-    settings: {
-      workspaceTitleSource,
-      sidebarWorkspaceTrailing,
-      sidebarRowItems,
-      sidebarChecksDisplay,
-    },
-    updateSettings,
-  } = useAppSettings();
+  const workspaceTitleSource = useSidebarViewStore((state) => state.workspaceTitleSource);
+  const sidebarWorkspaceTrailing = useSidebarViewStore((state) => state.sidebarWorkspaceTrailing);
+  const sidebarRowItems = useSidebarViewStore((state) => state.sidebarRowItems);
+  const sidebarChecksDisplay = useSidebarViewStore((state) => state.sidebarChecksDisplay);
+  const initialWorkspaceCount = useSidebarViewStore((state) => state.initialWorkspaceCount);
+  const workspaceUpdatedWithinDays = useSidebarViewStore(
+    (state) => state.workspaceUpdatedWithinDays,
+  );
+  const ready = useSidebarViewStore((state) => state.modeProfilesInitialized);
+  const commit = useSidebarViewStore((state) => state.setModePreferences);
+  const update = useCallback(
+    (patch: Parameters<typeof commit>[0]) => commit(patch, grouping),
+    [commit, grouping],
+  );
+  const setWorkspaceSorting = useCallback(
+    (mode: SidebarWorkspaceSortMode) => update({ workspaceSortMode: mode }),
+    [update],
+  );
+  const setSorting = useCallback((mode: SidebarSortMode) => update({ sortMode: mode }), [update]);
+  let emptyWorkspaces: SidebarDisplayPreferences["emptyWorkspaces"] = groupEmptyProjects
+    ? "group"
+    : "show";
+  if (projectVisibility === "unarchived") emptyWorkspaces = "hide";
+  const setEmptyWorkspaces = useCallback(
+    (mode: "show" | "group" | "hide") =>
+      update({
+        projectVisibility: mode === "hide" ? "unarchived" : "all",
+        groupEmptyProjects: mode === "group",
+      }),
+    [update],
+  );
+  const setProjectVisibility = useCallback(
+    (visibility: SidebarProjectVisibility) => update({ projectVisibility: visibility }),
+    [update],
+  );
+  const setEmptyProjectSorting = useCallback(
+    (mode: SidebarEmptyProjectSortMode) => update({ emptyProjectSortMode: mode }),
+    [update],
+  );
+  const setGroupEmptyProjects = useCallback(
+    (enabled: boolean) => update({ groupEmptyProjects: enabled }),
+    [update],
+  );
+  const toggleEmptyProjects = useSidebarViewStore((state) => state.toggleModeEmptyProjects);
+  const toggleGroupEmptyProjects = useCallback(
+    () => toggleEmptyProjects(grouping),
+    [toggleEmptyProjects, grouping],
+  );
+  const toggleOneProjectAtATime = useCallback(
+    () => update((current) => ({ oneProjectAtATime: !current.oneProjectAtATime })),
+    [update],
+  );
+  const toggleBackground = useCallback(
+    () => update((current) => ({ showBackground: !current.showBackground })),
+    [update],
+  );
+  const toggleLabelFilter = useCallback(
+    (name: string) =>
+      update((current) => {
+        const key = workspaceLabelKey(name);
+        return {
+          labelFilter: {
+            labels: current.labelFilter.labels.includes(key)
+              ? current.labelFilter.labels.filter((label) => label !== key)
+              : [...current.labelFilter.labels, key],
+          },
+        };
+      }),
+    [update],
+  );
+  const clearLabelFilter = useCallback(() => update({ labelFilter: { labels: [] } }), [update]);
+  const error = useSidebarViewStore((state) => state.preferenceError);
+  const pending = useSidebarViewStore((state) => state.preferencePendingCount > 0);
+  const sync = useSettingsSyncState();
+  const hostSupported = useHostFeature(sync.selectedHost, "appSettingsSidebarModeProfiles");
+  const unsupported = sync.selectedHost !== null && !hostSupported;
+  const blocked = useSyncExternalStore(
+    subscribeSettingsEditingBlocked,
+    getSettingsEditingBlocked,
+    getSettingsEditingBlocked,
+  );
+  const preferencesDisabled =
+    blocked ||
+    !ready ||
+    unsupported ||
+    !sync.canWrite ||
+    !["local", "ready", "offline"].includes(sync.status);
+  let preferencesDisabledReason: string | null = error;
+  if (pending && !error) preferencesDisabledReason = "Saving sidebar preferences";
+  if (preferencesDisabled) preferencesDisabledReason = "Load writable settings before editing";
+  if (unsupported)
+    preferencesDisabledReason = "Update the settings host to use separate sidebar modes";
+  const setInitialWorkspaceCount = useCallback(
+    (count: number | null) => update({ initialWorkspaceCount: count }),
+    [update],
+  );
+  const setWorkspaceUpdatedWithinDays = useCallback(
+    (days: number | null) => update({ workspaceUpdatedWithinDays: days }),
+    [update],
+  );
 
   const setTitleSource = useCallback(
     (source: WorkspaceTitleSource) => {
-      void updateSettings({ workspaceTitleSource: source });
+      update({ workspaceTitleSource: source });
     },
-    [updateSettings],
+    [update],
   );
 
   const toggleRowItem = useCallback(
     (item: SidebarRowItem) => {
-      void updateSettings({
-        sidebarRowItems: { ...sidebarRowItems, [item]: !sidebarRowItems[item] },
-      });
+      update((current) => ({
+        sidebarRowItems: { ...current.sidebarRowItems, [item]: !current.sidebarRowItems[item] },
+      }));
     },
-    [updateSettings, sidebarRowItems],
+    [update],
   );
 
   const setChecksDisplay = useCallback(
     (display: SidebarChecksDisplay) => {
-      void updateSettings({ sidebarChecksDisplay: display });
+      update({ sidebarChecksDisplay: display });
     },
-    [updateSettings],
+    [update],
   );
 
   const toggleTrailing = useCallback(
     (choice: SidebarTrailingChoice) => {
-      void updateSettings({
-        sidebarWorkspaceTrailing: sidebarWorkspaceTrailing === choice ? "none" : choice,
-      });
+      update((current) => ({
+        sidebarWorkspaceTrailing: toggleSidebarTrailingItem({
+          trailing: current.sidebarWorkspaceTrailing,
+          choice,
+        }),
+      }));
     },
-    [updateSettings, sidebarWorkspaceTrailing],
+    [update],
   );
 
   return useMemo(
     () => ({
+      preferencesDisabled,
+      preferencesDisabledReason,
+      initialWorkspaceCount,
+      setInitialWorkspaceCount,
+      workspaceUpdatedWithinDays,
+      setWorkspaceUpdatedWithinDays,
+      workspaceSorting,
+      setWorkspaceSorting,
+      sorting,
+      setSorting,
+      emptyWorkspaces,
+      setEmptyWorkspaces,
+      projectVisibility,
+      setProjectVisibility,
+      emptyProjectSorting,
+      setEmptyProjectSorting,
+      oneProjectAtATime,
+      toggleOneProjectAtATime,
+      groupEmptyProjects,
+      setGroupEmptyProjects,
+      toggleGroupEmptyProjects,
       showBackground,
       toggleBackground,
       grouping,
       setGrouping,
+      toggleGrouping,
       titleSource: workspaceTitleSource,
       setTitleSource,
       rowItems: sidebarRowItems,
@@ -131,10 +282,32 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
       clearLabelFilter,
     }),
     [
+      preferencesDisabled,
+      preferencesDisabledReason,
+      initialWorkspaceCount,
+      setInitialWorkspaceCount,
+      workspaceUpdatedWithinDays,
+      setWorkspaceUpdatedWithinDays,
+      workspaceSorting,
+      setWorkspaceSorting,
+      sorting,
+      setSorting,
+      emptyWorkspaces,
+      setEmptyWorkspaces,
+      projectVisibility,
+      setProjectVisibility,
+      emptyProjectSorting,
+      setEmptyProjectSorting,
+      oneProjectAtATime,
+      toggleOneProjectAtATime,
+      groupEmptyProjects,
+      setGroupEmptyProjects,
+      toggleGroupEmptyProjects,
       showBackground,
       toggleBackground,
       grouping,
       setGrouping,
+      toggleGrouping,
       workspaceTitleSource,
       setTitleSource,
       sidebarRowItems,
@@ -161,10 +334,7 @@ export function useSidebarDisplayPreferences(): SidebarDisplayPreferences {
  * the one field they use rather than to every preference in the menu.
  */
 export function useSidebarRowItems(): SidebarRowItems {
-  const {
-    settings: { sidebarRowItems },
-  } = useAppSettings();
-  return sidebarRowItems ?? DEFAULT_SIDEBAR_ROW_ITEMS;
+  return useSidebarViewStore((state) => state.sidebarRowItems);
 }
 
 /**
@@ -176,14 +346,7 @@ export function useSidebarMetaPreferences(): {
   rowItems: SidebarRowItems;
   checksDisplay: SidebarChecksDisplay;
 } {
-  const {
-    settings: { sidebarRowItems, sidebarChecksDisplay },
-  } = useAppSettings();
-  return useMemo(
-    () => ({
-      rowItems: sidebarRowItems ?? DEFAULT_SIDEBAR_ROW_ITEMS,
-      checksDisplay: sidebarChecksDisplay ?? DEFAULT_SIDEBAR_CHECKS_DISPLAY,
-    }),
-    [sidebarRowItems, sidebarChecksDisplay],
-  );
+  const rowItems = useSidebarViewStore((state) => state.sidebarRowItems);
+  const checksDisplay = useSidebarViewStore((state) => state.sidebarChecksDisplay);
+  return useMemo(() => ({ rowItems, checksDisplay }), [rowItems, checksDisplay]);
 }

@@ -2,6 +2,193 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  settingsSync: {
+    title: "设置同步",
+    hint: "通过所选主机同步应用偏好和侧边栏项目可见性。主机/项目筛选、工作区顺序和折叠分组保留在本地。切换后先加载设置，再允许编辑。",
+    host: "设置主机",
+    deviceOnly: "仅此设备",
+    unavailableHost: "所选主机不可用",
+    status: "状态",
+    publish: "使用此设备的设置",
+    publishHint: "此主机尚无已保存的应用设置。发布会将当前偏好复制到主机。",
+    useHost: "使用主机设置",
+    keepDevice: "发布我的更改",
+    keepDeviceHint: "将 {{host}} 上冲突的偏好明确替换为你的待处理更改。其他偏好保持不变。",
+    restore: "恢复设备设置",
+    restoreHint: "停止同步并恢复选择此主机前保存的偏好。",
+    conflictHint: "这些偏好已在另一个客户端更改。使用 {{host}} 的设置，仅放弃该主机的待处理更改。",
+    retryHint: "重新连接并读取设置。待处理更改始终属于原主机。",
+    states: {
+      loading: "正在加载同步配置",
+      local: "偏好保存在此设备",
+      reading: "等待加载所选主机",
+      ready: "已连接。待处理更改：{{count}}",
+      offline: "离线。待处理更改：{{count}}",
+      empty: "此主机尚未发布设置",
+      unsupported: "更新此主机以同步应用设置",
+      error: "无法同步设置。待处理更改已保留。",
+      conflict: "请选择如何处理冲突",
+      readonly: "此连接可读取设置，但不能修改",
+    },
+  },
+  paseoPlusPlus: {
+    workspaceLimit: {
+      save: "保存",
+      title: "工作区显示限制",
+      label: "每组初始显示",
+      limited: "限制数量",
+      all: "显示全部",
+      count: "工作区数量",
+      invalid: "请输入正整数。",
+    },
+    examples: {
+      annotated: "箭头标出对应功能。",
+      before: "状态更改前",
+      after: "状态更改后",
+      imageLabel: "{{title}} 示例",
+      positions: "状态更改前后的最终位置。这些静态图片不展示动画时长。",
+      explorer: "更改列表和工作副本差异的示例。",
+      workspaceLimit: "选择每组的初始显示数量或显示全部。已展开的组会保持展开。",
+    },
+    loadFailed: "无法加载已保存的偏好。更改功能前请重试。",
+    saving: "正在保存...",
+    title: "Paseo++",
+    optional: "可选功能",
+    optionalHint:
+      "可选功能开关默认开启。显示偏好各有独立默认值；每次只展开一个项目默认关闭。启用同步后，选项跟随所选设置主机。关闭功能会保留已保存的数据和偏好。",
+    preferences: "工作区侧边栏设置",
+    fixes: "修复和分支基本功能",
+    fixesHint: "这些改进始终启用",
+    additions: "其他新增功能",
+    additionsHint: "这些工作流程仍然可用",
+    saveFailed: "无法保存。请重试。",
+    features: {
+      workspaceChatLinks: {
+        label: "在 Paseo 中打开聊天链接",
+        hint: "在桌面端，将聊天中的网页链接在所属工作区的浏览器中打开。关闭后使用外部浏览器。链接菜单中的“在 Paseo 中打开”仍然可用。",
+      },
+      sidebarHostUpdates: {
+        label: "侧边栏中的主机更新",
+        hint: "在主机菜单中显示更新操作。关闭后仍可使用主机设置。",
+      },
+      splitLayoutPresets: {
+        label: "分屏布局控件",
+        hint: "点击分割图中所需的区域，在那里打开或移动标签页。60/40 中右侧或下方区域占 40%。分隔线预设调整现有窗格的大小。关闭后隐藏这些控件，但不更改布局。",
+      },
+      mobileWorkspaceTabs: {
+        label: "移动端工作区标签页",
+        hint: "在紧凑布局中显示可滚动的标签栏。关闭后使用原来的标签选择器，并保留当前选中的标签。",
+      },
+
+      descriptiveToolCalls: {
+        label: "易读的工具活动",
+        hint: "描述已知操作，并在详情中保留准确命令和输出。关闭后恢复经典标签。",
+      },
+
+      sidebarProjectSelector: {
+        label: "标题中的所选项目",
+        hint: "在工作区标题中显示所选项目名称。关闭后使用“工作区”；主机和项目选项仍可使用。",
+      },
+      stickyUserPrompts: {
+        label: "保持用户消息可见",
+        hint: "将当前消息固定在聊天上方，支持展开和前后导航",
+      },
+      previousAgents: {
+        label: "历史智能体",
+        hint: "从工作区 + 菜单重新打开已关闭或归档的对话",
+      },
+      sidebarActivityChips: {
+        label: "项目活动标记",
+        hint: "显示项目活动和正在工作的工作区数量",
+      },
+      sidebarProjectEmphasis: {
+        label: "加粗项目名称",
+        hint: "突出显示侧边栏中的项目标题",
+      },
+      sidebarBulkActions: {
+        label: "全部展开和折叠",
+        hint: "显示所有可见侧边栏分组的控件",
+      },
+      projectPinning: {
+        label: "在项目内置顶工作区",
+        hint: "将选定的工作区保留在项目顶部，并在名称旁显示图钉。重新启用后会恢复已保存的置顶状态。",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "工作区移动动画",
+        hint: "侧边栏工作区位置变化时使用快速过渡",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "自动检查 Android 更新",
+        hint: "启动和恢复时检查预览版本。手动检查和安装仍可使用。",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "模式、筛选和显示",
+        hint: "用侧边栏的铃铛切换项目和状态模式。筛选图标可打开快速文本筛选。在显示菜单中，工作区限制分别设置数量和更新期限，空项目可选择显示、分组或隐藏。每种模式各自保留偏好。",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ 链接",
+        hint: "打开分支仓库和已发布的发行说明。已移除上游问题、赞助和 Discord 操作。",
+      },
+      backgroundBrowser: {
+        label: "后台浏览器自动化",
+        hint: "即使面板隐藏、应用失焦或窗口最小化，桌面智能体仍可使用标签页",
+      },
+      notifications: {
+        label: "通知目标",
+        hint: "通知打开所属工作区和聊天，桌面重启后仍然有效",
+      },
+      reading: {
+        label: "稳定阅读",
+        hint: "图像缩放时保持桌面和网页中的可见文本位置，并恢复消息及历史加载",
+      },
+      mobile: {
+        label: "移动导航",
+        hint: "更大的标签切换触控区域、更安全的 Android 返回行为及独立的开发通知",
+      },
+      pickers: {
+        label: "工作区选择器和状态",
+        hint: "清晰的设置顺序、完整值提示、按状态更新排序和保留侧边栏折叠选择",
+      },
+      identity: {
+        label: "独立的分支安装",
+        hint: "独立的 Paseo++ 应用和守护进程身份、设置及更新；验证 Android 下载",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android SSH 主机",
+        hint: "导入密钥、验证指纹并保存加密凭据，以便从 Android 直接连接",
+      },
+      worktrees: {
+        label: "分支和 worktree 选择",
+        hint: "在支持的主机上用明确名称创建或采用 worktree；重试保留现有工作",
+      },
+      video: {
+        label: "Android 插件视频",
+        hint: "兼容插件可播放编码视频并恢复解码器。需要提供视频的插件。",
+      },
+    },
+  },
+
+  androidUpdates: {
+    title: "应用更新",
+    idle: "检查此分支的新预览版本。",
+    checking: "正在检查更新…",
+    current: "你使用的是最新发布的预览版本。",
+    available: "预览版本 {{version}} 已可用。",
+    downloading: "正在下载并验证更新…",
+    downloadProgress: "正在下载 {{percent}}%（{{downloaded}} / {{total}}）",
+    downloadBytes: "正在下载 {{downloaded}}…",
+    verifying: "正在验证下载的更新…",
+    permission: "在 Android 设置中允许此应用安装更新，然后返回并再次点击安装更新。",
+    installer: "请在 Android 中完成安装。如果已取消，请点击安装更新重试。",
+    install: "安装更新",
+    failed: "无法更新。请重试。",
+  },
   paneFind: {
     connectionFailure: "无法搜索此聊天。请检查主机连接后重试。",
     historyChangedFailure: "搜索期间聊天已更改。请重新搜索。",
@@ -230,6 +417,23 @@ export const zhCN: TranslationResources = {
       mode: "更改模式",
     },
   },
+  stickyPrompt: {
+    goToMessage: "跳转到此消息",
+    more: "更多…",
+    less: "收起…",
+    none: "此聊天中没有用户消息。",
+    cancelled: "加载已取消。",
+    moreHistory: "还有更多历史记录。重试以继续查找。",
+
+    latest: "最新用户消息",
+    selected: "用户消息",
+    expand: "展开用户消息",
+    collapse: "收起用户消息",
+    previous: "上一条用户消息",
+    next: "下一条用户消息",
+    failed: "无法加载用户消息。",
+    attachments: "{{count}} 个附件",
+  },
   agentStream: {
     empty: "开始和这个 Agent 对话...",
     scrollToBottom: "滚动到底部",
@@ -277,6 +481,10 @@ export const zhCN: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "重新打开已关闭的代理",
+    previousEmpty: "此工作区中没有以前的代理",
+    workspaceHistoryUpdateRequired: "请更新此主机以查看以前的工作区代理。",
+
     title: "历史",
     empty: "还没有会话",
     noMatches: "没有匹配的会话",
@@ -436,6 +644,22 @@ export const zhCN: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "打开 {{item}}：{{side}}，{{percent}}%",
+      moveRegion: "移动标签页：{{side}}，{{percent}}%",
+      openToSide: "在侧边打开{{item}}",
+      chooseRatio: "选择分屏比例",
+      ratio: "使用 {{ratio}} 分屏",
+      moveTab: "移动标签页",
+      left: "左侧",
+      right: "右侧",
+      top: "上方",
+      bottom: "下方",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "窗格 {{index}}",
+    },
+
     route: {
       loading: "正在加载 workspace",
       connecting: "正在连接",
@@ -571,6 +795,8 @@ export const zhCN: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "在 Paseo 浏览器中打开",
+      openExternally: "在外部浏览器中打开",
       unavailable: {
         title: "浏览器仅桌面端可用",
         subtitle: "在 Electron 中打开此 workspace 以使用内置浏览器。",
@@ -1140,15 +1366,57 @@ export const zhCN: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      noKnownProjects: "尚无此主机的已知项目。",
+      selectOnlyProject: "仅显示 {{project}}",
+      includeProject: "包含 {{project}}",
+      workspaces: "工作区",
+      all: "全部",
+      allWorkspaces: "所有工作区",
+      projectWorkspaces: "{{project}} 工作区",
+      multipleWorkspaces_one: "{{count}} 个项目的工作区",
+      multipleWorkspaces_other: "{{count}} 个项目的工作区",
+      title: "项目",
+    },
     statusGroupAccessibility: "{{label}} 分组",
     statusBucket: {
+      workingCount: "{{count}} 个正在工作",
       needsInput: "需要输入",
       failed: "失败",
       readyToReview: "待查看",
       working: "运行中",
       done: "已完成",
     },
+    quickFilter: {
+      open: "筛选项目和工作区",
+      close: "关闭并清除快速筛选",
+      placeholder: "筛选项目或工作区…",
+      clear: "清除快速筛选",
+      emptyTitle: "没有匹配的项目或工作区",
+      emptyDescription: "请尝试其他名称或清除此模式的快速筛选。",
+      guidance:
+        "使用筛选图标搜索此模式中的名称和可见分支。数量和时间限制仍然有效；显示更多可查看所有匹配项。",
+    },
     display: {
+      modeToggle: "当前为{{current}}视图。切换到{{next}}视图。",
+      workspaceList: {
+        countLimit: "数量限制",
+        updatedWithin: "最近更新时间",
+        day: "1天",
+        twoDays: "2 天",
+        threeDays: "3天",
+        fiveDays: "5天",
+        week: "1周",
+        twoWeeks: "2周",
+        month: "1个月",
+        twoMonths: "2个月",
+        threeMonths: "3个月",
+      },
+      expandAll: "全部展开",
+      collapseAll: "全部折叠",
+      oneProjectAtATime: "一次只展开一个项目",
+      reorderGuidance:
+        "仅在自定义排序下可拖动调整顺序。显示所有项目后，筛选时移动的项目仍位于同一相邻项目之前或之后。置顶项目始终使用手动排序。",
       showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",
@@ -1157,6 +1425,28 @@ export const zhCN: TranslationResources = {
         project: "项目",
         status: "状态",
         labels: "标签",
+        emptyProjects: "单独分组空项目",
+      },
+      sorting: {
+        label: "项目排序",
+        workspaces: "工作区排序",
+        workspaceName: "工作区名称",
+        project: "项目名称",
+        status: "状态",
+        custom: "自定义顺序",
+        emptyProjects: "空项目排序",
+      },
+      emptyWorkspaces: {
+        label: "空项目",
+        show: "显示",
+        group: "分组",
+        hide: "隐藏",
+      },
+      projectVisibility: {
+        label: "筛选",
+        all: "所有项目",
+        unarchived: "隐藏空项目",
+        emptyGroup: "空项目",
       },
       titleSource: {
         label: "标题",
@@ -1217,9 +1507,6 @@ export const zhCN: TranslationResources = {
       sectionHelp: "帮助",
       diagnostics: "运行诊断",
       shortcuts: "键盘快捷键",
-      reportIssue: "报告问题",
-      discord: "Discord",
-      github: "创建 GitHub Issue",
       whatsNew: "新功能",
       appName: "Paseo",
     },
@@ -1283,7 +1570,9 @@ export const zhCN: TranslationResources = {
         copyPath: "复制路径",
         copyBranchName: "复制分支名称",
         rename: "重命名 workspace",
-        pin: "置顶",
+        pin: "固定到侧边栏顶部",
+        pinInProject: "在项目中固定",
+        unpinInProject: "取消项目内固定",
         unpin: "取消置顶",
         archive: "归档",
         archiveWorkspace: "归档工作区",
@@ -1303,6 +1592,7 @@ export const zhCN: TranslationResources = {
         invalidBranchName: "无效的分支名称",
       },
       toasts: {
+        updateHostToPinInProject: "请更新此主机以在项目中固定工作区。",
         workspacePathUnavailable: "Workspace 路径不可用",
         pathCopied: "路径已复制",
         branchNameCopied: "分支名称已复制",
@@ -1333,9 +1623,11 @@ export const zhCN: TranslationResources = {
       selectModel: "请选择模型",
     },
     tooltips: {
+      branchChoice: "创建新分支或检出现有分支",
+      baseBranch: "选择新分支的基础分支",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "使用本地目录或选择工作树",
       startingRef: "选择起始位置",
       launch: "Choose what to launch",
     },
@@ -1700,7 +1992,7 @@ export const zhCN: TranslationResources = {
       },
       remoteSsh: {
         title: "远程 SSH",
-        description: "通过桌面 SSH 客户端连接。",
+        description: "通过 SSH 连接。",
       },
       scanQr: {
         title: "扫描二维码",
@@ -1755,6 +2047,15 @@ export const zhCN: TranslationResources = {
     remoteSsh: {
       title: "远程 SSH",
       helper: "连接到远程主机上运行的 Paseo 守护进程。",
+      keyImport: {
+        key: "私钥",
+        import: "导入私钥",
+        passphrase: "密钥口令（可选）",
+        fingerprint: "服务器指纹",
+        verify: "信任前，请将此指纹与服务器的指纹进行比较。",
+        trustAndConnect: "信任并连接",
+        required: "请导入私钥以连接。",
+      },
       fields: {
         target: "SSH 主机",
         password: "守护进程密码",
@@ -1954,6 +2255,69 @@ export const zhCN: TranslationResources = {
     input: "输入",
     output: "输出",
   },
+  toolActivity: {
+    files: { intent: "更改文件", running: "正在更改文件", completed: "已更改文件" },
+    read: {
+      intent: "读取文件",
+      running: "正在读取文件",
+      completed: "已读取文件",
+    },
+    edit: {
+      intent: "编辑文件",
+      running: "正在编辑文件",
+      completed: "已编辑文件",
+    },
+    write: {
+      intent: "写入文件",
+      running: "正在写入文件",
+      completed: "已写入文件",
+    },
+    create: {
+      intent: "创建文件",
+      running: "正在创建文件",
+      completed: "已创建文件",
+    },
+    delete: {
+      intent: "删除文件",
+      running: "正在删除文件",
+      completed: "已删除文件",
+    },
+    search: {
+      intent: "搜索",
+      running: "正在搜索",
+      completed: "已搜索",
+    },
+    list: {
+      intent: "列出文件",
+      running: "正在列出文件",
+      completed: "已列出文件",
+    },
+    command: {
+      intent: "运行命令",
+      running: "正在运行命令",
+      completed: "已运行命令",
+    },
+    script: {
+      intent: "运行脚本",
+      running: "正在运行脚本",
+      completed: "已运行脚本",
+    },
+    activity: {
+      intent: "执行操作",
+      running: "正在执行操作",
+      completed: "已执行操作",
+    },
+    failed: "失败：{{action}}",
+    canceled: "已取消：{{action}}",
+    counts: {
+      editedFiles: { one: "{{count}} 项文件操作", other: "{{count}} 项文件操作" },
+      commands: { one: "{{count}} 条命令", other: "{{count}} 条命令" },
+      readFiles: { one: "{{count}} 项文件读取", other: "{{count}} 项文件读取" },
+      searches: { one: "{{count}} 次搜索", other: "{{count}} 次搜索" },
+      otherTools: { one: "{{count}} 项其他操作", other: "{{count}} 项其他操作" },
+      paseoCalls: { one: "{{count}} 次 Paseo 调用", other: "{{count}} 次 Paseo 调用" },
+    },
+  },
   toolCallGroup: {
     editedFiles: {
       one: "编辑了 {{count}} 个文件",
@@ -2056,7 +2420,30 @@ export const zhCN: TranslationResources = {
       diagnostics: "诊断",
       about: "关于",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "资源管理器",
+        comparison: {
+          label: "默认比较",
+          description: "工作区没有保存的比较选择时使用。",
+          options: { uncommitted: "未提交", base: "已提交" },
+        },
+        autoSwitch: {
+          label: "自动切换比较",
+          description: "有本地更改时显示未提交的更改，否则显示已提交的更改。关闭后记住您的选择。",
+        },
+        autoOpen: {
+          label: "为新工作区打开侧边栏",
+          description: "在新的桌面工作区中自动显示资源管理器侧边栏。",
+        },
+        diffScope: {
+          label: "点击更改中的文件时",
+          description: "选择在差异视图中显示哪些已更改的文件。",
+          options: { all: "所有已更改的文件", single: "仅选中的文件" },
+        },
+      },
+    },
     editor: {
       title: "编辑器",
       vimKeybindings: "Vim 键位",
@@ -2229,6 +2616,21 @@ export const zhCN: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "强调色",
+        hint: "用于主要控件和你发送的消息",
+        updateHost: "请更新所选的设置主机以更改强调色",
+        preview: "你的消息将呈现此效果",
+        options: {
+          default: "默认",
+          blue: "蓝色",
+          green: "绿色",
+          purple: "紫色",
+          rose: "玫瑰色",
+          orange: "橙色",
+          teal: "青色",
+        },
+      },
       theme: {
         title: "主题",
         accessibilityLabel: "主题：{{value}}",

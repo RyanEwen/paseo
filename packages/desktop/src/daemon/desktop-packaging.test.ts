@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -11,9 +12,18 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
+import { resolveDesktopDistribution, resolveDesktopUpdateChannel } from "../distribution.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const require = createRequire(import.meta.url);
+const {
+  createIsolatedHomeEnv,
+  prepareTerminalHookSmokeCommand,
+  getCliShimScript,
+  hasTerminalSmokeMarker,
+} = require(join(packageRoot, "e2e", "packaged-app-smoke.js"));
 
 function writeExecutable(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, "utf8");
@@ -40,6 +50,7 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
   );
 
   mkdirSync(dirname(shimPath), { recursive: true });
+  writeFileSync(join(resourcesPath, "paseo-executable-name"), "Paseo\n");
   mkdirSync(dirname(mainPath), { recursive: true });
   copyFileSync(join(packageRoot, "bin", "paseo"), shimPath);
   chmodSync(shimPath, 0o755);
@@ -63,6 +74,168 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
 }
 
 describe("desktop packaging", () => {
+  it("requires a successful bundled hook rather than its echoed terminal command", () => {
+    const marker = "paseo-packaged-terminal-smoke-test";
+    expect(hasTerminalSmokeMarker([`cwd>echo ${marker}`], marker)).toBe(false);
+    expect(hasTerminalSmokeMarker([`  ${marker}  `], marker)).toBe(true);
+    const root = mkdtempSync(join(tmpdir(), "paseo-hook-smoke-"));
+    try {
+      const windows = process.platform === "win32";
+      const hook = join(root, windows ? "hook with spaces.cmd" : "hook with spaces.sh");
+      const shell = windows ? (process.env.ComSpec ?? "cmd.exe") : "/bin/sh";
+      const command = prepareTerminalHookSmokeCommand(root, marker);
+      for (const status of [0, 17]) {
+        writeExecutable(
+          hook,
+          windows ? `@echo off\r\nexit /b ${status}\r\n` : `#!/bin/sh\nexit ${status}\n`,
+        );
+        const result = spawnSync(shell, windows ? ["/d", "/c", command] : ["-c", command], {
+          encoding: "utf8",
+          windowsVerbatimArguments: windows,
+          cwd: root,
+          env: { ...process.env, PASEO_HOOK_CLI: hook },
+        });
+        expect(result.status, result.stderr).toBe(status);
+        expect(hasTerminalSmokeMarker(result.stdout.split(/\r?\n/), marker)).toBe(status === 0);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.skipIf(process.platform !== "win32")(
+    "preserves terminal input and JSON mode through Electron Windows argv parsing",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "paseo-electron-cli-"));
+      try {
+        const electron = require("electron") as string;
+        const entry = join(root, "argv.cjs");
+        const shim = join(root, "cli shim.cmd");
+        writeFileSync(
+          entry,
+          'process.stdout.write(JSON.stringify(process.argv.slice(2)) + "\\n");',
+        );
+        writeFileSync(
+          shim,
+          `@echo off\r\nsetlocal\r\nset "ELECTRON_RUN_AS_NODE=1"\r\n"${electron}" "${entry}" %*\r\nexit /b %errorlevel%\r\n`,
+        );
+        const command = prepareTerminalHookSmokeCommand(root, "paseo-terminal-fixture");
+        const args = ["terminal", "send-keys", "terminal-test", command, "Enter", "--json"];
+        const result = spawnSync(
+          process.env.ComSpec ?? "cmd.exe",
+          ["/d", "/c", getCliShimScript(shim, args)],
+          {
+            encoding: "utf8",
+            windowsVerbatimArguments: true,
+            cwd: root,
+          },
+        );
+        expect(result.status, result.stderr).toBe(0);
+        expect(JSON.parse(result.stdout)).toEqual(args);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("creates an isolated Windows profile with existing Electron appData folders", () => {
+    const home = mkdtempSync(join(tmpdir(), "paseo-smoke-profile-"));
+    try {
+      const env = createIsolatedHomeEnv(home, "win32");
+      expect(env.HOME).toBe(home);
+      expect(env.USERPROFILE).toBe(home);
+      expect(env.APPDATA).toBe(join(home, "AppData", "Roaming"));
+      expect(env.LOCALAPPDATA).toBe(join(home, "AppData", "Local"));
+      expect(existsSync(env.APPDATA)).toBe(true);
+      expect(existsSync(env.LOCALAPPDATA)).toBe(true);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps fork settings and the local daemon isolated while pinning preview updates", () => {
+    expect(resolveDesktopDistribution({ paseoPreview: true })).toEqual({
+      isPreview: true,
+      appName: "Paseo++",
+      userDataName: "Paseo++",
+      desktopName: "paseo-plus-plus.desktop",
+      daemonHomeName: ".paseo-plus-plus-desktop",
+      daemonListen: "127.0.0.1:6790",
+    });
+    expect(resolveDesktopUpdateChannel(true, "stable")).toEqual({
+      allowPrerelease: true,
+      channel: "preview",
+    });
+    expect(resolveDesktopUpdateChannel(true, "beta")).toEqual({
+      allowPrerelease: true,
+      channel: "preview",
+    });
+    expect(resolveDesktopUpdateChannel(false, "stable")).toEqual({
+      allowPrerelease: false,
+      channel: "latest",
+    });
+    expect(resolveDesktopUpdateChannel(false, "beta")).toEqual({
+      allowPrerelease: true,
+      channel: "beta",
+    });
+  });
+
+  it("runs the bundled preview CLI against its own daemon and honors explicit overrides", () => {
+    const root = mkdtempSync(join(tmpdir(), "paseo-preview-cli-"));
+    try {
+      const resources = join(root, "resources");
+      const isWindows = process.platform === "win32";
+      const shimName = isWindows ? "paseo.cmd" : "paseo";
+      const shim = join(resources, "bin", shimName);
+      mkdirSync(dirname(shim), { recursive: true });
+      copyFileSync(join(packageRoot, "bin", shimName), shim);
+      chmodSync(shim, 0o755);
+      writeFileSync(join(resources, "paseo-executable-name"), "Paseo++\n");
+      writeFileSync(join(resources, "paseo-daemon-home-name"), ".paseo-plus-plus-desktop\n");
+      writeFileSync(join(resources, "paseo-daemon-listen"), "127.0.0.1:6790\n");
+      const printEnvironment =
+        "console.log(JSON.stringify([process.env.PASEO_HOME, process.env.PASEO_LISTEN]));";
+      if (isWindows) {
+        // Use a real PE with a tiny runner so this exercises cmd.exe's bundled shim.
+        copyFileSync(process.execPath, join(root, "Paseo++.exe"));
+        const runner = join(
+          resources,
+          "app.asar.unpacked",
+          "dist",
+          "daemon",
+          "node-entrypoint-runner.js",
+        );
+        mkdirSync(dirname(runner), { recursive: true });
+        writeFileSync(runner, printEnvironment);
+      } else {
+        writeExecutable(join(root, "Paseo++.bin"), `#!${process.execPath}\n${printEnvironment}\n`);
+      }
+      const env = { ...process.env, HOME: root, USERPROFILE: root };
+      delete env.PASEO_HOME;
+      delete env.PASEO_LISTEN;
+      const command = isWindows ? (process.env.ComSpec ?? "cmd.exe") : "sh";
+      const args = isWindows ? ["/d", "/s", "/c", `""${shim}" ls"`] : [shim, "ls"];
+      const defaults = spawnSync(command, args, {
+        encoding: "utf8",
+        env,
+        windowsVerbatimArguments: isWindows,
+      });
+      expect(defaults.status, defaults.stderr).toBe(0);
+      expect(JSON.parse(defaults.stdout)).toEqual([
+        join(root, ".paseo-plus-plus-desktop"),
+        "127.0.0.1:6790",
+      ]);
+      const overridden = spawnSync(command, args, {
+        encoding: "utf8",
+        windowsVerbatimArguments: isWindows,
+        env: { ...env, PASEO_HOME: "/custom-preview", PASEO_LISTEN: "127.0.0.1:12345" },
+      });
+      expect(overridden.status, overridden.stderr).toBe(0);
+      expect(JSON.parse(overridden.stdout)).toEqual(["/custom-preview", "127.0.0.1:12345"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("uses an Electron runtime whose Squirrel handoff explicitly wakes ShipIt", () => {
     const pkg = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
       devDependencies?: Record<string, string>;

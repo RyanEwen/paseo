@@ -37,9 +37,14 @@ function run(command, args, options) {
 
 async function exportBrowserWebApp() {
   console.log("Exporting browser web app...");
-  await run("npm", ["run", "build:web", "--workspace=@getpaseo/app"], {
-    cwd: REPO_ROOT,
-  });
+  await run(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "build:web", "--workspace=@getpaseo/app"],
+    {
+      shell: process.platform === "win32",
+      cwd: REPO_ROOT,
+    },
+  );
 }
 
 async function cleanTarget() {

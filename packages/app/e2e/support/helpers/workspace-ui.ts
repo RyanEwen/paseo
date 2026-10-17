@@ -13,7 +13,7 @@ export async function openNewAgentComposer(page: Page): Promise<void> {
  */
 export async function waitForSidebarHydration(page: Page, timeout = 60_000): Promise<void> {
   await page
-    .locator('[data-testid^="sidebar-project-row-"]')
+    .locator('[data-testid^="sidebar-project-row-"]:visible')
     .first()
     .waitFor({ state: "visible", timeout });
 }

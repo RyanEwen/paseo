@@ -1,3 +1,4 @@
+import { describeToolActivity } from "@getpaseo/protocol/tool-call-activity";
 import { describe, expect, it } from "vitest";
 
 import { mapOpencodeToolCall } from "./tool-call-mapper.js";
@@ -11,6 +12,17 @@ function expectMapped<T>(item: T | null): T {
 }
 
 describe("opencode tool-call mapper", () => {
+  it.each([
+    ["read_file", { file_path: "a.ts" }, "read"],
+    ["apply_patch", { file_path: "a.ts" }, "edit"],
+    ["write_file", { file_path: "a.ts", content: "x" }, "write"],
+    ["grep", { pattern: "needle" }, "search"],
+  ] as const)("exposes %s activity through canonical details", (toolName, input, kind) => {
+    const call = expectMapped(
+      mapOpencodeToolCall({ toolName, callId: "activity", input, output: null, status: "running" }),
+    );
+    expect(describeToolActivity(call)[0]?.kind).toBe(kind);
+  });
   it("maps running shell calls", () => {
     const item = expectMapped(
       mapOpencodeToolCall({

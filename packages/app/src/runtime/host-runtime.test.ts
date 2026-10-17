@@ -610,6 +610,20 @@ function createMemoryReplicaRowStore(): ReplicaRowStore {
       for (const key of changes.deletes) rows.delete(keyOf(key));
       for (const row of changes.upserts) rows.set(keyOf(row), row);
     },
+    applyIfUnchanged: async (changes, expected) => {
+      if (
+        expected.some((condition) => {
+          const current = rows.get(keyOf(condition));
+          return condition.payload === null
+            ? current !== undefined
+            : current === undefined || current.payload !== condition.payload;
+        })
+      )
+        return false;
+      for (const key of changes.deletes) rows.delete(keyOf(key));
+      for (const row of changes.upserts) rows.set(keyOf(row), row);
+      return true;
+    },
     deleteHost: async (serverId) => {
       for (const [key, row] of rows) if (row.serverId === serverId) rows.delete(key);
     },
@@ -3974,6 +3988,43 @@ describe("HostRuntimeStore", () => {
     // cycle must authenticate from the stored profile alone.
     await store.runProbeCycleNow("srv_ssh");
     await waitForHostOnline(store, "srv_ssh");
+    store.syncHosts([]);
+  });
+
+  it("commits imported SSH credentials before publishing a saved host", async () => {
+    const store = createPairingStore({
+      serverIdForHost: (host) => (host.connections[0]?.type === "remoteSsh" ? "srv_ssh" : ""),
+    });
+    await store.boot();
+    const hasImportedHost = () => store.getHosts().find((host) => host.serverId === "srv_ssh");
+    const commit = vi.fn(async () => {
+      expect(hasImportedHost()).toBeUndefined();
+    });
+    await store.probeAndUpsertRemoteSshConnection({
+      host: "deploy@example.com",
+      beforeSave: commit,
+    });
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(
+      store.getHosts().find((host) => host.serverId === "srv_ssh")?.connections[0],
+    ).toMatchObject({ type: "remoteSsh", host: "deploy@example.com" });
+    store.syncHosts([]);
+  });
+
+  it("keeps the host unsaved when importing SSH credentials fails", async () => {
+    const store = createPairingStore({
+      serverIdForHost: (host) => (host.connections[0]?.type === "remoteSsh" ? "srv_ssh" : ""),
+    });
+    await store.boot();
+    await expect(
+      store.probeAndUpsertRemoteSshConnection({
+        host: "deploy@example.com",
+        beforeSave: async () => {
+          throw new Error("Secure storage unavailable");
+        },
+      }),
+    ).rejects.toThrow("Secure storage unavailable");
+    expect(store.getHosts().find((host) => host.serverId === "srv_ssh")).toBeUndefined();
     store.syncHosts([]);
   });
 

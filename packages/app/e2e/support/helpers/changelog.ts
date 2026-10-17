@@ -1,6 +1,8 @@
+import { parseChangelog } from "../../../src/changelog/internal/parse-changelog";
 import { expect, type Locator, type Page } from "@playwright/test";
 
-const CHANGELOG_SOURCE_URL = "https://raw.githubusercontent.com/getpaseo/paseo/main/CHANGELOG.md";
+const CHANGELOG_SOURCE_URL =
+  "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100";
 
 /**
  * Serves a changelog to the app instead of the repository's.
@@ -10,7 +12,20 @@ const CHANGELOG_SOURCE_URL = "https://raw.githubusercontent.com/getpaseo/paseo/m
  */
 export async function serveChangelog(page: Page, lines: string[]): Promise<void> {
   await page.route(CHANGELOG_SOURCE_URL, (route) =>
-    route.fulfill({ status: 200, contentType: "text/plain", body: lines.join("\n") }),
+    route.fulfill({
+      json: parseChangelog(lines.join("\n")).map((entry) => ({
+        tag_name: `v${entry.version}`,
+        draft: false,
+        published_at: `${entry.date}T12:00:00Z`,
+        body: entry.sections
+          .map((section) =>
+            [section.title ? `### ${section.title}` : "", section.body]
+              .filter(Boolean)
+              .join("\n\n"),
+          )
+          .join("\n\n"),
+      })),
+    }),
   );
 }
 

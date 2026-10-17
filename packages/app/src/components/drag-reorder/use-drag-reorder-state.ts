@@ -1,7 +1,7 @@
 import { useCallback, useReducer } from "react";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { dragStateInitial, dragStateReducer } from "./drag-reducer";
-import { reorderItemsOnDragEnd } from "./reorder-items";
+import { reorderItemsWithMove, type DragReorderMove } from "./reorder-items";
 
 export interface DragReorderHandlers {
   onDragStart: (event: DragStartEvent) => void;
@@ -20,12 +20,14 @@ export function useDragReorderState<T>({
   keyExtractor,
   onDragEnd,
   onDragBegin,
+  getDragGroupKey,
   disabled = false,
 }: {
   data: T[];
   keyExtractor: (item: T, index: number) => string;
-  onDragEnd?: (items: T[]) => void;
+  onDragEnd?: (items: T[], move?: DragReorderMove) => void;
   onDragBegin?: () => void;
+  getDragGroupKey?: (item: T) => string | null;
   disabled?: boolean;
 }): DragReorderState<T> {
   const [state, dispatch] = useReducer(dragStateReducer<T>, undefined, dragStateInitial<T>);
@@ -50,15 +52,16 @@ export function useDragReorderState<T>({
       dispatch({ type: "clear" });
       if (disabled) return;
 
-      const reordered = reorderItemsOnDragEnd({
+      const reordered = reorderItemsWithMove({
         items,
         activeId: String(active.id),
         overId: over ? String(over.id) : null,
         keyExtractor,
+        getDragGroupKey,
       });
-      if (reordered) onDragEnd?.(reordered);
+      if (reordered) onDragEnd?.(reordered.items, reordered.move);
     },
-    [data, disabled, keyExtractor, onDragEnd, state.dragItems],
+    [data, disabled, getDragGroupKey, keyExtractor, onDragEnd, state.dragItems],
   );
 
   return {

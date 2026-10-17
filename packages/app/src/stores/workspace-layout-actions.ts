@@ -96,6 +96,8 @@ interface InsertSplitInternalInput {
   tabId: string;
   position: "left" | "right" | "top" | "bottom";
   createNodeId: (prefix: WorkspaceLayoutNodeIdPrefix) => string;
+  /** Left/top fraction of the two panes created by this operation. */
+  firstPaneFraction?: number;
 }
 
 interface InsertSplitInternalResult {
@@ -205,6 +207,8 @@ interface SplitPaneInLayoutInput {
   position: "left" | "right" | "top" | "bottom";
   createNodeId: (prefix: WorkspaceLayoutNodeIdPrefix) => string;
   maxTreeDepth: number;
+  /** Left/top fraction of the two panes created by this operation. */
+  firstPaneFraction?: number;
 }
 
 interface SplitPaneInLayoutResult {
@@ -218,6 +222,7 @@ interface SplitPaneEmptyInLayoutInput {
   position: "left" | "right" | "top" | "bottom";
   createNodeId: (prefix: WorkspaceLayoutNodeIdPrefix) => string;
   maxTreeDepth: number;
+  firstPaneFraction?: number;
 }
 
 interface SplitWorkspaceRootRightInLayoutInput {
@@ -271,6 +276,7 @@ export interface WorkspaceTabSnapshot {
   terminalsHydrated: boolean;
   activeAgentIds: Iterable<string>;
   autoOpenAgentIds: Iterable<string>;
+  foreignAgentIds?: Iterable<string>;
   knownTerminalIds?: Iterable<string>;
   standaloneTerminalIds: Iterable<string>;
   hasActivePendingTerminalCreate?: boolean;
@@ -963,6 +969,7 @@ function insertSplitInternal(input: InsertSplitInternalInput): InsertSplitIntern
   const direction =
     input.position === "left" || input.position === "right" ? "horizontal" : "vertical";
   const insertAfter = input.position === "right" || input.position === "bottom";
+  const firstFraction = input.firstPaneFraction ?? 0.5;
 
   const targetPathBeforeDetach = findPanePathById(input.root, input.targetPaneId);
   invariant(targetPathBeforeDetach, `Target pane not found: ${input.targetPaneId}`);
@@ -993,8 +1000,13 @@ function insertSplitInternal(input: InsertSplitInternalInput): InsertSplitIntern
     const targetSize = parentNode.group.sizes[targetIndex] ?? 0;
     const nextSizes = parentNode.group.sizes.slice();
     const insertIndex = insertAfter ? targetIndex + 1 : targetIndex;
-    nextSizes.splice(insertIndex, 0, targetSize / 2);
-    nextSizes[targetIndex + (insertAfter ? 0 : 1)] = targetSize / 2;
+    nextSizes.splice(
+      insertIndex,
+      0,
+      targetSize * (insertAfter ? 1 - firstFraction : firstFraction),
+    );
+    nextSizes[targetIndex + (insertAfter ? 0 : 1)] =
+      targetSize * (insertAfter ? firstFraction : 1 - firstFraction);
 
     return {
       root: replaceNodeAtPath(detached.root, parentPath, () =>
@@ -1012,7 +1024,7 @@ function insertSplitInternal(input: InsertSplitInternalInput): InsertSplitIntern
     id: input.createNodeId("group"),
     direction,
     children: insertAfter ? [targetNode, newPaneNode] : [newPaneNode, targetNode],
-    sizes: [0.5, 0.5],
+    sizes: [firstFraction, 1 - firstFraction],
   });
 
   return {
@@ -1254,7 +1266,9 @@ function createDefaultExplorerSidebarTabs(): WorkspaceTab[] {
 }
 
 /** The desktop companion pane exists before it is first shown. */
-export function createWorkspaceLayoutWithExplorerSidebar(): WorkspaceLayout {
+export function createWorkspaceLayoutWithExplorerSidebar(
+  options: { autoOpen?: boolean } = {},
+): WorkspaceLayout {
   return {
     root: createGroupNode({
       id: DEFAULT_LAYOUT_GROUP_ID,
@@ -1264,7 +1278,7 @@ export function createWorkspaceLayoutWithExplorerSidebar(): WorkspaceLayout {
         createPaneNode({
           id: EXPLORER_SIDEBAR_PANE_ID,
           tabs: createDefaultExplorerSidebarTabs(),
-          hidden: true,
+          hidden: !options.autoOpen,
         }),
       ],
       sizes: [0.78, 0.22],
@@ -1912,7 +1926,13 @@ export function reorderFocusedPaneTabsInLayout(
   });
 }
 
+/** Ratios are an explicit placement choice; invalid values must not create or move a tab. */
+function isValidSplitFraction(fraction: number | undefined): boolean {
+  return fraction === undefined || (Number.isFinite(fraction) && fraction > 0 && fraction < 1);
+}
+
 export function splitPaneInLayout(input: SplitPaneInLayoutInput): SplitPaneInLayoutResult | null {
+  if (!isValidSplitFraction(input.firstPaneFraction)) return null;
   const layout = asInternalLayout(input.layout);
   if (!findPaneById(layout.root, input.targetPaneId)) {
     return null;
@@ -1926,6 +1946,7 @@ export function splitPaneInLayout(input: SplitPaneInLayoutInput): SplitPaneInLay
     targetPaneId: input.targetPaneId,
     tabId: input.tabId,
     position: input.position,
+    firstPaneFraction: input.firstPaneFraction,
     createNodeId: input.createNodeId,
   });
   if (getTreeDepth(result.root) > input.maxTreeDepth) {
@@ -1945,6 +1966,8 @@ export function splitPaneInLayout(input: SplitPaneInLayoutInput): SplitPaneInLay
 export function splitPaneEmptyInLayout(
   input: SplitPaneEmptyInLayoutInput,
 ): SplitPaneInLayoutResult | null {
+  if (!isValidSplitFraction(input.firstPaneFraction)) return null;
+  const firstFraction = input.firstPaneFraction ?? 0.5;
   const layout = asInternalLayout(input.layout);
   if (!findPaneById(layout.root, input.targetPaneId)) {
     return null;
@@ -1971,8 +1994,13 @@ export function splitPaneEmptyInLayout(
     const targetSize = parentNode.group.sizes[targetIndex] ?? 0;
     const nextSizes = parentNode.group.sizes.slice();
     const insertIndex = insertAfter ? targetIndex + 1 : targetIndex;
-    nextSizes.splice(insertIndex, 0, targetSize / 2);
-    nextSizes[targetIndex + (insertAfter ? 0 : 1)] = targetSize / 2;
+    nextSizes.splice(
+      insertIndex,
+      0,
+      targetSize * (insertAfter ? 1 - firstFraction : firstFraction),
+    );
+    nextSizes[targetIndex + (insertAfter ? 0 : 1)] =
+      targetSize * (insertAfter ? firstFraction : 1 - firstFraction);
     nextRoot = replaceNodeAtPath(layout.root, parentPath, () =>
       insertChildIntoGroup(parentNode, { index: insertIndex, node: newPaneNode, sizes: nextSizes }),
     );
@@ -1981,7 +2009,7 @@ export function splitPaneEmptyInLayout(
       id: input.createNodeId("group"),
       direction,
       children: insertAfter ? [targetNode, newPaneNode] : [newPaneNode, targetNode],
-      sizes: [0.5, 0.5],
+      sizes: [firstFraction, 1 - firstFraction],
     });
     nextRoot = replaceNodeAtPath(layout.root, targetPath, () => newGroup);
   }
@@ -2437,12 +2465,17 @@ export function reconcileWorkspaceTabs(
   const hiddenAgentIds = new Set(state.hiddenAgentIds ?? []);
   const activeAgentIds = normalizeStringSet(snapshot.activeAgentIds);
   const autoOpenAgentIds = normalizeStringSet(snapshot.autoOpenAgentIds);
+  const foreignAgentIds = normalizeStringSet(snapshot.foreignAgentIds ?? []);
   // An explicit open owns the tab until the agent joins the active directory.
   // From then on it follows the normal server archive lifecycle. Detail/cache
   // hydration never decides whether the user's target is allowed to stay open.
+  // A hydrated directory can prove that a pin belongs to another workspace.
+  // Drop only that local pin so old notification contamination cannot archive
+  // or kill the real agent in its owning workspace.
   const pinnedAgentIds = new Set(
     [...(state.pinnedAgentIds ?? [])].filter(
-      (agentId) => !snapshot.agentsHydrated || !activeAgentIds.has(agentId),
+      (agentId) =>
+        !snapshot.agentsHydrated || (!activeAgentIds.has(agentId) && !foreignAgentIds.has(agentId)),
     ),
   );
   const standaloneTerminalIds = normalizeStringSet(snapshot.standaloneTerminalIds);

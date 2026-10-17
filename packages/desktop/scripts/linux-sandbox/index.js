@@ -2,8 +2,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 // Keep one pre-Chromium entrypoint for AppRun, desktop entries, updates, and tarballs.
-exports.installLinuxLauncher = function installLinuxLauncher(appOutDir) {
-  const launcher = path.join(appOutDir, "Paseo");
+exports.installLinuxLauncher = function installLinuxLauncher(appOutDir, executableName = "Paseo") {
+  const launcher = path.join(appOutDir, executableName);
   if (!fs.existsSync(`${launcher}.bin`)) {
     fs.renameSync(launcher, `${launcher}.bin`);
   }

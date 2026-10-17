@@ -28,7 +28,14 @@ function Links({ navigation }) {
     <Pressable accessibilityRole="button" onPress={() => navigation.openBrowser({ url: ${JSON.stringify(url)}, workspaceId: ${JSON.stringify(workspaceId)} })}><Text>Open workspace browser</Text></Pressable>
   </View>;
 }
-export default function(client) { client.addSurface("main", Links); client.addSidebarItem({ id: "links", title: "Plugin links QA", icon: "Link", surface: "main" }); return () => {}; }
+function WorkspaceLinks() { return <ExternalLink href={${JSON.stringify(url)}}>Workspace documentation link</ExternalLink>; }
+export default function(client) {
+  client.addSurface("main", Links);
+  client.addSidebarItem({ id: "links", title: "Plugin links QA", icon: "Link", surface: "main" });
+  client.addWorkspacePanel({ id: "workspace-links", title: "Workspace links QA", icon: "Link", context: "workspace", locations: ["workspace"], Component: WorkspaceLinks });
+  client.addCommandCenterItem({ id: "workspace-links", title: "Open workspace links QA", icon: "Link", context: "workspace", onSelect({ openPanel }) { openPanel("workspace-links"); } });
+  return () => {};
+}
 `,
   );
   const configPath = path.join(paseoHome, "config.json");
@@ -41,6 +48,8 @@ export default function(client) { client.addSurface("main", Links); client.addSi
 export async function runPluginLinksRegression({
   page,
   remotePort,
+  serverId,
+  createChatAgent,
   workspaceId,
   remoteWorkspaceId,
   url,
@@ -93,6 +102,22 @@ export async function runPluginLinksRegression({
   await expectPresentedBrowser(page, url);
   expect(popups).toHaveLength(0);
   await page.screenshot({ path: path.join(artifactDir, "plugin-workspace-browser.png") });
+  const workspaceOptions = await verifyWorkspaceLinkOptions({
+    page,
+    url,
+    artifactDir,
+    externalOpenLog,
+  });
+  const chatLinks = await verifyChatLinkDestinations({
+    page,
+    serverId,
+    workspaceId,
+    url,
+    artifactDir,
+    externalOpenLog,
+    createChatAgent,
+  });
+  const repositoryLinks = await verifyRepositoryLinkOptions({ page, artifactDir, externalOpenLog });
   await pluginEntry.click();
   await page.getByRole("button", { name: "Open remote workspace browser", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/h/plugin-links-remote/workspace/${remoteWorkspaceId}`));
@@ -101,6 +126,9 @@ export async function runPluginLinksRegression({
   return {
     remoteWorkspaceId,
     oldWorkaroundOpenedPopup: true,
+    workspaceOptions,
+    chatLinks,
+    repositoryLinks,
     newExternalPopups: popups.length,
     workspaceId,
     url,
@@ -119,4 +147,108 @@ async function expectPresentedBrowser(page, url) {
         ),
     )
     .toEqual([url]);
+}
+
+/** Exercise contextual SDK links through the real retained workspace-panel host. */
+async function verifyWorkspaceLinkOptions({ page, url, artifactDir, externalOpenLog }) {
+  await page.getByTestId("sidebar-search").click();
+  const palette = page.getByTestId("command-center-panel");
+  await palette.getByTestId("command-center-input").fill("Open workspace links QA");
+  await palette.getByRole("button", { name: "Open workspace links QA", exact: true }).click();
+  const link = page.getByRole("link", { name: "Workspace documentation link", exact: true });
+  await expect(link).toBeVisible();
+  await link.click();
+  if (externalOpenLog) {
+    await expect
+      .poll(() => fs.readFileSync(externalOpenLog, "utf8").trim().split("\n"))
+      .toEqual([url, url, url]);
+  }
+  await link.click({ button: "right" });
+  await page.getByText("Open in Paseo browser", { exact: true }).click();
+  await expectPresentedBrowser(page, url);
+  await page.screenshot({ path: path.join(artifactDir, "workspace-link-internal-option.png") });
+  return { defaultExternal: true, internalOption: true };
+}
+
+/** Verify settled chat links use their real renderer, provider, workspace tabs and OS opener. */
+async function verifyChatLinkDestinations({
+  page,
+  serverId,
+  workspaceId,
+  url,
+  artifactDir,
+  externalOpenLog,
+  createChatAgent,
+}) {
+  const agentId = await createChatAgent();
+  const route = new URL(
+    `/h/${encodeURIComponent(serverId)}/workspace/${encodeURIComponent(workspaceId)}?open=${encodeURIComponent(`agent:${agentId}`)}`,
+    page.url(),
+  ).href;
+  await page.goto(route);
+  const deck = page.getByTestId(`workspace-deck-entry-${serverId}:${workspaceId}`);
+  const agentTab = deck.getByTestId(`workspace-tab-agent_${agentId}`);
+  const link = page
+    .getByTestId("assistant-message")
+    .getByRole("link", { name: "Workspace chat link", exact: true })
+    .last();
+  await expect(link).toBeVisible({ timeout: 30_000 });
+  const priorExternal = externalOpenLog ? fs.readFileSync(externalOpenLog, "utf8") : null;
+  await link.click();
+  await expectPresentedBrowser(page, url);
+  if (externalOpenLog) {
+    expect(fs.readFileSync(externalOpenLog, "utf8")).toBe(priorExternal);
+  }
+  await agentTab.click();
+  await link.click({ button: "right" });
+  await expect(page.getByText("Open in external browser", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("workspace-http-link-menu")).toHaveCSS("opacity", "1");
+  await page.screenshot({ path: path.join(artifactDir, "workspace-chat-external-menu.png") });
+  await page.getByText("Open in external browser", { exact: true }).click();
+  if (externalOpenLog) {
+    await expect
+      .poll(() => fs.readFileSync(externalOpenLog, "utf8").trim().split("\n"))
+      .toEqual([url, url, url, url]);
+  }
+  await expect(agentTab).toHaveAttribute("aria-selected", "true");
+  return { agentId, primaryInternal: true, externalContextMenu: true };
+}
+
+/** Exercise the actual titlebar repository target, retaining its selected external default. */
+async function verifyRepositoryLinkOptions({ page, artifactDir, externalOpenLog }) {
+  const url = "https://github.com/acme/workspace-links/tree/main";
+  const caret = page.getByTestId("workspace-open-in-editor-caret");
+  const primary = page.getByTestId("workspace-open-in-editor-primary");
+  await caret.click();
+  await page.getByTestId("workspace-open-in-editor-item-github").click();
+  await expect(primary).toHaveAttribute("aria-label", "Open workspace in GitHub");
+  await primary.click();
+  if (externalOpenLog) {
+    await expect
+      .poll(() => fs.readFileSync(externalOpenLog, "utf8").trim().split("\n").at(-1))
+      .toBe(url);
+  }
+  const priorExternal = externalOpenLog ? fs.readFileSync(externalOpenLog, "utf8") : null;
+  await caret.click();
+  await expect(page.getByTestId("workspace-open-in-editor-menu")).toHaveCSS("opacity", "1");
+  const internalOption = page.getByText("Open in Paseo browser", { exact: true });
+  await expect
+    .poll(() =>
+      internalOption.evaluate((element) => {
+        const hasWidth = element.clientWidth > 0;
+        const fits = element.scrollWidth <= element.clientWidth;
+        return hasWidth && fits;
+      }),
+    )
+    .toBe(true);
+  await page.screenshot({
+    path: path.join(artifactDir, "workspace-repository-internal-option.png"),
+  });
+  await page.getByText("Open in Paseo browser", { exact: true }).click();
+  await expectPresentedBrowser(page, url);
+  await expect(primary).toHaveAttribute("aria-label", "Open workspace in GitHub");
+  if (externalOpenLog) {
+    expect(fs.readFileSync(externalOpenLog, "utf8")).toBe(priorExternal);
+  }
+  return { url, defaultExternal: true, internalOption: true, preferredTargetRetained: true };
 }

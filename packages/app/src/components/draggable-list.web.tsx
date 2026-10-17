@@ -7,6 +7,7 @@ import {
   MouseSensor,
   TouchSensor,
   type Modifier,
+  type CollisionDetection,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -16,6 +17,8 @@ import {
   verticalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
+import { PositionTransition } from "./drag-reorder/position-transition.web";
+import { usePositionTransitionDuration } from "./drag-reorder/use-position-transition";
 import { CSS } from "@dnd-kit/utilities";
 import type { DraggableListProps, DraggableRenderItemInfo } from "./draggable-list.types";
 import { getDragActivationConstraints, useDragReorderState } from "./drag-reorder";
@@ -96,6 +99,9 @@ interface SortableItemProps<T> {
   renderItem: (info: DraggableRenderItemInfo<T>) => ReactElement;
   activeId: string | null;
   useDragHandle: boolean;
+  dragDisabled: boolean;
+  positionTransitionDuration: number | undefined;
+  positionRevision: unknown;
 }
 
 function SortableItemInner<T>({
@@ -105,6 +111,9 @@ function SortableItemInner<T>({
   renderItem,
   activeId,
   useDragHandle,
+  dragDisabled,
+  positionTransitionDuration,
+  positionRevision,
 }: SortableItemProps<T>) {
   const {
     attributes,
@@ -114,7 +123,7 @@ function SortableItemInner<T>({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id, disabled: dragDisabled });
 
   const dragRef = useRef<(() => void) | null>(null);
 
@@ -147,7 +156,11 @@ function SortableItemInner<T>({
     }),
     [combinedTransform, transition, isDragging],
   );
-  const stableAttributes = useShallowStableRecord(attributes as unknown as Record<string, unknown>);
+  // Sorting can disable reordering while the row and its nested actions remain interactive.
+  // dnd-kit's aria-disabled describes the drag activator, so do not put it on that row.
+  const stableAttributes = useShallowStableRecord(
+    dragDisabled ? undefined : (attributes as unknown as Record<string, unknown>),
+  );
   const stableListeners = useStableListenerRecord(
     listeners as unknown as Record<string, unknown> | undefined,
   );
@@ -173,11 +186,17 @@ function SortableItemInner<T>({
 
   const wrapperProps = useDragHandle
     ? { ref: setNodeRef }
-    : { ref: setNodeRef, ...attributes, ...listeners };
+    : { ref: setNodeRef, ...stableAttributes, ...stableListeners };
 
   return (
     <div {...wrapperProps} style={style}>
-      {renderItem(info)}
+      {positionTransitionDuration === undefined ? (
+        renderItem(info)
+      ) : (
+        <PositionTransition duration={positionTransitionDuration} revision={positionRevision}>
+          {renderItem(info)}
+        </PositionTransition>
+      )}
     </div>
   );
 }
@@ -185,10 +204,14 @@ function SortableItemInner<T>({
 const SortableItem = memo(SortableItemInner) as typeof SortableItemInner;
 
 export function DraggableList<T>({
+  disabled = false,
   data,
   keyExtractor,
   renderItem,
   onDragEnd,
+  getDragGroupKey,
+  positionTransitionDuration,
+  positionTransitionRevision,
   style,
   containerStyle,
   contentContainerStyle,
@@ -209,7 +232,29 @@ export function DraggableList<T>({
     keyExtractor,
     onDragEnd,
     onDragBegin,
+    getDragGroupKey,
+    disabled,
   });
+  const collisionDetection: CollisionDetection = useCallback(
+    (args) => {
+      if (!getDragGroupKey) return closestCenter(args);
+      const activeItem = items.find(
+        (item, index) => keyExtractor(item, index) === String(args.active.id),
+      );
+      if (!activeItem) return [];
+      const group = getDragGroupKey(activeItem);
+      const allowed = new Set(
+        items.flatMap((item, index) =>
+          getDragGroupKey(item) === group ? [keyExtractor(item, index)] : [],
+        ),
+      );
+      const droppableContainers = args.droppableContainers.filter((container) =>
+        allowed.has(String(container.id)),
+      );
+      return closestCenter({ ...args, droppableContainers });
+    },
+    [getDragGroupKey, items, keyExtractor],
+  );
   const activationConstraints = getDragActivationConstraints(useDragHandle, DRAG_ACTIVATION_CONFIG);
 
   const sensors = useSensors(
@@ -228,6 +273,20 @@ export function DraggableList<T>({
     () => items.map((item, index) => keyExtractor(item, index)),
     [items, keyExtractor],
   );
+  const motionKeys = items.flatMap((item, index) => {
+    if (getDragGroupKey && getDragGroupKey(item) === null) return [];
+    return [keyExtractor(item, index)];
+  });
+  const motionDuration = usePositionTransitionDuration({
+    duration: positionTransitionDuration ?? 0,
+    keys: motionKeys,
+    dragging: activeId !== null,
+  });
+  const positionRevision = useMemo(
+    () => [JSON.stringify(ids), positionTransitionRevision],
+    [ids, positionTransitionRevision],
+  );
+
   const wrapperStyle = useMemo(
     () => [
       { position: "relative" as const },
@@ -250,7 +309,7 @@ export function DraggableList<T>({
           {items.length === 0 && ListEmptyComponent}
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={collisionDetection}
             modifiers={DND_MODIFIERS}
             onDragStart={handlers.onDragStart}
             onDragCancel={handlers.onDragCancel}
@@ -268,6 +327,11 @@ export function DraggableList<T>({
                     renderItem={renderItem}
                     activeId={activeId}
                     useDragHandle={useDragHandle}
+                    dragDisabled={disabled || getDragGroupKey?.(item) === null}
+                    positionTransitionDuration={
+                      positionTransitionDuration === undefined ? undefined : motionDuration
+                    }
+                    positionRevision={positionRevision}
                   />
                 );
               })}
@@ -281,7 +345,7 @@ export function DraggableList<T>({
           {items.length === 0 && ListEmptyComponent}
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={collisionDetection}
             modifiers={DND_MODIFIERS}
             onDragStart={handlers.onDragStart}
             onDragCancel={handlers.onDragCancel}
@@ -299,6 +363,11 @@ export function DraggableList<T>({
                     renderItem={renderItem}
                     activeId={activeId}
                     useDragHandle={useDragHandle}
+                    dragDisabled={disabled || getDragGroupKey?.(item) === null}
+                    positionTransitionDuration={
+                      positionTransitionDuration === undefined ? undefined : motionDuration
+                    }
+                    positionRevision={positionRevision}
                   />
                 );
               })}

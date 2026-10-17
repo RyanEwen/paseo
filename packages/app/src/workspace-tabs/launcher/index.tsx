@@ -1,15 +1,21 @@
+import type { SplitSide } from "@/components/split-layout-presets";
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
   type ComponentType,
   type ReactNode,
 } from "react";
+import { ReopenClosedAgentDialog } from "@/components/reopen-closed-agent-dialog";
 import { useRouter, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Globe, SquarePen, SquareTerminal } from "lucide-react-native";
+import { Globe, History, SquarePen, SquareTerminal } from "lucide-react-native";
 import invariant from "tiny-invariant";
+import { useAppSettings } from "@/hooks/use-settings";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
 import { resolvePluginIcon } from "@/plugins/icons";
 import { useInstalledPlugins } from "@/plugins/registry";
@@ -35,13 +41,17 @@ export type WorkspaceTabLaunchPurpose = "primary" | "supporting";
 
 export type WorkspaceTabLaunchDestination =
   | { kind: "open"; paneId?: string }
-  | { kind: "replace"; tabId: string };
+  | { kind: "replace"; tabId: string }
+  | { kind: "split"; paneId?: string; position: SplitSide; firstPaneFraction: number };
 
 export interface NewTabLauncher {
+  serverId: string;
+  workspaceId: string;
   showChanges: boolean;
   showPullRequest: boolean;
   showBrowser: boolean;
   terminalDisabled: boolean;
+  canSplit?: boolean;
   launch: (selection: NewTabSelection, destination: WorkspaceTabLaunchDestination) => void;
 }
 
@@ -65,8 +75,11 @@ export interface WorkspaceTabLaunchGroup {
 
 const EMPTY_PANE_PANEL_KINDS: readonly WorkspaceTabTarget["kind"][] = [];
 
-const NewTabLauncherContext = createContext<NewTabLauncher | null>(null);
+const NewTabLauncherContext = createContext<
+  (NewTabLauncher & { previousAgentsEnabled: boolean; reopenClosedAgent: () => void }) | null
+>(null);
 
+/** Own launcher actions and their workspace-scoped reopen dialog together. */
 export function NewTabLauncherProvider({
   value,
   children,
@@ -74,7 +87,40 @@ export function NewTabLauncherProvider({
   value: NewTabLauncher;
   children: ReactNode;
 }) {
-  return <NewTabLauncherContext.Provider value={value}>{children}</NewTabLauncherContext.Provider>;
+  const { settings } = useAppSettings();
+  const previousAgentsEnabled = settings.paseoPlusPlus.previousAgents;
+  const [reopenVisible, setReopenVisible] = useState(false);
+  const previousAgentsEnabledRef = useRef(previousAgentsEnabled);
+  // Disable dismisses this transient surface without changing sessions or cached history.
+  useEffect(() => {
+    previousAgentsEnabledRef.current = previousAgentsEnabled;
+    if (!previousAgentsEnabled) setReopenVisible(false);
+  }, [previousAgentsEnabled]);
+  const reopenClosedAgent = useCallback(() => {
+    if (previousAgentsEnabledRef.current) setReopenVisible(true);
+  }, []);
+  const closeReopenDialog = useCallback(() => setReopenVisible(false), []);
+  const context = useMemo(
+    () => ({ ...value, previousAgentsEnabled, reopenClosedAgent }),
+    [value, previousAgentsEnabled, reopenClosedAgent],
+  );
+  return (
+    <NewTabLauncherContext.Provider value={context}>
+      {children}
+      {previousAgentsEnabled && reopenVisible ? (
+        <ReopenClosedAgentDialog
+          serverId={value.serverId}
+          workspaceId={value.workspaceId}
+          onClose={closeReopenDialog}
+        />
+      ) : null}
+    </NewTabLauncherContext.Provider>
+  );
+}
+
+/** Creation menus only expose split actions where the owning workspace can display panes. */
+export function useWorkspaceTabSplitLaunchEnabled(): boolean {
+  return useContext(NewTabLauncherContext)?.canSplit === true;
 }
 
 const BUILT_IN_SELECTIONS = {
@@ -197,6 +243,17 @@ export function useWorkspaceTabLaunchCatalog(input: {
       const item = builtIns[id];
       return item.hidden || !panelSupportsHost(item.panelKind, host) ? [] : [item];
     });
+
+    if (!isExplorerMenu && launcher.previousAgentsEnabled) {
+      tabItems.splice(1, 0, {
+        id: "reopen-closed-agent",
+        label: t("sessions.previousTitle"),
+        Icon: History,
+        disabled: false,
+        panelKind: "agent",
+        launch: launcher.reopenClosedAgent,
+      });
+    }
 
     const pluginItems: WorkspaceTabLaunchItem[] = [];
     for (const plugin of plugins) {

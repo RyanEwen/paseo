@@ -1,3 +1,4 @@
+import { useAppSettings } from "@/hooks/use-settings";
 import {
   createContext,
   useCallback,
@@ -24,6 +25,7 @@ export interface AssistantFileLinkResolverConfig {
   workspaceRoot?: string;
   onOpenWorkspaceFile?: (target: InlinePathTarget, disposition: OpenFileDisposition) => void;
   toast?: ToastApi | null;
+  onOpenHttpUrl?: (url: string) => void | Promise<void>;
 }
 
 export interface AssistantFileLinkResolverProviderProps extends AssistantFileLinkResolverConfig {
@@ -32,6 +34,10 @@ export interface AssistantFileLinkResolverProviderProps extends AssistantFileLin
 
 export interface AssistantFileLinkResolverContextValue {
   configRef: MutableRefObject<AssistantFileLinkResolverConfig>;
+  /** Latest primary-click policy, read when an asynchronous resolution finishes. */
+  openHttpLinksInPaseoRef: MutableRefObject<boolean>;
+  /** Reactive menu metadata; the explicit workspace browser opener stays available. */
+  httpLinkDestination: "paseo" | "external";
   getDirectorySuggestions: GetDirectorySuggestions;
 }
 
@@ -43,17 +49,31 @@ export function AssistantFileLinkResolverProvider({
   serverId,
   workspaceRoot,
   onOpenWorkspaceFile,
+  onOpenHttpUrl,
   toast,
   children,
 }: AssistantFileLinkResolverProviderProps) {
+  const { settings } = useAppSettings();
+  const openHttpLinksInPaseo = settings.paseoPlusPlus.workspaceChatLinks;
+  const openHttpLinksInPaseoRef = useRef(openHttpLinksInPaseo);
+  openHttpLinksInPaseoRef.current = openHttpLinksInPaseo;
+
   const configRef = useRef<AssistantFileLinkResolverConfig>({
     client,
     serverId,
     workspaceRoot,
     onOpenWorkspaceFile,
+    onOpenHttpUrl,
     toast,
   });
-  configRef.current = { client, serverId, workspaceRoot, onOpenWorkspaceFile, toast };
+  configRef.current = {
+    client,
+    serverId,
+    workspaceRoot,
+    onOpenWorkspaceFile,
+    onOpenHttpUrl,
+    toast,
+  };
 
   const getDirectorySuggestions = useCallback<GetDirectorySuggestions>(async (input) => {
     const activeClient = configRef.current.client;
@@ -66,8 +86,13 @@ export function AssistantFileLinkResolverProvider({
   }, []);
 
   const value = useMemo<AssistantFileLinkResolverContextValue>(
-    () => ({ configRef, getDirectorySuggestions }),
-    [getDirectorySuggestions],
+    () => ({
+      configRef,
+      getDirectorySuggestions,
+      openHttpLinksInPaseoRef,
+      httpLinkDestination: openHttpLinksInPaseo ? "paseo" : "external",
+    }),
+    [getDirectorySuggestions, openHttpLinksInPaseo],
   );
 
   return (
@@ -86,6 +111,8 @@ export type { AssistantFileLinkContext };
 
 const EMPTY_CONTEXT: AssistantFileLinkResolverContextValue = {
   configRef: { current: {} },
+  openHttpLinksInPaseoRef: { current: false },
+  httpLinkDestination: "external",
   getDirectorySuggestions: async () => ({ entries: [], error: null }),
 };
 

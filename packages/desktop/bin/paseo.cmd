@@ -3,7 +3,13 @@ setlocal
 
 set "SCRIPT_DIR=%~dp0"
 set "RESOURCES_DIR=%SCRIPT_DIR%.."
-set "APP_EXECUTABLE=%RESOURCES_DIR%\..\Paseo.exe"
+set /p APP_EXECUTABLE_NAME=<"%RESOURCES_DIR%\paseo-executable-name"
+set "APP_EXECUTABLE=%RESOURCES_DIR%\..\%APP_EXECUTABLE_NAME%.exe"
+if exist "%RESOURCES_DIR%\paseo-daemon-home-name" (
+  set /p PASEO_DAEMON_HOME_NAME=<"%RESOURCES_DIR%\paseo-daemon-home-name"
+)
+if defined PASEO_DAEMON_HOME_NAME if not defined PASEO_HOME set "PASEO_HOME=%USERPROFILE%\%PASEO_DAEMON_HOME_NAME%"
+if defined PASEO_DAEMON_HOME_NAME if not defined PASEO_LISTEN set /p PASEO_LISTEN=<"%RESOURCES_DIR%\paseo-daemon-listen"
 if not exist "%APP_EXECUTABLE%" (
   echo Bundled Paseo executable not found at %APP_EXECUTABLE% 1>&2
   exit /b 1

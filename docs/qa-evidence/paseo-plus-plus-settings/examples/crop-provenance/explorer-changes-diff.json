@@ -1,0 +1,38 @@
+{
+  "id": "explorer-changes-diff",
+  "source": "explorer-changes-diff-1791840618733.png",
+  "sourceManifestSha256": "0cf9381502201d07e54a3b8bdaf21caa80d7b716f1b55a59e6f285030603f939",
+  "sourceSha256": "a1acb3765cb5a05a7abdc5cc0d5fcdc2a8f4b0a0b0bac01f8c5afbb5ad840945",
+  "capturedAtUtc": "2026-10-12T21:30:18.817Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 320,
+    "top": 108,
+    "width": 650,
+    "height": 100
+  },
+  "description": "A real working-copy diff. This is shared Explorer/Changes output, not proof of automatic opening or switching.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/explorer-changes-diff-1791840618733.json",
+  "captureSuggestedCrop": {
+    "left": 312,
+    "top": 100,
+    "width": 815,
+    "height": 800
+  },
+  "asset": "explorer-changes-diff.png",
+  "assetSha256": "b7dcd8d00fa87acb3403e776adb10f2f89c18507a01890a8a2773329a9799983",
+  "assetPixels": {
+    "width": 650,
+    "height": 100
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}
