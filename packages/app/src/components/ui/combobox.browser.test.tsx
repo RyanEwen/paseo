@@ -119,9 +119,11 @@ it("measures clamped preview content at exact line boundaries and after resize",
   );
   await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(false);
   const actual = container.querySelector('[data-testid="preview-actual"]') as HTMLElement;
-  const full = container.querySelector('[data-testid="text-preview-measurement"]') as HTMLElement;
+  const clip = container.querySelector('[data-testid="text-preview-clip"]') as HTMLElement;
+  expect(container.querySelector('[data-testid="text-preview-measurement"]')).toBeNull();
+  expect(container.textContent).toBe("First line\nSecond line");
   await expect.poll(() => actual.clientHeight).toBe(48);
-  expect(full.parentElement?.getAttribute("aria-hidden")).toBe("true");
+  expect(clip.clientHeight).toBe(48);
   act(() =>
     root!.render(
       <TextPreview
@@ -135,8 +137,10 @@ it("measures clamped preview content at exact line boundaries and after resize",
     ),
   );
   await expect.poll(() => onOverflow.mock.lastCall?.[0]).toBe(true);
-  await expect.poll(() => actual.clientHeight).toBe(24);
-  expect(full.clientHeight).toBe(48);
+  await expect.poll(() => clip.clientHeight).toBe(24);
+  expect(actual.clientHeight).toBe(48);
+  expect(container.querySelector('[data-testid="preview-actual"]')).toBe(actual);
+  expect(container.textContent).toBe("First line\nSecond line");
   act(() =>
     root!.render(
       <TextPreview

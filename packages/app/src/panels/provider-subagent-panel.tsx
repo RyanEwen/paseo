@@ -280,6 +280,7 @@ function ProviderSubagentPanel() {
         </View>
       ) : null}
       <AgentStreamView
+        nativeViewportPlacement="standalone"
         agentId={streamId}
         serverId={serverId}
         context={streamContext}

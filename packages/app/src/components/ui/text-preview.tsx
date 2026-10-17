@@ -1,90 +1,70 @@
-import { inlineUnistylesStyle } from "@/styles/unistyles-inline-style";
-import { isWeb } from "@/constants/platform";
-import { memo, useEffect, useMemo, type KeyboardEvent } from "react";
-import { Text, View, type TextProps } from "react-native";
-import { useTextOverflow } from "@/hooks/use-text-overflow";
+import { nativeTextPreviewMetrics } from "./native-text-preview-metrics";
+import { memo, useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { Text, View, type TextProps, type TextLayoutEvent } from "react-native";
 
-/** A clamped Text with an inaccessible, identically styled full-layout probe. The probe
- * takes no layout space and reports real wrapping, including font and width changes.
- */
+/** Native measures its actual natural Text, never a hidden second renderer. The
+ * clip ends at the measured final visible line. No native ellipsizing is applied
+ * before measurement, so newline/wrapping/font changes report real overflow. */
 export const TextPreview = memo(function TextPreview({
   children,
   numberOfLines,
+  expanded = false,
   onOverflowChange,
-  onKeyDown,
-  tabIndex,
+  onTextLayout,
+  style,
+  onKeyDown: _onKeyDown,
+  tabIndex: _tabIndex,
   ...props
 }: TextProps & {
   children: string;
   numberOfLines: number;
-  onOverflowChange: (overflowing: boolean) => void;
+  expanded?: boolean;
+  onOverflowChange(overflowing: boolean): void;
   onKeyDown?: (event: KeyboardEvent<HTMLElement>) => void;
   tabIndex?: number;
 }) {
-  // RN web's one-line shortcut flattens newlines. Use its multiline CSS clamp even
-  // for one line so the copied prefix has the same wrapping as the original Text.
-  const clampedStyle = useMemo(
-    () => [
-      props.style,
-      isWeb
-        ? inlineUnistylesStyle({
-            overflow: "hidden" as const,
-            WebkitLineClamp: numberOfLines,
-            whiteSpace: "pre-wrap",
-            wordWrap: "break-word",
-          })
-        : undefined,
-    ],
-    [props.style, numberOfLines],
+  const [measurement, setMeasurement] = useState<{
+    text: string;
+    height: number;
+    count: number;
+    lines: number;
+  } | null>(null);
+  const measure = useCallback(
+    (event: TextLayoutEvent) => {
+      const lines = event.nativeEvent.lines;
+      const { height } = nativeTextPreviewMetrics(lines, numberOfLines);
+      setMeasurement((previous) =>
+        previous?.text === children &&
+        previous.height === height &&
+        previous.count === lines.length &&
+        previous.lines === numberOfLines
+          ? previous
+          : { text: children, height, count: lines.length, lines: numberOfLines },
+      );
+      onTextLayout?.(event);
+    },
+    [children, numberOfLines, onTextLayout],
   );
-  const overflow = useTextOverflow(children, numberOfLines);
-  useEffect(
-    () => onOverflowChange(overflow.overflowing),
-    [children, numberOfLines, onOverflowChange, overflow.overflowing],
+  const current =
+    measurement?.text === children && measurement.lines === numberOfLines ? measurement : null;
+  useEffect(() => {
+    if (current) onOverflowChange(current.count > numberOfLines);
+  }, [current, numberOfLines, onOverflowChange]);
+  const clip = useMemo(
+    () => ({
+      minWidth: 0,
+      flexShrink: 1,
+      overflow: "hidden" as const,
+      height: expanded ? undefined : (current?.height ?? 0),
+    }),
+    [expanded, current?.height],
   );
+  const textStyle = useMemo(() => [style, { flexShrink: 0 }], [style]);
   return (
-    <View style={styles.container}>
-      <Text
-        {...props}
-        {...{ onKeyDown, tabIndex }}
-        style={clampedStyle}
-        numberOfLines={isWeb ? Math.max(2, numberOfLines) : numberOfLines}
-        ref={overflow.ref}
-        onLayout={overflow.onLayout}
-      >
+    <View style={clip}>
+      <Text {...props} style={textStyle} onTextLayout={measure}>
         {children}
       </Text>
-      <View
-        style={styles.measurement}
-        pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        aria-hidden
-      >
-        <Text
-          {...props}
-          selectable={false}
-          dataSet={undefined}
-          onLayout={overflow.onFullLayout}
-          onPress={undefined}
-          onLongPress={undefined}
-          style={props.style}
-          accessible={false}
-          accessibilityRole={undefined}
-          accessibilityLabel={undefined}
-          accessibilityHint={undefined}
-          ref={overflow.fullRef}
-          onTextLayout={overflow.onFullTextLayout}
-          testID="text-preview-measurement"
-        >
-          {children}
-        </Text>
-      </View>
     </View>
   );
 });
-
-const styles = {
-  container: { minWidth: 0, flexShrink: 1 },
-  measurement: { position: "absolute" as const, top: 0, left: 0, right: 0, opacity: 0 },
-};

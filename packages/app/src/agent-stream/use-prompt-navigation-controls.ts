@@ -9,6 +9,7 @@ export interface PromptNavigationControls {
   actionVisibleMessageId?: string;
   previousKnownBoundary: boolean;
   activate: PromptNavigation["activate"];
+  reveal: PromptNavigation["reveal"];
 }
 
 /** Keep streamed assistant text out of the context consumed by every original prompt's buttons. */
@@ -19,9 +20,9 @@ export function usePromptNavigationControls(
     targets.map((target) => target.item?.id),
   );
   const targetIds = selectIds(navigation.targets);
-  const { busy, previousKnownBoundary, activate, actionVisibleMessageId } = navigation;
+  const { busy, previousKnownBoundary, activate, reveal, actionVisibleMessageId } = navigation;
   return useMemo(
-    () => ({ targetIds, busy, previousKnownBoundary, activate, actionVisibleMessageId }),
-    [targetIds, busy, previousKnownBoundary, activate, actionVisibleMessageId],
+    () => ({ targetIds, busy, previousKnownBoundary, activate, reveal, actionVisibleMessageId }),
+    [targetIds, busy, previousKnownBoundary, activate, reveal, actionVisibleMessageId],
   );
 }

@@ -14,7 +14,7 @@ All switches in **Optional features** start enabled. Display preferences have in
 
 ### Keep user prompts in view
 
-Prompts pin as their bubbles reach the top, with one visible copy in a solid bubble over a transparent surrounding container. More… appears beside the pinned preview when text or attachment details are hidden. Click a pinned message to return to it, or use the arrows to move between pinned prompts without moving the controls. Newer messages pass over older pinned messages. Navigation arrows sit beside copy and rewind controls, appearing on hover on desktop and staying visible on touch screens. After arrow navigation, the destination’s controls stay visible until you move the mouse. Jump to latest sits above the composer’s right edge.
+User messages start collapsed to one line and the actual message row sticks when it reaches the top. More… expands the full message and attachments in place; long expanded bodies scroll while Less… and navigation stay reachable. Click a pinned message to return to its original position, or use the arrows to move between pinned prompts without moving the controls. Newer messages push the preceding pinned row away. Navigation arrows sit beside copy and rewind controls, appearing on hover on desktop and staying visible on touch screens. After arrow navigation, the destination’s controls stay visible until you move the mouse. Jump to latest sits above the composer’s right edge.
 
 ### Readable tool activity
 

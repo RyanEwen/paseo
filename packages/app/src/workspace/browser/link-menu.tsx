@@ -9,7 +9,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from "@/components/ui/context-menu";
-import { useToast } from "@/contexts/toast-context";
+import { useToast } from "@/contexts/toast-api-context";
 import { isWeb } from "@/constants/platform";
 import { isHttpUrl } from "@/utils/http-url";
 import { useWorkspaceBrowserOpeningContext } from "./context";

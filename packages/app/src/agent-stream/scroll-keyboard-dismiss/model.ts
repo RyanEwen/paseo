@@ -93,6 +93,7 @@ export function recordScroll(
 export function releaseDrag(
   gesture: ScrollKeyboardDismissGesture,
   event: ScrollKeyboardDismissEvent,
+  inverted = true,
 ): { gesture: ScrollKeyboardDismissGesture; shouldDismiss: boolean } {
   if (gesture.phase === "idle") {
     return { gesture, shouldDismiss: false };
@@ -115,7 +116,9 @@ export function releaseDrag(
   }
 
   const spanDurationMs = releaseTs - spanStartTs;
-  const releaseVelocity = spanDurationMs > 0 ? (releaseY - spanStartY) / spanDurationMs : 0;
+  // Positive history velocity always means older messages, regardless of list order.
+  const historyDelta = (releaseY - spanStartY) * (inverted ? 1 : -1);
+  const releaseVelocity = spanDurationMs > 0 ? historyDelta / spanDurationMs : 0;
 
   return {
     gesture: IDLE_SCROLL_KEYBOARD_DISMISS_GESTURE,

@@ -37,6 +37,7 @@ const RECOVERY_TIME_BUDGET_MS = 2000;
  */
 export function createNativePromptJumpController(input: {
   viewport: NativePromptJumpViewport;
+  direction?: "inverted" | "chronological";
   scheduleRetry(callback: () => void): () => void;
   now(): number;
   onFailure(messageId: string): void;
@@ -126,7 +127,12 @@ export function createNativePromptJumpController(input: {
         // Increasing an inverted FlatList offset moves upright content downwards.
         const destination = Math.min(
           position.maxOffset,
-          Math.max(0, position.offset + resolvePromptJumpInset(current.placement) - position.top),
+          Math.max(
+            0,
+            position.offset +
+              (input.direction === "chronological" ? 1 : -1) *
+                (position.top - resolvePromptJumpInset(current.placement)),
+          ),
         );
         if (Math.abs(destination - position.offset) <= 1) {
           current.stable += 1;

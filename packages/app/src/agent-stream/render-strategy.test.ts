@@ -1,3 +1,4 @@
+import { beginDrag, releaseDrag } from "./scroll-keyboard-dismiss/model";
 import { describe, expect, it } from "vitest";
 import type { StreamItem } from "@/types/stream";
 import {
@@ -73,15 +74,15 @@ describe("resolveStreamRenderStrategy", () => {
     });
   });
 
-  it("uses inverted_stream on native", () => {
+  it("uses chronological_native_stream on native", () => {
     const strategy = resolveStreamRenderStrategy({
       platform: "ios",
       isMobileBreakpoint: false,
     });
 
     expect(strategy.shouldUseVirtualizedList()).toBe(true);
-    expect(strategy.getFlatListInverted()).toBe(true);
-    expect(strategy.getOverlayScrollbarInverted()).toBe(true);
+    expect(strategy.getFlatListInverted()).toBe(false);
+    expect(strategy.getOverlayScrollbarInverted()).toBe(false);
     expect(strategy.shouldAnchorBottomOnContentSizeChange()).toBe(false);
     expect(strategy.getBottomAnchorTransportBehavior()).toEqual({
       verificationDelayFrames: 2,
@@ -144,7 +145,7 @@ describe("stream ordering", () => {
     expect(head.map((item) => item.id)).toEqual(["u1", "a1", "a2"]);
   });
 
-  it("reverses inverted_stream order for tail and head", () => {
+  it("preserves chronological_native_stream order for tail and head", () => {
     const strategy = resolveStreamRenderStrategy({
       platform: "android",
       isMobileBreakpoint: false,
@@ -153,26 +154,26 @@ describe("stream ordering", () => {
     const tail = orderTailForStreamRenderStrategy({ strategy, streamItems });
     const head = orderHeadForStreamRenderStrategy({ strategy, streamHead: streamItems });
 
-    expect(tail.map((item) => item.id)).toEqual(["a2", "a1", "u1"]);
-    expect(head.map((item) => item.id)).toEqual(["a2", "a1", "u1"]);
+    expect(tail.map((item) => item.id)).toEqual(["u1", "a1", "a2"]);
+    expect(head.map((item) => item.id)).toEqual(["u1", "a1", "a2"]);
   });
 });
 
 describe("neighbor and traversal semantics", () => {
-  it("maps above/below indices for forward and inverted streams", () => {
+  it("maps above/below indices for web and chronological native streams", () => {
     const forward = resolveStreamRenderStrategy({
       platform: "web",
       isMobileBreakpoint: false,
     });
-    const inverted = resolveStreamRenderStrategy({
+    const native = resolveStreamRenderStrategy({
       platform: "ios",
       isMobileBreakpoint: false,
     });
 
     expect(getStreamNeighborIndex({ strategy: forward, index: 3, relation: "above" })).toBe(2);
     expect(getStreamNeighborIndex({ strategy: forward, index: 3, relation: "below" })).toBe(4);
-    expect(getStreamNeighborIndex({ strategy: inverted, index: 3, relation: "above" })).toBe(4);
-    expect(getStreamNeighborIndex({ strategy: inverted, index: 3, relation: "below" })).toBe(2);
+    expect(getStreamNeighborIndex({ strategy: native, index: 3, relation: "above" })).toBe(2);
+    expect(getStreamNeighborIndex({ strategy: native, index: 3, relation: "below" })).toBe(4);
   });
 
   it("collects assistant response content with strategy traversal direction", () => {
@@ -196,20 +197,20 @@ describe("neighbor and traversal semantics", () => {
       }),
     ).toBe("assistant-1\n\nassistant-2");
 
-    const inverted = resolveStreamRenderStrategy({
+    const native = resolveStreamRenderStrategy({
       platform: "android",
       isMobileBreakpoint: false,
     });
-    const invertedItems = orderTailForStreamRenderStrategy({
-      strategy: inverted,
+    const nativeItems = orderTailForStreamRenderStrategy({
+      strategy: native,
       streamItems: chronological,
     });
-    const invertedStartIndex = invertedItems.findIndex((item) => item.id === "a2");
+    const nativeStartIndex = nativeItems.findIndex((item) => item.id === "a2");
     expect(
       collectAssistantResponseContentForStreamRenderStrategy({
-        strategy: inverted,
-        items: invertedItems,
-        startIndex: invertedStartIndex,
+        strategy: native,
+        items: nativeItems,
+        startIndex: nativeStartIndex,
       }),
     ).toBe("assistant-1\n\nassistant-2");
   });
@@ -284,7 +285,7 @@ describe("scroll/bottom calculations", () => {
     ).toBe(false);
   });
 
-  it("computes near-bottom and scroll-to-bottom offset for inverted_stream", () => {
+  it("computes near-bottom and scroll-to-bottom offset for chronological_native_stream", () => {
     const strategy = resolveStreamRenderStrategy({
       platform: "ios",
       isMobileBreakpoint: false,
@@ -293,7 +294,7 @@ describe("scroll/bottom calculations", () => {
     expect(
       isNearBottomForStreamRenderStrategy({
         strategy,
-        offsetY: 12,
+        offsetY: 688,
         viewportHeight: 300,
         contentHeight: 1000,
         threshold: 24,
@@ -302,7 +303,7 @@ describe("scroll/bottom calculations", () => {
     expect(
       isNearBottomForStreamRenderStrategy({
         strategy,
-        offsetY: 40,
+        offsetY: 660,
         viewportHeight: 300,
         contentHeight: 1000,
         threshold: 24,
@@ -314,7 +315,7 @@ describe("scroll/bottom calculations", () => {
         viewportHeight: 300,
         contentHeight: 1000,
       }),
-    ).toBe(0);
+    ).toBe(700);
   });
 
   it("maps scroll-to-bottom to max offset for forward_stream", () => {
@@ -334,13 +335,13 @@ describe("scroll/bottom calculations", () => {
 });
 
 describe("edge slot semantics", () => {
-  it("uses footer slot for forward_stream and header slot for inverted_stream", () => {
+  it("uses footer slot for forward_stream and footer slot for chronological_native_stream", () => {
     const EdgeSlot = () => null;
     const forward = resolveStreamRenderStrategy({
       platform: "web",
       isMobileBreakpoint: false,
     });
-    const inverted = resolveStreamRenderStrategy({
+    const native = resolveStreamRenderStrategy({
       platform: "android",
       isMobileBreakpoint: false,
     });
@@ -350,8 +351,8 @@ describe("edge slot semantics", () => {
       component: EdgeSlot,
       gapSize: 4,
     });
-    const invertedProps = getStreamEdgeSlotProps({
-      strategy: inverted,
+    const nativeProps = getStreamEdgeSlotProps({
+      strategy: native,
       component: EdgeSlot,
       gapSize: 4,
     });
@@ -360,9 +361,9 @@ describe("edge slot semantics", () => {
       ListFooterComponent: EdgeSlot,
       ListFooterComponentStyle: { marginTop: 4 },
     });
-    expect(invertedProps).toEqual({
-      ListHeaderComponent: EdgeSlot,
-      ListHeaderComponentStyle: { marginBottom: 4 },
+    expect(nativeProps).toEqual({
+      ListFooterComponent: EdgeSlot,
+      ListFooterComponentStyle: { marginTop: 4 },
     });
   });
 });
@@ -378,13 +379,13 @@ describe("layout strategy edges", () => {
       platform: "web",
       isMobileBreakpoint: false,
     });
-    const inverted = resolveStreamRenderStrategy({
+    const native = resolveStreamRenderStrategy({
       platform: "android",
       isMobileBreakpoint: false,
     });
 
     const forwardHistory = orderTailForStreamRenderStrategy({ strategy: forward, streamItems });
-    const invertedHistory = orderTailForStreamRenderStrategy({ strategy: inverted, streamItems });
+    const nativeHistory = orderTailForStreamRenderStrategy({ strategy: native, streamItems });
 
     expect(
       getHistoryLiveBoundaryIndexForStreamRenderStrategy({
@@ -394,10 +395,10 @@ describe("layout strategy edges", () => {
     ).toBe(1);
     expect(
       getHistoryLiveBoundaryIndexForStreamRenderStrategy({
-        strategy: inverted,
-        history: invertedHistory,
+        strategy: native,
+        history: nativeHistory,
       }),
-    ).toBe(0);
+    ).toBe(1);
   });
 
   it("uses the oldest live-head edge as the live-head/history boundary", () => {
@@ -405,7 +406,7 @@ describe("layout strategy edges", () => {
       platform: "web",
       isMobileBreakpoint: false,
     });
-    const inverted = resolveStreamRenderStrategy({
+    const native = resolveStreamRenderStrategy({
       platform: "ios",
       isMobileBreakpoint: false,
     });
@@ -414,8 +415,8 @@ describe("layout strategy edges", () => {
       strategy: forward,
       streamHead: streamItems,
     });
-    const invertedHead = orderHeadForStreamRenderStrategy({
-      strategy: inverted,
+    const nativeHead = orderHeadForStreamRenderStrategy({
+      strategy: native,
       streamHead: streamItems,
     });
 
@@ -427,18 +428,18 @@ describe("layout strategy edges", () => {
     ).toBe(0);
     expect(
       getLiveHeadHistoryBoundaryIndexForStreamRenderStrategy({
-        strategy: inverted,
-        liveHead: invertedHead,
+        strategy: native,
+        liveHead: nativeHead,
       }),
-    ).toBe(1);
+    ).toBe(0);
   });
 
-  it("names the frame child order needed by native inverted cells", () => {
+  it("names the frame child order needed by chronological native cells", () => {
     const forward = resolveStreamRenderStrategy({
       platform: "web",
       isMobileBreakpoint: false,
     });
-    const inverted = resolveStreamRenderStrategy({
+    const native = resolveStreamRenderStrategy({
       platform: "android",
       isMobileBreakpoint: false,
     });
@@ -446,8 +447,23 @@ describe("layout strategy edges", () => {
     expect(getFrameChildOrderForStreamRenderStrategy({ strategy: forward })).toBe(
       "content-then-footer",
     );
-    expect(getFrameChildOrderForStreamRenderStrategy({ strategy: inverted })).toBe(
-      "footer-then-content",
+    expect(getFrameChildOrderForStreamRenderStrategy({ strategy: native })).toBe(
+      "content-then-footer",
     );
+  });
+});
+
+describe("native keyboard dismissal direction", () => {
+  it("uses the chronological strategy direction for older-history flicks", () => {
+    const strategy = resolveStreamRenderStrategy({ platform: "android", isMobileBreakpoint: true });
+    const start = { timeStamp: 1000, nativeEvent: { contentOffset: { y: 500 }, timestamp: 1000 } };
+    const release = {
+      timeStamp: 1080,
+      nativeEvent: { contentOffset: { y: 260 }, timestamp: 1080 },
+    };
+    expect(strategy.getFlatListInverted()).toBe(false);
+    expect(
+      releaseDrag(beginDrag(start), release, strategy.getFlatListInverted()).shouldDismiss,
+    ).toBe(true);
   });
 });
