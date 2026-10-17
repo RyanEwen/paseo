@@ -450,7 +450,7 @@ function ignorePreviewOverflow(_overflowing: boolean): void {
   return;
 }
 
-/** Keep source text laid out while the pinned copy exclusively paints its measured prefix. */
+/** Keep the actual message text mounted while disclosure changes its visible height. */
 function UserMessageText({
   message,
   hasText,

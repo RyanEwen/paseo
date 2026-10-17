@@ -259,7 +259,8 @@ export function resolveBottomAnchorTransportBehavior(input: {
   isViewportSettling: boolean;
 }): BottomAnchorTransportBehavior {
   const baseBehavior = input.strategy.getBottomAnchorTransportBehavior();
-  if (!input.isViewportSettling || !input.strategy.getFlatListInverted()) {
+  // Settling verification follows the transport policy even with chronological native rows.
+  if (!input.isViewportSettling || baseBehavior.verificationRetryMode !== "recheck") {
     return baseBehavior;
   }
   return {
