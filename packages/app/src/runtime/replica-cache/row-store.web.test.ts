@@ -49,3 +49,25 @@ it("uses exact IndexedDB keys for targeted rows instead of scanning the host", a
   get.mockRestore();
   getAll.mockRestore();
 });
+
+it.each([null, undefined])(
+  "does not mistake a present malformed payload %s for an absent key",
+  async (payload) => {
+    const store = createIndexedDbReplicaRowStore({
+      databaseName: `replica-row-store-malformed-${databaseSequence++}`,
+      schemaVersion: 1,
+    });
+    await store.open();
+    const row = {
+      serverId: "server-a",
+      kind: "checkpoint" as const,
+      id: "singleton",
+      payload: payload as unknown as string,
+    };
+    await store.apply({ upserts: [row], deletes: [] });
+    expect(
+      await store.applyIfUnchanged({ deletes: [row], upserts: [] }, [{ ...row, payload: null }]),
+    ).toBe(false);
+    expect(await store.read("server-a", ["checkpoint"])).toEqual([row]);
+  },
+);

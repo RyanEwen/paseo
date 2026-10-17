@@ -610,6 +610,20 @@ function createMemoryReplicaRowStore(): ReplicaRowStore {
       for (const key of changes.deletes) rows.delete(keyOf(key));
       for (const row of changes.upserts) rows.set(keyOf(row), row);
     },
+    applyIfUnchanged: async (changes, expected) => {
+      if (
+        expected.some((condition) => {
+          const current = rows.get(keyOf(condition));
+          return condition.payload === null
+            ? current !== undefined
+            : current === undefined || current.payload !== condition.payload;
+        })
+      )
+        return false;
+      for (const key of changes.deletes) rows.delete(keyOf(key));
+      for (const row of changes.upserts) rows.set(keyOf(row), row);
+      return true;
+    },
     deleteHost: async (serverId) => {
       for (const [key, row] of rows) if (row.serverId === serverId) rows.delete(key);
     },
