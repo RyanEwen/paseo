@@ -1,24 +1,30 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ScrollView, View } from "react-native";
 import { useAnimatedRef, useScrollOffset } from "react-native-reanimated";
-import { anchorProjectExpansion } from "./project-expansion-anchor";
+import {
+  anchorProjectExpansion,
+  type ProjectExpansionFollowing,
+  createProjectScrollRef,
+} from "./project-expansion-anchor";
 
 export function useProjectExpansionScroll(duration: number) {
   const animatedRef = useAnimatedRef<ScrollView>();
-  const ref = useCallback(
-    (node: ScrollView | null) => {
-      animatedRef(node);
-    },
-    [animatedRef],
-  );
+  const ref = useMemo(() => createProjectScrollRef(animatedRef), [animatedRef]);
   // NestableScrollContainer owns onScroll; subscribe to its native tag without replacing it.
   const offset = useScrollOffset(animatedRef);
-  const stop = useRef<(() => void) | null>(null);
+  const stop = useRef<ProjectExpansionFollowing | null>(null);
   const cancel = useCallback(() => {
-    stop.current?.();
+    stop.current?.cancel();
     stop.current = null;
   }, []);
-  useEffect(() => cancel, [cancel, duration]);
+  useEffect(() => cancel(), [cancel, duration]);
+  useEffect(
+    () => () => {
+      stop.current?.dispose();
+      stop.current = null;
+    },
+    [],
+  );
   const anchor = useCallback(
     (target: View, toggle: () => void) => {
       cancel();

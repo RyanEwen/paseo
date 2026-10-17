@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { ScrollView, View } from "react-native";
-import { anchorProjectExpansion } from "./project-expansion-anchor";
+import { anchorProjectExpansion, type ProjectExpansionFollowing } from "./project-expansion-anchor";
 
 export function useProjectExpansionScroll(duration: number) {
   const ref = useRef<ScrollView>(null);
-  const stop = useRef<(() => void) | null>(null);
+  const stop = useRef<ProjectExpansionFollowing | null>(null);
   const cancel = useCallback(() => {
-    stop.current?.();
+    stop.current?.cancel();
     stop.current = null;
   }, []);
   const anchor = useCallback(
@@ -38,15 +38,17 @@ export function useProjectExpansionScroll(duration: number) {
     },
     [cancel, duration],
   );
+  useEffect(() => cancel(), [cancel, duration]);
   useEffect(() => {
     const viewport: unknown = ref.current?.getScrollableNode();
-    if (!(viewport instanceof HTMLElement)) return cancel;
+    if (!(viewport instanceof HTMLElement)) return;
     const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
     for (const event of events) viewport.addEventListener(event, cancel, { passive: true });
     return () => {
-      cancel();
+      stop.current?.dispose();
+      stop.current = null;
       for (const event of events) viewport.removeEventListener(event, cancel);
     };
-  }, [cancel, duration]);
+  }, [cancel]);
   return { ref, anchor, cancel };
 }
