@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MIN_WORKSPACE_TAB_WIDTH,
   computeWorkspaceTabLayout,
   retainWorkspaceTabMeasuredWidth,
 } from "@/screens/workspace/workspace-tab-layout";
@@ -18,6 +19,26 @@ const metrics = {
 };
 
 describe("computeWorkspaceTabLayout", () => {
+  it("keeps short desktop tab names at the minimum width", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 1200,
+      tabLabelWidths: [0, 29, 52, 400],
+      metrics: { ...metrics, minTabWidth: MIN_WORKSPACE_TAB_WIDTH },
+    });
+    expect(result.items.map((item) => item.width)).toEqual([96, 96, 96, 160]);
+    expect(result.requiresHorizontalScrollFallback).toBe(false);
+  });
+  it("scrolls instead of shrinking desktop tabs below the minimum", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 260,
+      tabLabelWidths: [29, 52, 180],
+      metrics: { ...metrics, minTabWidth: MIN_WORKSPACE_TAB_WIDTH },
+    });
+    expect(result.items.map((item) => item.width)).toEqual([96, 96, 96]);
+    expect(result.requiresHorizontalScrollFallback).toBe(true);
+    expect(result.items.every((item) => item.showLabel)).toBe(true);
+  });
+
   it("keeps each tab at its natural content width when space is available", () => {
     const result = computeWorkspaceTabLayout({
       viewportWidth: 1200,

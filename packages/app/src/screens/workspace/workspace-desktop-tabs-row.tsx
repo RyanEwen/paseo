@@ -49,7 +49,10 @@ import { buttonControlHeight } from "@/components/ui/control-geometry";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { Shortcut } from "@/components/ui/shortcut";
 import { useWorkspaceTabLayout } from "@/screens/workspace/use-workspace-tab-layout";
-import { retainWorkspaceTabMeasuredWidth } from "@/screens/workspace/workspace-tab-layout";
+import {
+  MIN_WORKSPACE_TAB_WIDTH,
+  retainWorkspaceTabMeasuredWidth,
+} from "@/screens/workspace/workspace-tab-layout";
 import {
   WorkspaceTabPresentationResolver,
   WorkspaceTabIcon,
@@ -109,7 +112,6 @@ const TAB_ICON_WIDTH = 14;
 const TAB_CONTENT_GAP = 4;
 const TAB_DROP_INDICATOR_WIDTH = 4;
 const TAB_MODIFIED_DOT_SIZE = 8;
-const TAB_MIN_WIDTH = 64;
 const TAB_MAX_WIDTH = 160;
 const TAB_CLOSE_BUTTON_RESERVED_WIDTH = 0;
 const TAB_LABEL_LAYOUT_ALLOWANCE = 4;
@@ -1075,7 +1077,7 @@ function ResolvedWorkspaceDesktopTabsRow({
       ),
       rowPaddingHorizontal: TAB_ROW_PADDING_HORIZONTAL,
       tabGap: TAB_CHIP_GAP,
-      minTabWidth: TAB_MIN_WIDTH,
+      minTabWidth: MIN_WORKSPACE_TAB_WIDTH,
       maxTabWidth: TAB_MAX_WIDTH,
       tabIconWidth: TAB_ICON_WIDTH,
       tabContentGap: TAB_CONTENT_GAP,
