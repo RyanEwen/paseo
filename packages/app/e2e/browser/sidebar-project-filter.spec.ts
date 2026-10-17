@@ -37,6 +37,8 @@ async function readScrollTop(scroll: Locator): Promise<number> {
 
 /** Walk the production menu's registered order; pre-existing cached projects may precede the seed. */
 async function arrowDownToMenuItem(page: Page, surface: Locator, target: Locator): Promise<void> {
+  // The chooser opens from cached metadata before its host inventory has necessarily arrived.
+  await expect(target).toBeVisible();
   const itemCount = await surface
     .locator('[data-menu-item="true"]:not([data-menu-disabled="true"])')
     .count();
