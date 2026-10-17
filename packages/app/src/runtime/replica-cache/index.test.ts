@@ -336,6 +336,142 @@ async function expectCurrentWorkspaceRefresh({
 }
 
 describe("ReplicaCache", () => {
+  it("retains repair invalidation when another host merges into its namespace", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    const renamed = SERVER_ID;
+    cached.reader.setHosts([SERVER_ID, "alias-host"]);
+    const checkpoint = {
+      ...cached.baseline.checkpoint,
+      agents: { generation: "renamed-agent", afterSeq: 77 },
+    };
+    cached.storage.beforeConditionalApply = () => {
+      cached.reader.commitDirectoryMutations(SERVER_ID, [], checkpoint);
+      cached.reader.reconcileServerId("alias-host", renamed);
+    };
+    await cached.reader.readDirectory(SERVER_ID);
+    await cached.reader.flush();
+    const reopened = new ReplicaCache(cached.storage, noLegacyCleanup);
+    reopened.setHosts([renamed]);
+    const restored = await reopened.readDirectory(renamed);
+    expect(restored.workspaces.size).toBe(0);
+    expect(restored.checkpoint).toEqual({
+      agents: checkpoint.agents,
+      projects: checkpoint.projects,
+    });
+    expect(await cached.storage.read("alias-host", ["workspace", "checkpoint"])).toEqual([]);
+    cached.baseline.workspaces.set(
+      "workspace-1",
+      normalizeWorkspaceDescriptor({ ...workspacePayload(), background: true }),
+    );
+    cached.reader.replaceDirectoryBaseline(renamed, cached.baseline);
+    await cached.reader.flush();
+    expect((await reopened.readDirectory(renamed)).workspaces.get("workspace-1")?.background).toBe(
+      true,
+    );
+    expect((await reopened.readDirectory(renamed)).checkpoint).toEqual(cached.baseline.checkpoint);
+  });
+
+  it("carries repair cursor invalidation through a rename accepted during CAS", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    const renamed = "renamed-host";
+    const checkpoint = {
+      ...cached.baseline.checkpoint,
+      agents: { generation: "renamed-agent", afterSeq: 77 },
+    };
+    cached.storage.beforeConditionalApply = () => {
+      cached.reader.commitDirectoryMutations(SERVER_ID, [], checkpoint);
+      cached.reader.reconcileServerId(SERVER_ID, renamed);
+    };
+    await cached.reader.readDirectory(SERVER_ID);
+    await cached.reader.flush();
+    const reopened = new ReplicaCache(cached.storage, noLegacyCleanup);
+    reopened.setHosts([renamed]);
+    const restored = await reopened.readDirectory(renamed);
+    expect(restored.workspaces.size).toBe(0);
+    expect(restored.checkpoint).toEqual({
+      agents: checkpoint.agents,
+      projects: checkpoint.projects,
+    });
+    expect(await cached.storage.read(SERVER_ID, ["workspace", "checkpoint"])).toEqual([]);
+    cached.baseline.workspaces.set(
+      "workspace-1",
+      normalizeWorkspaceDescriptor({ ...workspacePayload(), background: true }),
+    );
+    cached.reader.replaceDirectoryBaseline(renamed, cached.baseline);
+    await cached.reader.flush();
+    expect((await reopened.readDirectory(renamed)).workspaces.get("workspace-1")?.background).toBe(
+      true,
+    );
+    expect((await reopened.readDirectory(renamed)).checkpoint).toEqual(cached.baseline.checkpoint);
+  });
+
+  it("keeps repaired workspace cursors invalid across concurrent and later stale checkpoints", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    const newer = {
+      ...cached.baseline.checkpoint,
+      agents: { generation: "new-agent", afterSeq: 99 },
+    };
+    cached.storage.beforeConditionalApply = () =>
+      cached.reader.commitDirectoryMutations(
+        SERVER_ID,
+        [{ kind: "agent", type: "upsert", id: "agent-1", value: agent() }],
+        newer,
+      );
+    await cached.reader.readDirectory(SERVER_ID);
+    await cached.reader.flush();
+    let restored = await createCache(cached.storage).readDirectory(SERVER_ID);
+    expect(restored.workspaces.size).toBe(0);
+    expect(restored.checkpoint).toEqual({ agents: newer.agents, projects: newer.projects });
+    cached.reader.commitDirectoryMutations(SERVER_ID, [], newer);
+    await cached.reader.flush();
+    restored = await createCache(cached.storage).readDirectory(SERVER_ID);
+    expect(restored.checkpoint).toEqual({ agents: newer.agents, projects: newer.projects });
+    expect(await cached.reader.readTimeline(SERVER_ID, "agent-1")).toEqual(timeline());
+  });
+
+  it("allows a complete baseline with the same cursor accepted during repair", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    cached.baseline.workspaces.set(
+      "workspace-1",
+      normalizeWorkspaceDescriptor({ ...workspacePayload(), background: true }),
+    );
+    cached.storage.beforeConditionalApply = () =>
+      cached.reader.replaceDirectoryBaseline(SERVER_ID, cached.baseline);
+    await cached.reader.readDirectory(SERVER_ID);
+    await cached.reader.flush();
+    const restored = await createCache(cached.storage).readDirectory(SERVER_ID);
+    expect(restored.workspaces.get("workspace-1")?.background).toBe(true);
+    expect(restored.checkpoint).toEqual(cached.baseline.checkpoint);
+    cached.reader.commitDirectoryMutations(SERVER_ID, [], cached.baseline.checkpoint);
+    await cached.reader.flush();
+    expect((await createCache(cached.storage).readDirectory(SERVER_ID)).checkpoint).toEqual(
+      cached.baseline.checkpoint,
+    );
+  });
+
+  it.each(["mismatch", "error"] as const)("creates no cursor fence on CAS %s", async (outcome) => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    const workspace = normalizeWorkspaceDescriptor({ ...workspacePayload(), background: true });
+    cached.baseline.workspaces.set("workspace-1", workspace);
+    if (outcome === "error") cached.storage.nextWriteFailure = new Error("repair failed");
+    else
+      cached.storage.beforeConditionalApply = async () => {
+        const peer = createCache(cached.storage);
+        peer.replaceDirectoryBaseline(SERVER_ID, cached.baseline);
+        await peer.flush();
+      };
+    await cached.reader.readDirectory(SERVER_ID);
+    cached.reader.commitDirectoryMutations(
+      SERVER_ID,
+      [{ kind: "workspace", type: "upsert", id: "workspace-1", value: workspace }],
+      cached.baseline.checkpoint,
+    );
+    await cached.reader.flush();
+    expect((await createCache(cached.storage).readDirectory(SERVER_ID)).checkpoint).toEqual(
+      cached.baseline.checkpoint,
+    );
+  });
+
   it("rebuilds budget accounting after committed repair invalidates read publication", async () => {
     const other = "other-host";
     const storage = new MemoryStorage();
