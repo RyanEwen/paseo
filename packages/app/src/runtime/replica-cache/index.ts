@@ -919,6 +919,13 @@ function validateWorkspaceSnapshot(
 
 export class ReplicaCache {
   private readonly activeServerIds = new Set<string>();
+  private readonly hostIncarnations = new Map<string, symbol>();
+  private readonly repairNamespaces = new Set<{
+    serverId: string;
+    incarnation: symbol | undefined;
+    cancelled: boolean;
+  }>();
+  private readonly invalidDirectoryCursors = new Map<string, Set<keyof DirectoryCheckpoint>>();
   private readonly hostRevisions = new Map<string, number>();
   private readonly storedRows = new Map<string, Map<string, ReplicaRow>>();
   private readonly hostBytes = new Map<string, number>();
@@ -1194,6 +1201,11 @@ export class ReplicaCache {
     guardCheckpoint?: boolean;
   }): Promise<boolean> {
     const { serverId, invalidRows, checkpoint, checkpointRow, revision } = input;
+    const namespace = {
+      serverId,
+      incarnation: this.hostIncarnations.get(serverId),
+      cancelled: false,
+    };
     const checkpointWasInvalid = invalidRows.some(
       (row) => row.kind === "checkpoint" && row.id === REPLICA_SINGLETON_ROW_ID,
     );
@@ -1224,6 +1236,7 @@ export class ReplicaCache {
       const key = { serverId, kind: "checkpoint" as const, id: REPLICA_SINGLETON_ROW_ID };
       expected.set(rowKey(key), { ...key, payload: checkpointRow ? checkpointRow.payload : null });
     }
+    this.repairNamespaces.add(namespace);
     // Retain the caller-visible mismatch/error outcome; the queue tail only sequences work.
     const repair = this.writeQueue
       .catch(() => undefined)
@@ -1235,7 +1248,24 @@ export class ReplicaCache {
         // A committed repair changes durable byte accounting even when publication is stale.
         // Rebuild before the next budget decision, without recreating removed/renamed namespaces.
         this.storedIndexPromise = null;
+        if (
+          !namespace.cancelled &&
+          this.activeServerIds.has(namespace.serverId) &&
+          this.hostIncarnations.get(namespace.serverId) === namespace.incarnation
+        ) {
+          const invalid =
+            this.invalidDirectoryCursors.get(namespace.serverId) ??
+            new Set<keyof DirectoryCheckpoint>();
+          for (const row of invalidRows) {
+            const entity = directoryEntityForRow(row);
+            if (entity) invalid.add(entity);
+          }
+          if (invalid.size) this.invalidDirectoryCursors.set(namespace.serverId, invalid);
+        }
         return this.canReadHostRevision(serverId, revision);
+      })
+      .finally(() => {
+        this.repairNamespaces.delete(namespace);
       });
     this.writeQueue = repair.then(
       () => undefined,
@@ -1319,9 +1349,14 @@ export class ReplicaCache {
     const removed = [...this.activeServerIds].filter((serverId) => !next.has(serverId));
     const added = [...next].filter((serverId) => !this.activeServerIds.has(serverId));
     for (const serverId of [...removed, ...added]) this.advanceHostRevision(serverId);
+    for (const serverId of [...removed, ...added])
+      this.hostIncarnations.set(serverId, Symbol(serverId));
     this.activeServerIds.clear();
     for (const serverId of next) this.activeServerIds.add(serverId);
     for (const serverId of removed) {
+      this.invalidDirectoryCursors.delete(serverId);
+      for (const namespace of this.repairNamespaces)
+        if (namespace.serverId === serverId) namespace.cancelled = true;
       this.removeStoredHost(serverId);
       this.dropPendingHostChanges(serverId);
       this.invalidatedHosts.delete(serverId);
@@ -1330,6 +1365,22 @@ export class ReplicaCache {
   }
 
   reconcileServerId(oldServerId: string, newServerId: string): void {
+    this.hostIncarnations.set(oldServerId, Symbol(oldServerId));
+    this.hostIncarnations.set(newServerId, Symbol(newServerId));
+    for (const namespace of this.repairNamespaces) {
+      if (namespace.cancelled) continue;
+      if (namespace.serverId === oldServerId) namespace.serverId = newServerId;
+      if (namespace.serverId === newServerId)
+        namespace.incarnation = this.hostIncarnations.get(newServerId);
+    }
+    const invalid = this.invalidDirectoryCursors.get(oldServerId);
+    if (invalid) {
+      const combined =
+        this.invalidDirectoryCursors.get(newServerId) ?? new Set<keyof DirectoryCheckpoint>();
+      for (const entity of invalid) combined.add(entity);
+      this.invalidDirectoryCursors.set(newServerId, combined);
+      this.invalidDirectoryCursors.delete(oldServerId);
+    }
     this.advanceHostRevision(oldServerId);
     this.advanceHostRevision(newServerId);
     const rows = this.storedRows.get(oldServerId);
@@ -1377,6 +1428,9 @@ export class ReplicaCache {
       .catch(() => undefined)
       .then(async () => {
         const pending = this.drainPendingChanges();
+        const baselineIncarnations = new Map(
+          [...pending.baselines].map((id) => [id, this.hostIncarnations.get(id)]),
+        );
         try {
           await this.prepareStore();
           await this.ensureStoredIndex();
@@ -1387,7 +1441,11 @@ export class ReplicaCache {
             this.applyStoredChanges(boundedChanges);
           }
           for (const serverId of pending.baselines) {
-            if (!evicted.has(serverId)) this.invalidatedHosts.delete(serverId);
+            if (!evicted.has(serverId)) {
+              this.invalidatedHosts.delete(serverId);
+              if (this.hostIncarnations.get(serverId) === baselineIncarnations.get(serverId))
+                this.invalidDirectoryCursors.delete(serverId);
+            }
           }
         } catch {
           this.restorePendingChanges(pending);
@@ -1465,7 +1523,7 @@ export class ReplicaCache {
     const deletes = new Map(pending.deletes.map((row) => [pendingRowKey(row), row]));
     const upserts: ReplicaRow[] = [];
     for (const upsert of pending.upserts) {
-      const row = this.materializeUpsert(upsert);
+      const row = this.materializeUpsert(upsert, pending.baselines.has(upsert.serverId));
       if (row) upserts.push(row);
       else deletes.set(pendingRowKey(upsert), upsert);
     }
@@ -1482,7 +1540,10 @@ export class ReplicaCache {
     return { upserts, deletes: [...deletes.values()] };
   }
 
-  private materializeUpsert(upsert: StructuredReplicaUpsert): ReplicaRow | null {
+  private materializeUpsert(
+    upsert: StructuredReplicaUpsert,
+    completeBaseline: boolean,
+  ): ReplicaRow | null {
     let value: unknown;
     switch (upsert.kind) {
       case "agent":
@@ -1498,9 +1559,15 @@ export class ReplicaCache {
         value = serializeTimeline(upsert.value);
         if (!value) return null;
         break;
-      case "checkpoint":
-        value = serializeDirectoryCheckpoint(upsert.value);
+      case "checkpoint": {
+        const checkpoint = { ...upsert.value };
+        if (!completeBaseline) {
+          for (const entity of this.invalidDirectoryCursors.get(upsert.serverId) ?? [])
+            delete checkpoint[entity];
+        }
+        value = serializeDirectoryCheckpoint(checkpoint);
         break;
+      }
     }
     return {
       serverId: upsert.serverId,
