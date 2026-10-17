@@ -21,7 +21,7 @@ import {
   resolveEffectiveComposerThinkingOptionId,
   type ProviderSelectionState,
 } from "@/provider-selection/provider-selection";
-import { useDraftStore } from "@/stores/draft-store";
+import { useDraftStore, waitForDraftPersistence } from "@/stores/draft-store";
 import { AfterPaintPublication } from "@/composer/after-paint-publication";
 import { useShallow } from "zustand/shallow";
 import type { ComposerTextSource } from "@/composer/text-source";
@@ -114,6 +114,7 @@ export function useAgentInputDraft(input: UseAgentInputDraftInput): AgentInputDr
   const [hydratedDraftKey, setHydratedDraftKey] = useState<string | null>(null);
   const isHydrated = hydratedDraftKey === draftKey;
   const textReplacementRevisionRef = useRef(0);
+  const localTextRevisionRef = useRef(0);
   const [textReplacement, setTextReplacement] = useState<TextReplacement>(() => ({
     key: `${draftKey}:0`,
     text: textSource.getSnapshot(),
@@ -159,6 +160,7 @@ export function useAgentInputDraft(input: UseAgentInputDraftInput): AgentInputDr
 
   const editText = useCallback(
     (nextText: string) => {
+      localTextRevisionRef.current += 1;
       if (isWeb) {
         textPublication.stage(nextText);
       } else {
@@ -170,6 +172,7 @@ export function useAgentInputDraft(input: UseAgentInputDraftInput): AgentInputDr
 
   const replaceText = useCallback(
     (nextText: string) => {
+      localTextRevisionRef.current += 1;
       textPublication.cancel();
       useDraftStore.getState().editDraftText({ draftKey, text: nextText });
       publishTextReplacement(nextText);
@@ -189,6 +192,7 @@ export function useAgentInputDraft(input: UseAgentInputDraftInput): AgentInputDr
 
   const clear = useCallback(
     (lifecycle: "sent" | "abandoned") => {
+      localTextRevisionRef.current += 1;
       textPublication.cancel();
       useDraftStore.getState().clearDraftInput({ draftKey, lifecycle });
     },
@@ -220,20 +224,27 @@ export function useAgentInputDraft(input: UseAgentInputDraftInput): AgentInputDr
   }, [textPublication]);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    const revision = localTextRevisionRef.current;
     void (async () => {
+      const result = await waitForDraftPersistence(controller.signal);
+      if (result !== "ready" || controller.signal.aborted) return;
+      // A browser edit may still be queued after paint. Commit it before reading restored text.
+      textPublication.flush();
       await useDraftStore.getState().hydrateDraftInput({ draftKey });
-      if (!cancelled) {
+      if (controller.signal.aborted) return;
+      if (localTextRevisionRef.current === revision) {
         const hydratedText = useDraftStore.getState().getDraftInput(draftKey)?.text ?? "";
         publishTextReplacement(hydratedText);
-        setHydratedDraftKey(draftKey);
       }
-    })();
+      setHydratedDraftKey(draftKey);
+    })().catch((error: unknown) => {
+      if (!controller.signal.aborted)
+        console.warn("[DraftStore] Failed to hydrate draft input", error);
+    });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [draftKey, publishTextReplacement]);
+    return () => controller.abort();
+  }, [draftKey, publishTextReplacement, textPublication]);
 
   const providerSelection = useMemo<ProviderSelectionState>(
     () => ({

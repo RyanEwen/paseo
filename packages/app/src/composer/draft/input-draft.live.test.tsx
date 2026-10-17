@@ -1,14 +1,21 @@
 /** @vitest-environment jsdom */
 import React, { act } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { useDraftStore } from "@/stores/draft-store";
+import {
+  useDraftStore,
+  waitForDraftPersistence,
+  flushDraftPersistStorage,
+} from "@/stores/draft-store";
+import { DRAFT_STORE_VERSION } from "@/stores/draft-store/state";
 import type { AttachmentMetadata, ComposerAttachment } from "@/attachments/types";
 import { createWorkspaceFileAttachment } from "@/attachments/workspace-file";
 
-const { asyncStorage } = vi.hoisted(() => ({
+const { asyncStorage, draftStorageRead } = vi.hoisted(() => ({
   asyncStorage: new Map<string, string>(),
+  draftStorageRead: { current: null as null | (() => Promise<string | null>) },
 }));
 
 vi.hoisted(() => {
@@ -17,7 +24,10 @@ vi.hoisted(() => {
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
-    getItem: async (key: string) => asyncStorage.get(key) ?? null,
+    getItem: async (key: string) =>
+      key === "paseo-drafts" && draftStorageRead.current
+        ? draftStorageRead.current()
+        : (asyncStorage.get(key) ?? null),
     setItem: async (key: string, value: string) => {
       asyncStorage.set(key, value);
     },
@@ -112,6 +122,7 @@ vi.mock("@/hooks/use-agent-form-state", () => ({
   }),
 }));
 
+const pendingDraftReads = new Set<() => Promise<void>>();
 const mountedRoots = new Set<Root>();
 function createTestRoot(container: HTMLElement): Root {
   const root = createRoot(container);
@@ -123,6 +134,9 @@ afterEach(async () => {
   await act(async () => {
     for (const root of mountedRoots) root.unmount();
     mountedRoots.clear();
+    for (const finish of pendingDraftReads) await finish();
+    pendingDraftReads.clear();
+    draftStorageRead.current = null;
   });
 });
 
@@ -606,5 +620,329 @@ describe("useAgentInputDraft live contract", () => {
       lifecycle: "abandoned",
       input: { text: "", attachments: [] },
     });
+  });
+});
+
+// Delay the actual backing read. Zustand validation, merge, completion and the hook remain real.
+function delayDraftStorageRead(drafts: Record<string, DraftRecordForTest>) {
+  const raw = JSON.stringify({
+    state: { drafts, createModalDraft: null },
+    version: DRAFT_STORE_VERSION,
+  });
+  let resolveRead!: (value: string | null) => void;
+  let rejectRead!: (reason: Error) => void;
+  const read = new Promise<string | null>((resolve, reject) => {
+    resolveRead = resolve;
+    rejectRead = reject;
+  });
+  draftStorageRead.current = () => read;
+  const hydration = Promise.resolve(useDraftStore.persist.rehydrate());
+  const finish = async () => {
+    draftStorageRead.current = null;
+    resolveRead(raw);
+    await hydration;
+  };
+  pendingDraftReads.add(finish);
+  return {
+    finish,
+    fail: async (error: Error) => {
+      draftStorageRead.current = null;
+      rejectRead(error);
+      await hydration;
+    },
+  };
+}
+
+function persistedDraft(text: string): DraftRecordForTest {
+  return {
+    input: { text, attachments: [] },
+    lifecycle: "active",
+    updatedAt: Date.now(),
+    version: 1,
+  };
+}
+
+function mountHydrationProbe() {
+  let latest: ReturnType<typeof useAgentInputDraft> | null = null;
+  const replacements: string[] = [];
+  function Probe({ draftKey }: { draftKey: string }) {
+    latest = useAgentInputDraft({ draftKey });
+    replacements.push(latest.textReplacement.text);
+    return null;
+  }
+  const container = document.getElementById("root");
+  if (!container) throw new Error("Missing root container");
+  const root = createTestRoot(container);
+  const client = new QueryClient();
+  return {
+    latest: () => {
+      if (!latest) throw new Error("Missing hook result");
+      return latest;
+    },
+    replacements,
+    render: async (draftKey: string) => {
+      await act(async () => {
+        root.render(
+          <QueryClientProvider client={client}>
+            <Probe draftKey={draftKey} />
+          </QueryClientProvider>,
+        );
+      });
+    },
+    unmount: async () => {
+      await act(async () => {
+        root.unmount();
+      });
+      mountedRoots.delete(root);
+    },
+  };
+}
+
+function readLocalHydrationDraftText() {
+  return useDraftStore.getState().drafts["draft:local"]?.input.text;
+}
+
+describe("useAgentInputDraft persistence completion", () => {
+  beforeEach(async () => {
+    await flushDraftPersistStorage();
+    asyncStorage.clear();
+    document.body.innerHTML = "<div id='root'></div>";
+    useDraftStore.setState({
+      drafts: {},
+      createModalDraft: null,
+      attachmentFocusRequestByDraftKey: {},
+    });
+    await flushDraftPersistStorage();
+  });
+
+  it("waits for a deferred persisted nonempty draft before publishing its replacement", async () => {
+    const read = delayDraftStorageRead({
+      "draft:delayed": persistedDraft("restored nonempty text"),
+    });
+    const probe = mountHydrationProbe();
+    await probe.render("draft:delayed");
+    expect(useDraftStore.persist.hasHydrated()).toBe(false);
+    expect(probe.latest().isHydrated).toBe(false);
+    const initial = probe.latest().textReplacement;
+    await act(async () => {
+      await read.finish();
+    });
+    expect(useDraftStore.persist.hasHydrated()).toBe(true);
+    expect(probe.latest().isHydrated).toBe(true);
+    expect(probe.latest().textReplacement).not.toBe(initial);
+    expect(probe.latest().textReplacement.text).toBe("restored nonempty text");
+    expect(probe.latest().textSource.getSnapshot()).toBe("restored nonempty text");
+  });
+
+  it.each([
+    {
+      name: "typing",
+      apply: (draft: ReturnType<typeof useAgentInputDraft>) => draft.editText("new local text"),
+      text: "new local text",
+      lifecycle: "active",
+    },
+    {
+      name: "explicit replacement",
+      apply: (draft: ReturnType<typeof useAgentInputDraft>) => draft.replaceText("new replacement"),
+      text: "new replacement",
+      lifecycle: "active",
+    },
+    {
+      name: "clear",
+      apply: (draft: ReturnType<typeof useAgentInputDraft>) => draft.clear("sent"),
+      text: "",
+      lifecycle: "sent",
+    },
+  ])(
+    "preserves $name committed while persistence is pending",
+    async ({ apply, text, lifecycle }) => {
+      const read = delayDraftStorageRead({
+        "draft:local": persistedDraft("older stored text"),
+        "draft:untouched": persistedDraft("other stored draft"),
+      });
+      const probe = mountHydrationProbe();
+      await probe.render("draft:local");
+      await act(async () => {
+        apply(probe.latest());
+        useDraftStore
+          .getState()
+          .saveCreateModalDraft({ text: "local modal draft", attachments: [] });
+        await expect.poll(readLocalHydrationDraftText).toBe(text);
+      });
+      const replacement = probe.latest().textReplacement;
+      await act(async () => {
+        await read.finish();
+      });
+      expect(probe.latest().isHydrated).toBe(true);
+      expect(probe.latest().textReplacement).toBe(replacement);
+      expect(useDraftStore.getState().drafts["draft:local"]).toMatchObject({
+        input: { text },
+        lifecycle,
+      });
+      expect(useDraftStore.getState().getDraftInput("draft:untouched")?.text).toBe(
+        "other stored draft",
+      );
+      expect(useDraftStore.getState().getCreateModalDraft()?.text).toBe("local modal draft");
+    },
+  );
+
+  it("checkpoints the merged drafts and reads both back after a local write during hydration", async () => {
+    const storedA = persistedDraft("A stored");
+    const storedB = persistedDraft("B stored");
+    const initialEnvelope = {
+      state: { drafts: { "draft:a": storedA, "draft:b": storedB }, createModalDraft: null },
+      version: DRAFT_STORE_VERSION,
+    };
+    // Seed only the backing storage; the real store is empty from beforeEach.
+    asyncStorage.set("paseo-drafts", JSON.stringify(initialEnvelope));
+    let releaseRead!: () => void;
+    const readGate = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    let capturedRead: string | null = null;
+    draftStorageRead.current = async () => {
+      // Capture the real backing value at read start, then hold its completion.
+      capturedRead = asyncStorage.get("paseo-drafts") ?? null;
+      await readGate;
+      return capturedRead;
+    };
+    const hydration = Promise.resolve(useDraftStore.persist.rehydrate());
+    const finishRead = async () => {
+      draftStorageRead.current = null;
+      releaseRead();
+      await hydration;
+    };
+    pendingDraftReads.add(finishRead);
+    expect(JSON.parse(capturedRead ?? "null")).toEqual(initialEnvelope);
+
+    const probe = mountHydrationProbe();
+    await probe.render("draft:a");
+    expect(probe.latest().isHydrated).toBe(false);
+    await act(async () => {
+      probe.latest().replaceText("A local");
+    });
+    const localA = useDraftStore.getState().drafts["draft:a"];
+    if (!localA) throw new Error("Expected the local draft write");
+    expect(localA.input).toEqual({ text: "A local", attachments: [] });
+    await flushDraftPersistStorage();
+    // Establish the dangerous intermediate durable state, rather than assuming a write occurred.
+    expect(JSON.parse(asyncStorage.get("paseo-drafts") ?? "null")).toEqual({
+      state: { drafts: { "draft:a": localA }, createModalDraft: null },
+      version: DRAFT_STORE_VERSION,
+    });
+    expect(useDraftStore.persist.hasHydrated()).toBe(false);
+
+    await act(async () => {
+      await finishRead();
+    });
+    expect(probe.latest().isHydrated).toBe(true);
+    expect(useDraftStore.getState().drafts).toEqual({ "draft:a": localA, "draft:b": storedB });
+    // No explicit setState/checkpoint injection: successful hydration's existing GC path queues it.
+    await flushDraftPersistStorage();
+    const mergedEnvelope = {
+      state: { drafts: { "draft:a": localA, "draft:b": storedB }, createModalDraft: null },
+      version: DRAFT_STORE_VERSION,
+    };
+    expect(JSON.parse(asyncStorage.get("paseo-drafts") ?? "null")).toEqual(mergedEnvelope);
+
+    await probe.unmount();
+    // Observe, without replacing, the normal backing getter on the next real rehydrate.
+    const nextRead = vi.spyOn(AsyncStorage, "getItem");
+    try {
+      await act(async () => {
+        await useDraftStore.persist.rehydrate();
+      });
+      expect(nextRead).toHaveBeenCalledWith("paseo-drafts");
+    } finally {
+      nextRead.mockRestore();
+    }
+    expect(useDraftStore.persist.hasHydrated()).toBe(true);
+    const remounted = mountHydrationProbe();
+    await remounted.render("draft:a");
+    expect(remounted.latest().isHydrated).toBe(true);
+    expect(remounted.latest().textReplacement.text).toBe("A local");
+    await remounted.render("draft:b");
+    expect(remounted.latest().isHydrated).toBe(true);
+    expect(remounted.latest().textReplacement.text).toBe("B stored");
+    expect(useDraftStore.getState().drafts).toEqual({ "draft:a": localA, "draft:b": storedB });
+    expect(JSON.parse(asyncStorage.get("paseo-drafts") ?? "null")).toEqual(mergedEnvelope);
+  });
+
+  it("flushes an edit still queued after paint without publishing older restored text", async () => {
+    const read = delayDraftStorageRead({ "draft:queued": persistedDraft("older stored text") });
+    const probe = mountHydrationProbe();
+    await probe.render("draft:queued");
+    const replacement = probe.latest().textReplacement;
+    await act(async () => {
+      probe.latest().editText("queued local text");
+      await read.finish();
+    });
+    expect(probe.latest().textSource.getSnapshot()).toBe("queued local text");
+    expect(probe.latest().textReplacement).toBe(replacement);
+    expect(probe.latest().isHydrated).toBe(true);
+  });
+
+  it("publishes only the current key when the key changes during the read", async () => {
+    const read = delayDraftStorageRead({
+      "draft:a": persistedDraft("A text"),
+      "draft:b": persistedDraft("B text"),
+    });
+    const probe = mountHydrationProbe();
+    await probe.render("draft:a");
+    await probe.render("draft:b");
+    await act(async () => {
+      await read.finish();
+    });
+    expect(probe.latest().textReplacement.text).toBe("B text");
+    expect(probe.latest().textReplacement.key.startsWith("draft:b:")).toBe(true);
+    expect(probe.replacements).not.toContain("A text");
+    expect(probe.latest().isHydrated).toBe(true);
+  });
+
+  it("does not publish to an unmounted hook when the read completes", async () => {
+    const read = delayDraftStorageRead({ "draft:gone": persistedDraft("stored text") });
+    const probe = mountHydrationProbe();
+    await probe.render("draft:gone");
+    const result = probe.latest();
+    await probe.unmount();
+    await act(async () => {
+      await read.finish();
+    });
+    expect(probe.latest()).toBe(result);
+    expect(probe.replacements).not.toContain("stored text");
+    expect(useDraftStore.getState().getDraftInput("draft:gone")?.text).toBe("stored text");
+  });
+
+  it("settles a failed backing read without publishing empty or admitting auto-submit", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const read = delayDraftStorageRead({ "draft:error": persistedDraft("stored text") });
+      const probe = mountHydrationProbe();
+      await probe.render("draft:error");
+      const initial = probe.latest().textReplacement;
+      const waiting = waitForDraftPersistence(new AbortController().signal);
+      await act(async () => {
+        await read.fail(new Error("read failed"));
+      });
+      await expect(waiting).resolves.toBe("failed");
+      expect(useDraftStore.persist.hasHydrated()).toBe(false);
+      expect(probe.latest().isHydrated).toBe(false);
+      expect(probe.latest().textReplacement).toBe(initial);
+      await expect(waitForDraftPersistence(new AbortController().signal)).resolves.toBe("failed");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("releases the abort listener when its pending waiter is cancelled", async () => {
+    const read = delayDraftStorageRead({});
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const waiting = waitForDraftPersistence(controller.signal);
+    controller.abort();
+    await expect(waiting).resolves.toBe("cancelled");
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+    await read.finish();
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 });

@@ -250,6 +250,55 @@ async function migrateAllLegacyDrafts(): Promise<void> {
   }
 }
 
+type DraftHydrationResult = "ready" | "failed" | "cancelled";
+let draftHydrationResult: Exclude<DraftHydrationResult, "cancelled"> | null = null;
+const draftHydrationListeners = new Set<() => void>();
+let draftsBeforeHydration: DraftStoreState | null = null;
+
+/** The persist finish listener omits failures; the owning post-hydration callback covers both. */
+export function waitForDraftPersistence(signal: AbortSignal): Promise<DraftHydrationResult> {
+  return new Promise((resolve) => {
+    const finish = (result: DraftHydrationResult) => {
+      draftHydrationListeners.delete(check);
+      signal.removeEventListener("abort", cancel);
+      resolve(result);
+    };
+    const cancel = () => finish("cancelled");
+    const check = () => {
+      if (signal.aborted) cancel();
+      else if (draftHydrationResult !== null) finish(draftHydrationResult);
+    };
+    draftHydrationListeners.add(check);
+    signal.addEventListener("abort", cancel, { once: true });
+    // Subscribe before checking: completion or cancellation may have already happened.
+    check();
+  });
+}
+
+function mergeHydratedDrafts(persistedState: unknown, currentState: DraftStore): DraftStore {
+  // Validated storage/migration owns the persisted shape, including accepted legacy inputs.
+  const persisted = persistedState as Partial<DraftStoreState> | undefined;
+  const drafts = { ...(persisted?.drafts ?? currentState.drafts) };
+  const before = draftsBeforeHydration;
+  if (before) {
+    // Reference changes identify local writes during this read, including empty tombstones.
+    for (const key of new Set([
+      ...Object.keys(before.drafts),
+      ...Object.keys(currentState.drafts),
+    ])) {
+      if (currentState.drafts[key] === before.drafts[key]) continue;
+      if (currentState.drafts[key]) drafts[key] = currentState.drafts[key];
+      else delete drafts[key];
+    }
+  }
+  let createModalDraft = currentState.createModalDraft;
+  const modalWasEdited = before && currentState.createModalDraft !== before.createModalDraft;
+  if (!modalWasEdited && persisted && "createModalDraft" in persisted) {
+    createModalDraft = persisted.createModalDraft ?? null;
+  }
+  return { ...currentState, drafts, createModalDraft };
+}
+
 export const useDraftStore = create<DraftStore>()(
   persist(
     (set, get) => ({
@@ -351,7 +400,14 @@ export const useDraftStore = create<DraftStore>()(
         set((state) => {
           const existing = state.drafts[draftKey];
           if (!existing) {
-            return state;
+            if (draftHydrationResult !== null || !lifecycle) return state;
+            // A clear during the read must also defeat a not-yet-loaded persisted record.
+            return {
+              drafts: {
+                ...state.drafts,
+                [draftKey]: createDraftRecord({ draft: { text: "", attachments: [] }, lifecycle }),
+              },
+            };
           }
           const cleared = applyClearDraftRecord({
             record: existing,
@@ -435,8 +491,18 @@ export const useDraftStore = create<DraftStore>()(
           migrateLegacyImages,
           nowMs: Date.now(),
         }),
-      onRehydrateStorage: () => {
-        return () => {
+      merge: mergeHydratedDrafts,
+      onRehydrateStorage: (state) => {
+        draftsBeforeHydration = { drafts: state.drafts, createModalDraft: state.createModalDraft };
+        draftHydrationResult = null;
+        return (_state, error) => {
+          draftsBeforeHydration = null;
+          draftHydrationResult = _state === undefined ? "failed" : "ready";
+          for (const listener of draftHydrationListeners) listener();
+          if (_state === undefined) {
+            console.warn("[DraftStore] Failed to hydrate persisted drafts", error);
+            return;
+          }
           void migrateAllLegacyDrafts();
           scheduleAttachmentGc();
         };
