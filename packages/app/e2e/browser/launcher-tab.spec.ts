@@ -72,6 +72,10 @@ test.afterAll(async () => {
 // Tab Creation Tests
 // ═══════════════════════════════════════════════════════════════════════════
 
+function isTerminalTab(id: string): boolean {
+  return id.includes("terminal");
+}
+
 test.describe("Tab creation", () => {
   test("Cmd+T keeps creating a New tab after workspace switches", async ({ page }) => {
     if (!secondWorkspaceId) {
@@ -219,9 +223,9 @@ test.describe("Tab creation", () => {
 
     await expectTerminalSurfaceVisible(page);
 
-    const tabsAfter = await getTabTestIds(page);
-    const terminalTabs = tabsAfter.filter((id) => id.includes("terminal"));
-    expect(terminalTabs.length).toBeGreaterThanOrEqual(1);
+    await expect
+      .poll(async () => (await getTabTestIds(page)).filter(isTerminalTab).length)
+      .toBeGreaterThanOrEqual(1);
   });
 
   test("launching a profile from the New tab menu drops its empty prompt argument", async ({
