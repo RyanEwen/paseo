@@ -151,6 +151,7 @@ describe("translation resources", () => {
         "includeProject",
         "multipleWorkspaces_one",
         "multipleWorkspaces_other",
+        "noKnownProjects",
         "projectWorkspaces",
         "selectOnlyProject",
         "title",
