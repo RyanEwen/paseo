@@ -1,4 +1,8 @@
-import { anchorProjectExpansion } from "./sidebar/project-expansion-anchor";
+import {
+  anchorProjectExpansion,
+  createProjectScrollRef,
+  type ProjectExpansionFollowing,
+} from "./sidebar/project-expansion-anchor";
 /**
  * @vitest-environment jsdom
  */
@@ -462,7 +466,7 @@ describe("accordion expansion scroll anchoring", () => {
     let nextFrame = 0;
     let layoutTop = 900;
     let offset = 600;
-    let cancelled: (() => void) | undefined;
+    let cancelled: ProjectExpansionFollowing | undefined;
     const scrolls: number[] = [];
     const toggle = vi.fn();
     const begin = () => {
@@ -495,7 +499,7 @@ describe("accordion expansion scroll anchoring", () => {
       toggle,
       scrolls,
       frames,
-      cancel: () => cancelled?.(),
+      cancel: () => cancelled?.cancel(),
       top: () => layoutTop - offset,
     };
   }
@@ -535,10 +539,29 @@ describe("accordion expansion scroll anchoring", () => {
     expect(run.frames.size).toBe(0);
   });
 
-  it("ignores an outstanding native measurement after cancellation", () => {
+  it("keeps an accepted expansion when manual input cancels a delayed native measurement", () => {
     let receive: ((value: { headerTop: number; viewportTop: number } | null) => void) | undefined;
     const toggle = vi.fn();
-    const cancel = anchorProjectExpansion({
+    const scrollBy = vi.fn();
+    const following = anchorProjectExpansion({
+      duration: 100,
+      toggle,
+      scrollBy,
+      measure: (callback) => {
+        receive = callback;
+      },
+    });
+    following.cancel();
+    expect(toggle).toHaveBeenCalledTimes(1);
+    receive?.({ headerTop: 300, viewportTop: 0 });
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(scrollBy).not.toHaveBeenCalled();
+  });
+
+  it("discards a delayed expansion only when its owner has unmounted", () => {
+    let receive: ((value: { headerTop: number; viewportTop: number } | null) => void) | undefined;
+    const toggle = vi.fn();
+    const following = anchorProjectExpansion({
       duration: 100,
       toggle,
       scrollBy: vi.fn(),
@@ -546,8 +569,61 @@ describe("accordion expansion scroll anchoring", () => {
         receive = callback;
       },
     });
-    cancel();
+    following.dispose();
     receive?.({ headerTop: 300, viewportTop: 0 });
+    following.cancel();
     expect(toggle).not.toHaveBeenCalled();
+  });
+
+  it("preserves click order when an older native measurement finishes after the next selection", () => {
+    let first: ((value: { headerTop: number; viewportTop: number } | null) => void) | undefined;
+    let second: ((value: { headerTop: number; viewportTop: number } | null) => void) | undefined;
+    const toggles: string[] = [];
+    const older = anchorProjectExpansion({
+      duration: 100,
+      toggle: () => {
+        toggles.push("first");
+      },
+      scrollBy: vi.fn(),
+      measure: (callback) => {
+        first = callback;
+      },
+    });
+    older.cancel();
+    const newer = anchorProjectExpansion({
+      duration: 100,
+      toggle: () => {
+        toggles.push("second");
+      },
+      scrollBy: vi.fn(),
+      measure: (callback) => {
+        second = callback;
+      },
+      requestFrame: () => 1,
+      cancelFrame: () => {},
+    });
+    second?.({ headerTop: 300, viewportTop: 0 });
+    first?.({ headerTop: 300, viewportTop: 0 });
+    expect(toggles).toEqual(["first", "second"]);
+    newer.dispose();
+  });
+
+  it("retains native nested-list measurement and autoscroll access on the React callback ref", () => {
+    const node = { scrollTo: vi.fn() };
+    const animated = Object.assign(
+      (value: typeof node | null) => {
+        if (value) animated.current = value;
+        return value;
+      },
+      { current: null as typeof node | null },
+    );
+    const forwarded = createProjectScrollRef(animated);
+    expect(forwarded(node)).toBeUndefined();
+    expect(forwarded.current).toBe(node);
+    forwarded.current?.scrollTo({ y: 40, animated: false });
+    expect(node.scrollTo).toHaveBeenCalledWith({ y: 40, animated: false });
+    forwarded(null);
+    expect(forwarded.current).toBeNull();
+    expect(animated.current).toBe(node);
   });
 });
