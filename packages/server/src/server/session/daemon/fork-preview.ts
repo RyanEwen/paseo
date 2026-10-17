@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
 
-// Keep bridge discovery on the existing repository; renamed metadata may expose new asset URLs.
-const REPOSITORY = "RyanEwen/paseo";
-const RELEASE_REPOSITORIES = [REPOSITORY, "RyanEwen/paseo-plus-plus"];
+// Discover through the current repository; retain canonical legacy asset URL compatibility.
+const REPOSITORY = "RyanEwen/paseo-plus-plus";
+const RELEASE_REPOSITORIES = [REPOSITORY, "RyanEwen/paseo"];
 const ReleaseSchema = z.object({
   tag_name: z.string(),
   draft: z.boolean(),

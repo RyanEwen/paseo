@@ -409,6 +409,12 @@ for (const viewport of [
       const rowTestId = `sidebar-workspace-row-${key}`;
       const row = page.getByTestId(rowTestId);
       await expect(row).toBeVisible({ timeout: 30_000 });
+      await expect(
+        page.getByTestId(`sidebar-workspace-row-${getServerId()}:${other.workspaceId}`),
+      ).toBeVisible();
+      // Visibility starts during the compact drawer's entrance. Wait for real actionability
+      // before measuring the independent row transition, without clicking or changing focus.
+      await row.click({ trial: true });
       await row.focus();
       await page.screenshot({ path: testInfo.outputPath("motion-before.png") });
       await startSidebarMotionProbe({ page, rowTestId, freeze: true });

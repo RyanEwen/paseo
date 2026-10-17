@@ -253,7 +253,7 @@ export async function selectAllProjectsFilter(page: Page): Promise<void> {
 /** Dismiss the compact sheet through its backdrop, or the desktop popover with Escape. */
 export async function closeSidebarDisplayPreferences(page: Page): Promise<void> {
   const surfaces = page.locator(
-    '[data-testid="sidebar-display-preferences-content"], [data-testid="sidebar-project-selector-content"], [data-testid="sidebar-project-selector-content-content"]',
+    '[data-testid="sidebar-display-preferences-content"], [data-testid="sidebar-display-preferences-content-content"], [data-testid="sidebar-project-selector-content"], [data-testid="sidebar-project-selector-content-content"]',
   );
   if ((await surfaces.count()) === 0) return;
   const backdrop = page.getByRole("button", { name: "Bottom sheet backdrop" }).first();

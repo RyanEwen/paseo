@@ -291,6 +291,60 @@ describe("ReplicaCache", () => {
     );
   });
 
+  it.each([true, false])(
+    "preserves workspace background=%s across durable cache reads",
+    async (background) => {
+      const storage = new MemoryStorage();
+      const writer = createCache(storage);
+      const baseline = directory({ workspaces: { generation: "workspaces", afterSeq: 7 } });
+      baseline.workspaces.get("workspace-1")!.background = background;
+      writer.replaceDirectoryBaseline(SERVER_ID, baseline);
+      await writer.flush();
+
+      const reader = createCache(storage);
+      expect(
+        (await reader.readDirectory(SERVER_ID)).workspaces.get("workspace-1")?.background,
+      ).toBe(background);
+      expect((await reader.readWorkspace(SERVER_ID, "workspace-1"))?.workspace.background).toBe(
+        background,
+      );
+      expect((await reader.readDirectory(SERVER_ID)).checkpoint).toEqual(baseline.checkpoint);
+    },
+  );
+
+  it("refreshes checkpoints written before background visibility was cached while retaining rows", async () => {
+    const storage = new MemoryStorage();
+    const writer = createCache(storage);
+    const baseline = directory({ workspaces: { generation: "workspaces", afterSeq: 7 } });
+    writer.replaceDirectoryBaseline(SERVER_ID, baseline);
+    writer.commitTimeline(SERVER_ID, "agent-1", timeline());
+    await writer.flush();
+    const row = (await storage.read(SERVER_ID, ["workspace"], ["workspace-1"]))[0]!;
+    const payload = JSON.parse(row.payload);
+    delete payload.background;
+    await storage.apply({
+      deletes: [],
+      upserts: [
+        { ...row, payload: JSON.stringify(payload) },
+        {
+          serverId: SERVER_ID,
+          kind: "checkpoint",
+          id: "singleton",
+          payload: JSON.stringify({ version: 1, cursors: baseline.checkpoint }),
+        },
+      ],
+    });
+
+    const reader = createCache(storage);
+    const restored = await reader.readDirectory(SERVER_ID);
+    expect(restored.checkpoint).toBeUndefined();
+    expect([...restored.workspaces.keys()]).toEqual([...baseline.workspaces.keys()]);
+    expect([...restored.projects.keys()]).toEqual([...baseline.projects.keys()]);
+    expect([...restored.agents.keys()]).toEqual([...baseline.agents.keys()]);
+    expect(await reader.readTimeline(SERVER_ID, "agent-1")).toEqual(timeline());
+    expect(await storage.read(SERVER_ID, ["checkpoint"])).toEqual([]);
+  });
+
   it("does nothing until an owner explicitly commits data", async () => {
     const storage = new MemoryStorage();
     const cache = createCache(storage);
