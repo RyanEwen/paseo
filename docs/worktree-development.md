@@ -18,17 +18,20 @@ a branch pair is ready only when the feature changes and checks are current on b
 Resolve dependencies explicitly rather than bringing unrelated fork features into an upstream PR.
 Neither keeping a branch ready nor an upstream request authorizes pushing to upstream.
 
+Keep only our own branches locally and in the fork. Our clean upstream-facing feature branches
+are ours; imported upstream feature branches and published upstream mirrors are not. Fetch
+upstream `main` into a private comparison ref instead of creating an upstream branch.
+
 The fork is [RyanEwen/paseo-plus-plus](https://github.com/RyanEwen/paseo-plus-plus). Its default
 branch is `main`. This development checkout keeps the fork and upstream remotes separate:
 
 | Ref or remote                              | Role                                                                                 |
 | ------------------------------------------ | ------------------------------------------------------------------------------------ |
 | `fork`                                     | RyanEwen/paseo-plus-plus, the destination for fork work.                             |
-| `origin`                                   | getpaseo/paseo, the upstream source. Fork work does not authorize upstream writes.   |
+| `origin`                                   | getpaseo/paseo, fetched only for its main comparison checkpoint. No upstream writes. |
 | `main`, tracking `fork/main`               | Accepted fork features and upstream updates; release source.                         |
 | `integration`, tracking `fork/integration` | Long-lived combined testing branch for selected feature work.                        |
-| `upstream/main`, tracking `origin/main`    | Local upstream mirror used to review upstream synchronization.                       |
-| `fork/upstream/main`                       | Preserved upstream mirror in the fork repository. Its head can lag the local mirror. |
+| `refs/upstream-source/main`                | Private comparison checkpoint for upstream main; not a local or published branch.    |
 | Fork feature branches                      | Own each feature and receive fork `main` updates.                                    |
 | Upstream-facing feature branches           | Keep the same feature ready for an upstream PR without unrelated fork history.       |
 | Temporary review branches                  | Optional bounded reviews before combination in `integration`.                        |
@@ -64,13 +67,17 @@ and explicit owner comparison-ref migration. Do not bulk-push their commits, pru
 active workspaces, or silently replace their bases with `main`. Historical QA receipts retain the
 branch names and source hashes that were actually qualified; they do not define today's workflow.
 
-For upstream synchronization, inspect divergence and preserve both local and remote mirror heads
-before an authorized mirror update. Keep fork changes out of the upstream mirror. Review the
-upstream delta and integrate it into fork `main` through the same review and qualification process;
-do not reset fork `main` to upstream. Review the
-[fork overview](release.md#fork-overview-review) for additions that upstream now provides. A pure
-mirror retains upstream's workflow source, so changing triggers on fork `main` does not enable
-automatic CI on the mirror.
+Configure upstream fetching without a wildcard branch refspec:
+
+```bash
+git config --replace-all remote.origin.fetch '+refs/heads/main:refs/upstream-source/main'
+git fetch --no-tags origin
+```
+
+For upstream synchronization, record the previous and fetched checkpoint SHAs before reviewing
+the delta. Integrate the reviewed upstream changes into fork `main` through the same qualification
+process; do not reset fork `main` to upstream or publish the comparison checkpoint as a branch.
+Review the [fork overview](release.md#fork-overview-review) for additions that upstream now provides.
 
 Release only the exact validated fork integration SHA through
 [fork preview distribution](release.md#fork-preview-distribution). Temporary release coordination
