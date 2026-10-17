@@ -110,6 +110,87 @@ export function runReplicaRowStoreContract(
       ]);
     });
 
+    it("conditionally applies matching payloads and absent keys atomically", async () => {
+      const workspace = row("server-a", "workspace", "workspace-1", "old");
+      const checkpoint = row("server-a", "checkpoint", "singleton", "cursor");
+      const untouched = row("server-b", "agent", "agent-1", "other");
+      await store.apply({ upserts: [workspace, checkpoint, untouched], deletes: [] });
+      expect(
+        await store.applyIfUnchanged(
+          {
+            deletes: [workspace],
+            upserts: [{ ...checkpoint, payload: "refetch" }],
+          },
+          [
+            workspace,
+            checkpoint,
+            { serverId: "server-a", kind: "workspace", id: "absent", payload: null },
+          ],
+        ),
+      ).toBe(true);
+      expect(await store.read("server-a", ["workspace", "checkpoint"])).toEqual([
+        { ...checkpoint, payload: "refetch" },
+      ]);
+      expect(await store.read("server-b", ["agent"])).toEqual([untouched]);
+    });
+
+    it.each(["workspace", "checkpoint"] as const)(
+      "rejects a stale %s across handles without any mutation",
+      async (kind) => {
+        const workspace = row("server-a", "workspace", "workspace-1", "old");
+        const checkpoint = row("server-a", "checkpoint", "singleton", "cursor");
+        await store.apply({ upserts: [workspace, checkpoint], deletes: [] });
+        const peer = await harness.openWithSchemaVersion(1);
+        const replacement = {
+          ...(kind === "workspace" ? workspace : checkpoint),
+          payload: "replacement",
+        };
+        await peer.apply({ upserts: [replacement], deletes: [] });
+        const before = await store.readAll();
+        expect(
+          await store.applyIfUnchanged(
+            { deletes: [workspace], upserts: [{ ...checkpoint, payload: "refetch" }] },
+            [workspace, checkpoint],
+          ),
+        ).toBe(false);
+        expect(await store.readAll()).toEqual(before);
+      },
+    );
+
+    it("rejects insertion at an expected-absent checkpoint across handles", async () => {
+      const workspace = row("server-a", "workspace", "workspace-1", "old");
+      const checkpoint = row("server-a", "checkpoint", "singleton", "new cursor");
+      await store.apply({ upserts: [workspace], deletes: [] });
+      const peer = await harness.openWithSchemaVersion(1);
+      await peer.apply({ upserts: [checkpoint], deletes: [] });
+      expect(
+        await store.applyIfUnchanged({ deletes: [workspace], upserts: [] }, [
+          workspace,
+          { ...checkpoint, payload: null },
+        ]),
+      ).toBe(false);
+      expect(await store.read("server-a", ["workspace", "checkpoint"])).toEqual([
+        checkpoint,
+        workspace,
+      ]);
+    });
+
+    it("rejects and rolls back a failed conditional transaction", async () => {
+      const workspace = row("server-a", "workspace", "workspace-1", "old");
+      const invalid = {
+        ...row("server-a", "agent", "invalid", "invalid"),
+        serverId: undefined,
+      } as unknown as ReplicaRow;
+      await store.apply({ upserts: [workspace], deletes: [] });
+      await expect(
+        store.applyIfUnchanged(
+          { deletes: [workspace], upserts: [row("server-a", "agent", "new", "value"), invalid] },
+          [workspace],
+        ),
+      ).rejects.toBeInstanceOf(Error);
+      expect(await store.read("server-a", ["workspace", "agent"])).toEqual([workspace]);
+    });
+
     it("rolls back the entire apply when one write fails", async () => {
       const invalidRow = {
         ...row("server-a", "agent", "invalid", "invalid"),

@@ -1,3 +1,4 @@
+import { REPLICA_SINGLETON_ROW_ID } from "./row-store-schema";
 import { describe, expect, it } from "vitest";
 import type { WorkspaceDescriptorPayload } from "@getpaseo/protocol/messages";
 import {
@@ -9,7 +10,13 @@ import type { StreamItem } from "@/types/stream";
 import { normalizeAgentSnapshot } from "@/utils/agent-snapshots";
 import { ReplicaCache } from ".";
 import type { DirectoryCheckpoint } from "@/runtime/replica-cache";
-import type { ReplicaHostRows, ReplicaRow, ReplicaRowChanges, ReplicaRowStore } from "./row-store";
+import type {
+  ReplicaHostRows,
+  ReplicaRow,
+  ReplicaRowChanges,
+  ReplicaRowExpectation,
+  ReplicaRowStore,
+} from "./row-store";
 
 const SERVER_ID = "cached-host";
 
@@ -29,6 +36,8 @@ class MemoryStorage implements ReplicaRowStore {
     kinds: readonly ReplicaRow["kind"][];
     ids?: readonly string[];
   }> = [];
+  beforeConditionalApply: (() => void | Promise<void>) | null = null;
+  reverseReadResults = false;
   writes = 0;
   cleanups = 0;
   nextWriteFailure: Error | null = null;
@@ -59,12 +68,13 @@ class MemoryStorage implements ReplicaRowStore {
     await this.readGate;
     const acceptedKinds = new Set(kinds);
     const acceptedIds = ids ? new Set(ids) : null;
-    return [...this.rows.values()].filter(
+    const result = [...this.rows.values()].filter(
       (row) =>
         row.serverId === serverId &&
         acceptedKinds.has(row.kind) &&
         (!acceptedIds || acceptedIds.has(row.id)),
     );
+    return this.reverseReadResults ? result.toReversed() : result;
   }
 
   async readAll(): Promise<ReplicaHostRows[]> {
@@ -88,6 +98,26 @@ class MemoryStorage implements ReplicaRowStore {
     this.changes.push(changes);
     for (const key of changes.deletes) this.rows.delete(this.key(key));
     for (const row of changes.upserts) this.rows.set(this.key(row), row);
+  }
+
+  async applyIfUnchanged(
+    changes: ReplicaRowChanges,
+    expected: readonly ReplicaRowExpectation[],
+  ): Promise<boolean> {
+    const before = this.beforeConditionalApply;
+    this.beforeConditionalApply = null;
+    await before?.();
+    for (const condition of expected) {
+      const current = this.rows.get(this.key(condition));
+      if (
+        condition.payload === null
+          ? current !== undefined
+          : current === undefined || current.payload !== condition.payload
+      )
+        return false;
+    }
+    await this.apply(changes);
+    return true;
   }
 
   async deleteHost(serverId: string): Promise<void> {
@@ -255,7 +285,258 @@ function deleteDirectory(cache: ReplicaCache, serverId: string): void {
   ]);
 }
 
+async function cacheWithCorruptCurrentBackground() {
+  const storage = new MemoryStorage();
+  const writer = createCache(storage);
+  const checkpoint = {
+    agents: { generation: "g", afterSeq: 12 },
+    projects: { generation: "g", afterSeq: 4 },
+    workspaces: { generation: "g", afterSeq: 8 },
+  };
+  const baseline = directory(checkpoint);
+  commitDirectory(writer, SERVER_ID, baseline);
+  writer.commitTimeline(SERVER_ID, "agent-1", timeline());
+  await writer.flush();
+  const key = `${SERVER_ID}:workspace:workspace-1`;
+  const row = storage.rows.get(key)!;
+  const payload = JSON.parse(row.payload) as Record<string, unknown>;
+  delete payload.background;
+  storage.rows.set(key, { ...row, payload: JSON.stringify(payload) });
+
+  return { storage, baseline, reader: createCache(storage) };
+}
+
+async function expectCurrentWorkspaceRefresh({
+  storage,
+  baseline,
+  reader,
+}: Awaited<ReturnType<typeof cacheWithCorruptCurrentBackground>>): Promise<void> {
+  const restored = await reader.readDirectory(SERVER_ID);
+  expect(restored.workspaces.size).toBe(0);
+  expect(restored.checkpoint).toEqual({
+    agents: baseline.checkpoint.agents,
+    projects: baseline.checkpoint.projects,
+  });
+  expect(restored.agents).toEqual(baseline.agents);
+  expect(restored.projects).toEqual(baseline.projects);
+  expect(await reader.readTimeline(SERVER_ID, "agent-1")).toEqual(timeline());
+  expect((await createCache(storage).readDirectory(SERVER_ID)).checkpoint).toEqual(
+    restored.checkpoint,
+  );
+
+  baseline.workspaces.set(
+    "workspace-1",
+    normalizeWorkspaceDescriptor({ ...workspacePayload(), background: true }),
+  );
+  reader.replaceDirectoryBaseline(SERVER_ID, baseline);
+  await reader.flush();
+  const refreshed = await createCache(storage).readDirectory(SERVER_ID);
+  expect(refreshed.workspaces.get("workspace-1")?.background).toBe(true);
+  expect(refreshed.checkpoint).toEqual(baseline.checkpoint);
+}
+
 describe("ReplicaCache", () => {
+  it("rebuilds budget accounting after committed repair invalidates read publication", async () => {
+    const other = "other-host";
+    const storage = new MemoryStorage();
+    const writer = new ReplicaCache(storage, noLegacyCleanup);
+    writer.setHosts([SERVER_ID, other]);
+    commitDirectory(writer, SERVER_ID, directory());
+    commitDirectory(writer, other, directory());
+    await writer.flush();
+    storage.rows.set(`${SERVER_ID}:agent:agent-1`, {
+      serverId: SERVER_ID,
+      kind: "agent",
+      id: "agent-1",
+      payload: `{${"x".repeat(5000)}`,
+    });
+    const bytes = [...storage.rows.values()].reduce(
+      (sum, row) => sum + Buffer.byteLength(row.payload),
+      0,
+    );
+    const cache = new ReplicaCache(storage, { ...noLegacyCleanup, maxBytes: bytes + 100 });
+    cache.setHosts([SERVER_ID, other]);
+    commitDirectory(cache, other, directory());
+    await cache.flush();
+    storage.beforeConditionalApply = () =>
+      cache.commitTimeline(SERVER_ID, "agent-1", timeline("x".repeat(1000)));
+    expect(await cache.readAgent(SERVER_ID, "agent-1")).toBeUndefined();
+    await cache.flush();
+    expect(storage.rows.has(`${SERVER_ID}:agent:agent-1`)).toBe(false);
+    expect(storage.rows.has(`${other}:agent:agent-1`)).toBe(true);
+    expect((await createCache(storage).readTimeline(SERVER_ID, "agent-1"))?.items).toEqual(
+      timeline("x".repeat(1000)).items,
+    );
+  });
+
+  it.each([null, undefined, 42])(
+    "returns a bounded miss for non-string checkpoint payload %s",
+    async (payload) => {
+      const cached = await cacheWithCorruptCurrentBackground();
+      const key = `${SERVER_ID}:checkpoint:singleton`;
+      const row = cached.storage.rows.get(key)!;
+      cached.storage.rows.set(key, { ...row, payload: payload as unknown as string });
+      const before = await cached.storage.readAll();
+      cached.storage.readLimit = 4;
+      expect((await cached.reader.readDirectory(SERVER_ID)).checkpoint).toBeUndefined();
+      expect(await cached.reader.readWorkspace(SERVER_ID, "workspace-1")).toBeUndefined();
+      expect(await cached.storage.readAll()).toEqual(before);
+      expect(cached.storage.reads.length).toBeLessThanOrEqual(4);
+    },
+  );
+
+  it.each(["directory", "workspace"] as const)(
+    "repairs current-cache missing background with %s-first reads",
+    async (first) => {
+      const cached = await cacheWithCorruptCurrentBackground();
+      if (first === "workspace")
+        expect(await cached.reader.readWorkspace(SERVER_ID, "workspace-1")).toBeUndefined();
+      await expectCurrentWorkspaceRefresh(cached);
+    },
+  );
+
+  it.each([false, true])(
+    "validates current checkpoint authority independently of row order (%s)",
+    async (reverse) => {
+      const cached = await cacheWithCorruptCurrentBackground();
+      cached.storage.reverseReadResults = reverse;
+      await expectCurrentWorkspaceRefresh(cached);
+    },
+  );
+
+  it.each(["directory", "workspace"] as const)(
+    "retains provisional legacy rows and timelines with %s-first reads",
+    async (first) => {
+      const cached = await cacheWithCorruptCurrentBackground();
+      const key = `${SERVER_ID}:checkpoint:singleton`;
+      const checkpoint = cached.storage.rows.get(key)!;
+      cached.storage.rows.set(key, {
+        ...checkpoint,
+        payload: JSON.stringify({ version: 1, cursors: cached.baseline.checkpoint }),
+      });
+      if (first === "workspace")
+        expect((await cached.reader.readWorkspace(SERVER_ID, "workspace-1"))?.workspace.id).toBe(
+          "workspace-1",
+        );
+      const restored = await cached.reader.readDirectory(SERVER_ID);
+      expect(restored.workspaces.has("workspace-1")).toBe(true);
+      expect(restored.checkpoint).toBeUndefined();
+      expect(await cached.reader.readTimeline(SERVER_ID, "agent-1")).toEqual(timeline());
+      expect(await cached.storage.read(SERVER_ID, ["checkpoint"])).toEqual([]);
+      expect(
+        JSON.parse(cached.storage.rows.get(`${SERVER_ID}:workspace:workspace-1`)!.payload),
+      ).not.toHaveProperty("background");
+      const reopened = createCache(cached.storage);
+      reopened.commitDirectoryMutations(SERVER_ID, [], {
+        agents: cached.baseline.checkpoint.agents,
+      });
+      await reopened.flush();
+      const provisional = await createCache(cached.storage).readDirectory(SERVER_ID);
+      expect(provisional.workspaces.has("workspace-1")).toBe(true);
+      expect(provisional.checkpoint).toEqual({ agents: cached.baseline.checkpoint.agents });
+    },
+  );
+
+  it("preserves valid siblings when repairing one current workspace", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    const peer = createCache(cached.storage);
+    peer.commitDirectoryMutations(SERVER_ID, [
+      {
+        kind: "workspace",
+        type: "upsert",
+        id: "sibling",
+        value: normalizeWorkspaceDescriptor({
+          ...workspacePayload(),
+          id: "sibling",
+          background: true,
+        }),
+      },
+    ]);
+    await peer.flush();
+    const restored = await cached.reader.readDirectory(SERVER_ID);
+    expect([...restored.workspaces.keys()]).toEqual(["sibling"]);
+    expect(restored.workspaces.get("sibling")?.background).toBe(true);
+    expect(restored.agents).toEqual(cached.baseline.agents);
+    expect(restored.projects).toEqual(cached.baseline.projects);
+    expect(restored.checkpoint).toEqual({
+      agents: cached.baseline.checkpoint.agents,
+      projects: cached.baseline.checkpoint.projects,
+    });
+  });
+
+  it.each(["directory", "workspace"] as const)(
+    "rereads a replacement baseline instead of applying stale %s repair",
+    async (first) => {
+      const cached = await cacheWithCorruptCurrentBackground();
+      const baseline = directory({
+        ...cached.baseline.checkpoint,
+        workspaces: { generation: "new", afterSeq: 99 },
+      });
+      baseline.workspaces.set(
+        "workspace-1",
+        normalizeWorkspaceDescriptor({ ...workspacePayload(), background: true }),
+      );
+      cached.storage.beforeConditionalApply = async () => {
+        const peer = createCache(cached.storage);
+        peer.replaceDirectoryBaseline(SERVER_ID, baseline);
+        await peer.flush();
+      };
+      if (first === "workspace")
+        expect(
+          (await cached.reader.readWorkspace(SERVER_ID, "workspace-1"))?.workspace.background,
+        ).toBe(true);
+      const restored = await cached.reader.readDirectory(SERVER_ID);
+      expect(restored.workspaces.get("workspace-1")?.background).toBe(true);
+      expect(restored.checkpoint).toEqual(baseline.checkpoint);
+      expect((await createCache(cached.storage).readDirectory(SERVER_ID)).checkpoint).toEqual(
+        baseline.checkpoint,
+      );
+    },
+  );
+
+  it("rereads locally accepted pending replacement instead of publishing a stale repair", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    const baseline = directory({
+      ...cached.baseline.checkpoint,
+      workspaces: { generation: "new", afterSeq: 99 },
+    });
+    baseline.workspaces.set(
+      "workspace-1",
+      normalizeWorkspaceDescriptor({ ...workspacePayload(), background: true }),
+    );
+    cached.storage.beforeConditionalApply = () =>
+      cached.reader.replaceDirectoryBaseline(SERVER_ID, baseline);
+    const restored = await cached.reader.readDirectory(SERVER_ID);
+    expect(restored.workspaces.get("workspace-1")?.background).toBe(true);
+    expect(restored.checkpoint).toEqual(baseline.checkpoint);
+  });
+
+  it("does not resurrect rows after host removal and re-addition during repair", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    cached.storage.beforeConditionalApply = () => {
+      cached.reader.setHosts([]);
+      cached.reader.setHosts([SERVER_ID]);
+    };
+    const restored = await cached.reader.readDirectory(SERVER_ID);
+    expect(restored.workspaces.size).toBe(0);
+    expect(restored.checkpoint).toBeUndefined();
+    expect(await cached.storage.readAll()).toEqual([]);
+  });
+
+  it("fails closed on conditional storage failure without spinning or altering durable rows", async () => {
+    const cached = await cacheWithCorruptCurrentBackground();
+    const before = await cached.storage.readAll();
+    cached.storage.nextWriteFailure = new Error("conditional repair failed");
+    cached.storage.readLimit = 8;
+    const restored = await cached.reader.readDirectory(SERVER_ID);
+    expect(restored.workspaces.size).toBe(0);
+    expect(restored.checkpoint).toBeUndefined();
+    expect(await cached.storage.readAll()).toEqual(before);
+    expect(cached.storage.reads.length).toBeLessThanOrEqual(8);
+    cached.storage.readLimit = null;
+    await expectCurrentWorkspaceRefresh(cached);
+  });
+
   it("rejects pre-baseline-fix checkpoints without discarding cached rows or timelines", async () => {
     const storage = new MemoryStorage();
     const writer = createCache(storage);
@@ -688,7 +969,11 @@ describe("ReplicaCache", () => {
     expect(restored?.workspace.id).toBe("workspace-1");
     expect(restored?.project?.projectId).toBe("project-1");
     expect(storage.reads).toEqual([
-      { serverId: SERVER_ID, kinds: ["workspace"], ids: ["workspace-1"] },
+      {
+        serverId: SERVER_ID,
+        kinds: ["workspace", "checkpoint"],
+        ids: ["workspace-1", REPLICA_SINGLETON_ROW_ID],
+      },
       { serverId: SERVER_ID, kinds: ["project"], ids: ["project-1"] },
     ]);
   });
