@@ -1,0 +1,33 @@
+
+> @getpaseo/app@0.11.2 test:e2e
+> playwright test --project=browser e2e/browser/composer-attachments.spec.ts --grep sticky user message preserves
+
+[metro] Starting project at /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/sticky-user-message-navigation/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:37299
+[metro] Logs for your project will appear below.
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.0% (4359/4700)
+[metro] Web Bundled 4942ms packages/app/index.ts (5473 modules)
+[e2e] Metro warmed on port 37299
+
+Running 1 test using 1 worker
+
+(node:545439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:545439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 43303, home: /tmp/paseo-e2e-worker-0-t8rypZ
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 402ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 127ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+  ✓  1 [browser] › e2e/browser/composer-attachments.spec.ts:320:5 › sticky user message preserves uploaded image and file attachments (13.0s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  1 passed (40.7s)

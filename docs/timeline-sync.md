@@ -63,6 +63,34 @@ the anchored page still leaves the viewport at history start, as with short or c
 that case pagination continues as one loading operation until the page fills the viewport or history
 is exhausted.
 
+## Prompt navigation
+
+The Chat outline and sticky user-message surface share the viewed timeline's prompt index and
+window loading. Keep scrolling inside that owner: an indexed prompt may sit outside the loaded
+window, and a loaded row may sit outside the mounted presentation window. Resolve presentation
+rows to authoritative timeline positions before selecting prompts; Markdown blocks and plugin
+cards do not share the canonical row IDs. Child transcripts use their own history pagination.
+
+Keep the original user bubble in the transcript. Its compact copy appears after the bubble leaves
+the viewport, within the same content rail. The copy overlays the viewport so its visibility does
+not shift the reading position. Manual scrolling selects the prompt for the response at the
+reading edge. Arrow navigation retains its selected prompt through the smooth scroll, including
+landings clamped by the end of the conversation. Bottom-following intent starts at the latest
+prompt and resumes when you send or use Jump to bottom. Incoming messages do not move an older
+reading selection. Retained panes keep their own selection; session and epoch changes isolate it.
+
+A content-only read can recover the indexed prompt for an already-visible response without
+applying a transcript window. Index-free history may begin with several pages containing no user
+prompt. Discovery must use the pagination owner, check cursor progress, and stop with usable
+feedback on exhaustion, failure, cancellation, or its work budget. An explicit retry can continue
+past the budget.
+
+Cancel obsolete navigation at the window-acceptance boundary as well as the scroll boundary.
+Returning to bottom, sending, or starting manual reading must invalidate delayed page application,
+errors, and animation callbacks without cancelling unrelated shared reads or weakening epoch and
+request fences. Native index recovery must include the measured live-header extent in its estimate
+and retain a bounded progress budget across retries.
+
 ## Durable item anchors
 
 Provider message IDs are not guaranteed for every displayed item. Paseo-generated system errors are one example. Rendered item indices are not durable either because pagination and projection can merge source rows.

@@ -436,3 +436,18 @@ test("usage login errors are additive and older reports still parse", () => {
   expect(SessionOutboundMessageSchema.parse(newMessage)).toEqual(newMessage);
   expect(legacy.parse(newMessage)).toEqual(oldMessage);
 });
+
+test("accent preference capability remains optional and older server-info readers ignore it", () => {
+  const older = { status: "server_info", serverId: "older", features: { appSettingsSync: true } };
+  expect(
+    ServerInfoStatusPayloadSchema.parse(older).features?.appSettingsAccentColor,
+  ).toBeUndefined();
+  const current = { ...older, features: { ...older.features, appSettingsAccentColor: true } };
+  expect(ServerInfoStatusPayloadSchema.parse(current).features?.appSettingsAccentColor).toBe(true);
+  const legacyReader = z.object({
+    status: z.literal("server_info"),
+    serverId: z.string(),
+    features: z.object({ appSettingsSync: z.boolean().optional() }).optional(),
+  });
+  expect(legacyReader.parse(current)).toEqual(older);
+});

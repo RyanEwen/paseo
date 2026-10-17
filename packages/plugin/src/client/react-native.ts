@@ -74,3 +74,59 @@ export declare function copyText(text: string): Promise<void>;
 export declare const TextInput: ForwardRefExoticComponent<
   TextInputProps & RefAttributes<NativeTextInput>
 >;
+
+/** A decoded frame retained by the host until present() or release(). */
+export interface EncodedVideoFrame {
+  id: number;
+  timestamp: number;
+  displayWidth: number;
+  displayHeight: number;
+}
+
+export interface EncodedVideoConfig {
+  codec: string;
+  codedWidth: number;
+  codedHeight: number;
+  descriptionBase64?: string;
+  /** Preserve the encoder's decoderConfig.colorSpace; VP8 chunks do not carry it reliably. */
+  colorSpace?: {
+    primaries?: "bt470bg" | "bt709" | "smpte170m" | null;
+    transfer?: "bt709" | "iec61966-2-1" | "smpte170m" | null;
+    matrix?: "bt470bg" | "bt709" | "rgb" | "smpte170m" | null;
+    fullRange?: boolean | null;
+  };
+  optimizeForLatency: boolean;
+}
+
+export interface EncodedVideoChunk {
+  type: "key" | "delta";
+  timestamp: number;
+  dataBase64: string;
+}
+
+export interface EncodedVideoHandle {
+  /** Replaces the decoder and releases all retained frames. */
+  configure(config: EncodedVideoConfig): void;
+  decode(chunk: EncodedVideoChunk): void;
+  reset(): void;
+  /** Resolves after drawing this frame. Rejects on reset, unmount, or host failure. */
+  present(frameId: number): Promise<void>;
+  release(frameId: number): void;
+}
+
+export interface EncodedVideoProps {
+  style?: StyleProp<ViewStyle>;
+  onReady(): void;
+  onFrame(frame: EncodedVideoFrame): void;
+  /** One acknowledgement for each submitted chunk, even if it produces no frame. */
+  onDequeue(): void;
+  onError(error: Error): void;
+}
+
+/** Host-owned Android WebCodecs canvas. It receives bytes, never URLs or credentials.
+ * Input remains caller-owned. Revoke input before present(), then admit it only after
+ * the promise resolves and the original source identity is still current.
+ * Other platforms report unsupported; browser plugins can use WebCodecs directly. */
+export declare const EncodedVideo: ForwardRefExoticComponent<
+  EncodedVideoProps & RefAttributes<EncodedVideoHandle>
+>;

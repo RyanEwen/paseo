@@ -25,6 +25,7 @@ import {
   RenameTerminalResponseSchema,
   RestartRequestedStatusPayloadSchema,
   ShutdownRequestedStatusPayloadSchema,
+  DaemonUpdateAvailabilityResponseSchema,
   DaemonUpdateResponseSchema,
   SessionInboundMessageSchema,
   type ActiveTurnBehavior,
@@ -2445,6 +2446,7 @@ export class DaemonClient {
     const message = SessionInboundMessageSchema.parse({
       type: "fetch_agent_history_request",
       requestId: resolvedRequestId,
+      ...(options?.workspaceId ? { workspaceId: options.workspaceId } : {}),
       ...(options?.filter ? { filter: options.filter } : {}),
       ...(options?.search ? { search: options.search } : {}),
       ...(options?.sort ? { sort: options.sort } : {}),
@@ -2531,6 +2533,34 @@ export class DaemonClient {
         }
         return msg.payload;
       },
+    });
+  }
+
+  /** Refresh a selected host without creating another subscription. */
+  getAppSettings(): Promise<CorrelatedResponsePayload<"app.settings.get.response">> {
+    return this.sendNamespacedCorrelatedSessionRequest({
+      message: { type: "app.settings.get.request" },
+    });
+  }
+
+  /** Observe settings on an explicitly selected host; the caller gates appSettingsSync once. */
+  observeAppSettings(options?: {
+    signal?: AbortSignal;
+  }): OwnedSubscription<CorrelatedResponsePayload<"app.settings.get.response">> {
+    return this.observe(
+      "app.settings.get.response",
+      { type: "app.settings.get.request", subscribe: {} },
+      options,
+    );
+  }
+
+  /** Send touched leaves with their original host revisions. Never replay a full local snapshot. */
+  patchAppSettings(
+    patches: import("@getpaseo/protocol/app-settings").AppSettingsPatch[],
+    initialize = false,
+  ): Promise<CorrelatedResponsePayload<"app.settings.patch.response">> {
+    return this.sendNamespacedCorrelatedSessionRequest({
+      message: { type: "app.settings.patch.request", patches, initialize },
     });
   }
 
@@ -3128,10 +3158,15 @@ export class DaemonClient {
     return { title: payload.title };
   }
 
+  /**
+   * Set one exclusive pin scope. Omitted scope preserves legacy global pin behavior.
+   * Project scope requires projectWorkspacePinning; pinnedAt reports the global pin only.
+   */
   async setWorkspacePinned(
     workspaceId: string,
     pinned: boolean,
     requestId?: string,
+    scope?: "global" | "project",
   ): Promise<{ pinnedAt: string | null }> {
     const payload = await this.sendCorrelatedSessionRequest({
       requestId,
@@ -3139,6 +3174,7 @@ export class DaemonClient {
         type: "workspace.pin.set.request",
         workspaceId,
         pinned,
+        ...(scope ? { scope } : {}),
       },
       responseType: "workspace.pin.set.response",
     });
@@ -3805,6 +3841,25 @@ export class DaemonClient {
           return null;
         }
         return shutdown.data;
+      },
+    });
+  }
+
+  /** Read installable update availability without changing the selected host. */
+  async checkDaemonUpdateAvailability() {
+    const requestId = this.createRequestId();
+    const message = SessionInboundMessageSchema.parse({
+      type: "daemon.update.check_availability.request",
+      requestId,
+    });
+    return this.sendRequest({
+      requestId,
+      message,
+      timeout: 300_000,
+      select: (msg) => {
+        const parsed = DaemonUpdateAvailabilityResponseSchema.safeParse(msg);
+        if (!parsed.success || parsed.data.payload.requestId !== requestId) return null;
+        return parsed.data.payload;
       },
     });
   }

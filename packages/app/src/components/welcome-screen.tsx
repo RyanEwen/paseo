@@ -22,10 +22,11 @@ import { resolveAppVersion } from "@/utils/app-version";
 import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { buildOpenProjectRoute } from "@/utils/host-routes";
 import { PaseoLogo } from "@/components/icons/paseo-logo";
+import { PRODUCT_LINKS } from "@/constants/product-links";
 import { openExternalUrl } from "@/utils/open-external-url";
 import { isFdroidBuild } from "@/constants/build-profile";
 import { isWeb, isNative } from "@/constants/platform";
-import { isElectronRuntime } from "@/desktop/host";
+import { isSshAvailable } from "@/hosts/ssh/ssh-transport";
 
 interface WelcomeAction {
   key: "scan-qr" | "direct-connection" | "remote-ssh" | "paste-pairing-link";
@@ -189,7 +190,7 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
   }, [router]);
 
   const handleOpenPaseoSite = useCallback(() => {
-    void openExternalUrl("https://paseo.sh");
+    void openExternalUrl(PRODUCT_LINKS.repository);
   }, []);
 
   const handleOpenSettings = useCallback(() => {
@@ -261,7 +262,7 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
           },
         ];
 
-  if (isElectronRuntime()) {
+  if (isSshAvailable()) {
     actions.splice(1, 0, {
       key: "remote-ssh",
       label: t("pairing.connectionMethods.remoteSsh.title"),
@@ -292,7 +293,7 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
             <Text style={styles.subtitle}>{t("onboarding.subtitle")}</Text>
             {isNative ? (
               <Pressable style={styles.setupLink} onPress={handleOpenPaseoSite}>
-                <Text style={styles.setupLinkText}>paseo.sh</Text>
+                <Text style={styles.setupLinkText}>RyanEwen/paseo-plus-plus</Text>
                 <ExternalLink size={14} color={theme.colors.accent} />
               </Pressable>
             ) : null}

@@ -13,7 +13,7 @@ import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "reac
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { openExternalUrl } from "@/utils/open-external-url";
-import { BookOpen, Copy, RotateCw, TriangleAlert } from "lucide-react-native";
+import { BookOpen, Copy, RotateCw } from "lucide-react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { PaseoLogo } from "@/components/icons/paseo-logo";
 import { Button } from "@/components/ui/button";
@@ -29,16 +29,11 @@ interface StartupSplashScreenProps {
   };
 }
 
-const GITHUB_ISSUE_URL = "https://github.com/getpaseo/paseo/issues/new";
 const DOCS_URL = "https://paseo.sh/docs";
 
 const LOGO_SIZE = 96;
 const SHIMMER_PEAK_WIDTH = 120;
 const SHIMMER_DURATION_MS = 1800;
-
-function openGithubIssue(): void {
-  void openExternalUrl(GITHUB_ISSUE_URL);
-}
 
 function openDocs(): void {
   void openExternalUrl(DOCS_URL);
@@ -368,10 +363,6 @@ export function StartupSplashScreen({ bootstrapState }: StartupSplashScreenProps
     () => <Copy size={16} color={theme.colors.foreground} />,
     [theme.colors.foreground],
   );
-  const warningIcon = useMemo(
-    () => <TriangleAlert size={16} color={theme.colors.foreground} />,
-    [theme.colors.foreground],
-  );
   const bookIcon = useMemo(
     () => <BookOpen size={16} color={theme.colors.foreground} />,
     [theme.colors.foreground],
@@ -427,9 +418,6 @@ export function StartupSplashScreen({ bootstrapState }: StartupSplashScreenProps
           <View style={styles.actionRow}>
             <Button variant="secondary" leftIcon={copyIcon} onPress={handleCopyLogs}>
               Copy logs
-            </Button>
-            <Button variant="outline" leftIcon={warningIcon} onPress={openGithubIssue}>
-              Open GitHub issue
             </Button>
             <Button variant="outline" leftIcon={bookIcon} onPress={openDocs}>
               Docs

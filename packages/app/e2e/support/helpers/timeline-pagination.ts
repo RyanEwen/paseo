@@ -1,4 +1,4 @@
-import { expect, type TestInfo, type Page } from "@playwright/test";
+import { expect, type TestInfo, type Page, type Locator } from "@playwright/test";
 import { buildAgentRoute, seedMockAgentWorkspace, type MockAgentWorkspace } from "./mock-agent";
 import { readReplicaCache } from "./replica-cache-storage";
 import {
@@ -12,6 +12,30 @@ import {
 } from "./agent-timeline-gate";
 
 export { holdDaemonHydration };
+
+/** Select original authoritative rows inside the intended chat/pane, excluding sticky copies.
+ * Hidden timelines are included only for assertions that deliberately inspect retained DOM.
+ * Multiple visible timelines stay strict: callers must supply their owning pane.
+ */
+export function originalTimelineRows(scope: Page | Locator, includeHidden = false): Locator {
+  const timelines = scope.getByTestId("agent-chat-scroll");
+  const owner = includeHidden ? timelines : timelines.filter({ visible: true });
+  return owner.locator("[data-history-row-id]");
+}
+
+/** Select original prompt bodies while preserving exact-count and busy-state assertions. */
+export function originalUserMessages(scope: Page | Locator): Locator {
+  return originalTimelineRows(scope).getByTestId("user-message");
+}
+
+/** Match exact original timeline text, never the sticky renderer or its measurement probe. */
+export function originalTimelineText(
+  scope: Page | Locator,
+  text: string,
+  includeHidden = false,
+): Locator {
+  return originalTimelineRows(scope, includeHidden).getByText(text, { exact: true });
+}
 
 interface LongTimelineAgentOptions {
   turns: number;
@@ -323,13 +347,46 @@ export async function holdOlderHistoryPages(
     agent.agentId,
     daemonPort,
   );
+  /** Keep every before read accountable, while releasing content separately from held pages. */
+  const assertReadAccounting = () => {
+    const accounting = gate.getReadAccounting();
+    expect(accounting.errors).toEqual([]);
+    expect(accounting.allBefore).toBe(
+      accounting.windowBefore + accounting.contentBefore + (accounting.contextBefore ?? 0),
+    );
+    expect(accounting.windowBefore).toBe(gate.getRequestCount());
+  };
+  const settleContentReads = async () => {
+    assertReadAccounting();
+    await expect.poll(() => gate.getReadAccounting().pendingContent).toBe(0);
+    assertReadAccounting();
+    await waitForTimelineGeometryToSettle(page);
+    const before = await captureContentReadViewport(page);
+    if (gate.flushContentReads() === 0) return;
+    // A source probe can lead to several independently released canonical cache pages.
+    for (let used = 1; used < 8 && gate.getReadAccounting().contextChainActive; used += 1) {
+      await expect.poll(() => gate.getReadAccounting().pendingContext).toBe(0);
+      await expect.poll(() => gate.flushContentReads()).toBeGreaterThan(0);
+      assertReadAccounting();
+    }
+    // The content becomes visible in its own overlay, while the authoritative page remains held.
+    await expect(page.getByTestId("sticky-user-message").filter({ visible: true })).toBeVisible();
+    await waitForTimelineGeometryToSettle(page);
+    expect(await captureContentReadViewport(page)).toEqual(before);
+    assertReadAccounting();
+  };
   return {
     async expectRequestedPages(count) {
       await gate.waitForRequestCount(count);
+      assertReadAccounting();
+      expect(gate.getRequestCount()).toBe(count);
+      await settleContentReads();
       expect(gate.getRequestCount()).toBe(count);
     },
     async expectSettledWithRequestedPages(count) {
+      await settleContentReads();
       await waitForTimelineGeometryToSettle(page);
+      assertReadAccounting();
       expect(gate.getRequestCount()).toBe(count);
     },
     expectNoRepeatedEntries() {
@@ -544,6 +601,7 @@ async function readTimelineViewport(page: Page): Promise<TimelineViewportSnapsho
   });
 }
 
+/** Wait for bounded RAF geometry stability without moving the pointer or scrolling. */
 export async function waitForTimelineGeometryToSettle(page: Page): Promise<void> {
   const scroll = page.locator('[data-testid="agent-chat-scroll"]:visible').first();
   await scroll.evaluate(
@@ -628,4 +686,38 @@ export async function captureSpokenTimeline(
     body: await page.screenshot({ path: testInfo.outputPath(`spoken-${size}-web.png`) }),
     contentType: "image/png",
   });
+}
+
+/** Move the reading edge below a prompt using the isolated timeline's actual bubble bounds. */
+export async function scrollTimelinePastPrompt(page: Page, prompt: string): Promise<void> {
+  const timeline = page.locator('[data-testid="agent-chat-scroll"]:visible').first();
+  const delta = await timeline
+    .getByTestId("user-message")
+    .filter({ hasText: prompt })
+    .evaluate((bubble) => {
+      const scroll = bubble.closest<HTMLElement>('[data-testid="agent-chat-scroll"]')!;
+      return bubble.getBoundingClientRect().bottom - scroll.getBoundingClientRect().top + 2;
+    });
+  await timeline.hover();
+  await page.mouse.wheel(0, delta);
+  await expect(page.getByTestId("sticky-user-message")).toContainText(prompt);
+}
+
+/** Observe the original viewport and canonical rows, excluding the content-only sticky copy. */
+async function captureContentReadViewport(page: Page) {
+  const viewport = page.getByTestId("agent-chat-scroll").filter({ visible: true });
+  return {
+    geometry: await viewport.evaluate((element) => ({
+      scrollTop: element.scrollTop,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      rows: Array.from(element.querySelectorAll("[data-history-row-id]")).map((row) =>
+        row.getAttribute("data-history-row-id"),
+      ),
+    })),
+    bottomActionVisible: await page
+      .getByTestId("scroll-to-bottom-button")
+      .filter({ visible: true })
+      .isVisible(),
+  };
 }

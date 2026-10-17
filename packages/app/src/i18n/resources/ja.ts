@@ -2,6 +2,200 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  settingsSync: {
+    title: "設定の同期",
+    hint: "選択したホストでアプリ設定とサイドバー項目の表示を同期します。ホスト・プロジェクトの絞り込み、ワークスペースの順序、折りたたみは端末に保存します。切り替え後は設定を読み込んでから編集できます。",
+    host: "設定ホスト",
+    deviceOnly: "この端末のみ",
+    unavailableHost: "選択したホストを利用できません",
+    status: "状態",
+    publish: "この端末の設定を使用",
+    publishHint:
+      "このホストには保存済みの設定がありません。公開すると現在の設定がホストにコピーされます。",
+    useHost: "ホストの設定を使用",
+    keepDevice: "自分の変更を公開",
+    keepDeviceHint:
+      "{{host}} で競合する設定を保留中の変更で明示的に上書きします。その他の設定は保持されます。",
+    restore: "端末の設定を復元",
+    restoreHint: "同期を停止し、このホストを選択する前に保存した設定を復元します。",
+    conflictHint:
+      "これらの設定は別のクライアントで変更されました。{{host}} の設定を使用すると、このホストの保留中の変更だけを破棄します。",
+    retryHint: "再接続して設定を読み直してください。保留中の変更は元のホストに保持されます。",
+    states: {
+      loading: "同期設定を読み込み中",
+      local: "設定はこの端末に保存されます",
+      reading: "選択したホストの読み込みを待機中",
+      ready: "接続済み。保留中の変更: {{count}}",
+      offline: "オフライン。保留中の変更: {{count}}",
+      empty: "このホストに公開済みの設定はありません",
+      unsupported: "設定を同期するにはこのホストを更新してください",
+      error: "設定を同期できませんでした。保留中の変更は保持されています。",
+      conflict: "競合する変更の扱いを選択してください",
+      readonly: "この接続では設定を読み込めますが変更できません",
+    },
+  },
+  paseoPlusPlus: {
+    workspaceLimit: {
+      save: "保存",
+      title: "ワークスペースの表示制限",
+      label: "グループごとの初期表示",
+      limited: "件数を指定",
+      all: "すべて表示",
+      count: "ワークスペース数",
+      invalid: "正の整数を入力してください。",
+    },
+    examples: {
+      annotated: "矢印は対象の機能を示しています。",
+      before: "状態変更前",
+      after: "状態変更後",
+      imageLabel: "{{title}} の例",
+      positions:
+        "状態変更前後の確定した位置です。静止画像ではアニメーションの時間は示していません。",
+      explorer: "変更一覧と作業コピーの差分の例です。",
+      workspaceLimit:
+        "各グループの初期表示数を選ぶか、すべて表示します。展開済みのグループは展開されたままです。",
+    },
+    loadFailed: "保存済みの設定を読み込めません。機能を変更する前に再試行してください。",
+    saving: "保存中...",
+    title: "Paseo++",
+    optional: "任意の機能",
+    optionalHint:
+      "任意の機能のスイッチは既定でオンです。表示設定にはそれぞれ独立した既定値があり、「一度に1つのプロジェクトを展開」は既定でオフです。同期時は選択した設定ホストに従います。機能をオフにしても保存済みのデータと設定は保持されます。",
+    preferences: "ワークスペースのサイドバー設定",
+    fixes: "修正とフォークの基本機能",
+    fixesHint: "これらの改善は常に有効です",
+    additions: "その他の追加機能",
+    additionsHint: "これらの操作は引き続き利用できます",
+    saveFailed: "保存できませんでした。もう一度お試しください。",
+    features: {
+      workspaceChatLinks: {
+        label: "チャットのリンクをPaseoで開く",
+        hint: "デスクトップでは、チャットのウェブリンクをそのワークスペースのブラウザーで開きます。オフにすると外部ブラウザーを使います。リンクメニューの「Paseoで開く」は引き続き使えます。",
+      },
+      sidebarHostUpdates: {
+        label: "サイドバーのホスト更新",
+        hint: "ホストメニューに更新操作を表示します。オフにしてもホスト設定は引き続き利用できます。",
+      },
+      splitLayoutPresets: {
+        label: "分割レイアウト操作",
+        hint: "分割図の目的の領域をクリックして、タブを開くか移動します。60/40では右または下の領域が40%です。区切りのプリセットは既存のペインをサイズ変更します。オフにするとレイアウトを変えずに操作を非表示にします。",
+      },
+      mobileWorkspaceTabs: {
+        label: "モバイルのワークスペースタブ",
+        hint: "コンパクト表示でスクロール可能なタブバーを表示します。オフにすると、選択中のタブを変えずに以前のタブ選択に戻ります。",
+      },
+
+      descriptiveToolCalls: {
+        label: "わかりやすいツール操作",
+        hint: "既知の操作を説明し、正確なコマンドと出力は詳細に保持します。無効にすると従来のラベルに戻ります。",
+      },
+
+      sidebarProjectSelector: {
+        label: "見出しに選択したプロジェクトを表示",
+        hint: "ワークスペースの見出しに選択したプロジェクト名を表示します。オフの場合は「ワークスペース」と表示され、ホストとプロジェクトの選択は引き続き使えます。",
+      },
+      stickyUserPrompts: {
+        label: "ユーザーメッセージを表示し続ける",
+        hint: "現在のメッセージをチャット上部に表示し、展開と前後の移動を提供します",
+      },
+      previousAgents: {
+        label: "以前のエージェント",
+        hint: "ワークスペースの + メニューから閉じた会話やアーカイブした会話を開きます",
+      },
+      sidebarActivityChips: {
+        label: "プロジェクトの活動表示",
+        hint: "活動状況と作業中のワークスペース数を表示します",
+      },
+      sidebarProjectEmphasis: {
+        label: "プロジェクト名を太字にする",
+        hint: "サイドバーのプロジェクト見出しを強調します",
+      },
+      sidebarBulkActions: {
+        label: "すべて展開・折りたたみ",
+        hint: "表示中のすべてのグループを操作できます",
+      },
+      projectPinning: {
+        label: "プロジェクト内で固定",
+        hint: "選択したワークスペースをプロジェクト内の先頭に置き、名前の横にピンを表示します。再度有効にすると保存済みのピンが戻ります。",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "移動をアニメーション表示",
+        hint: "サイドバーの位置変更を短いアニメーションで表示します",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Android の自動更新確認",
+        hint: "起動時と復帰時にプレビュー版を確認します。手動確認とインストールは引き続き使えます。",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "モード、フィルター、表示",
+        hint: "サイドバーのベルでプロジェクト表示と状態表示を切り替えます。フィルターアイコンでテキストをすぐに絞り込めます。「表示」の「ワークスペースの表示制限」では件数と更新期間を個別に設定し、「空のプロジェクト」では表示、グループ化、非表示を選べます。各モードで設定が保持されます。",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ のリンク",
+        hint: "フォークのリポジトリと公開リリースノートを開けます。元の課題報告、スポンサー、Discord の操作は削除されています。",
+      },
+      backgroundBrowser: {
+        label: "バックグラウンドのブラウザー操作",
+        hint: "デスクトップのエージェントはパネル非表示やウィンドウ最小化時もタブを操作できます",
+      },
+      notifications: {
+        label: "通知の移動先",
+        hint: "デスクトップ再起動後も対象のワークスペースとチャットを開きます",
+      },
+      reading: {
+        label: "安定した閲覧",
+        hint: "画像サイズ変更時もデスクトップと Web の表示テキストを保持し、メッセージと履歴の読み込みを復旧します",
+      },
+      mobile: {
+        label: "モバイルの操作",
+        hint: "タブ切り替えのタッチ領域拡大、安全な Android の戻る操作、開発通知の分離",
+      },
+      pickers: {
+        label: "ワークスペースの選択と状態",
+        hint: "明確な設定順序、完全な値のツールチップ、新しい状態の優先、折りたたみ設定の保持",
+      },
+      identity: {
+        label: "独立したフォークのインストール",
+        hint: "Paseo++ 専用のアプリとデーモンの識別情報・設定・更新、Android ダウンロードの検証",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android の SSH ホスト",
+        hint: "鍵の読み込み、フィンガープリントの確認、暗号化された認証情報で直接接続します",
+      },
+      worktrees: {
+        label: "ブランチと worktree の選択",
+        hint: "対応ホストで明示的な名前を指定して作成・採用できます。再試行時も既存の作業を保持します",
+      },
+      video: {
+        label: "Android プラグインの動画",
+        hint: "対応プラグインがエンコード動画を再生し、デコーダーを復旧できます。動画を提供するプラグインが必要です。",
+      },
+    },
+  },
+
+  androidUpdates: {
+    title: "アプリの更新",
+    idle: "フォークの新しいプレビューを確認します。",
+    checking: "更新を確認中…",
+    current: "最新の公開プレビューを使用しています。",
+    available: "プレビュー {{version}} が利用可能です。",
+    downloading: "更新をダウンロードして検証中…",
+    downloadProgress: "ダウンロード中 {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "ダウンロード中 {{downloaded}}…",
+    verifying: "ダウンロードした更新を検証中…",
+    permission:
+      "Android の設定でこのアプリからの更新を許可し、戻って「更新をインストール」をもう一度タップしてください。",
+    installer:
+      "Android でインストールを完了してください。キャンセルした場合は「更新をインストール」をタップして再試行できます。",
+    install: "更新をインストール",
+    failed: "更新できませんでした。再試行してください。",
+  },
   paneFind: {
     connectionFailure:
       "このチャットを検索できませんでした。ホストへの接続を確認して再試行してください。",
@@ -232,6 +426,23 @@ export const ja: TranslationResources = {
       mode: "権限モードを変更",
     },
   },
+  stickyPrompt: {
+    goToMessage: "このメッセージへ移動",
+    more: "もっと見る…",
+    less: "閉じる…",
+    none: "このチャットにはユーザーメッセージがありません。",
+    cancelled: "読み込みをキャンセルしました。",
+    moreHistory: "さらに古い履歴があります。再試行して検索を続けてください。",
+
+    latest: "最新のユーザーメッセージ",
+    selected: "ユーザーメッセージ",
+    expand: "ユーザーメッセージを展開",
+    collapse: "ユーザーメッセージを折りたたむ",
+    previous: "前のユーザーメッセージ",
+    next: "次のユーザーメッセージ",
+    failed: "ユーザーメッセージを読み込めませんでした。",
+    attachments: "添付ファイル {{count}} 件",
+  },
   agentStream: {
     empty: "このエージェントとチャットを始めましょう...",
     scrollToBottom: "下にスクロール",
@@ -282,6 +493,11 @@ export const ja: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "閉じたエージェントを再度開く",
+    previousEmpty: "このワークスペースに以前のエージェントはありません",
+    workspaceHistoryUpdateRequired:
+      "以前のワークスペースエージェントを表示するには、このホストを更新してください。",
+
     title: "履歴",
     empty: "セッションがまだありません",
     noMatches: "一致するセッションはありません",
@@ -441,6 +657,22 @@ export const ja: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "{{item}}を開く：{{side}}、{{percent}}%",
+      moveRegion: "タブを移動：{{side}}、{{percent}}%",
+      openToSide: "{{item}} を横に開く",
+      chooseRatio: "分割比率を選択",
+      ratio: "{{ratio}} に分割",
+      moveTab: "タブを移動",
+      left: "左",
+      right: "右",
+      top: "上",
+      bottom: "下",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "ペイン {{index}}",
+    },
+
     route: {
       loading: "ワークスペースを読み込み中",
       connecting: "接続中",
@@ -577,6 +809,8 @@ export const ja: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Paseo ブラウザーで開く",
+      openExternally: "外部ブラウザーで開く",
       unavailable: {
         title: "ブラウザはデスクトップ専用です",
         subtitle: "組み込みブラウザを使用するには、このワークスペースをElectronで開いてください。",
@@ -1161,16 +1395,58 @@ export const ja: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      noKnownProjects: "このホストの既知のプロジェクトはまだありません。",
+      selectOnlyProject: "{{project}} のみ表示",
+      includeProject: "{{project}} を含める",
+      workspaces: "ワークスペース",
+      all: "すべて",
+      allWorkspaces: "すべてのワークスペース",
+      projectWorkspaces: "{{project}} のワークスペース",
+      multipleWorkspaces_one: "{{count}} プロジェクトのワークスペース",
+      multipleWorkspaces_other: "{{count}} プロジェクトのワークスペース",
+      title: "プロジェクト",
+    },
     statusGroupAccessibility: "{{label}} グループ",
     statusBucket: {
+      workingCount: "{{count}} 件作業中",
       needsInput: "入力待ち",
       failed: "失敗",
       readyToReview: "レビュー待ち",
       working: "実行中",
       done: "完了",
     },
+    quickFilter: {
+      open: "プロジェクトとワークスペースを絞り込む",
+      close: "クイックフィルターを閉じてクリア",
+      placeholder: "プロジェクトやワークスペースを絞り込む…",
+      clear: "クイックフィルターをクリア",
+      emptyTitle: "一致するプロジェクトやワークスペースはありません",
+      emptyDescription: "別の名前を試すか、このモードのクイックフィルターをクリアしてください。",
+      guidance:
+        "フィルターアイコンで、このモードの名前と表示中のブランチを検索できます。件数と更新日の制限は維持され、さらに表示で一致する全行を表示します。",
+    },
     display: {
-      showBackground: "バックグラウンドを表示",
+      modeToggle: "{{current}}表示。{{next}}表示に切り替え。",
+      workspaceList: {
+        countLimit: "表示件数の上限",
+        updatedWithin: "更新期間",
+        day: "1日",
+        twoDays: "2日",
+        threeDays: "3日",
+        fiveDays: "5日",
+        week: "1週間",
+        twoWeeks: "2週間",
+        month: "1か月",
+        twoMonths: "2か月",
+        threeMonths: "3か月",
+      },
+      expandAll: "すべて展開",
+      collapseAll: "すべて折りたたむ",
+      oneProjectAtATime: "一度に1つのプロジェクトを展開",
+      reorderGuidance:
+        "並べ替えのドラッグはカスタム順でのみ使えます。絞り込んだプロジェクトの移動は、すべて表示した後も同じ隣接プロジェクトの前後を維持します。ピン留めは常に手動順です。",
+      showBackground: "バックグラウンドのワークスペースを表示",
       trigger: "表示設定",
       heading: "表示",
       grouping: {
@@ -1178,6 +1454,28 @@ export const ja: TranslationResources = {
         project: "プロジェクト",
         status: "ステータス",
         labels: "ラベル",
+        emptyProjects: "空のプロジェクトを別にグループ化",
+      },
+      sorting: {
+        label: "プロジェクトを並べ替え",
+        workspaces: "ワークスペースを並べ替え",
+        workspaceName: "ワークスペース名",
+        project: "プロジェクト名",
+        status: "ステータス",
+        custom: "カスタム順",
+        emptyProjects: "空のプロジェクトを並べ替え",
+      },
+      emptyWorkspaces: {
+        label: "空のプロジェクト",
+        show: "表示",
+        group: "グループ化",
+        hide: "非表示",
+      },
+      projectVisibility: {
+        label: "フィルター",
+        all: "すべてのプロジェクト",
+        unarchived: "空のプロジェクトを非表示",
+        emptyGroup: "空のプロジェクト",
       },
       titleSource: {
         label: "タイトル",
@@ -1239,9 +1537,6 @@ export const ja: TranslationResources = {
       sectionHelp: "ヘルプ",
       diagnostics: "診断を実行",
       shortcuts: "キーボードショートカット",
-      reportIssue: "問題を報告",
-      discord: "Discord",
-      github: "GitHub Issueを作成",
       whatsNew: "新着情報",
       appName: "Paseo",
     },
@@ -1307,7 +1602,9 @@ export const ja: TranslationResources = {
         copyPath: "パスをコピー",
         copyBranchName: "ブランチ名をコピー",
         rename: "ワークスペースの名前を変更",
-        pin: "上部に固定",
+        pin: "サイドバーの先頭にピン留め",
+        pinInProject: "プロジェクト内でピン留め",
+        unpinInProject: "プロジェクト内のピン留めを解除",
         unpin: "固定解除",
         archive: "アーカイブ",
         archiveWorkspace: "ワークスペースをアーカイブ",
@@ -1328,6 +1625,8 @@ export const ja: TranslationResources = {
         invalidBranchName: "無効なブランチ名",
       },
       toasts: {
+        updateHostToPinInProject:
+          "プロジェクト内でワークスペースをピン留めするには、このホストを更新してください。",
         workspacePathUnavailable: "ワークスペースパスが利用できません",
         pathCopied: "パスをコピーしました",
         branchNameCopied: "ブランチ名をコピーしました",
@@ -1358,9 +1657,11 @@ export const ja: TranslationResources = {
       selectModel: "モデルを選択してください",
     },
     tooltips: {
+      branchChoice: "新しいブランチを作成するか、既存のブランチをチェックアウト",
+      baseBranch: "新しいブランチの作成元となるブランチを選択",
       project: "Choose the project",
       host: "Choose the host",
-      isolation: "Choose the isolation level",
+      isolation: "ローカルを使用するか、ワークツリーを選択",
       startingRef: "開始点を選択",
       launch: "Choose what to launch",
     },
@@ -1735,7 +2036,7 @@ export const ja: TranslationResources = {
       },
       remoteSsh: {
         title: "リモート SSH",
-        description: "デスクトップの SSH クライアント経由で接続します。",
+        description: "SSH 経由で接続します。",
       },
       scanQr: {
         title: "QRコードをスキャン",
@@ -1791,6 +2092,15 @@ export const ja: TranslationResources = {
     remoteSsh: {
       title: "リモート SSH",
       helper: "リモートホストで動作する Paseo デーモンに接続します。",
+      keyImport: {
+        key: "秘密鍵",
+        import: "秘密鍵をインポート",
+        passphrase: "鍵のパスフレーズ（任意）",
+        fingerprint: "サーバーのフィンガープリント",
+        verify: "信頼する前に、このフィンガープリントをサーバーのものと比較してください。",
+        trustAndConnect: "信頼して接続",
+        required: "接続するには秘密鍵をインポートしてください。",
+      },
       fields: {
         target: "SSH ホスト",
         password: "デーモンのパスワード",
@@ -1996,6 +2306,73 @@ export const ja: TranslationResources = {
     input: "入力",
     output: "出力",
   },
+  toolActivity: {
+    files: {
+      intent: "ファイルを変更",
+      running: "ファイルを変更中",
+      completed: "ファイルを変更しました",
+    },
+    read: {
+      intent: "ファイルを読む",
+      running: "ファイルを読み取り中",
+      completed: "ファイルを読み取りました",
+    },
+    edit: {
+      intent: "ファイルを編集",
+      running: "ファイルを編集中",
+      completed: "ファイルを編集しました",
+    },
+    write: {
+      intent: "ファイルを書き込む",
+      running: "ファイルを書き込み中",
+      completed: "ファイルを書き込みました",
+    },
+    create: {
+      intent: "ファイルを作成",
+      running: "ファイルを作成中",
+      completed: "ファイルを作成しました",
+    },
+    delete: {
+      intent: "ファイルを削除",
+      running: "ファイルを削除中",
+      completed: "ファイルを削除しました",
+    },
+    search: {
+      intent: "検索",
+      running: "検索中",
+      completed: "検索しました",
+    },
+    list: {
+      intent: "ファイルを一覧表示",
+      running: "ファイルを一覧表示中",
+      completed: "ファイルを一覧表示しました",
+    },
+    command: {
+      intent: "コマンドを実行",
+      running: "コマンドを実行中",
+      completed: "コマンドを実行しました",
+    },
+    script: {
+      intent: "スクリプトを実行",
+      running: "スクリプトを実行中",
+      completed: "スクリプトを実行しました",
+    },
+    activity: {
+      intent: "操作を実行",
+      running: "操作を実行中",
+      completed: "操作を実行しました",
+    },
+    failed: "失敗: {{action}}",
+    canceled: "キャンセル: {{action}}",
+    counts: {
+      editedFiles: { one: "ファイル操作 {{count}} 件", other: "ファイル操作 {{count}} 件" },
+      commands: { one: "コマンド {{count}} 件", other: "コマンド {{count}} 件" },
+      readFiles: { one: "ファイル読み取り {{count}} 件", other: "ファイル読み取り {{count}} 件" },
+      searches: { one: "検索 {{count}} 件", other: "検索 {{count}} 件" },
+      otherTools: { one: "その他の操作 {{count}} 件", other: "その他の操作 {{count}} 件" },
+      paseoCalls: { one: "Paseo 呼び出し {{count}} 件", other: "Paseo 呼び出し {{count}} 件" },
+    },
+  },
   toolCallGroup: {
     editedFiles: {
       one: "{{count}}個のファイルを編集",
@@ -2099,7 +2476,31 @@ export const ja: TranslationResources = {
       diagnostics: "診断",
       about: "アプリ情報",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "エクスプローラー",
+        comparison: {
+          label: "既定の比較",
+          description: "ワークスペースに保存された比較がない場合に使用します。",
+          options: { uncommitted: "未コミット", base: "コミット済み" },
+        },
+        autoSwitch: {
+          label: "比較を自動的に切り替える",
+          description:
+            "ローカルの変更がある場合は未コミット、それ以外はコミット済みを表示します。オフにすると選択を記憶します。",
+        },
+        autoOpen: {
+          label: "新しいワークスペースでサイドバーを開く",
+          description: "デスクトップの新しいワークスペースでエクスプローラーを自動的に表示します。",
+        },
+        diffScope: {
+          label: "変更内のファイルをクリックしたとき",
+          description: "差分に表示する変更ファイルの範囲を選択します。",
+          options: { all: "変更されたすべてのファイル", single: "選択したファイルのみ" },
+        },
+      },
+    },
     editor: {
       title: "エディター",
       vimKeybindings: "Vim キーバインド",
@@ -2274,6 +2675,21 @@ export const ja: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "アクセントカラー",
+        hint: "主要な操作と自分のメッセージに使用します",
+        updateHost: "アクセントカラーを変更するには、選択した設定ホストを更新してください",
+        preview: "メッセージはこのように表示されます",
+        options: {
+          default: "デフォルト",
+          blue: "ブルー",
+          green: "グリーン",
+          purple: "パープル",
+          rose: "ローズ",
+          orange: "オレンジ",
+          teal: "ティール",
+        },
+      },
       theme: {
         title: "テーマ",
         accessibilityLabel: "テーマ: {{value}}",

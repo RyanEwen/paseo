@@ -150,7 +150,7 @@ function useSubAnchors(): {
   const anchors = useRef(new Map<string, React.RefObject<View | null>>());
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { openSub, closeSub } = useMenuContext("MenuSurface");
+  const { open, openSub, closeSub } = useMenuContext("MenuSurface");
 
   const clearTimers = useCallback(() => {
     if (openTimer.current) clearTimeout(openTimer.current);
@@ -159,7 +159,14 @@ function useSubAnchors(): {
     closeTimer.current = null;
   }, []);
 
-  useEffect(() => clearTimers, [clearTimers]);
+  useEffect(() => {
+    if (!open) {
+      // The surface component survives closing, but its trigger refs and hover intent do not.
+      clearTimers();
+      anchors.current.clear();
+    }
+    return clearTimers;
+  }, [open, clearTimers]);
 
   const registerSubAnchor = useCallback((id: string, ref: React.RefObject<View | null>) => {
     anchors.current.set(id, ref);

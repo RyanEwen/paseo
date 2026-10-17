@@ -21,6 +21,7 @@ import {
 } from "@/plugins/themes";
 import { PLUGIN_THEME_NAMES, PLUGIN_THEME_PREFERENCE, THEME_TO_UNISTYLES } from "@/styles/theme";
 import { applyAppearance } from "./apply";
+import { applyAccentAppearance } from "./accent";
 import { AppearanceSystemBars } from "./system-bars";
 
 interface ContributedThemes {
@@ -68,6 +69,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     applyTheme({ preference: settings.theme, contributedTheme: selected });
+    applyAccentAppearance({
+      choice: settings.accentColor,
+      contributedTheme: selected?.theme ?? null,
+    });
     applyAppearance({
       uiFontFamily: settings.uiFontFamily,
       monoFontFamily: settings.monoFontFamily,
@@ -82,6 +87,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     isLoading,
     selected,
     settings.theme,
+    settings.accentColor,
     settings.uiFontFamily,
     settings.monoFontFamily,
     settings.uiBaseFontSize,

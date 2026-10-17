@@ -1,6 +1,9 @@
 import type { KeyboardShortcutPayload, MessageInputKeyboardActionKind } from "@/keyboard/actions";
 import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
-import { buildSettingsRoute, parseHostWorkspaceRouteFromPathname } from "@/utils/host-routes";
+import {
+  buildDefaultSettingsRoute,
+  parseHostWorkspaceRouteFromPathname,
+} from "@/utils/host-routes";
 import {
   getRelativeSidebarShortcutTarget,
   type SidebarShortcutWorkspaceTarget,
@@ -163,7 +166,7 @@ function routeMessageInputAction(payload: KeyboardShortcutPayload): ShortcutActi
 
 function routeSettingsToggle(ctx: ShortcutRoutingContext): ShortcutAction {
   if (!ctx.pathname.startsWith("/settings")) {
-    return { kind: "router-push", route: buildSettingsRoute() };
+    return { kind: "router-push", route: buildDefaultSettingsRoute() };
   }
   if (!ctx.isMobile) {
     return { kind: "navigate-last-workspace" };

@@ -1,3 +1,4 @@
+import { usePanelStore } from "@/stores/panel-store";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import {
   prepareWorkspaceTab as prepareWorkspaceTabPure,
@@ -20,6 +21,9 @@ function layoutStoreDeps() {
   };
 }
 
+/** Open an explicit workspace target and reveal its compact content pane. */
 export function prepareWorkspaceTab(input: PrepareWorkspaceTabInput): void {
   prepareWorkspaceTabPure(input, layoutStoreDeps());
+  // Deferred route intents reach this owner after layout hydration.
+  usePanelStore.getState().showMobileAgent();
 }

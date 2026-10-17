@@ -1,0 +1,24 @@
+{
+  "id": "desktop-help-projectPinning",
+  "source": "desktop-help-projectPinning-1791842733838.png",
+  "sourceManifestSha256": "18e93c6cdf7c4aaacf55a8cf3d8307d181a104aa147a794a62a3d21c38bc4309",
+  "sourceSha256": "84dd4903277983fa3360d387e4b3afbcb111549a85b34233cffb891b2b9640c2",
+  "capturedAtUtc": "2026-10-12T22:05:33.960Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 763,
+    "top": 560,
+    "width": 291,
+    "height": 340
+  },
+  "description": "Actual local screenshot help after real keyboard focus or compact touch disclosure.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified."
+}

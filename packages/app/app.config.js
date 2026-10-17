@@ -4,13 +4,27 @@ const pkg = require("./package.json");
 const withAndroidAsyncStorageSize = require("./plugins/with-android-async-storage-size");
 const withAndroidOptionalCamera = require("./plugins/with-android-optional-camera");
 const withAndroidProfileable = require("./plugins/with-android-profileable");
+const withAndroidReleaseSigning = require("./plugins/with-android-release-signing");
 const withFdroidAutolinking = require("./plugins/with-fdroid-autolinking");
 const withPasteInput = require("./plugins/with-paste-input");
 const withAndroidScroll = require("./modules/paseo-scroll/app.plugin");
-const { getNativeReleaseVersion } = require("./native-release-version");
+const { getNativeReleaseVersion, getPreviewReleaseVersion } = require("./native-release-version");
 const appVariant = process.env.APP_VARIANT ?? "production";
 const isFdroidBuild = process.env.PASEO_FDROID_BUILD === "1";
 const isProfileBuild = process.env.PASEO_PROFILE_BUILD === "1";
+const isPreviewBuild = process.env.PASEO_PREVIEW_BUILD === "1";
+const previewExpoProject = {
+  projectId: process.env.PASEO_PREVIEW_EXPO_PROJECT_ID,
+  owner: process.env.PASEO_PREVIEW_EXPO_OWNER,
+  slug: process.env.PASEO_PREVIEW_EXPO_SLUG,
+};
+
+if (isPreviewBuild && appVariant !== "development") {
+  throw new Error("Fork preview builds require APP_VARIANT=development");
+}
+if (isPreviewBuild && Object.values(previewExpoProject).some((value) => !value?.trim())) {
+  throw new Error("Fork previews require their own Expo project ID, owner, and slug");
+}
 
 const buildProfile = isFdroidBuild
   ? {
@@ -67,6 +81,14 @@ function resolveSecretFile(params) {
 }
 
 const variants = {
+  preview: {
+    name: "Paseo++",
+    packageId: "sh.paseo.plusplus",
+    googleServicesFile: resolveSecretFile({
+      envKey: "GOOGLE_SERVICES_FILE_PREVIEW",
+      fallbackRelativePath: "./.secrets/google-services.preview.json",
+    }),
+  },
   production: {
     name: "Paseo",
     packageId: "sh.paseo",
@@ -93,17 +115,19 @@ const variants = {
   },
 };
 
-const variant = variants[appVariant] ?? variants.production;
-const nativeReleaseVersion = getNativeReleaseVersion(pkg.version);
+const variant = isPreviewBuild ? variants.preview : (variants[appVariant] ?? variants.production);
+const nativeReleaseVersion = isPreviewBuild
+  ? getPreviewReleaseVersion(pkg.version, Number(process.env.PASEO_PREVIEW_BUILD_NUMBER))
+  : getNativeReleaseVersion(pkg.version);
 
 export default {
   expo: {
-    name: variant.name,
-    slug: "voice-mobile",
-    version: nativeReleaseVersion.appVersion,
+    name: isPreviewBuild ? "Paseo++" : variant.name,
+    slug: isPreviewBuild ? previewExpoProject.slug : "voice-mobile",
+    version: isPreviewBuild ? nativeReleaseVersion.version : nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "paseo",
+    scheme: isPreviewBuild ? "paseo-plus-plus" : "paseo",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
@@ -128,7 +152,10 @@ export default {
       softwareKeyboardLayoutMode: "resize",
       // Allow HTTP connections for local network hosts (required for release builds)
       usesCleartextTraffic: true,
-      permissions: buildProfile.androidPermissions,
+      permissions: [
+        ...buildProfile.androidPermissions,
+        ...(isPreviewBuild ? ["android.permission.REQUEST_INSTALL_PACKAGES"] : []),
+      ],
       package: variant.packageId,
       versionCode: nativeReleaseVersion.androidVersionCode,
       ...(variant.googleServicesFile ? { googleServicesFile: variant.googleServicesFile } : {}),
@@ -174,6 +201,12 @@ export default {
           android: {
             minSdkVersion: 29,
             kotlinVersion: "2.1.20",
+            // SSH cryptography jars share license paths. Retain every notice in the APK.
+            packagingOptions: {
+              merge: ["META-INF/LICENSE.md"],
+              // Android does not use the jars' duplicate OSGi bundle manifests.
+              exclude: ["META-INF/versions/9/OSGI-INF/MANIFEST.MF"],
+            },
             // Allow HTTP connections for local network hosts in release builds
             usesCleartextTraffic: true,
           },
@@ -181,6 +214,7 @@ export default {
       ],
       ...buildProfile.fdroidPlugins,
       ...(isProfileBuild ? [withAndroidProfileable] : []),
+      ...(isPreviewBuild ? [withAndroidReleaseSigning] : []),
     ],
     experiments: {
       typedRoutes: true,
@@ -190,11 +224,14 @@ export default {
     extra: {
       fdroidBuild: isFdroidBuild,
       profileBuild: isProfileBuild,
+      previewBuild: isPreviewBuild,
       router: {},
       eas: {
-        projectId: "0e7f65ce-0367-46c8-a238-2b65963d235a",
+        projectId: isPreviewBuild
+          ? previewExpoProject.projectId
+          : "0e7f65ce-0367-46c8-a238-2b65963d235a",
       },
     },
-    owner: "getpaseo",
+    owner: isPreviewBuild ? previewExpoProject.owner : "getpaseo",
   },
 };

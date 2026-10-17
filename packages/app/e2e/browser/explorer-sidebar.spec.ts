@@ -34,6 +34,38 @@ async function expectExplorerActiveTabForeground(
   await expect(activeFiles.getByText("Files", { exact: true })).toHaveCSS("color", foreground);
 }
 
+test("automatic Explorer opening applies only to new workspace layouts", async ({ page }) => {
+  const workspace = await seedWorkspace({ repoPrefix: "explorer-sidebar-auto-open-" });
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("@paseo:app-settings")) {
+      localStorage.setItem(
+        "@paseo:app-settings",
+        JSON.stringify({ autoOpenExplorerSidebar: true }),
+      );
+    }
+  });
+  try {
+    await gotoWorkspace(page, workspace.workspaceId);
+    await waitForWorkspaceTabsVisible(page);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            JSON.parse(localStorage.getItem("@paseo:app-settings") ?? "{}").autoOpenExplorerSidebar,
+        ),
+      )
+      .toBe(true);
+    await expect(explorerSidebar(page)).toBeVisible();
+    await page.getByTestId("workspace-explorer-toggle").first().click();
+    await expect(explorerSidebar(page)).toHaveCount(0);
+    await page.reload();
+    await waitForWorkspaceTabsVisible(page);
+    await expect(explorerSidebar(page)).toHaveCount(0);
+  } finally {
+    await workspace.cleanup();
+  }
+});
+
 test.describe("Explorer sidebar", () => {
   test("starts with Files and Changes, switches views, and toggles without changing main", async ({
     page,
@@ -130,7 +162,7 @@ test("Explorer keeps Files and Changes close actions in the context menu", async
     const main = page.getByTestId("workspace-pane-main");
     const mainTabsBefore = await main.getByTestId("workspace-tabs-row").getByRole("button").count();
     const explorer = await ensureExplorerSidebar(page);
-    await expectTabTitleFits(page, "Files", { min: 64, max: 90 });
+    await expectTabTitleFits(page, "Files", { min: 96, max: 96 });
 
     await test.step("Explorer's + menu excludes Agent and terminal profiles", async () => {
       await explorer.getByRole("button", { name: "New tab", exact: true }).click();

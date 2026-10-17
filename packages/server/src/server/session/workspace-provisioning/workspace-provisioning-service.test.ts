@@ -608,9 +608,15 @@ test("adopting a checkout preserves fork script restrictions, including archived
     untrustedSource,
   }));
 
-  const adopted = await provisioning.createWorkspaceForDirectory(path.join(repo, "src"));
+  const adopted = await provisioning.createWorkspaceForDirectory(
+    path.join(repo, "src"),
+    undefined,
+    undefined,
+    { background: true },
+  );
   expect(adopted.workspaceId).not.toBe(first.workspaceId);
   expect(adopted.untrustedSource).toEqual(untrustedSource);
+  expect(adopted.background).toBe(true);
   const unrelated = await provisioning.createWorkspaceForDirectory(otherRepo);
   expect(unrelated.untrustedSource).toBeUndefined();
 });

@@ -66,6 +66,7 @@ export function ProjectLeadingVisual({
   chevron = null,
   showChevron = false,
   isArchiving = false,
+  statusIsDecorative = false,
 }: {
   displayName: string;
   iconDataUri: string | null;
@@ -77,6 +78,8 @@ export function ProjectLeadingVisual({
   chevron?: "expand" | "collapse" | null;
   showChevron?: boolean;
   isArchiving?: boolean;
+  /** A separate aggregate chip owns the accessible status while this glyph stays visible. */
+  statusIsDecorative?: boolean;
 }) {
   if (showChevron && chevron !== null) {
     return (
@@ -101,6 +104,7 @@ export function ProjectLeadingVisual({
       projectViewKey={projectViewKey}
       statusBucket={statusBucket}
       backdrop={backdrop}
+      statusIsDecorative={statusIsDecorative}
     />
   );
 }
@@ -117,6 +121,7 @@ export function ProjectStatusIndicator({
   statusBucket,
   backdrop,
   loading = false,
+  statusIsDecorative = false,
   testID,
 }: {
   iconDataUri: string | null;
@@ -126,6 +131,8 @@ export function ProjectStatusIndicator({
   /** The row's current background, so the status badge can knock out of it. */
   backdrop: SidebarSurfaceBackdrop;
   loading?: boolean;
+  /** Hide redundant status semantics when a sibling aggregate chip announces the same state. */
+  statusIsDecorative?: boolean;
   testID?: string;
 }) {
   const placeholderInitial = projectIconPlaceholderLabelFromDisplayName(displayName)
@@ -140,6 +147,9 @@ export function ProjectStatusIndicator({
   return (
     <View
       style={styles.projectLeadingVisualSlot}
+      accessibilityElementsHidden={statusIsDecorative}
+      importantForAccessibility={statusIsDecorative ? "no-hide-descendants" : "auto"}
+      aria-hidden={statusIsDecorative}
       testID={
         testID ??
         (statusBucket && statusBucket !== "done"

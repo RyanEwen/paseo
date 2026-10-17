@@ -95,11 +95,14 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T): void {
   (ref as { current: T }).current = value;
 }
 
+const INLINE_TRIGGER_STYLE = { display: "contents" } as const;
+
 type TriggerStyleProp = StyleProp<ViewStyle> | ((state: MenuTriggerState) => StyleProp<ViewStyle>);
 
 export function ContextMenuTrigger({
   children,
   contextOnly = false,
+  inline = false,
   disabled,
   highlightStyle,
   style,
@@ -121,6 +124,8 @@ export function ContextMenuTrigger({
     onContextMenu?: (event: unknown) => void;
     triggerRef?: Ref<View | null>;
     contextOnly?: boolean;
+    /** Web context-only wrapper for a single link inside semantic prose. */
+    inline?: boolean;
   }
 >): ReactElement {
   const ctx = useMenuContext("ContextMenuTrigger");
@@ -151,6 +156,17 @@ export function ContextMenuTrigger({
       assignRef(triggerRef, node);
     },
     [ctx.triggerRef, triggerRef],
+  );
+
+  const handleInlineRef = useCallback(
+    (node: HTMLSpanElement | null) => {
+      if (!isWeb) return;
+      // RN web View refs are DOM nodes. Keep the menu's shared ref contract,
+      // but restore focus to the actual link, not a display:contents wrapper.
+      const target = node?.querySelector<HTMLAnchorElement>("a[href]") ?? node;
+      handleRef(target as unknown as View | null);
+    },
+    [handleRef],
   );
 
   const propsOnLongPress = props.onLongPress;
@@ -192,6 +208,18 @@ export function ContextMenuTrigger({
   );
 
   if (contextOnly) {
+    if (inline && isWeb) {
+      return (
+        <span
+          ref={handleInlineRef}
+          onContextMenu={handleContextMenu}
+          style={INLINE_TRIGGER_STYLE}
+          data-testid={props.testID}
+        >
+          {children}
+        </span>
+      );
+    }
     const contextOnlyStyle =
       typeof style === "function"
         ? style({ pressed: false, hovered: false, open: ctx.open })

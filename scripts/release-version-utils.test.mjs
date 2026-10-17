@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolvePreviewRelease } from "./preview-release/metadata.mjs";
 import {
   computeNextReleaseVersion,
   getReleaseInfoFromSourceTag,
@@ -50,4 +51,24 @@ test("emits beta release info from tags", () => {
 
 test("rejects non-beta prerelease versions", () => {
   assert.throws(() => parseReleaseVersion("0.1.60-canary.1"), /Expected beta prerelease versions/);
+});
+
+test("fork previews have distinct release identities tied to one full commit", () => {
+  const commit = "a".repeat(40);
+  assert.deepEqual(
+    resolvePreviewRelease({ upstreamVersion: "0.11.0-beta.5", buildNumber: 12, commit }),
+    {
+      version: "0.11.0-preview.12",
+      upstreamVersion: "0.11.0-beta.5",
+      appVersion: "0.11.0",
+      buildNumber: 12,
+      androidVersionCode: 1_000_000_012,
+      tag: "v0.11.0-preview.12",
+      commit,
+    },
+  );
+  assert.throws(
+    () => resolvePreviewRelease({ upstreamVersion: "0.11.0", buildNumber: 12, commit: "main" }),
+    /full Git commit/,
+  );
 });

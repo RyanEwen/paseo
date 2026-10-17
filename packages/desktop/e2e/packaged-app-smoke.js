@@ -1,4 +1,4 @@
-const { spawn, spawnSync } = require("node:child_process");
+const { execFileSync, spawn, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
@@ -9,7 +9,6 @@ const { extractFile } = require("@electron/asar");
 const { WebSocket } = require("ws");
 const assert = require("node:assert/strict");
 
-const EXECUTABLE_NAME = "Paseo";
 const SMOKE_TIMEOUT_MS = 60_000;
 const EXIT_TIMEOUT_MS = 10_000;
 const TERMINAL_CAPTURE_ATTEMPTS = 20;
@@ -65,16 +64,38 @@ function assertExecutable(filePath, label) {
   }
 }
 
+/** Locate resources for both app bundles and ordinary desktop package directories. */
+function getPackagedResourcesDir(appPath) {
+  return process.platform === "darwin"
+    ? path.join(appPath, "Contents", "Resources")
+    : path.join(appPath, "resources");
+}
+
+/** Read the packaged release metadata used by Electron and its bundled daemon. */
+function getPackagedAppMetadata(appPath) {
+  return JSON.parse(
+    extractFile(path.join(getPackagedResourcesDir(appPath), "app.asar"), "package.json").toString(),
+  );
+}
+
+/** Read the build's executable identity so the smoke also covers fork packages. */
+function getPackagedExecutableName(appPath) {
+  return fs
+    .readFileSync(path.join(getPackagedResourcesDir(appPath), "paseo-executable-name"), "utf8")
+    .trim();
+}
+
 function getExecutablePath(appPath) {
+  const executableName = getPackagedExecutableName(appPath);
   if (process.platform === "darwin") {
-    return path.join(appPath, "Contents", "MacOS", EXECUTABLE_NAME);
+    return path.join(appPath, "Contents", "MacOS", executableName);
   }
 
   if (process.platform === "win32") {
-    return path.join(appPath, `${EXECUTABLE_NAME}.exe`);
+    return path.join(appPath, `${executableName}.exe`);
   }
 
-  return path.join(appPath, EXECUTABLE_NAME);
+  return path.join(appPath, executableName);
 }
 
 function getCliShimPath(appPath) {
@@ -90,7 +111,7 @@ function getCliShimPath(appPath) {
 }
 
 function getMacMainExecutablePath(appPath) {
-  return path.join(appPath, "Contents", "MacOS", EXECUTABLE_NAME);
+  return path.join(appPath, "Contents", "MacOS", getPackagedExecutableName(appPath));
 }
 
 function getLaunchCommand(executablePath, args) {
@@ -119,18 +140,33 @@ function shellQuoteCliArg(value) {
   return shellQuote(String(value));
 }
 
-function getTerminalHookSmokeCommand(marker) {
-  if (process.platform === "win32") {
-    const script = [
-      "& $env:PASEO_HOOK_CLI hooks codex Stop",
-      "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
-      `Write-Output '${marker}'`,
-    ].join("; ");
-    const encodedScript = Buffer.from(script, "utf16le").toString("base64");
-    return `powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encodedScript}`;
+/** Exercise the bundled hook in the terminal's native shell, preserving failure exit codes. */
+function getTerminalHookSmokeCommand(marker, platform = process.platform) {
+  if (platform === "win32") {
+    return `call "%PASEO_HOOK_CLI%" hooks codex Stop <NUL && echo ${marker}`;
   }
 
   return `"$PASEO_HOOK_CLI" hooks codex Stop && echo ${marker}`;
+}
+
+/** Keep Windows hook syntax inside the terminal, outside cmd and Electron argument parsing. */
+function prepareTerminalHookSmokeCommand(cwd, marker, platform = process.platform) {
+  const command = getTerminalHookSmokeCommand(marker, platform);
+  if (platform !== "win32") {
+    return command;
+  }
+
+  const scriptName = "paseo-terminal-smoke.cmd";
+  fs.writeFileSync(
+    path.join(cwd, scriptName),
+    `@echo off\r\n${command}\r\nexit /b %errorlevel%\r\n`,
+  );
+  return `call .\\${scriptName}`;
+}
+
+/** Require completed output, since the terminal also echoes the submitted command itself. */
+function hasTerminalSmokeMarker(lines, marker) {
+  return lines.some((line) => line.trim() === marker);
 }
 
 function getShellCommand(script) {
@@ -149,14 +185,33 @@ function getShellCommand(script) {
 
 function createDefaultDaemonEnv(extraEnv) {
   return {
-    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("PASEO_"))),
+    // Build-time Node flags and run-as-node mode must not affect the packaged GUI.
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key]) =>
+          !key.startsWith("PASEO_") && key !== "NODE_OPTIONS" && key !== "ELECTRON_RUN_AS_NODE",
+      ),
+    ),
     ...extraEnv,
   };
 }
 
+/** Create the profile folders Windows requires before Electron resolves its appData path. */
+function createIsolatedHomeEnv(home, platform = process.platform) {
+  const env = { HOME: home, USERPROFILE: home };
+  if (platform === "win32") {
+    env.APPDATA = path.join(home, "AppData", "Roaming");
+    env.LOCALAPPDATA = path.join(home, "AppData", "Local");
+    // Shell folder lookup verifies these paths before the app applies its explicit userData override.
+    fs.mkdirSync(env.APPDATA, { recursive: true });
+    fs.mkdirSync(env.LOCALAPPDATA, { recursive: true });
+  }
+  return env;
+}
+
 function createIsolatedDesktopEnv({ home, listen, userData, cdpPort }) {
   return {
-    ...createDefaultDaemonEnv({ HOME: home, USERPROFILE: home }),
+    ...createDefaultDaemonEnv(createIsolatedHomeEnv(home)),
     PASEO_HOME: home,
     PASEO_LISTEN: listen,
     PASEO_ELECTRON_USER_DATA_DIR: userData,
@@ -302,13 +357,35 @@ function formatLogs({ stdout, stderr, userData, daemonHome }) {
   ].join("\n\n");
 }
 
-async function writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error }) {
+async function writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error, child }) {
   const artifactDir = process.env.PASEO_DESKTOP_SMOKE_ARTIFACT_DIR?.trim();
   if (!artifactDir) {
     return;
   }
 
   fs.mkdirSync(artifactDir, { recursive: true });
+  if (error && process.platform === "win32" && child?.pid) {
+    try {
+      const startupDialogs = execFileSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-File",
+          path.join(__dirname, "windows-startup-diagnostics.ps1"),
+          "-AppProcessId",
+          String(child.pid),
+        ],
+        { encoding: "utf8", timeout: 15000, windowsHide: true },
+      );
+      fs.writeFileSync(path.join(artifactDir, "windows-startup.txt"), startupDialogs);
+      console.error(`Packaged desktop smoke: Windows startup diagnostics\n${startupDialogs}`);
+    } catch (diagnosticError) {
+      console.warn(
+        `Packaged desktop smoke: Windows startup diagnostics failed: ${diagnosticError}`,
+      );
+    }
+  }
   fs.writeFileSync(
     path.join(artifactDir, error ? "failure.txt" : "success.txt"),
     `${error instanceof Error ? (error.stack ?? error.message) : String(error ?? "Packaged desktop smoke passed")}\n\n${formatLogs(
@@ -645,7 +722,7 @@ async function smokeColdCliDaemonStart({ appPath }) {
   const pidPath = path.join(home, "paseo.pid");
   const port = await reserveLocalTcpPort();
   const listen = `127.0.0.1:${port}`;
-  const env = createDefaultDaemonEnv({ HOME: home, USERPROFILE: home });
+  const env = createDefaultDaemonEnv(createIsolatedHomeEnv(home));
   configureIsolatedDaemonHome(home, listen);
 
   try {
@@ -710,6 +787,7 @@ async function smokeCliTerminal({ appPath, env }) {
   const marker = `paseo-packaged-terminal-smoke-${Date.now()}`;
   const name = `packaged-smoke-${process.pid}-${Date.now()}`;
   let terminalId = null;
+  let lastCapture = [];
 
   try {
     console.log("Packaged desktop smoke: creating terminal through bundled CLI shim");
@@ -737,7 +815,13 @@ async function smokeCliTerminal({ appPath, env }) {
     await runCliShimJsonCommand({
       appPath,
       env,
-      args: ["terminal", "send-keys", terminalId, getTerminalHookSmokeCommand(marker), "Enter"],
+      args: [
+        "terminal",
+        "send-keys",
+        terminalId,
+        prepareTerminalHookSmokeCommand(cwd, marker),
+        "Enter",
+      ],
       label: "Bundled CLI shim terminal hook command",
     });
 
@@ -749,7 +833,8 @@ async function smokeCliTerminal({ appPath, env }) {
         label: "Bundled CLI shim terminal capture",
       });
       const lines = Array.isArray(capture?.lines) ? capture.lines : [];
-      if (lines.join("\n").includes(marker)) {
+      lastCapture = lines;
+      if (hasTerminalSmokeMarker(lines, marker)) {
         console.log("Packaged desktop smoke: terminal hook command completed");
         return;
       }
@@ -759,7 +844,9 @@ async function smokeCliTerminal({ appPath, env }) {
       }
     }
 
-    throw new Error(`Timed out waiting for terminal capture marker ${marker}`);
+    throw new Error(
+      `Timed out waiting for terminal capture marker ${marker}. Last terminal output:\n${lastCapture.join("\n")}`,
+    );
   } finally {
     if (terminalId) {
       await runCliShimJsonCommand({
@@ -853,12 +940,11 @@ function assertLinuxDesktopIdentity(appPath) {
       fs.readFileSync(path.join(__dirname, "..", "assets", "icon.png")),
       "Packaged Linux windows must have the Paseo icon at their runtime lookup path",
     );
-    const metadata = JSON.parse(
-      extractFile(path.join(appPath, "resources", "app.asar"), "package.json").toString(),
-    );
-    if (metadata.desktopName !== `${EXECUTABLE_NAME}.desktop`) {
+    const executableName = getPackagedExecutableName(appPath);
+    const metadata = getPackagedAppMetadata(appPath);
+    if (metadata.desktopName !== `${executableName}.desktop`) {
       throw new Error(
-        `Packaged Linux desktop identity ${JSON.stringify(metadata.desktopName)} does not match ${EXECUTABLE_NAME}.desktop`,
+        `Packaged Linux desktop identity ${JSON.stringify(metadata.desktopName)} does not match ${executableName}.desktop`,
       );
     }
   }
@@ -895,7 +981,12 @@ async function smokePackagedDesktopApp({
 
   const stdout = [];
   const stderr = [];
-  const launch = getLaunchCommand(executablePath, launchArgs);
+  // A command-line port opens CDP even when an early main-process import fails before
+  // the app can interpret PASEO_ELECTRON_FLAGS. It is already ignored by CLI passthrough.
+  const launch = getLaunchCommand(executablePath, [
+    ...launchArgs,
+    `--remote-debugging-port=${cdpPort}`,
+  ]);
   console.log(`Packaged desktop smoke: launching ${launch.command} ${launch.args.join(" ")}`);
   const child = spawn(launch.command, launch.args, {
     detached: process.platform !== "win32",
@@ -944,7 +1035,14 @@ async function smokePackagedDesktopApp({
       userData,
       deadline,
     });
-    console.log("Packaged desktop smoke: renderer-started desktop daemon reported running");
+    assert.equal(
+      status.version,
+      getPackagedAppMetadata(appPath).version,
+      "Packaged desktop and daemon must share one release version",
+    );
+    console.log(
+      "Packaged desktop smoke: renderer-started desktop daemon reported running with the matching release version",
+    );
     await assertBuiltinPluginsStarted(listen);
     console.log("Packaged desktop smoke: every built-in plugin started");
     await smokeCliShim({ appPath, env });
@@ -959,7 +1057,7 @@ async function smokePackagedDesktopApp({
       `Packaged desktop smoke passed: real renderer and preload loaded; renderer-started desktop daemon pid ${status.pid}, listen ${status.listen}; CLI shim daemon status and terminal smoke succeeded`,
     );
   } catch (error) {
-    await writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error }).catch(
+    await writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error, child }).catch(
       (artifactError) => {
         console.warn(`Packaged desktop smoke: failed to write failure artifacts: ${artifactError}`);
       },
@@ -986,6 +1084,11 @@ async function smokePackagedDesktopApp({
 }
 
 module.exports = {
+  createIsolatedHomeEnv,
+  getTerminalHookSmokeCommand,
+  prepareTerminalHookSmokeCommand,
+  getCliShimScript,
+  hasTerminalSmokeMarker,
   smokePackagedDesktopApp,
 };
 

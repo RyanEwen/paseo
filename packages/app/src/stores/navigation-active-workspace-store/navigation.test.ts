@@ -22,6 +22,7 @@ function createFakeDeps(overrides: Partial<NavigateToWorkspaceDeps> = {}) {
   const remembered: ActiveWorkspaceSelection[] = [];
   const openedTabs: RecordedTab[] = [];
   const deps: NavigateToWorkspaceDeps = {
+    revealWorkspaceContent: () => {},
     getSessionWorkspaces: () => null,
     getSessionAgents: () => [] as Agent[],
     isWorkspaceLayoutHydrated: () => true,
@@ -60,6 +61,52 @@ function createLastSelectionDeps(
 }
 
 describe("workspace navigation", () => {
+  it.each([true, false])(
+    "reveals the notified agent from the workspace list with layout hydrated=%s",
+    (hydrated) => {
+      const workspace = {
+        id: "workspace-a",
+        workspaceDirectory: "/repo/workspace-a",
+      } as WorkspaceDescriptor;
+      let visiblePanel = "agent-list";
+      const { deps, navigations, openedTabs } = createFakeDeps({
+        getSessionWorkspaces: () => new Map([[workspace.id, workspace]]),
+        isWorkspaceLayoutHydrated: () => hydrated,
+        revealWorkspaceContent: () => {
+          visiblePanel = "agent";
+        },
+      });
+
+      navigateToWorkspace(
+        {
+          serverId: "server-1",
+          workspaceId: "workspace-a",
+          target: { kind: "agent", agentId: "notified-agent" },
+          pin: true,
+        },
+        deps,
+      );
+
+      expect(visiblePanel).toBe("agent");
+      expect(navigations).toEqual([
+        hydrated
+          ? "/h/server-1/workspace/workspace-a"
+          : "/h/server-1/workspace/workspace-a?open=agent%3Anotified-agent",
+      ]);
+      expect(openedTabs).toEqual(
+        hydrated
+          ? [
+              {
+                workspaceKey: "server-1:workspace-a",
+                target: { kind: "agent", agentId: "notified-agent" },
+                pin: true,
+              },
+            ]
+          : [],
+      );
+    },
+  );
+
   it("reports when no last workspace is known", () => {
     const { deps } = createLastSelectionDeps(null);
 

@@ -143,6 +143,28 @@ function findUntranslatedConnectionErrors(): string[] {
 }
 
 describe("translation resources", () => {
+  it("provides project selector copy in the sidebar surface for every locale", () => {
+    for (const resource of [en, ar, es, fr, ja, ko, ptBR, ru, zhCN]) {
+      expect(Object.keys(resource.sidebar.projectSelector).sort()).toEqual([
+        "all",
+        "allWorkspaces",
+        "includeProject",
+        "multipleWorkspaces_one",
+        "multipleWorkspaces_other",
+        "noKnownProjects",
+        "projectWorkspaces",
+        "selectOnlyProject",
+        "title",
+        "workspaces",
+      ]);
+      expect(resource.sidebar.projectSelector.selectOnlyProject).toContain("{{project}}");
+      expect(resource.sidebar.projectSelector.includeProject).toContain("{{project}}");
+      expect(resource.sidebar.projectSelector.projectWorkspaces).toContain("{{project}}");
+      expect(resource.sidebar.projectSelector.multipleWorkspaces_other).toContain("{{count}}");
+    }
+    expect(en.sidebar.projectSelector.all).toBe("All");
+  });
+
   it("keeps all supported language keys in sync with English", () => {
     const englishKeys = flattenKeys(en).sort();
     expect(flattenKeys(ar).sort()).toEqual(englishKeys);

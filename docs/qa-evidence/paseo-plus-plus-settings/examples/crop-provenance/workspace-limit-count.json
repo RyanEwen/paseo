@@ -1,0 +1,38 @@
+{
+  "id": "workspace-limit-count",
+  "source": "settings-overview-current-all-on-1791840827632.png",
+  "sourceManifestSha256": "8507b37ee58fcc422c8aa8a7cc91e9ca0789facb1e9548e558e2e7ba204ecdd9",
+  "sourceSha256": "47baac258e8d439528f347ce1f13a786ddb0296e82e00a34c3731893be13f02e",
+  "capturedAtUtc": "2026-10-12T21:33:47.813Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 3000
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 3000
+  },
+  "crop": {
+    "left": 931,
+    "top": 1136,
+    "width": 291,
+    "height": 48
+  },
+  "description": "The actual workspace limit control from the current full-page overview, not runtime list behavior.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/workspace-limit-count-overview.json",
+  "captureSuggestedCrop": {
+    "left": 931,
+    "top": 1136,
+    "width": 291,
+    "height": 48
+  },
+  "asset": "workspace-limit-count.png",
+  "assetSha256": "f3ef1e739abff7afb06d6d69dedff9e7c830ee4b5d53ab91e37cbd29bd49c696",
+  "assetPixels": {
+    "width": 291,
+    "height": 48
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

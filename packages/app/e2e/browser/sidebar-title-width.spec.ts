@@ -113,12 +113,14 @@ async function openDesktopWorkspaceList(page: Page) {
   return titleWidth(row);
 }
 
-async function expectHoverKeepsTitleWidth(page: Page, width: number, testInfo: TestInfo) {
+async function expectHoverUsesActionSpace(page: Page, width: number, testInfo: TestInfo) {
   const row = workspaceRow(page);
   await row.hover();
   await expect(row.getByLabel("Workspace actions", { exact: true })).toBeVisible();
-  expect(await titleWidth(row)).toBeCloseTo(width, 0);
+  await expect.poll(() => titleWidth(row)).toBeLessThan(width - 20);
   await page.screenshot({ path: testInfo.outputPath("desktop-hover.png") });
+  await page.mouse.move(0, 0);
+  await expect.poll(() => titleWidth(row)).toBeCloseTo(width, 0);
 }
 
 async function expectShortcutHintsKeepTitleWidth(page: Page, width: number, testInfo: TestInfo) {
@@ -147,9 +149,63 @@ test("touch titles use the space occupied by hidden stats in every grouping", as
   await expectTouchTitleWidth(page);
 });
 
-test("desktop hover and shortcut hints preserve title width", async ({ page }, testInfo) => {
+test("desktop idle titles reclaim hover-action space and shortcut hints preserve width", async ({
+  page,
+}, testInfo) => {
   const width = await openDesktopWorkspaceList(page);
-  await expectHoverKeepsTitleWidth(page, width, testInfo);
+  await expectHoverUsesActionSpace(page, width, testInfo);
   await expectShortcutHintsKeepTitleWidth(page, width, testInfo);
   await expectDisablingStatsExpandsTitle(page, width);
+});
+
+test("last activity and diff stats can be shown together and toggled independently", async ({
+  page,
+}, testInfo) => {
+  await gotoAppShell(page);
+  const row = workspaceRow(page);
+  const timestamp = row.getByTestId("sidebar-workspace-timestamp");
+  const diff = row.getByTestId("sidebar-workspace-diff-stat");
+  await expect(timestamp).toBeVisible();
+  await toggleTrailing(page, "Diff stats");
+  await expect(timestamp).toBeVisible();
+  await expect(diff).toBeVisible();
+  await openSidebarDisplayPage(page, "sidebar-display-show");
+  await expect(page.getByTestId("sidebar-workspace-trailing-diff")).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await expect(page.getByTestId("sidebar-workspace-trailing-timestamp")).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await closeSidebarDisplayPreferences(page);
+  await toggleTrailing(page, "Last activity");
+  await expect(timestamp).toHaveCount(0);
+  await expect(diff).toBeVisible();
+  await toggleTrailing(page, "Last activity");
+  await toggleTrailing(page, "Diff stats");
+  await expect(timestamp).toBeVisible();
+  await expect(diff).toHaveCount(0);
+  await toggleTrailing(page, "Last activity");
+  await expect(timestamp).toHaveCount(0);
+  await expect(diff).toHaveCount(0);
+  await toggleTrailing(page, "Last activity");
+  await toggleTrailing(page, "Diff stats");
+  await expect(diff).toHaveText("+12.3k-1");
+  const width = await titleWidth(row);
+  await expectHoverUsesActionSpace(page, width, testInfo);
+  await expectShortcutHintsKeepTitleWidth(page, width, testInfo);
+  await page.mouse.move(0, 0);
+  await page.reload();
+  await expect(timestamp).toBeVisible();
+  await expect(diff).toHaveText("+12.3k-1");
+  await pinWorkspaceForLayout(page);
+  await expect(timestamp).toBeVisible();
+  await expect(diff).toBeVisible();
+  await moveWorkspaceToStatusGrouping(page);
+  // Status mode has independent trailing preferences.
+  await toggleTrailing(page, "Diff stats");
+  await expect(timestamp).toBeVisible();
+  await expect(diff).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("sidebar-both-stats.png") });
 });

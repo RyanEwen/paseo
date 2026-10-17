@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu, WorkspaceBrowserMenuItem } from "@/workspace/browser/link-menu";
 import { useCallback, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View, type ViewStyle } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -477,21 +478,56 @@ export function PullRequestPane({
       })
     : null;
 
+  const prHeader = (
+    <Pressable onPress={handleOpenPrUrl} style={styles.header}>
+      {({ hovered }) => (
+        <>
+          <Text style={styles.title} testID="pr-pane-title">
+            {data.title}
+            <Text style={styles.titleNumber}>
+              {" "}
+              {forgePresentation.numberPrefix}
+              {data.number}
+            </Text>
+          </Text>
+          <View style={styles.metaLine}>
+            <StateIcon size={14} uniProps={statePresentation.iconColor} />
+            <Text style={stateLabelStyle(data.state)} testID="pr-pane-state">
+              {t(getStateLabelKey(data.state))}
+            </Text>
+            {nativeHeaderMeta}
+            {repoIdentity ? (
+              <Text style={styles.repoRef} numberOfLines={1}>
+                {repoIdentity}
+              </Text>
+            ) : null}
+            <View style={hovered ? styles.headerLinkIcon : styles.headerLinkIconHidden}>
+              <ThemedExternalLink size={12} uniProps={foregroundMutedColorMapping} />
+            </View>
+          </View>
+        </>
+      )}
+    </Pressable>
+  );
+  const prHeaderLink = <WorkspaceHttpLinkMenu url={data.url}>{prHeader}</WorkspaceHttpLinkMenu>;
+
   return (
     <View style={styles.root} testID="pr-pane">
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <PaneContentToolbar style={styles.toolbar} testID="pr-pane-toolbar">
           <View style={styles.toolbarActions}>
-            <Button
-              variant="ghost"
-              size="xs"
-              leftIcon={ExternalLink}
-              onPress={handleOpenPrUrl}
-              style={styles.viewButton}
-              testID="pr-pane-view-pr"
-            >
-              {t("workspace.git.pr.actions.viewPullRequest")}
-            </Button>
+            <WorkspaceHttpLinkMenu url={data.url}>
+              <Button
+                variant="ghost"
+                size="xs"
+                leftIcon={ExternalLink}
+                onPress={handleOpenPrUrl}
+                style={styles.viewButton}
+                testID="pr-pane-view-pr"
+              >
+                {t("workspace.git.pr.actions.viewPullRequest")}
+              </Button>
+            </WorkspaceHttpLinkMenu>
           </View>
           {refreshSupported ? (
             <Pressable
@@ -524,35 +560,7 @@ export function PullRequestPane({
           ) : null}
         </PaneContentToolbar>
 
-        <Pressable onPress={handleOpenPrUrl} style={styles.header}>
-          {({ hovered }) => (
-            <>
-              <Text style={styles.title} testID="pr-pane-title">
-                {data.title}
-                <Text style={styles.titleNumber}>
-                  {" "}
-                  {forgePresentation.numberPrefix}
-                  {data.number}
-                </Text>
-              </Text>
-              <View style={styles.metaLine}>
-                <StateIcon size={14} uniProps={statePresentation.iconColor} />
-                <Text style={stateLabelStyle(data.state)} testID="pr-pane-state">
-                  {t(getStateLabelKey(data.state))}
-                </Text>
-                {nativeHeaderMeta}
-                {repoIdentity ? (
-                  <Text style={styles.repoRef} numberOfLines={1}>
-                    {repoIdentity}
-                  </Text>
-                ) : null}
-                <View style={hovered ? styles.headerLinkIcon : styles.headerLinkIconHidden}>
-                  <ThemedExternalLink size={12} uniProps={foregroundMutedColorMapping} />
-                </View>
-              </View>
-            </>
-          )}
-        </Pressable>
+        {prHeaderLink}
 
         {nativeChecksSection ?? (
           <ChecksSection
@@ -717,6 +725,7 @@ function ActivityKebab({
               Copy
             </DropdownMenuItem>
           ) : null}
+          <WorkspaceBrowserMenuItem url={activity.url} />
           <DropdownMenuItem leading={OPEN_MENU_ICON} onSelect={handleOpen}>
             {t("workspace.git.pr.actions.openOn", { brand: brandLabel })}
           </DropdownMenuItem>
@@ -838,18 +847,20 @@ function SingleActivityCard({
         onPointerLeave={handlePointerLeave}
         testID="pr-pane-activity-row"
       >
-        <Pressable onPress={handleHeaderPress} style={entryHeaderPressableStyle}>
-          <ActivityHeader activity={activity} avatarSize={20}>
-            <ActivityKebab
-              activity={activity}
-              visible={actionsVisible}
-              attachEnabled={attachEnabled}
-              brandLabel={brandLabel}
-              onMenuOpenChange={setMenuOpen}
-              onAddToChat={onAddToChat}
-            />
-          </ActivityHeader>
-        </Pressable>
+        <WorkspaceHttpLinkMenu url={activity.url}>
+          <Pressable onPress={handleHeaderPress} style={entryHeaderPressableStyle}>
+            <ActivityHeader activity={activity} avatarSize={20}>
+              <ActivityKebab
+                activity={activity}
+                visible={actionsVisible}
+                attachEnabled={attachEnabled}
+                brandLabel={brandLabel}
+                onMenuOpenChange={setMenuOpen}
+                onAddToChat={onAddToChat}
+              />
+            </ActivityHeader>
+          </Pressable>
+        </WorkspaceHttpLinkMenu>
       </View>
     );
   }
@@ -1092,6 +1103,7 @@ function ThreadBlock({
                 {renderKebabTriggerIcon}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" width={200}>
+                <WorkspaceBrowserMenuItem url={root.url} />
                 <DropdownMenuItem leading={OPEN_MENU_ICON} onSelect={handleOpenThread}>
                   {t("workspace.git.pr.actions.openOn", { brand: brandLabel })}
                 </DropdownMenuItem>

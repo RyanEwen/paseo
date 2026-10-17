@@ -69,11 +69,13 @@ async function harness(
   connection.onEvent((event) => {
     events.push(ProviderEventSchema.parse(event));
   });
+  /** Keep ordinary event polling unchanged; startup can use the provider's longer deadline. */
   async function wait(
     predicate: (event: ProviderEvent) => boolean,
     from = 0,
+    timeoutMs?: number,
   ): Promise<ProviderEvent> {
-    const deadline = Date.now() + 5000;
+    const deadline = Date.now() + (timeoutMs ?? 5000);
     while (Date.now() < deadline) {
       const event = events.slice(from).find(predicate);
       if (event) return event;
@@ -110,7 +112,13 @@ async function harness(
       persistence,
       history: "replay",
     });
-    return wait((event) => event.type === "session.ready" || event.type === "request.failed");
+    // MSP initialization allows 30 seconds. The test's own deadline still caps
+    // the operation; a cold Windows child should not fail the shorter event poll.
+    return wait(
+      (event) => event.type === "session.ready" || event.type === "request.failed",
+      0,
+      30000,
+    );
   }
   async function prompt(delivery: "auto" | "steer" = "auto", image = false) {
     return send({
@@ -228,6 +236,22 @@ test("text and reasoning stream, completion overwrites deltas, user echo retains
     persistence: { version: 1, data: { model: "meta/muse-spark-1.3", thinkingOption: "high" } },
   });
 });
+
+test("session readiness waits for delayed MSP initialization before accepting a prompt", async () => {
+  const h = await harness("text-reasoning", { MUSE_TEST_INITIALIZE_DELAY_MS: "3500" });
+  expect(await h.open()).toMatchObject({ type: "session.ready" });
+  await h.prompt();
+  expect(
+    await h.wait((event) => event.type === "session.turn" && event.state === "completed"),
+  ).toMatchObject({ type: "session.turn", state: "completed" });
+  const frames = await h.recorded();
+  expect(frames.filter((frame) => frame.method === "initialize")).toHaveLength(1);
+  expect(frames.find((frame) => frame.method === "turn/start").params).toMatchObject({
+    ifBusy: "queue",
+    reasoningEffort: "high",
+    displayText: "hello",
+  });
+}, 10000);
 test("tool calls classify read, shell, and edit with fetched JSON patch converted to unified diff", async () => {
   const h = await harness("tools-edit");
   await h.open();

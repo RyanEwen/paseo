@@ -3,11 +3,9 @@ import { gotoAppShell, openSettings } from "../support/helpers/app";
 import { openSettingsSection } from "../support/helpers/settings";
 import { openWhatsNew, release, serveChangelog } from "../support/helpers/changelog";
 
-const DISCORD_DESTINATION =
-  /^https:\/\/(?:discord\.gg\/jz8T2uahpH|discord\.com\/invite\/jz8T2uahpH)(?:[/?#]|$)/;
-const GITHUB_ISSUE_DESTINATION =
-  /^https:\/\/github\.com\/(?:getpaseo\/paseo\/issues\/new(?:\/choose)?(?:[/?#]|$)|login\?return_to=https%3A%2F%2Fgithub\.com%2Fgetpaseo%2Fpaseo%2Fissues%2Fnew$)/;
-const CHANGELOG_DESTINATION = /^https:\/\/paseo\.sh\/changelog(?:[/?#]|$)/;
+const REPOSITORY_DESTINATION = /^https:\/\/github\.com\/RyanEwen\/paseo-plus-plus(?:[/?#]|$)/;
+const CHANGELOG_DESTINATION =
+  /^https:\/\/github\.com\/RyanEwen\/paseo-plus-plus\/releases(?:[/?#]|$)/;
 // The name and the version are separate cells of a key/value row, so they meet with no space
 // between them in the row's text content.
 const APP_VERSION = /^Paseo\s*v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -36,20 +34,20 @@ async function expectExternalPage(
   expectedUrl: RegExp,
 ): Promise<void> {
   const popupPromise = page.waitForEvent("popup");
-  await page.getByTestId(actionTestID).click();
+  await page.locator(`[data-testid="${actionTestID}"]:visible`).click();
   const popup = await popupPromise;
   expect(popup.url()).toMatch(expectedUrl);
   await popup.close();
 }
 
-test("opens troubleshooting and support destinations", async ({ page }) => {
+test("opens troubleshooting and support destinations", async ({ page }, testInfo) => {
   await gotoAppShell(page);
   await expect(page.getByTestId("sidebar-help")).toBeVisible();
 
   await test.step("opens diagnostics and keyboard shortcuts", async () => {
     await openHelpMenu(page);
     await expect(page.getByText("Help", { exact: true })).toBeVisible();
-    await expect(page.getByText("Report an issue", { exact: true })).toBeVisible();
+    await expect(page.getByText("Report an issue", { exact: true })).toHaveCount(0);
     await expect(page.getByText("What's new", { exact: true })).toBeVisible();
     await expect(page.getByTestId("sidebar-help-version")).toHaveText(APP_VERSION);
 
@@ -63,16 +61,23 @@ test("opens troubleshooting and support destinations", async ({ page }) => {
     await closeSheet(page, "keyboard-shortcuts-dialog");
   });
 
-  await test.step("opens support pages", async () => {
+  await test.step("removes unavailable support and opens the fork repository", async () => {
     await openHelpMenu(page);
-    await expectExternalPage(page, "sidebar-help-discord", DISCORD_DESTINATION);
-
-    await openHelpMenu(page);
-    await expectExternalPage(page, "sidebar-help-github", GITHUB_ISSUE_DESTINATION);
+    await expect(page.getByTestId("sidebar-help-discord")).toHaveCount(0);
+    await expect(page.getByTestId("sidebar-help-github")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("fork-help-menu.png") });
+    await page.keyboard.press("Escape");
+    await openSettings(page);
+    await openSettingsSection(page, "about");
+    await expect(page.locator('[data-testid="community-links-github-star"]:visible')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("fork-about-links.png") });
+    await expect(page.getByTestId("community-links-discord")).toHaveCount(0);
+    await expect(page.getByTestId("community-links-sponsor")).toHaveCount(0);
+    await expectExternalPage(page, "community-links-github-star", REPOSITORY_DESTINATION);
   });
 });
 
-test("renders the changelog in the app and links the website", async ({ page }) => {
+test("renders fork release notes and links GitHub Releases", async ({ page }) => {
   // A callout, a section name the app has never seen, and a fenced sample whose
   // contents look like a release heading.
   await serveChangelog(page, [
@@ -115,6 +120,38 @@ test("renders the changelog in the app and links the website", async ({ page }) 
 
   await expectExternalPage(page, "changelog-open-website", CHANGELOG_DESTINATION);
   await closeSheet(page, "changelog-sheet");
+});
+
+test("retries unavailable fork notes and excludes unpublished releases", async ({ page }) => {
+  let fail = true;
+  await page.route(
+    "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100",
+    (route) => {
+      if (fail) {
+        return route.fulfill({ status: 403, json: { message: "API rate limit exceeded" } });
+      }
+      return route.fulfill({
+        json: [
+          {
+            tag_name: "v0.11.2-preview.27",
+            draft: false,
+            published_at: "2026-10-09T21:26:07Z",
+            body: "Published Paseo++ notes",
+          },
+          { tag_name: "v0.11.2-preview.28", draft: true, published_at: null, body: "Draft notes" },
+        ],
+      });
+    },
+  );
+  await gotoAppShell(page);
+  const sheet = await openWhatsNew(page);
+  await expect(sheet.getByTestId("changelog-error")).toBeVisible();
+  fail = false;
+  await sheet.getByTestId("changelog-retry").click();
+  await expect(sheet.getByText("Published Paseo++ notes")).toBeVisible();
+  await expect(release(sheet, "0.11.2-preview.27")).toBeVisible();
+  await expect(sheet.getByText("Draft notes")).toHaveCount(0);
+  await expect(sheet.getByTestId("changelog-error")).toHaveCount(0);
 });
 
 test("searches keyboard shortcuts from the sidebar help menu", async ({ page }) => {
@@ -167,12 +204,17 @@ test.describe("compact sidebar help", () => {
     await expectDiagnosticReport(page);
   });
 
-  test("offers diagnostics without advertising disabled keyboard shortcuts", async ({ page }) => {
+  test("offers diagnostics without advertising disabled keyboard shortcuts", async ({
+    page,
+  }, testInfo) => {
     await gotoAppShell(page);
     await page.getByRole("button", { name: "Open menu", exact: true }).click();
 
     await openHelpMenu(page);
     await expect(page.getByTestId("sidebar-help-shortcuts")).toHaveCount(0);
+    await expect(page.getByTestId("sidebar-help-discord")).toHaveCount(0);
+    await expect(page.getByTestId("sidebar-help-github")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("fork-compact-help.png") });
     await page.getByTestId("sidebar-help-diagnostics").click();
     await expectDiagnosticReport(page);
   });

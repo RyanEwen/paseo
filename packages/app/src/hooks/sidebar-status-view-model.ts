@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { STATUS_BUCKET_ORDER } from "@/utils/sidebar-agent-state";
+import { compareSidebarStatusRecency, STATUS_BUCKET_ORDER } from "@/utils/sidebar-agent-state";
 import type { SidebarWorkspaceEntry } from "@/hooks/sidebar-workspaces-view-model";
 
 export type StatusBucket = SidebarWorkspaceEntry["statusBucket"];
@@ -59,16 +59,8 @@ function compareStatusRows(
   b: SidebarWorkspaceEntry,
   projectNamesByViewKey: Map<string, string>,
 ): number {
-  const aTime = a.statusEnteredAt?.getTime() ?? null;
-  const bTime = b.statusEnteredAt?.getTime() ?? null;
-
-  if (aTime !== null && bTime !== null) {
-    if (aTime !== bTime) return bTime - aTime;
-  } else if (aTime !== null) {
-    return -1;
-  } else if (bTime !== null) {
-    return 1;
-  }
+  const recency = compareSidebarStatusRecency(a.statusEnteredAt, b.statusEnteredAt);
+  if (recency !== 0) return recency;
 
   const aProject = projectNamesByViewKey.get(a.projectViewKey) ?? "";
   const bProject = projectNamesByViewKey.get(b.projectViewKey) ?? "";

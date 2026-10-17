@@ -1,0 +1,38 @@
+
+> @getpaseo/app@0.11.2 test:e2e
+> playwright test --project=browser e2e/browser/sidebar-reorder.spec.ts --workers=1 --grep rapid status reversal|collapsed destinations
+
+[metro] Starting project at /tmp/sidebar-transition-validation-v5/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:35187
+[metro] Logs for your project will appear below.
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 93.8% (5111/5278)
+[metro] Web Bundled 4709ms packages/app/index.ts (5496 modules)
+[e2e] Metro warmed on port 35187
+
+Running 2 tests using 1 worker
+
+(node:1611818) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1611818) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 44425, home: /tmp/paseo-e2e-worker-0-sVdzAY
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 358ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 266ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (86 modules)
+  ✓  1 [browser] › e2e/browser/sidebar-reorder.spec.ts:489:5 › rapid status reversal starts from the interrupted painted position (12.2s)
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 357ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 29ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+  ✓  2 [browser] › e2e/browser/sidebar-reorder.spec.ts:595:5 › collapsed destinations preserve drafts, collapse choices and conditional row focus (11.0s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  2 passed (55.0s)

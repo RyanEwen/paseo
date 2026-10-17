@@ -45,6 +45,7 @@ import type { WorkspaceComposerAttachment } from "@/attachments/types";
 import { useWorkspaceAttachmentScopeKey } from "@/attachments/workspace-attachments-store";
 import { COMPACT_FORM_FACTOR_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
+import { useSeenAgentNotifications } from "@/hooks/use-seen-agent-notifications";
 import { useAgentAttentionClear } from "@/hooks/use-agent-attention-clear";
 import { useAgentInputDraft, type AgentInputDraft } from "@/composer/draft/input-draft";
 import {
@@ -911,6 +912,12 @@ function ChatAgentContent({
   });
 
   const effectiveAgent = viewState.tag === "ready" ? viewState.agent : null;
+  useSeenAgentNotifications({
+    serverId,
+    agentId,
+    focused: isPaneFocused,
+    ready: effectiveAgent !== null && agentState.workspaceId === workspaceId,
+  });
   const routeEntryKey = agentId ? `${serverId}:${agentId}` : null;
   routeBottomAnchorRequestRef.current = deriveRouteBottomAnchorIntent({
     cachedIntent: routeBottomAnchorRequestRef.current,

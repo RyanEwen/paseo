@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "!v*-preview.*"
       - "desktop-v*"
       - "desktop-macos-v*"
       - "desktop-linux-v*"

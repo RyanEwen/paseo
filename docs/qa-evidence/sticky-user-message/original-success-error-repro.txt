@@ -1,0 +1,32 @@
+
+ RUN  v4.1.7 /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/sticky-user-message-navigation/packages/app
+
+ ❯ |unit| src/agent-stream/chat-outline/use-chat-outline.test.tsx (25 tests | 1 failed | 24 skipped) 76ms
+     × settles an unloaded successful jump without exposing a failure 68ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| src/agent-stream/chat-outline/use-chat-outline.test.tsx > prompt jump acceptance and cancellation > settles an unloaded successful jump without exposing a failure
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/agent-stream/chat-outline/use-chat-outline.test.tsx:643:46
+    641|     await waitFor(() => expect(fixture.result.current.isJumping).toBe(…
+    642|     expect(fixture.scrollToMessage).toHaveBeenCalledWith("old");
+    643|     expect(fixture.result.current.jumpError).toBe(false);
+       |                                              ^
+    644|     expect(fixture.onJumpError).not.toHaveBeenCalled();
+    645|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 24 skipped (25)
+   Start at  23:58:52
+   Duration  587ms (transform 150ms, setup 36ms, import 182ms, tests 76ms, environment 191ms)

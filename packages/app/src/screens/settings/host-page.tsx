@@ -38,6 +38,7 @@ import { LocalDaemonSection } from "@/desktop/components/desktop-updates-section
 import { useDaemonStatus } from "@/desktop/hooks/use-daemon-status";
 import { useDesktopSettings } from "@/desktop/settings/desktop-settings";
 import { PairDeviceModal } from "@/desktop/components/pair-device-modal";
+import { useDaemonUpdate } from "@/hooks/use-daemon-update";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
 import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
 import {
@@ -65,7 +66,7 @@ import { ICON_SIZE } from "@/styles/theme";
 import type { Theme } from "@/styles/theme";
 import { useProviderIcon } from "@/components/provider-icons";
 import { BrowserToolsOptInCard } from "./browser-tools-card";
-import { restartDaemonFromSettings, updateDaemonFromSettings } from "./daemon-lifecycle";
+import { restartDaemonFromSettings } from "./daemon-lifecycle";
 
 const ThemedRestart = withUnistyles(RotateCw);
 const ThemedUpdate = withUnistyles(ArrowUpToLine);
@@ -665,20 +666,11 @@ function RestartDaemonCard({ host }: { host: HostProfile }) {
   );
 }
 
-type DaemonUpdateState =
-  | { status: "idle" }
-  | { status: "complete"; workerVersion: string }
-  | { status: "updating"; phase: string }
-  | { status: "failed"; title: string; message: string };
-
 function UpdateDaemonCard({ host }: { host: HostProfile }) {
   const { t } = useTranslation();
   const daemonClient = useHostRuntimeClient(host.serverId);
   const isConnected = useHostRuntimeIsConnected(host.serverId);
-  const runtime = getHostRuntimeStore();
-  const [updateState, setUpdateState] = useState<DaemonUpdateState>({ status: "idle" });
-  const isMountedRef = useRef(true);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const { updateState, handleUpdate } = useDaemonUpdate(host);
 
   const daemonVersion = useSessionStore(
     (state) => state.sessions[host.serverId]?.serverInfo?.version ?? null,
@@ -692,117 +684,6 @@ function UpdateDaemonCard({ host }: { host: HostProfile }) {
 
   const appVersion = resolveAppVersion();
   const hasVersionMismatch = isVersionMismatch(appVersion, daemonVersion);
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      unsubscribeRef.current?.();
-    };
-  }, []);
-
-  const isHostConnected = useCallback(
-    () => isHostRuntimeConnected(runtime.getSnapshot(host.serverId)),
-    [host.serverId, runtime],
-  );
-  const handleUpdate = useCallback(() => {
-    if (!daemonClient) {
-      setUpdateState({
-        status: "failed",
-        title: t("settings.host.daemon.update.unavailableTitle"),
-        message: t("settings.host.daemon.update.unavailableMessage"),
-      });
-      return;
-    }
-    if (!isHostConnected()) {
-      setUpdateState({
-        status: "failed",
-        title: t("settings.host.daemon.update.offlineTitle"),
-        message: t("settings.host.daemon.update.offlineMessage"),
-      });
-      return;
-    }
-
-    void confirmDialog({
-      title: t("settings.host.daemon.update.confirmTitle", { name: host.label }),
-      message: t("settings.host.daemon.update.confirmMessage"),
-      confirmLabel: t("settings.host.daemon.update.confirm"),
-      cancelLabel: t("common.actions.cancel"),
-      destructive: false,
-    })
-      .then((confirmed) => {
-        if (!confirmed || !isMountedRef.current) return;
-        setUpdateState({
-          status: "updating",
-          phase: t("settings.host.daemon.update.phaseStarting"),
-        });
-        const requestId = `settings_daemon_update_${host.serverId}`;
-
-        const unsubscribe = daemonClient.on("daemon.update.progress", (message) => {
-          if (message.payload.requestId !== requestId) return;
-          if (!isMountedRef.current) return;
-          const { phase } = message.payload;
-          if (phase === "starting")
-            setUpdateState({
-              status: "updating",
-              phase: t("settings.host.daemon.update.phaseStarting"),
-            });
-          else if (phase === "downloading")
-            setUpdateState({
-              status: "updating",
-              phase: t("settings.host.daemon.update.phaseDownloading"),
-            });
-          else if (phase === "installing")
-            setUpdateState({
-              status: "updating",
-              phase: t("settings.host.daemon.update.phaseInstalling"),
-            });
-          else if (phase === "complete")
-            setUpdateState({
-              status: "updating",
-              phase: t("settings.host.daemon.update.phaseComplete"),
-            });
-        });
-        unsubscribeRef.current = unsubscribe;
-
-        void updateDaemonFromSettings(host.serverId, {
-          updateDaemon: () => daemonClient.updateDaemon(requestId),
-          getStatus: async () => ({
-            ...(await daemonClient.getDaemonStatus()),
-            serverId: daemonClient.getLastServerInfoMessage()?.serverId ?? "",
-            version: daemonClient.getLastServerInfoMessage()?.version ?? null,
-          }),
-        })
-          .then(({ workerVersion }) => {
-            unsubscribeRef.current = null;
-            unsubscribe();
-            if (isMountedRef.current) setUpdateState({ status: "complete", workerVersion });
-            return undefined;
-          })
-          .catch((error) => {
-            unsubscribeRef.current = null;
-            unsubscribe();
-            console.error(`[HostPage] Failed to update daemon ${host.label}`, error);
-            if (!isMountedRef.current) return;
-            setUpdateState({
-              status: "failed",
-              title: t("settings.host.daemon.update.requestFailedTitle"),
-              message: t("settings.host.daemon.update.requestFailedMessage", {
-                error: error instanceof Error ? error.message : "Unknown error",
-              }),
-            });
-          });
-        return;
-      })
-      .catch((error) => {
-        console.error(`[HostPage] Failed to open update confirmation for ${host.label}`, error);
-        if (!isMountedRef.current) return;
-        setUpdateState({
-          status: "failed",
-          title: t("settings.host.daemon.update.requestFailedTitle"),
-          message: t("settings.host.daemon.update.dialogFailedMessage"),
-        });
-      });
-  }, [daemonClient, host.label, host.serverId, isHostConnected, t]);
 
   const shouldShowUpdate = hasVersionMismatch && (supportsSelfUpdate || desktopManaged);
   if (!shouldShowUpdate && updateState.status !== "complete") {

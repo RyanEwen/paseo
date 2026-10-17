@@ -1,3 +1,4 @@
+import { originalTimelineText, originalTimelineRows } from "../support/helpers/timeline-pagination";
 import { expect, type Page } from "@playwright/test";
 import { buildHostAgentDetailRoute } from "@/utils/host-routes";
 import { test } from "../support/fixtures";
@@ -187,6 +188,13 @@ async function moveActiveTabRight(page: Page) {
   await page.keyboard.press("Meta+Alt+Shift+ArrowRight");
 }
 
+/** Resolve the pane by its agent tab so split-chat assertions cannot select another chat. */
+function firstViewedChatPane(page: Page) {
+  return page.getByTestId(/^workspace-pane-/).filter({
+    has: page.getByRole("button", { name: "First viewed chat", exact: true }),
+  });
+}
+
 async function commitMessage(scenario: ViewedTimelineScenario, agentId: string, prompt: string) {
   await scenario.client.sendAgentMessage(agentId, prompt);
   const finish = await scenario.client.waitForFinish(agentId, 30_000);
@@ -199,7 +207,7 @@ async function startVisibleTurn(
   prompt: string,
 ): Promise<void> {
   await scenario.client.sendAgentMessage(scenario.firstAgentId, prompt);
-  await expect(page.getByText(prompt, { exact: true })).toBeVisible();
+  await expect(originalTimelineText(firstViewedChatPane(page), prompt)).toBeVisible();
   await expectInlineWorkingIndicator(page);
 }
 
@@ -250,7 +258,7 @@ async function openSevenChats(page: Page, scenario: ViewedTimelineScenario) {
 }
 
 async function expectCurrentChatWithoutCatchUp(page: Page, message: string) {
-  await expect(page.getByText(message, { exact: true })).toBeVisible();
+  await expect(originalTimelineText(firstViewedChatPane(page), message)).toBeVisible();
   await expect(page.getByRole("alert").filter({ hasText: "Updating messages" })).toHaveCount(0);
 }
 
@@ -340,14 +348,26 @@ test.describe("Viewed agent timelines", () => {
         "Committed while the first chat is hidden.",
       );
       await expect(
-        page.getByText("Committed while the first chat is hidden.", { exact: true }),
+        originalTimelineText(
+          firstViewedChatPane(page),
+          "Committed while the first chat is hidden.",
+          true,
+        ),
       ).toHaveCount(0);
       expect(await countChatCommits(page, scenario.firstAgentId)).toBe(hiddenCommits);
       await selectAgent(page, "First viewed chat");
       await expect(
-        page.getByText("Committed while the first chat is hidden.", { exact: true }),
+        originalTimelineText(
+          firstViewedChatPane(page),
+          "Committed while the first chat is hidden.",
+          true,
+        ),
       ).toBeVisible();
-      await expect(page.getByText("(end of synthetic stream)", { exact: true })).toBeVisible();
+      await expect(
+        originalTimelineRows(firstViewedChatPane(page)).getByText("(end of synthetic stream)", {
+          exact: true,
+        }),
+      ).toBeVisible();
       await expect(composer).toHaveValue("Unsent draft survives hidden streaming");
       await composer.fill("Draft edited after returning");
       await expect(composer).toHaveValue("Draft edited after returning");
@@ -372,7 +392,9 @@ test.describe("Viewed agent timelines", () => {
       ).toBeVisible();
       await expect(page.getByRole("textbox", { name: "Message agent..." })).toHaveCount(2);
       await commitMessage(scenario, scenario.firstAgentId, "First visible pane update.");
-      await expect(page.getByText("First visible pane update.", { exact: true })).toBeVisible();
+      await expect(
+        originalTimelineText(firstViewedChatPane(page), "First visible pane update."),
+      ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Second viewed chat", exact: true }),
       ).toBeVisible();
@@ -389,9 +411,10 @@ test.describe("Viewed agent timelines", () => {
     try {
       await commitMessage(scenario, scenario.firstAgentId, "Visible before the connection drops.");
       await openAgent(page, scenario, scenario.firstAgentId);
-      const previousMessage = page.getByText("Visible before the connection drops.", {
-        exact: true,
-      });
+      const previousMessage = originalTimelineText(
+        firstViewedChatPane(page),
+        "Visible before the connection drops.",
+      );
       await expect(previousMessage).toBeVisible();
       await expect(page.getByRole("button", { name: "First viewed chat" })).toHaveAttribute(
         "aria-selected",
@@ -405,7 +428,11 @@ test.describe("Viewed agent timelines", () => {
       await expectForkFailureWithoutOverlappingStatus(page);
       await commitMessage(scenario, scenario.firstAgentId, "Committed while the chat reconnects.");
       await expect(
-        page.getByText("Committed while the chat reconnects.", { exact: true }),
+        originalTimelineText(
+          firstViewedChatPane(page),
+          "Committed while the chat reconnects.",
+          true,
+        ),
       ).toHaveCount(0);
       // Hold the visible response to observe the connected-but-updating state.
       gate.holdTimelineResponses(scenario.firstAgentId);
@@ -423,9 +450,10 @@ test.describe("Viewed agent timelines", () => {
       await page.screenshot({ path: testInfo.outputPath("updating-chat.png") });
       gate.releaseHeldTimelineResponses();
       await expect(page.getByRole("alert").filter({ hasText: "Updating messages" })).toHaveCount(0);
-      const recoveredMessage = page.getByText("Committed while the chat reconnects.", {
-        exact: true,
-      });
+      const recoveredMessage = originalTimelineText(
+        firstViewedChatPane(page),
+        "Committed while the chat reconnects.",
+      );
       await expect(recoveredMessage).toHaveCount(1);
       await expect(recoveredMessage).toBeVisible();
     } finally {

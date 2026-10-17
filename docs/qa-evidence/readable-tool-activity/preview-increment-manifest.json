@@ -1,0 +1,220 @@
+{
+  "ancestor": "61ad3bc91cbc4ee263575d18ac9787aa04f72eb1",
+  "qualifiedFeaturePatchSha256": "1919afcf502c06ebee92f7d6b75e528dd337f3f80e92c6ba89cc91c62245a7d2",
+  "inputTrackedPatchSha256": "c96a03fa04faa2ce39b6a646f91682fe777be8cc349f119f43bd360e291077a3",
+  "inputUntrackedArchiveSha256": "e67a02769fadf35a69a1caed26787063171ff65b293ecf55acf2e9c54f99beb3",
+  "incrementPatchSha256": "dbff1dc028cf32bbf0843ca7e68b5543374faab0baa313192f0094d052dcf141",
+  "fileCount": 30,
+  "files": [
+    {
+      "path": "docs/providers.md",
+      "inputSha256": "9c361794201989951d9b2a4345b520d3d66296e93e8295f0f1977edebd3cae02",
+      "composedSha256": "d6ed16b61a981959bfb4eb42682213a7d4fae85d032c8a1caedc2da80f3ee01d",
+      "originalFeatureSha256": "d6ed16b61a981959bfb4eb42682213a7d4fae85d032c8a1caedc2da80f3ee01d",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/e2e/browser/tool-call-overview-sheet.spec.ts",
+      "inputSha256": "1b65e28cd5bcc5ec3a3f989ada0810777311ea2cbba4bf44765031f0585b4b0b",
+      "composedSha256": "bc86f9be318795f69f07b6220706765b6bbfea7dd28363e553d098720e42e964",
+      "originalFeatureSha256": "bc86f9be318795f69f07b6220706765b6bbfea7dd28363e553d098720e42e964",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/e2e/support/helpers/tool-activity.ts",
+      "inputSha256": null,
+      "composedSha256": "4c1dc5116150f70b676f953683ded5de827111d2c1b4a20ab406f42cfed7f972",
+      "originalFeatureSha256": "4c1dc5116150f70b676f953683ded5de827111d2c1b4a20ab406f42cfed7f972",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/src/components/message.tsx",
+      "inputSha256": "cab9d40f3db7af01c4422aef89b2f20cfb052a4d451e89422ea7bfd597309790",
+      "composedSha256": "a883a9e162fa863dafa668a982d43c71f53268c8282b085e65f47d4d8705c336",
+      "originalFeatureSha256": "2d32fce436696ca30bdd27769dea915130b9d975e3394e09da1acaff48a21f85",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/components/tool-call-sheet.tsx",
+      "inputSha256": "13dfe092260ad19dbc34f7522a5f833c6605f9adc239652f20b9af4d2f63cb4c",
+      "composedSha256": "90137668b2b5df0cb78a03bdb8e89c1f763bc0ef41ec38c06f08fbb4aef66737",
+      "originalFeatureSha256": "90137668b2b5df0cb78a03bdb8e89c1f763bc0ef41ec38c06f08fbb4aef66737",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/src/hooks/use-settings/storage.test.ts",
+      "inputSha256": "0e796d68812ebed1ba5bd2929cad672a69e0350f0b00365fcaadb6eb46a654ac",
+      "composedSha256": "dfc8150fed99be7c78722b0824f4ec58f1a2936e3aac8cc8f35bb27e703681f3",
+      "originalFeatureSha256": "1ac283f4b9529133f70646ea1bfeb8863d8844d1dd2016a686a1e10d32b9f58d",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ar.ts",
+      "inputSha256": "15f7738a39e0cf749aa0f1fd0490608a5d01639959acd352d3840062fafef5af",
+      "composedSha256": "363d0b22138cbf944cc2f6dc9f6331431482b38e183d90888034c8614130a3c2",
+      "originalFeatureSha256": "394e161583eaab0a4caf78137654744f27abd585b445fcb63ab240946d44f20d",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/en.ts",
+      "inputSha256": "56f3df4f326d7e0fb1cfc7c988bc06fcc1a627b330c59176f6071bf619eba6dd",
+      "composedSha256": "5a7e19652450361f6e38522c7e97fdf4eabd439187cb91e0304db9765410d473",
+      "originalFeatureSha256": "7a97a44d341e1cdf3a80804e4f4407284e78bdaef3f9e95748f4ce5dd3782ce3",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/es.ts",
+      "inputSha256": "28a86605e9681225e8d0390a3812717f8dc6f68538fe7b24db0985eedd40dd3d",
+      "composedSha256": "a0e46b52b15c17afac673cde5796b8b89599527306e9d3ba7c3326a68d3b7b31",
+      "originalFeatureSha256": "8d73c757035a77677d98a74da7d0b6e71cf1f8299b280ae5c298fc52a3dfd42b",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/fr.ts",
+      "inputSha256": "73bfcb5661b75b863a10551b4c29b0858f43dccfd608af0f68d159104492ed4e",
+      "composedSha256": "d44e868c8fc1ccb27fc2c9fd80f809f0b6ce0c307dc246a5c9b405903c9404de",
+      "originalFeatureSha256": "079ccd2657aff3e1da2a470293af6986d113e8cfb6649ec8d05441c7cd1540c3",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ja.ts",
+      "inputSha256": "f01a6c72a5682d6746a2f0547f68e77c50e936b9a7de05e4e66c035d4597bca8",
+      "composedSha256": "e1e7cab536bbe0dc7243f728e9c64a0cd537b285210f66a05d9506d320bd64ee",
+      "originalFeatureSha256": "f71db849194f2b8d99d0d0c59d92895295040aefb0734cc4065be7fc36354a30",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ko.ts",
+      "inputSha256": "c7b56a3fdd185f6d67538903b10e723cdf8b5474c62e01507c26bf18346475d8",
+      "composedSha256": "85d725719a44a94d8c73e409f3b8778f50d010002209a791dd01e24608f90d6e",
+      "originalFeatureSha256": "fd10b66a3dfc7f5561951fcb8e332c3ae37eb86e178fad15c2343d04bfc0e9e9",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/pt-BR.ts",
+      "inputSha256": "1a125dff89fd0f5677caaf1ca4520c3d8d9c6e4aafc53447ab316b6f9806df34",
+      "composedSha256": "c48184b38fab1fbd3a34d1765dab791140b73ac65c946c0817f0314ddc48c43c",
+      "originalFeatureSha256": "5e11f83a23b033cbeb4d1b4b83c68cfe0a11ad50faef2779c551aa6a1085e884",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ru.ts",
+      "inputSha256": "3add9044da6dab037e7322ec2027c4a5fc4bbed6b90de4602f82dc71b71941f9",
+      "composedSha256": "1eb790cb1d41504c877e87dc0f466391a4e573515ea3b6e797506aa3631cd248",
+      "originalFeatureSha256": "7b608e1429e17e7e6e81749780864a4a5794d5a148cdc0d76671996dec6384c8",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/i18n/resources/zh-CN.ts",
+      "inputSha256": "bed32b55e3fa3391a5cc1b5e395ca133235a678cfd5b9193ebd516ad2d327d59",
+      "composedSha256": "c556e33d7ba1e46097aec0162154ecca1924c5b1caa173e35f25d64ab59900aa",
+      "originalFeatureSha256": "011e79327791d8c5d0a48ec1ff91a9a0a58d659f70031b97563eca4eddbe28d1",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/paseo-plus-plus/preferences.ts",
+      "inputSha256": "41f6ce0451b0db103bccf2c0cdad620b1dbf57041a248bf1f94f3199dbd9772a",
+      "composedSha256": "f99c8ee9bfe7873263dd8d8647899dd4f103a46c7ddaced30cbf991a3b86f8b6",
+      "originalFeatureSha256": "7e427392f5af32f9e4948f7a82aeb99ac4f1c827d4b9a80669e4f57f4e7c652a",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/screens/settings/paseo-plus-plus-section.tsx",
+      "inputSha256": "154b17e21bce356a95a78aab1f81abdeee72ed39b9f27b5cf787a7096889377c",
+      "composedSha256": "26fd7af56222ad2c3af1431a13ff4fb297d805a45c766d95b1b65de354d7084b",
+      "originalFeatureSha256": "7b4dc46a247d2d5464bae773cafd72ed8557bf2f1a8e9dd692e4da803c170c72",
+      "compositionChangedFeatureBytes": true
+    },
+    {
+      "path": "packages/app/src/tool-calls/activity.ts",
+      "inputSha256": null,
+      "composedSha256": "ab2d0760f8eecf26a707036f216e6dd7042f873439b67434390e720d0072adfd",
+      "originalFeatureSha256": "ab2d0760f8eecf26a707036f216e6dd7042f873439b67434390e720d0072adfd",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/src/tool-calls/detail-level/overview/model.ts",
+      "inputSha256": "b5e9a695ee3965bcd92b5282b11e652cf6725e690e706deaa13fd3b2eaeee929",
+      "composedSha256": "879d4b5c8f8aa0c387f8118ec71e4b38ea17dd3fb05e7c884f42c23f2e789421",
+      "originalFeatureSha256": "879d4b5c8f8aa0c387f8118ec71e4b38ea17dd3fb05e7c884f42c23f2e789421",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/src/tool-calls/detail-level/overview/view.tsx",
+      "inputSha256": "6d2ac7d9a9ddee53dad7e9eae81261ee2b0249c5097efa2cffdfe4f40538ab55",
+      "composedSha256": "f40e90d4041fb87e4363a0c5f2763177c22a4f642caccc159b566358b3f5edb7",
+      "originalFeatureSha256": "f40e90d4041fb87e4363a0c5f2763177c22a4f642caccc159b566358b3f5edb7",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/src/tool-calls/detail-level/projection.test.ts",
+      "inputSha256": "16b645fbc8713e6584a4cacdd3a1eeba177014b8f2a33381eeb5bd23d3764459",
+      "composedSha256": "c95971ee89947b3ea44b38eaa1b5f5ca4c26d32daac5b27856a45298b7f5b038",
+      "originalFeatureSha256": "c95971ee89947b3ea44b38eaa1b5f5ca4c26d32daac5b27856a45298b7f5b038",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/src/tool-calls/presentation.test.ts",
+      "inputSha256": "49c40aeaf095cd0ab0da7a1e52d787ec34d4a3eb9fdb3af622480c2b3113ecdd",
+      "composedSha256": "4da79338a6db51f1684bfc7dff24f93b9fb4142a201f8f8a8e58a50e9287d7d3",
+      "originalFeatureSha256": "4da79338a6db51f1684bfc7dff24f93b9fb4142a201f8f8a8e58a50e9287d7d3",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/app/src/tool-calls/presentation.ts",
+      "inputSha256": "73c8f5a01f3a96a3f63eb3a802bbb523f29bc10de80d40333be4be4f89e55fdb",
+      "composedSha256": "58139d17f1de74a40d4c1ddad45bf0d5cfa614b43e07ebc167efa4cf454370b1",
+      "originalFeatureSha256": "58139d17f1de74a40d4c1ddad45bf0d5cfa614b43e07ebc167efa4cf454370b1",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/protocol/src/tool-call-activity.ts",
+      "inputSha256": null,
+      "composedSha256": "f661c56a043d65c2cd8afba8e5f94b8426bc57a33ccff4fbf2c9b2ea4b9ae89c",
+      "originalFeatureSha256": "f661c56a043d65c2cd8afba8e5f94b8426bc57a33ccff4fbf2c9b2ea4b9ae89c",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/protocol/src/tool-call-display.test.ts",
+      "inputSha256": "56416caca9f5f85357d98ad57d185d21fbb68689cf593befef85668e4ca30e82",
+      "composedSha256": "a8c907ff45edc932cf1fb9fccdefc6d2f3df3d1c05781dfd46679b438e6d02f9",
+      "originalFeatureSha256": "a8c907ff45edc932cf1fb9fccdefc6d2f3df3d1c05781dfd46679b438e6d02f9",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/claude/tool-call-mapper.test.ts",
+      "inputSha256": "b69644453e9603cf782aae4c848a50f3b0d386dd73619b5a6ffd6c8744f68451",
+      "composedSha256": "0d77309d30becedd1b0e4b0493972279032592d06f1c61bc8aa80e1a42669228",
+      "originalFeatureSha256": "0d77309d30becedd1b0e4b0493972279032592d06f1c61bc8aa80e1a42669228",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/codex/tool-call-mapper.test.ts",
+      "inputSha256": "07e4f16737270f9b611eb0d794c6c6146ee4016daf55372b6d639d06d9d73521",
+      "composedSha256": "155bc6cbf4ba86534b68c58e5acaa2126e5ee4377d9321ceedab82390252965a",
+      "originalFeatureSha256": "155bc6cbf4ba86534b68c58e5acaa2126e5ee4377d9321ceedab82390252965a",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/codex/tool-call-mapper.ts",
+      "inputSha256": "d262c0e6f14367d91bc9a13a88403da1276284f2b821aa0aa3763ffeef2dfa3d",
+      "composedSha256": "fb8fbd657f40dde974c790b29833b738b6c6a525d30be8af0507919b1653bccd",
+      "originalFeatureSha256": "fb8fbd657f40dde974c790b29833b738b6c6a525d30be8af0507919b1653bccd",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/opencode/tool-call-mapper.test.ts",
+      "inputSha256": "a4870754c12146955e2248bc888bf0d06b1da0e42f49fcde935bc04d8e3e4cbf",
+      "composedSha256": "bec133fed9deb12279afb81383d8c0b66f72ade02cee6904bf58e4981b883ca1",
+      "originalFeatureSha256": "bec133fed9deb12279afb81383d8c0b66f72ade02cee6904bf58e4981b883ca1",
+      "compositionChangedFeatureBytes": false
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/pi/tool-call-mapper.test.ts",
+      "inputSha256": "163270efb6f26e25f7698892b4aa69d792cadfa0fee9ee25da1de1949c70358b",
+      "composedSha256": "366787640ad8735030431658bd7663a64c90e724a95b72349a5a743d08cd5b38",
+      "originalFeatureSha256": "366787640ad8735030431658bd7663a64c90e724a95b72349a5a743d08cd5b38",
+      "compositionChangedFeatureBytes": false
+    }
+  ]
+}

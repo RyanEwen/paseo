@@ -1,3 +1,9 @@
+import { queryClient } from "@/data/query-client";
+import {
+  APP_SETTINGS_QUERY_KEY,
+  DEFAULT_CLIENT_SETTINGS,
+  type AppSettings,
+} from "@/hooks/use-settings/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { create } from "zustand";
@@ -185,6 +191,7 @@ interface WorkspaceLayoutStore {
       tabId: string;
       targetPaneId: string;
       position: "left" | "right" | "top" | "bottom";
+      firstPaneFraction?: number;
     },
   ) => string | null;
   splitPaneEmpty: (
@@ -192,6 +199,7 @@ interface WorkspaceLayoutStore {
     input: {
       targetPaneId: string;
       position: "left" | "right" | "top" | "bottom";
+      firstPaneFraction?: number;
     },
   ) => string | null;
   moveTabToPane: (workspaceKey: string, tabId: string, toPaneId: string) => void;
@@ -466,11 +474,17 @@ function removeAgentIdFromWorkspaceSet(
   };
 }
 
+/** Uses current Explorer defaults only when this workspace has no saved layout. */
 function getWorkspaceLayout(
   state: Record<string, WorkspaceLayout>,
   workspaceKey: string,
 ): WorkspaceLayout {
-  return normalizeLayout(state[workspaceKey] ?? createWorkspaceLayoutWithExplorerSidebar());
+  if (state[workspaceKey]) {
+    return normalizeLayout(state[workspaceKey]);
+  }
+  const settings =
+    queryClient.getQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY) ?? DEFAULT_CLIENT_SETTINGS;
+  return createWorkspaceLayoutWithExplorerSidebar({ autoOpen: settings.autoOpenExplorerSidebar });
 }
 
 function keepWorkspaceFocusOutOfExplorerSidebar(
@@ -633,6 +647,50 @@ function getOpenTabPlacement(
     placement: resolvedPlacement,
     explorerSidebarPaneId,
   };
+}
+
+/** Materialize committed divider sizes before a structural edit so unrelated splits retain their proportions. */
+function withCurrentSplitSizes(
+  layout: WorkspaceLayout,
+  sizes: Record<string, number[]>,
+  explorerPaneId: string | null,
+): WorkspaceLayout {
+  function update(node: SplitNode): SplitNode {
+    if (node.kind === "pane") return node;
+    const saved = sizes[node.group.id];
+    let current = node.group.sizes;
+    if (saved?.length === node.group.children.length) current = clampNormalizedSizes(saved);
+    else if (saved && explorerPaneId) {
+      // The sidebar is removed from the rendered main tree. Older resize overlays therefore
+      // contain only content panes; preserve the sidebar's allocation when applying them.
+      const explorerIndex = node.group.children.findIndex(
+        (child) => child.kind === "pane" && child.pane.id === explorerPaneId,
+      );
+      if (explorerIndex >= 0 && saved.length === node.group.children.length - 1) {
+        const contentTotal = 1 - node.group.sizes[explorerIndex];
+        const normalized = clampNormalizedSizes(saved);
+        current = node.group.sizes.map((size, index) =>
+          index === explorerIndex
+            ? size
+            : normalized[index < explorerIndex ? index : index - 1] * contentTotal,
+        );
+      }
+    }
+    return {
+      kind: "group",
+      group: { ...node.group, sizes: current, children: node.group.children.map(update) },
+    };
+  }
+  return { ...layout, root: update(layout.root) };
+}
+
+/** Bind each surviving group's resize overlay to its new child order after moving a tab. */
+function collectSplitSizes(root: SplitNode): Record<string, number[]> {
+  if (root.kind === "pane") return {};
+  return Object.assign(
+    { [root.group.id]: root.group.sizes },
+    ...root.group.children.map(collectSplitSizes),
+  );
 }
 
 function withoutFocusRestoration(
@@ -1637,10 +1695,15 @@ export function createWorkspaceLayoutStore(
           }
 
           const result = splitPaneInLayout({
-            layout: currentLayout,
+            layout: withCurrentSplitSizes(
+              currentLayout,
+              get().splitSizesByWorkspace[normalizedWorkspaceKey] ?? {},
+              explorerSidebarPaneId,
+            ),
             tabId: normalizedTabId,
             targetPaneId: normalizedTargetPaneId,
             position: input.position,
+            firstPaneFraction: input.firstPaneFraction,
             maxTreeDepth: MAX_TREE_DEPTH,
             createNodeId: ids.createNodeId,
           });
@@ -1650,6 +1713,10 @@ export function createWorkspaceLayoutStore(
 
           set((state) => ({
             ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+            splitSizesByWorkspace: {
+              ...state.splitSizesByWorkspace,
+              [normalizedWorkspaceKey]: collectSplitSizes(result.layout.root),
+            },
             layoutByWorkspace: {
               ...state.layoutByWorkspace,
               [normalizedWorkspaceKey]: result.layout,
@@ -1675,9 +1742,14 @@ export function createWorkspaceLayoutStore(
           }
 
           const result = splitPaneEmptyInLayout({
-            layout: currentLayout,
+            layout: withCurrentSplitSizes(
+              currentLayout,
+              get().splitSizesByWorkspace[normalizedWorkspaceKey] ?? {},
+              explorerSidebarPaneId,
+            ),
             targetPaneId: normalizedTargetPaneId,
             position: input.position,
+            firstPaneFraction: input.firstPaneFraction,
             maxTreeDepth: MAX_TREE_DEPTH,
             createNodeId: ids.createNodeId,
           });
@@ -1687,6 +1759,10 @@ export function createWorkspaceLayoutStore(
 
           set((state) => ({
             ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+            splitSizesByWorkspace: {
+              ...state.splitSizesByWorkspace,
+              [normalizedWorkspaceKey]: collectSplitSizes(result.layout.root),
+            },
             layoutByWorkspace: {
               ...state.layoutByWorkspace,
               [normalizedWorkspaceKey]: result.layout,
@@ -1725,7 +1801,11 @@ export function createWorkspaceLayoutStore(
               return state;
             }
             const nextLayout = moveTabToPaneInLayout({
-              layout,
+              layout: withCurrentSplitSizes(
+                layout,
+                state.splitSizesByWorkspace[normalizedWorkspaceKey] ?? {},
+                explorerSidebarPaneId,
+              ),
               tabId: normalizedTabId,
               toPaneId: normalizedToPaneId,
               explorerSidebarPaneId,
@@ -1746,6 +1826,10 @@ export function createWorkspaceLayoutStore(
 
             return {
               ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              splitSizesByWorkspace: {
+                ...state.splitSizesByWorkspace,
+                [normalizedWorkspaceKey]: collectSplitSizes(normalizedNextLayout.root),
+              },
               layoutByWorkspace: {
                 ...state.layoutByWorkspace,
                 [normalizedWorkspaceKey]: normalizedNextLayout,

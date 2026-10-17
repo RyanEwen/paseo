@@ -34,6 +34,23 @@ Exact MCP preapproval is a separate daemon-owned contract. A new provider must f
 closed for Hub unattended execution until it can approve one exact injected MCP
 server and tool identity without approving native tools.
 
+## Tool activity presentation
+
+Emit canonical read, edit, write, and search details for recognizable operations. A write can
+replace an existing file, so creation requires structured addition evidence. Shell source is
+opaque: do not infer file changes from a command string or its output.
+
+Optional provider metadata can preserve structured command actions and file-change batches.
+Validate it at the provider boundary and ignore malformed batches without changing the raw tool
+result. Keep command paths relative to the executor's working directory; the client must not
+resolve them against its own filesystem. Preserve every patch diff, including files after the
+first canonical edit detail.
+
+The app's **Readable tool activity** option changes labels and group counts. It defaults on and
+applies to every provider with canonical details. Turning it off restores classic presentation;
+it does not stop history processing or discard tool data. Group counts describe operations,
+including failed or canceled attempts, rather than claiming successful changes.
+
 ## Core adapter patterns
 
 ### ACP (Agent Client Protocol) -- recommended

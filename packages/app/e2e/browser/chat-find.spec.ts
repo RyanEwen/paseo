@@ -1,3 +1,4 @@
+import { originalTimelineText } from "../support/helpers/timeline-pagination";
 import type { TestInfo } from "@playwright/test";
 import { expect, test, type Page } from "../support/fixtures";
 import {
@@ -43,11 +44,16 @@ const TALL_RESPONSE = Array.from({ length: 30 }, (_, index) => {
   return `Paragraph ${index}. ${PARAGRAPH_PADDING}`;
 }).join("\n\n");
 
+/** The source-owned find widget contains both controls and its own failure/retry surface. */
+function findPanel(page: Page) {
+  return page.locator('[data-chat-find-widget="true"]').filter({ visible: true });
+}
+
 function query(page: Page) {
-  return page.getByRole("textbox", { name: "Find in pane", exact: true });
+  return findPanel(page).getByRole("textbox", { name: "Find in pane", exact: true });
 }
 function status(page: Page) {
-  return page.getByRole("status", { name: "Find matches" });
+  return findPanel(page).getByRole("status", { name: "Find matches" });
 }
 async function openChatFind(page: Page) {
   await page.getByTestId("assistant-message").filter({ visible: true }).last().click();
@@ -136,8 +142,8 @@ test("loads older history through prompt navigation and finds repeated rendered 
     }
     const jumps = await trackPromptJumpRequests(page, agent.agentId);
     await openAgentRoute(page, agent);
-    await expect(page.getByText("Prompt number 44", { exact: true })).toBeVisible();
-    await expect(page.getByText("Prompt number 0", { exact: true })).toHaveCount(0);
+    await expect(originalTimelineText(page, "Prompt number 44")).toBeVisible();
+    await expect(originalTimelineText(page, "Prompt number 0")).toHaveCount(0);
     await searchChat(page, "hello world");
     await expectHighlight(page, "hello world");
     await expect(status(page)).toHaveText("1 of 90");
@@ -268,14 +274,17 @@ test("shows a disconnected search failure and recovers with Retry", async ({ pag
     await searchChat(page, "hello world");
     await expect(status(page)).toHaveText("Failed");
     await expect(
-      page.getByText("Could not search this chat. Check the host connection and retry.", {
-        exact: true,
-      }),
+      findPanel(page).getByText(
+        "Could not search this chat. Check the host connection and retry.",
+        {
+          exact: true,
+        },
+      ),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+    await expect(findPanel(page).getByRole("button", { name: "Retry", exact: true })).toBeVisible();
     gate.restore();
     await expectReconnectingToastGone(page);
-    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await findPanel(page).getByRole("button", { name: "Retry", exact: true }).click();
     await expectHighlight(page, "hello world");
   } finally {
     await agent.cleanup();
@@ -353,9 +362,9 @@ async function openChatWithVirtualizedTallMessage(page: Page): Promise<MockAgent
     }
     await openAgentRoute(page, agent);
     await expect(
-      page.getByText(`Prompt number ${VIRTUALIZED_TURN_COUNT - 1}`, { exact: true }),
+      originalTimelineText(page, `Prompt number ${VIRTUALIZED_TURN_COUNT - 1}`),
     ).toBeVisible();
-    await expect(page.getByText("Prompt number 0", { exact: true })).toHaveCount(0);
+    await expect(originalTimelineText(page, "Prompt number 0")).toHaveCount(0);
     return agent;
   } catch (error) {
     await agent.cleanup();

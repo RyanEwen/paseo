@@ -1,0 +1,38 @@
+{
+  "id": "sticky-user-prompts",
+  "source": "sticky-user-prompts-1791840627683.png",
+  "sourceManifestSha256": "0cf9381502201d07e54a3b8bdaf21caa80d7b716f1b55a59e6f285030603f939",
+  "sourceSha256": "29004a11f837b93bfbf39f2aecfac3eacf20a2f67793fe462761b208319a3fc7",
+  "capturedAtUtc": "2026-10-12T21:30:27.757Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "pixels": {
+    "width": 390,
+    "height": 844
+  },
+  "crop": {
+    "left": 0,
+    "top": 101,
+    "width": 390,
+    "height": 165
+  },
+  "description": "The actual single-copy pinned request above a scrolled response. Physical native paint is not tested.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/sticky-user-prompts-1791840627683.json",
+  "captureSuggestedCrop": {
+    "left": 0,
+    "top": 101,
+    "width": 390,
+    "height": 165
+  },
+  "asset": "sticky-user-prompts.png",
+  "assetSha256": "ede863ee58caaa9f5cfca7051057c7c61d665026524c0f4559980d9af6c14906",
+  "assetPixels": {
+    "width": 390,
+    "height": 165
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

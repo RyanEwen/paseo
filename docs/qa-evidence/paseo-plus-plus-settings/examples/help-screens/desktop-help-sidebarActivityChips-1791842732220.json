@@ -1,0 +1,24 @@
+{
+  "id": "desktop-help-sidebarActivityChips",
+  "source": "desktop-help-sidebarActivityChips-1791842732220.png",
+  "sourceManifestSha256": "18e93c6cdf7c4aaacf55a8cf3d8307d181a104aa147a794a62a3d21c38bc4309",
+  "sourceSha256": "b3935def70f11c7838b8280dc9f0212fdf0c75c15e4fd62ec275b88e5386d69f",
+  "capturedAtUtc": "2026-10-12T22:05:32.318Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 694,
+    "top": 524,
+    "width": 291,
+    "height": 168
+  },
+  "description": "Actual local screenshot help after real keyboard focus or compact touch disclosure.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified."
+}

@@ -1,0 +1,162 @@
+{
+  "worktree": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity",
+  "branch": "feat/readable-tool-activity",
+  "base": "61ad3bc91cbc4ee263575d18ac9787aa04f72eb1",
+  "patch": "/home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-activity-delivery/readable-tool-activity-final.patch",
+  "patchSha256": "1919afcf502c06ebee92f7d6b75e528dd337f3f80e92c6ba89cc91c62245a7d2",
+  "preRestartReportedFinalPatchSha256": "1919afcf502c06ebee92f7d6b75e528dd337f3f80e92c6ba89cc91c62245a7d2",
+  "matchesPreRestartReportedFinalPatch": true,
+  "files": [
+    {
+      "path": "docs/providers.md",
+      "baseSha256": "9c361794201989951d9b2a4345b520d3d66296e93e8295f0f1977edebd3cae02",
+      "newSha256": "d6ed16b61a981959bfb4eb42682213a7d4fae85d032c8a1caedc2da80f3ee01d"
+    },
+    {
+      "path": "packages/app/e2e/browser/tool-call-overview-sheet.spec.ts",
+      "baseSha256": "1b65e28cd5bcc5ec3a3f989ada0810777311ea2cbba4bf44765031f0585b4b0b",
+      "newSha256": "bc86f9be318795f69f07b6220706765b6bbfea7dd28363e553d098720e42e964"
+    },
+    {
+      "path": "packages/app/e2e/support/helpers/tool-activity.ts",
+      "baseSha256": null,
+      "newSha256": "4c1dc5116150f70b676f953683ded5de827111d2c1b4a20ab406f42cfed7f972"
+    },
+    {
+      "path": "packages/app/src/components/message.tsx",
+      "baseSha256": "72e6378869eb815444c1451a0a8b24a20d51b6db0a14601de41514cf0ffba480",
+      "newSha256": "2d32fce436696ca30bdd27769dea915130b9d975e3394e09da1acaff48a21f85"
+    },
+    {
+      "path": "packages/app/src/components/tool-call-sheet.tsx",
+      "baseSha256": "13dfe092260ad19dbc34f7522a5f833c6605f9adc239652f20b9af4d2f63cb4c",
+      "newSha256": "90137668b2b5df0cb78a03bdb8e89c1f763bc0ef41ec38c06f08fbb4aef66737"
+    },
+    {
+      "path": "packages/app/src/hooks/use-settings/storage.test.ts",
+      "baseSha256": "cacf31fc3a00417c111244de45597ce0b874d1c5af84f9bb91da4e665f261771",
+      "newSha256": "1ac283f4b9529133f70646ea1bfeb8863d8844d1dd2016a686a1e10d32b9f58d"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ar.ts",
+      "baseSha256": "d1afd044520e08b71fe8f2616c02645534648b8929a287065e4aab959568e59b",
+      "newSha256": "394e161583eaab0a4caf78137654744f27abd585b445fcb63ab240946d44f20d"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/en.ts",
+      "baseSha256": "eb540955e54705505b7e028a67e750ffb66157bb35088f491a2c5850d2b5ee60",
+      "newSha256": "7a97a44d341e1cdf3a80804e4f4407284e78bdaef3f9e95748f4ce5dd3782ce3"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/es.ts",
+      "baseSha256": "82e45185a0263c211b47d08e3163648155848ce06b46b0f5ecd682861a98f6fd",
+      "newSha256": "8d73c757035a77677d98a74da7d0b6e71cf1f8299b280ae5c298fc52a3dfd42b"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/fr.ts",
+      "baseSha256": "fd997a45323f4dc5a397cdb50c24cfe47631cede6c5f37f4ad8c6a3b7c06b802",
+      "newSha256": "079ccd2657aff3e1da2a470293af6986d113e8cfb6649ec8d05441c7cd1540c3"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ja.ts",
+      "baseSha256": "90d120ee48b1accd96ab3b4a7c6a01a6e0fed161826a3c6607b1ca21ac457040",
+      "newSha256": "f71db849194f2b8d99d0d0c59d92895295040aefb0734cc4065be7fc36354a30"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ko.ts",
+      "baseSha256": "d31da22b2870cb8aaafbc5b20e339336aa1a70125e142a0be11c7e001ffe45cb",
+      "newSha256": "fd10b66a3dfc7f5561951fcb8e332c3ae37eb86e178fad15c2343d04bfc0e9e9"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/pt-BR.ts",
+      "baseSha256": "3cfff642aec0f84d3437aed03568f084a1491576f5f2d3ce8a737dcbfa3668b5",
+      "newSha256": "5e11f83a23b033cbeb4d1b4b83c68cfe0a11ad50faef2779c551aa6a1085e884"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/ru.ts",
+      "baseSha256": "7c4594f921c50a413fbaff4bbf7335e6997604f02825bec8cbdad4a2607d0f9b",
+      "newSha256": "7b608e1429e17e7e6e81749780864a4a5794d5a148cdc0d76671996dec6384c8"
+    },
+    {
+      "path": "packages/app/src/i18n/resources/zh-CN.ts",
+      "baseSha256": "a26df7484f8be9ada908f4885464924089bc25c808f87804e6131e27071bbf50",
+      "newSha256": "011e79327791d8c5d0a48ec1ff91a9a0a58d659f70031b97563eca4eddbe28d1"
+    },
+    {
+      "path": "packages/app/src/paseo-plus-plus/preferences.ts",
+      "baseSha256": "aa93f1487b2e080893185a0e9c01de04bb7cb020044d4dee6d50c7cfcdd5c669",
+      "newSha256": "7e427392f5af32f9e4948f7a82aeb99ac4f1c827d4b9a80669e4f57f4e7c652a"
+    },
+    {
+      "path": "packages/app/src/screens/settings/paseo-plus-plus-section.tsx",
+      "baseSha256": "edb29dc354235a2c2bc14afcd546b27b45e680341390df551974d5e0afecd763",
+      "newSha256": "7b4dc46a247d2d5464bae773cafd72ed8557bf2f1a8e9dd692e4da803c170c72"
+    },
+    {
+      "path": "packages/app/src/tool-calls/activity.ts",
+      "baseSha256": null,
+      "newSha256": "ab2d0760f8eecf26a707036f216e6dd7042f873439b67434390e720d0072adfd"
+    },
+    {
+      "path": "packages/app/src/tool-calls/detail-level/overview/model.ts",
+      "baseSha256": "b5e9a695ee3965bcd92b5282b11e652cf6725e690e706deaa13fd3b2eaeee929",
+      "newSha256": "879d4b5c8f8aa0c387f8118ec71e4b38ea17dd3fb05e7c884f42c23f2e789421"
+    },
+    {
+      "path": "packages/app/src/tool-calls/detail-level/overview/view.tsx",
+      "baseSha256": "6d2ac7d9a9ddee53dad7e9eae81261ee2b0249c5097efa2cffdfe4f40538ab55",
+      "newSha256": "f40e90d4041fb87e4363a0c5f2763177c22a4f642caccc159b566358b3f5edb7"
+    },
+    {
+      "path": "packages/app/src/tool-calls/detail-level/projection.test.ts",
+      "baseSha256": "16b645fbc8713e6584a4cacdd3a1eeba177014b8f2a33381eeb5bd23d3764459",
+      "newSha256": "c95971ee89947b3ea44b38eaa1b5f5ca4c26d32daac5b27856a45298b7f5b038"
+    },
+    {
+      "path": "packages/app/src/tool-calls/presentation.test.ts",
+      "baseSha256": "49c40aeaf095cd0ab0da7a1e52d787ec34d4a3eb9fdb3af622480c2b3113ecdd",
+      "newSha256": "4da79338a6db51f1684bfc7dff24f93b9fb4142a201f8f8a8e58a50e9287d7d3"
+    },
+    {
+      "path": "packages/app/src/tool-calls/presentation.ts",
+      "baseSha256": "73c8f5a01f3a96a3f63eb3a802bbb523f29bc10de80d40333be4be4f89e55fdb",
+      "newSha256": "58139d17f1de74a40d4c1ddad45bf0d5cfa614b43e07ebc167efa4cf454370b1"
+    },
+    {
+      "path": "packages/protocol/src/tool-call-activity.ts",
+      "baseSha256": null,
+      "newSha256": "f661c56a043d65c2cd8afba8e5f94b8426bc57a33ccff4fbf2c9b2ea4b9ae89c"
+    },
+    {
+      "path": "packages/protocol/src/tool-call-display.test.ts",
+      "baseSha256": "56416caca9f5f85357d98ad57d185d21fbb68689cf593befef85668e4ca30e82",
+      "newSha256": "a8c907ff45edc932cf1fb9fccdefc6d2f3df3d1c05781dfd46679b438e6d02f9"
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/claude/tool-call-mapper.test.ts",
+      "baseSha256": "b69644453e9603cf782aae4c848a50f3b0d386dd73619b5a6ffd6c8744f68451",
+      "newSha256": "0d77309d30becedd1b0e4b0493972279032592d06f1c61bc8aa80e1a42669228"
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/codex/tool-call-mapper.test.ts",
+      "baseSha256": "07e4f16737270f9b611eb0d794c6c6146ee4016daf55372b6d639d06d9d73521",
+      "newSha256": "155bc6cbf4ba86534b68c58e5acaa2126e5ee4377d9321ceedab82390252965a"
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/codex/tool-call-mapper.ts",
+      "baseSha256": "d262c0e6f14367d91bc9a13a88403da1276284f2b821aa0aa3763ffeef2dfa3d",
+      "newSha256": "fb8fbd657f40dde974c790b29833b738b6c6a525d30be8af0507919b1653bccd"
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/opencode/tool-call-mapper.test.ts",
+      "baseSha256": "a4870754c12146955e2248bc888bf0d06b1da0e42f49fcde935bc04d8e3e4cbf",
+      "newSha256": "bec133fed9deb12279afb81383d8c0b66f72ade02cee6904bf58e4981b883ca1"
+    },
+    {
+      "path": "packages/server/src/server/agent/providers/pi/tool-call-mapper.test.ts",
+      "baseSha256": "163270efb6f26e25f7698892b4aa69d792cadfa0fee9ee25da1de1949c70358b",
+      "newSha256": "366787640ad8735030431658bd7663a64c90e724a95b72349a5a743d08cd5b38"
+    }
+  ],
+  "validationState": "Source byte identity verified after restart. Prior test results are conversation-reported; original raw QA logs in /tmp are unavailable. No tests rerun."
+}

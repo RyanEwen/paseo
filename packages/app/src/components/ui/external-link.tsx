@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import { useCallback, type ReactNode } from "react";
 import { Pressable, Text } from "react-native";
 import { ArrowUpRight } from "lucide-react-native";
@@ -49,16 +50,18 @@ export function ExternalLink({
   );
 
   if (!tooltip) {
-    return trigger;
+    return <WorkspaceHttpLinkMenu url={href}>{trigger}</WorkspaceHttpLinkMenu>;
   }
 
   return (
-    <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
-      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-      <TooltipContent side="top" align="end" offset={6}>
-        <Text style={styles.tooltipText}>{tooltip}</Text>
-      </TooltipContent>
-    </Tooltip>
+    <WorkspaceHttpLinkMenu url={href}>
+      <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent side="top" align="end" offset={6}>
+          <Text style={styles.tooltipText}>{tooltip}</Text>
+        </TooltipContent>
+      </Tooltip>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

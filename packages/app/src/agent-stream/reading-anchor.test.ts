@@ -119,4 +119,49 @@ describe("reading anchor", () => {
       ),
     ).toBe(0);
   });
+  it("keeps visible text below a shrinking image steady in either input order", () => {
+    const initial = [
+      { id: "image", top: 0, height: 560, preserveFollowingOnShrink: true },
+      { id: "text", top: 560, height: 200 },
+    ];
+    const shrunk = [
+      { ...initial[0]!, height: 225 },
+      { ...initial[1]!, top: 225 },
+    ];
+    const wheelFirst = createReadingAnchor();
+    wheelFirst.reconcile(677, initial, false, 800);
+    wheelFirst.scroll(517, 800);
+    expect(wheelFirst.getRowId()).toBe("image");
+    expect(wheelFirst.project(517, shrunk[0])).toBe(182);
+    expect(wheelFirst.project(517, shrunk[0])).toBe(182);
+    expect(wheelFirst.reconcile(517, shrunk, false, 800)).toBe(182);
+    expect(wheelFirst.reconcile(182, shrunk, false, 800)).toBe(182);
+    expect(shrunk[1]!.top - 182).toBe(43);
+
+    const resizeFirst = createReadingAnchor();
+    resizeFirst.reconcile(677, initial, false, 800);
+    expect(resizeFirst.reconcile(677, shrunk, false, 800)).toBe(342);
+    resizeFirst.scroll(182, 800);
+    expect(shrunk[1]!.top - 182).toBe(43);
+  });
+
+  it("preserves the image top when following text is outside the viewport", () => {
+    const anchor = createReadingAnchor();
+    const initial = [
+      { id: "image", top: 0, height: 1632, preserveFollowingOnShrink: true },
+      { id: "text", top: 1632, height: 200 },
+    ];
+    anchor.reconcile(100, initial, false, 800);
+    expect(
+      anchor.reconcile(
+        100,
+        [
+          { ...initial[0]!, height: 1000 },
+          { ...initial[1]!, top: 1000 },
+        ],
+        false,
+        800,
+      ),
+    ).toBe(100);
+  });
 });

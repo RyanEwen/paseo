@@ -1,3 +1,5 @@
+import { AppSettingsSession } from "./app-settings/session.js";
+import { AppSettingsStore } from "./app-settings/index.js";
 import { AgentDirectory } from "./agent/directory.js";
 import { searchTimeline } from "./agent/chat-search/index.js";
 import type { BrowserToolsBroker } from "./browser-tools/broker.js";
@@ -478,6 +480,7 @@ export interface SessionOptions {
   workspaceGitService: WorkspaceGitService;
   workspaceAutoName: WorkspaceAutoName;
   daemonConfigStore: DaemonConfigStore;
+  appSettingsStore?: AppSettingsStore;
   pluginRuntime?: {
     before: import("./plugins/lifecycle/index.js").PluginLifecycle["before"];
     emit: import("./plugins/lifecycle/index.js").PluginLifecycle["emit"];
@@ -737,6 +740,7 @@ export class Session {
   private readonly workspaceProvisioning: WorkspaceProvisioningService;
   private readonly workspaceRecovery: WorkspaceRecoveryService;
   private readonly daemonConfigStore: DaemonConfigStore;
+  private readonly appSettingsSession: AppSettingsSession;
   private readonly pushNotifications: PushNotifications;
   private readonly pluginRuntime: SessionOptions["pluginRuntime"];
   private readonly orchestrationSkills: SessionOptions["orchestrationSkills"];
@@ -1078,6 +1082,12 @@ export class Session {
         })
       : null;
     this.daemonConfigStore = daemonConfigStore;
+    this.appSettingsSession = new AppSettingsSession(
+      (message) => this.emit(message),
+      this.delivery,
+      paseoHome,
+      options.appSettingsStore,
+    );
     this.terminalManager = terminalManager;
     this.terminalController = new TerminalSessionController({
       terminalManager,
@@ -2328,7 +2338,7 @@ export class Session {
       this.dispatchHubExecutionMessage(msg) ??
       this.dispatchCreationMessage(msg, source) ??
       this.dispatchAgentLifecycleMessage(msg) ??
-      this.dispatchAgentConfigMessage(msg) ??
+      this.dispatchSettingsAndAgentConfigMessage(msg) ??
       this.dispatchCheckoutMessage(msg) ??
       this.dispatchWorkspaceLifecycleMessage(msg) ??
       this.dispatchWorkspaceFileMessage(msg, source) ??
@@ -2790,6 +2800,12 @@ export class Session {
     }
   }
 
+  private dispatchSettingsAndAgentConfigMessage(
+    msg: SessionInboundMessage,
+  ): Promise<void> | undefined {
+    return this.appSettingsSession.dispatch(msg) ?? this.dispatchAgentConfigMessage(msg);
+  }
+
   private dispatchAgentConfigMessage(msg: SessionInboundMessage): Promise<void> | undefined {
     switch (msg.type) {
       case "set_agent_mode_request":
@@ -2822,6 +2838,8 @@ export class Session {
         return this.daemonSession.handleHubRelationshipRequest(msg);
       case "diagnostics.request":
         return this.daemonSession.handleDiagnosticsRequest(msg);
+      case "daemon.update.check_availability.request":
+        return this.daemonSession.handleUpdateAvailabilityRequest(msg);
       case "daemon.update.request":
         return this.daemonSession.handleUpdateRequest(msg);
       case "set_daemon_config_request":
@@ -2945,7 +2963,12 @@ export class Session {
       case "workspace.title.set.request":
         return this.handleWorkspaceTitleSetRequest(msg.workspaceId, msg.title, msg.requestId);
       case "workspace.pin.set.request":
-        return this.handleWorkspacePinSetRequest(msg.workspaceId, msg.pinned, msg.requestId);
+        return this.handleWorkspacePinSetRequest(
+          msg.workspaceId,
+          msg.pinned,
+          msg.requestId,
+          msg.scope,
+        );
       default:
         return undefined;
     }
@@ -3784,6 +3807,7 @@ export class Session {
     workspaceId: string,
     pinned: boolean,
     requestId: string,
+    scope: "global" | "project" = "global",
   ): Promise<void> {
     const logContext = { workspaceId, pinned, requestId };
     this.sessionLogger.info(logContext, "session: workspace.pin.set.request");
@@ -3799,14 +3823,16 @@ export class Session {
       const updatedAt = new Date().toISOString();
       const updated = await this.workspaceRegistry.update(workspaceId, (existing) => ({
         ...existing,
-        pinnedAt: nextPinnedAt,
+        // One registry update switches scope without exposing a double-pinned state.
+        pinnedAt: scope === "global" ? nextPinnedAt : null,
+        projectPinnedAt: scope === "project" ? nextPinnedAt : null,
         updatedAt,
       }));
       if (!updated) {
         emitResponse(false, null, "Workspace not found");
         return;
       }
-      emitResponse(true, nextPinnedAt, null);
+      emitResponse(true, updated.pinnedAt, null);
       await this.emitWorkspaceUpdatesForWorkspaceIds([workspaceId]);
     } catch (error) {
       this.sessionLogger.error(
@@ -5447,6 +5473,15 @@ export class Session {
     return matchedEntries;
   }
 
+  /** Apply workspace identity before cursor pagination; cwd is not an ownership key. */
+  private scopeHistoryAgents(
+    agents: AgentSnapshotPayload[],
+    request: AgentDirectoryRequestMessage,
+  ): AgentSnapshotPayload[] {
+    if (request.type !== "fetch_agent_history_request" || !request.workspaceId) return agents;
+    return agents.filter((agent) => agent.workspaceId === request.workspaceId);
+  }
+
   private async listFetchAgentsEntries(request: AgentDirectoryRequestMessage): Promise<{
     entries: FetchAgentsResponseEntry[];
     pageInfo: FetchAgentsResponsePageInfo;
@@ -5468,6 +5503,7 @@ export class Session {
         (request.type === "fetch_agents_request" && request.includeBackground),
       includeUnavailablePersisted: request.type === "fetch_agent_history_request",
     });
+    agents = this.scopeHistoryAgents(agents, request);
     const activePlacementsByWorkspaceId =
       scope === "active" ? await this.buildActiveProjectPlacementsByWorkspaceId() : null;
     if (activePlacementsByWorkspaceId) {
@@ -5608,6 +5644,7 @@ export class Session {
       name: resolveWorkspaceDisplayName(workspace),
       title: workspace.title,
       pinnedAt: workspace.pinnedAt,
+      projectPinnedAt: workspace.projectPinnedAt ?? null,
       ...(workspace.labels && workspace.labels.length > 0 ? { labels: workspace.labels } : {}),
       background: workspace.background,
       archivingAt: null,
@@ -5702,6 +5739,7 @@ export class Session {
       }),
       title: result.workspace.title,
       pinnedAt: result.workspace.pinnedAt,
+      projectPinnedAt: result.workspace.projectPinnedAt ?? null,
       ...(result.workspace.labels && result.workspace.labels.length > 0
         ? { labels: result.workspace.labels }
         : {}),

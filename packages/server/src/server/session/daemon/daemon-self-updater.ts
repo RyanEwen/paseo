@@ -52,6 +52,30 @@ export class DaemonSelfUpdater {
 
   constructor(private readonly runtime: DaemonSelfUpdateRuntime = defaultRuntime) {}
 
+  /** Check eligibility without package downloads, installation, progress, or restart intent. */
+  async checkAvailability(input: Pick<DaemonSelfUpdateInput, "daemonVersion" | "desktopManaged">) {
+    if (input.desktopManaged) return { version: null, reason: DESKTOP_MANAGED_UPDATE_ERROR };
+    if (!input.daemonVersion) return { version: null, reason: "Daemon version is unknown" };
+    const { unsupportedReason } = await this.inspectOrigin(input.daemonVersion);
+    if (unsupportedReason) return { version: null, reason: unsupportedReason };
+    const version = await this.runtime.npm.getNewerVersion(input.daemonVersion);
+    return { version, reason: null };
+  }
+
+  /** Share the exact running-install identity check between availability and mutation. */
+  private async inspectOrigin(daemonVersion: string | null) {
+    const npmOptions = {
+      prefix: resolveNpmGlobalPrefix(this.runtime.installOrigin.resolveCurrentServerPackageRoot()),
+    };
+    const install = await this.runtime.npm.inspect(npmOptions);
+    const unsupportedReason = validateDaemonInstallOrigin(
+      install,
+      daemonVersion,
+      this.runtime.installOrigin,
+    );
+    return { npmOptions, unsupportedReason };
+  }
+
   async update(input: DaemonSelfUpdateInput): Promise<DaemonSelfUpdateResult> {
     if (input.desktopManaged) {
       return { success: false, error: DESKTOP_MANAGED_UPDATE_ERROR, newVersion: null };
@@ -64,17 +88,7 @@ export class DaemonSelfUpdater {
     this.inProgress = true;
     try {
       input.onProgress("starting");
-      const npmOptions = {
-        prefix: resolveNpmGlobalPrefix(
-          this.runtime.installOrigin.resolveCurrentServerPackageRoot(),
-        ),
-      };
-      const install = await this.runtime.npm.inspect(npmOptions);
-      const unsupportedReason = validateDaemonInstallOrigin(
-        install,
-        input.daemonVersion,
-        this.runtime.installOrigin,
-      );
+      const { npmOptions, unsupportedReason } = await this.inspectOrigin(input.daemonVersion);
       if (unsupportedReason) {
         return { success: false, error: unsupportedReason, newVersion: null };
       }

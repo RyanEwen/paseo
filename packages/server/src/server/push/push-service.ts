@@ -22,11 +22,10 @@ interface ExpoPushTicket {
 }
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-const MAX_BATCH_SIZE = 100;
 
 /**
  * Service for sending Expo push notifications.
- * Handles batching and invalid token removal.
+ * Keeps devices isolated across Expo projects and removes invalid tokens.
  */
 export class PushService {
   private readonly logger: pino.Logger;
@@ -37,6 +36,7 @@ export class PushService {
     this.revokeToken = revokeToken;
   }
 
+  /** Deliver to every device, including clients built with different Expo projects. */
   async sendPush(tokens: string[], payload: PushPayload): Promise<void> {
     if (tokens.length === 0) {
       return;
@@ -50,13 +50,12 @@ export class PushService {
       sound: "default",
     }));
 
-    // Batch tokens (max 100 per request per Expo limits)
-    const batches: ExpoPushMessage[][] = [];
-    for (let i = 0; i < messages.length; i += MAX_BATCH_SIZE) {
-      batches.push(messages.slice(i, i + MAX_BATCH_SIZE));
+    // Expo rejects the entire request when tokens belong to different projects.
+    // Tokens are opaque, so send separately without requiring project metadata
+    // from older clients. Await each request to bound concurrency per host.
+    for (const message of messages) {
+      await this.sendBatch([message]);
     }
-
-    await Promise.all(batches.map((batch) => this.sendBatch(batch)));
   }
 
   private async sendBatch(messages: ExpoPushMessage[]): Promise<void> {

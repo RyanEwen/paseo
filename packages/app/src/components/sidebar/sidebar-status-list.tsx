@@ -1,46 +1,37 @@
+import { SidebarPinnedList } from "@/components/sidebar/pinned-list";
+import { useSidebarReorderGuard } from "@/hooks/use-sidebar-reorder-guard";
+import { useSidebarRecencyClock } from "./workspace-recency-clock";
+import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
+import { useSidebarViewStore } from "@/stores/sidebar-view-store";
+import { mergeWithRemainder, hasVisibleOrderChanged } from "@/utils/sidebar-reorder";
+import { SidebarEmptyProjectGroup, SidebarWorkspaceGroupHeader } from "./sidebar-workspace-group";
 import {
   memo,
   useCallback,
   useMemo,
   useState,
+  useRef,
   type MutableRefObject,
   type ReactNode,
   type Ref,
 } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  type GestureResponderEvent,
-  type PressableStateCallbackType,
-} from "react-native";
+import { View, ScrollView, type GestureResponderEvent } from "react-native";
 import { NestableScrollContainer } from "react-native-draggable-flatlist";
 import type { GestureType } from "react-native-gesture-handler";
 import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { type SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
-import type { StatusBucket } from "@/hooks/sidebar-status-view-model";
 import type { SidebarWorkspaceGroup } from "@/components/sidebar/sidebar-labels";
 import { SidebarFilterEmptyState } from "@/components/sidebar/empty-states";
 import type { HostBadgeModel } from "@/hosts/appearance";
-import { isWeb as platformIsWeb, isNative as platformIsNative } from "@/constants/platform";
+import { isNative as platformIsNative } from "@/constants/platform";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { StyleSheet } from "react-native-unistyles";
-import { density, densityIconBox, densityIconProps } from "@/styles/density";
-import type { SidebarSurfaceBackdrop } from "@/styles/surface-backdrop";
-import { withUnistyles } from "react-native-unistyles";
-import {
-  ChevronDown,
-  ChevronRight,
-  CircleAlert,
-  CircleCheck,
-  CircleDot,
-  CircleX,
-} from "lucide-react-native";
+import { density } from "@/styles/density";
 import { useToast } from "@/contexts/toast-context";
-import { WorkspaceRenameModal } from "@/components/workspace-rename-modal";
+import { SidebarWorkspaceRename, useSidebarWorkspaceRename } from "./workspace-rename";
+import { StatusGroupCell } from "./status-group-cell";
 import { useWorkspaceClipboardActions } from "@/hooks/use-workspace-clipboard-actions";
 import { redirectIfArchivingActiveWorkspace } from "@/utils/sidebar-workspace-archive-redirect";
 import { useWorkspaceArchive } from "@/workspace/use-workspace-archive";
@@ -55,13 +46,12 @@ import {
   resolveTrailingActionVisibility,
   type SidebarWorkspaceTrailingPresentation,
   SidebarWorkspaceTrailingActionBase,
-  SidebarWorkspaceTrailingActionOverlay,
+  SidebarWorkspaceTrailingStatusActions,
   SidebarWorkspaceTrailingActionSlot,
   sidebarWorkspaceRowStyles,
 } from "@/components/sidebar/sidebar-workspace-row-content";
 import { useOpenKebabMenuVisibility } from "@/components/sidebar/use-open-kebab-menu-visibility";
 import { getSidebarRowBackdrop } from "@/components/sidebar/sidebar-row-backdrop";
-import { getStatusDotColor } from "@/utils/status-dot-color";
 import { selectWorkspaceServiceSummary } from "@/components/sidebar/workspace-meta-row";
 import {
   SidebarWorkspaceTrailingContent,
@@ -79,34 +69,18 @@ import { useLimitedSidebarGroup } from "@/components/sidebar/use-limited-sidebar
 import type { ToggleSidebarWorkspacePin } from "@/hooks/use-sidebar-workspace-pin";
 import { DraggableList, type DraggableRenderItemInfo } from "@/components/draggable-list";
 import type { DraggableListDragHandleProps } from "@/components/draggable-list.types";
+import { useSidebarPositionTransitionDuration } from "./position-transitions";
+import {
+  buildStatusListItems,
+  statusListItemKey,
+  statusListDragGroupKey,
+  type StatusListItem,
+} from "./status-list-items";
+import { isDragGroupOrderValid } from "@/components/drag-reorder/reorder-items";
 import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press-drag-interaction";
 
-// Themed icon wrappers
-const mutedGroupIconProps = densityIconProps("sm", (theme) => ({
-  color: theme.colors.foregroundMuted,
-}));
-// One mapping per bucket, resolved through the status-dot producer so a group header and
-// the rows under it cannot disagree about what "failed" looks like.
-const needsInputGroupIconProps = densityIconProps("sm", (theme) => ({
-  color: getStatusDotColor({ theme, bucket: "needs_input" }) ?? undefined,
-}));
-const failedGroupIconProps = densityIconProps("sm", (theme) => ({
-  color: getStatusDotColor({ theme, bucket: "failed" }) ?? undefined,
-}));
-const attentionGroupIconProps = densityIconProps("sm", (theme) => ({
-  color: getStatusDotColor({ theme, bucket: "attention" }) ?? undefined,
-}));
-const runningGroupIconProps = densityIconProps("sm", (theme) => ({
-  color: getStatusDotColor({ theme, bucket: "running" }) ?? undefined,
-}));
-
-const ThemedChevronDown = withUnistyles(ChevronDown);
-const ThemedChevronRight = withUnistyles(ChevronRight);
-const ThemedCircleAlert = withUnistyles(CircleAlert);
-const ThemedCircleCheck = withUnistyles(CircleCheck);
-const ThemedCircleDot = withUnistyles(CircleDot);
-const ThemedCircleX = withUnistyles(CircleX);
 const EMPTY_SHORTCUT_INDEX = new Map<string, number>();
+const getStatusEnteredAt = (workspace: SidebarWorkspaceEntry) => workspace.statusEnteredAt;
 
 function statusWorkspaceKeyExtractor(workspace: SidebarWorkspaceEntry): string {
   return workspace.workspaceKey;
@@ -124,6 +98,7 @@ interface StatusWorkspaceListProps {
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspaceEntry[]) => void;
   listHeaderComponent?: ReactNode;
+  emptyProjectContent?: ReactNode;
   /** Swaps the group list for the label filter's empty state. Never the header above it. */
   sidebarFilterEmpty?: boolean;
   parentGestureRef?: MutableRefObject<GestureType | undefined>;
@@ -142,6 +117,7 @@ export function SidebarStatusWorkspaceList({
   onToggleWorkspacePin,
   onPinnedWorkspaceReorder,
   listHeaderComponent,
+  emptyProjectContent,
   sidebarFilterEmpty = false,
   parentGestureRef,
   dragGestureHostActive,
@@ -159,7 +135,7 @@ export function SidebarStatusWorkspaceList({
     expanded: pinnedWorkspacesExpanded,
     canToggle: canTogglePinnedWorkspaces,
     toggleExpanded: togglePinnedWorkspacesExpanded,
-  } = useLimitedSidebarGroup(pinnedWorkspaces);
+  } = useLimitedSidebarGroup(pinnedWorkspaces, getStatusEnteredAt);
 
   const statusShortcutIndex = showShortcutBadges
     ? shortcutIndexByWorkspaceKey
@@ -211,7 +187,7 @@ export function SidebarStatusWorkspaceList({
           />
           {pinnedCollapsed ? null : (
             <>
-              <DraggableList
+              <SidebarPinnedList
                 testID="sidebar-pinned-list"
                 data={visiblePinnedWorkspaces}
                 keyExtractor={statusWorkspaceKeyExtractor}
@@ -239,6 +215,8 @@ export function SidebarStatusWorkspaceList({
         <SidebarFilterEmptyState />
       ) : (
         <StatusGroupList
+          parentGestureRef={parentGestureRef}
+          dragGestureHostActive={dragGestureHostActive}
           groups={groups}
           collapsedWorkspaceGroupKeys={collapsedWorkspaceGroupKeys}
           projectIconByProjectViewKey={projectIconByProjectViewKey}
@@ -250,31 +228,36 @@ export function SidebarStatusWorkspaceList({
           onToggleWorkspacePin={onToggleWorkspacePin}
         />
       )}
+      {!sidebarFilterEmpty && emptyProjectContent ? (
+        <SidebarEmptyProjectGroup>{emptyProjectContent}</SidebarEmptyProjectGroup>
+      ) : null}
     </>
   );
 
   return (
-    <View style={styles.container}>
-      {platformIsNative ? (
-        <NestableScrollContainer
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          testID="sidebar-status-list-scroll"
-        >
-          {content}
-        </NestableScrollContainer>
-      ) : (
-        <ScrollView
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          testID="sidebar-status-list-scroll"
-        >
-          {content}
-        </ScrollView>
-      )}
-    </View>
+    <SidebarWorkspaceRename>
+      <View style={styles.container}>
+        {platformIsNative ? (
+          <NestableScrollContainer
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={true}
+            testID="sidebar-status-list-scroll"
+          >
+            {content}
+          </NestableScrollContainer>
+        ) : (
+          <ScrollView
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={true}
+            testID="sidebar-status-list-scroll"
+          >
+            {content}
+          </ScrollView>
+        )}
+      </View>
+    </SidebarWorkspaceRename>
   );
 }
 
@@ -288,6 +271,8 @@ function StatusGroupList({
   hostBadgeByServerId,
   supportsPinningByServerId,
   onToggleWorkspacePin,
+  parentGestureRef,
+  dragGestureHostActive,
 }: {
   groups: SidebarWorkspaceGroup[];
   collapsedWorkspaceGroupKeys: ReadonlySet<string>;
@@ -298,88 +283,180 @@ function StatusGroupList({
   hostBadgeByServerId: ReadonlyMap<string, HostBadgeModel>;
   supportsPinningByServerId: ReadonlyMap<string, boolean>;
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
+  parentGestureRef?: MutableRefObject<GestureType | undefined>;
+  dragGestureHostActive?: boolean;
 }) {
+  const initialCount = useSidebarViewStore((state) => state.initialWorkspaceCount);
+  const days = useSidebarViewStore((state) => state.workspaceUpdatedWithinDays);
+  const now = useSidebarRecencyClock();
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<ReadonlySet<string>>(new Set());
+  const positionTransitionDuration = useSidebarPositionTransitionDuration();
+  const items = useMemo(
+    () =>
+      buildStatusListItems({
+        groups,
+        collapsedGroupKeys: collapsedWorkspaceGroupKeys,
+        expandedGroupKeys,
+        initialCount,
+        updatedWithin: days === null ? undefined : { days, now },
+      }),
+    [groups, collapsedWorkspaceGroupKeys, expandedGroupKeys, initialCount, days, now],
+  );
+
+  const destinationGroupKeys = useMemo(() => {
+    const result = new Map<string, string>();
+    for (const group of groups) {
+      for (const workspace of group.rows) result.set(workspace.workspaceKey, group.key);
+    }
+    return result;
+  }, [groups]);
+
+  const destinationGroupKeysRef = useRef(destinationGroupKeys);
+  destinationGroupKeysRef.current = destinationGroupKeys;
+  // Cleanup needs the new projection, even when a disappearing cell did not render again.
+  const resolveDestinationGroupKey = useCallback(
+    (workspaceKey: string) => destinationGroupKeysRef.current.get(workspaceKey),
+    [],
+  );
+
+  const toggleExpanded = useCallback((key: string) => {
+    setExpandedGroupKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const workspaceDrag = useSidebarReorderGuard("workspace");
+  const canCommitWorkspaceDrag = workspaceDrag.canCommit;
+  const handleWorkspaceReorder = useCallback(
+    (reordered: StatusListItem[]) => {
+      if (!canCommitWorkspaceDrag()) return;
+      if (
+        !isDragGroupOrderValid({
+          original: items,
+          reordered,
+          keyExtractor: statusListItemKey,
+          getDragGroupKey: statusListDragGroupKey,
+        })
+      )
+        return;
+      // Preserve the former per-group persistence policy. Headers and other groups stay fixed.
+      for (const group of groups) {
+        const originalKeys = items
+          .filter((item) => item.kind === "workspace" && item.groupKey === group.key)
+          .map(statusListItemKey);
+        const reorderedRows = reordered.filter(
+          (item): item is Extract<StatusListItem, { kind: "workspace" }> =>
+            item.kind === "workspace" && item.groupKey === group.key,
+        );
+        const reorderedKeys = reorderedRows.map(statusListItemKey);
+        if (
+          !hasVisibleOrderChanged({
+            currentOrder: originalKeys,
+            reorderedVisibleKeys: reorderedKeys,
+          })
+        )
+          continue;
+        const store = useSidebarOrderStore.getState();
+        store.setStatusWorkspaceOrder(
+          mergeWithRemainder({
+            currentOrder: store.statusWorkspaceOrder,
+            reorderedVisibleKeys: reorderedRows.map((item) => item.workspace.workspaceKey),
+          }),
+        );
+        break;
+      }
+    },
+    [groups, items, canCommitWorkspaceDrag],
+  );
+
+  const renderItem = useCallback(
+    ({ item, drag, isActive, dragHandleProps }: DraggableRenderItemInfo<StatusListItem>) => {
+      if (item.kind === "header") {
+        return <SidebarWorkspaceGroupHeader group={item.group} collapsed={item.collapsed} />;
+      }
+      if (item.kind === "footer") {
+        return <StatusGroupFooter item={item} onToggle={toggleExpanded} />;
+      }
+      const workspace = item.workspace;
+      return (
+        <StatusGroupCell
+          workspaceKey={workspace.workspaceKey}
+          groupKey={item.groupKey}
+          resolveDestinationGroupKey={resolveDestinationGroupKey}
+        >
+          <StatusWorkspaceRow
+            workspace={workspace}
+            {...buildStatusRowProjectPresentation({
+              workspace,
+              projectIconByProjectViewKey,
+              hostBadgeByServerId,
+            })}
+            shortcutNumber={shortcutIndex.get(workspace.workspaceKey) ?? null}
+            showShortcutBadge={showShortcutBadges}
+            canPin={supportsPinningByServerId.get(workspace.serverId) === true}
+            onToggleWorkspacePin={onToggleWorkspacePin}
+            onWorkspacePress={onWorkspacePress}
+            drag={drag}
+            isDragging={isActive}
+            dragHandleProps={dragHandleProps}
+          />
+        </StatusGroupCell>
+      );
+    },
+    [
+      resolveDestinationGroupKey,
+      projectIconByProjectViewKey,
+      hostBadgeByServerId,
+      shortcutIndex,
+      showShortcutBadges,
+      supportsPinningByServerId,
+      onToggleWorkspacePin,
+      onWorkspacePress,
+      toggleExpanded,
+    ],
+  );
+
   return (
-    <>
-      {groups.map((group) => (
-        <StatusGroupRows
-          key={group.key}
-          group={group}
-          collapsed={collapsedWorkspaceGroupKeys.has(group.key)}
-          projectIconByProjectViewKey={projectIconByProjectViewKey}
-          shortcutIndex={shortcutIndex}
-          showShortcutBadges={showShortcutBadges}
-          onWorkspacePress={onWorkspacePress}
-          hostBadgeByServerId={hostBadgeByServerId}
-          supportsPinningByServerId={supportsPinningByServerId}
-          onToggleWorkspacePin={onToggleWorkspacePin}
-        />
-      ))}
-    </>
+    <DraggableList
+      testID="sidebar-status-workspace-list"
+      data={items}
+      keyExtractor={statusListItemKey}
+      getDragGroupKey={statusListDragGroupKey}
+      positionTransitionDuration={positionTransitionDuration}
+      onDragEnd={handleWorkspaceReorder}
+      disabled={workspaceDrag.disabled}
+      onDragBegin={workspaceDrag.onDragBegin}
+      scrollEnabled={false}
+      useDragHandle
+      nestable={platformIsNative}
+      simultaneousGestureRef={parentGestureRef}
+      gestureHostPresented={dragGestureHostActive}
+      renderItem={renderItem}
+    />
   );
 }
 
-function StatusGroupRows({
-  group,
-  collapsed,
-  projectIconByProjectViewKey,
-  shortcutIndex,
-  showShortcutBadges,
-  onWorkspacePress,
-  hostBadgeByServerId,
-  supportsPinningByServerId,
-  onToggleWorkspacePin,
+/** Keep the group toggle callback stable across status updates and row moves. */
+function StatusGroupFooter({
+  item,
+  onToggle,
 }: {
-  group: SidebarWorkspaceGroup;
-  collapsed: boolean;
-  projectIconByProjectViewKey: ReadonlyMap<string, string | null>;
-  shortcutIndex: Map<string, number>;
-  showShortcutBadges: boolean;
-  onWorkspacePress?: () => void;
-  hostBadgeByServerId: ReadonlyMap<string, HostBadgeModel>;
-  supportsPinningByServerId: ReadonlyMap<string, boolean>;
-  onToggleWorkspacePin: ToggleSidebarWorkspacePin;
+  item: Extract<StatusListItem, { kind: "footer" }>;
+  onToggle: (groupKey: string) => void;
 }) {
-  const {
-    visibleItems: visibleWorkspaces,
-    expanded: workspacesExpanded,
-    canToggle: canToggleWorkspaces,
-    toggleExpanded: toggleWorkspacesExpanded,
-  } = useLimitedSidebarGroup(group.rows);
-
+  const handlePress = useCallback(() => onToggle(item.groupKey), [item.groupKey, onToggle]);
   return (
-    <View style={collapsed ? undefined : styles.statusGroupBlockExpanded}>
-      <StatusGroupHeader group={group} collapsed={collapsed} />
-      {!collapsed ? (
-        <View
-          style={styles.statusWorkspaceListContainer}
-          testID={`sidebar-status-group-rows-${group.key}`}
-        >
-          {visibleWorkspaces.map((workspace) => (
-            <StatusWorkspaceRow
-              key={workspace.workspaceKey}
-              workspace={workspace}
-              {...buildStatusRowProjectPresentation({
-                workspace,
-                projectIconByProjectViewKey,
-                hostBadgeByServerId,
-              })}
-              shortcutNumber={shortcutIndex.get(workspace.workspaceKey) ?? null}
-              showShortcutBadge={showShortcutBadges}
-              canPin={supportsPinningByServerId.get(workspace.serverId) === true}
-              onToggleWorkspacePin={onToggleWorkspacePin}
-              onWorkspacePress={onWorkspacePress}
-            />
-          ))}
-          {canToggleWorkspaces ? (
-            <SidebarGroupToggleRow
-              expanded={workspacesExpanded}
-              onPress={toggleWorkspacesExpanded}
-              indented
-              testID={`sidebar-status-group-show-more-${group.key}`}
-            />
-          ) : null}
-        </View>
+    <View style={styles.statusGroupBlockExpanded}>
+      {item.canToggle ? (
+        <SidebarGroupToggleRow
+          expanded={item.expanded}
+          onPress={handlePress}
+          indented
+          testID={`sidebar-status-group-show-more-${item.groupKey}`}
+        />
       ) : null}
     </View>
   );
@@ -405,95 +482,6 @@ function buildStatusRowProjectPresentation({
     projectName: workspace.projectName,
     projectIconDataUri: projectIconByProjectViewKey.get(workspace.projectViewKey) ?? null,
   };
-}
-
-function StatusGroupHeader({
-  group,
-  collapsed,
-}: {
-  group: SidebarWorkspaceGroup;
-  collapsed: boolean;
-}) {
-  const { t } = useTranslation();
-  const [isHovered, setIsHovered] = useState(false);
-  const toggleWorkspaceGroupCollapsed = useSidebarCollapsedSectionsStore(
-    (state) => state.toggleWorkspaceGroupCollapsed,
-  );
-  const handlePress = useCallback(() => {
-    toggleWorkspaceGroupCollapsed(group.key);
-  }, [group.key, toggleWorkspaceGroupCollapsed]);
-  const handleHoverIn = useCallback(() => setIsHovered(true), []);
-  const handleHoverOut = useCallback(() => setIsHovered(false), []);
-  const rowStyle = useCallback(
-    ({ pressed }: PressableStateCallbackType) => [
-      styles.statusGroupRow,
-      isHovered && styles.statusGroupRowHovered,
-      pressed && styles.statusGroupRowPressed,
-    ],
-    [isHovered],
-  );
-  const accessibilityState = useMemo(() => ({ expanded: !collapsed }), [collapsed]);
-
-  return (
-    <View onPointerEnter={handleHoverIn} onPointerLeave={handleHoverOut}>
-      <Pressable
-        accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={t("sidebar.statusGroupAccessibility", { label: group.label })}
-        accessibilityState={accessibilityState}
-        style={rowStyle}
-        onPress={handlePress}
-        testID={`sidebar-status-group-${group.key}`}
-      >
-        <View style={styles.statusGroupRowLeft}>
-          <View style={styles.statusGroupLeadingVisualSlot}>
-            <StatusGroupLeadingVisual
-              leading={group.leading}
-              collapsed={collapsed}
-              showChevron={isHovered}
-            />
-          </View>
-          <View style={styles.statusGroupTitleGroup}>
-            <Text style={styles.statusGroupTitle} numberOfLines={1}>
-              {group.label}
-            </Text>
-          </View>
-        </View>
-      </Pressable>
-    </View>
-  );
-}
-
-function StatusGroupLeadingVisual({
-  leading,
-  collapsed,
-  showChevron,
-}: {
-  leading: SidebarWorkspaceGroup["leading"];
-  collapsed: boolean;
-  showChevron: boolean;
-}) {
-  if (!showChevron) {
-    return <StatusGroupIcon bucket={leading.bucket} />;
-  }
-  if (collapsed) {
-    return <ThemedChevronRight uniProps={mutedGroupIconProps} />;
-  }
-  return <ThemedChevronDown uniProps={mutedGroupIconProps} />;
-}
-
-function StatusGroupIcon({ bucket }: { bucket: StatusBucket }) {
-  switch (bucket) {
-    case "needs_input":
-      return <ThemedCircleAlert uniProps={needsInputGroupIconProps} />;
-    case "failed":
-      return <ThemedCircleX uniProps={failedGroupIconProps} />;
-    case "attention":
-      return <ThemedCircleCheck uniProps={attentionGroupIconProps} />;
-    case "running":
-      return <ThemedCircleDot uniProps={runningGroupIconProps} />;
-    case "done":
-      return <ThemedCircleCheck uniProps={mutedGroupIconProps} />;
-  }
 }
 
 const StatusWorkspaceRow = memo(function StatusWorkspaceRow({
@@ -603,7 +591,7 @@ function StatusWorkspaceRowWithMenu({
   const { t } = useTranslation();
   const toast = useToast();
   const [isHidingWorkspace, setIsHidingWorkspace] = useState(false);
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const openRename = useSidebarWorkspaceRename();
   const isArchiving = workspace.archivingAt !== null || isHidingWorkspace;
 
   const redirectAfterArchive = useCallback(() => {
@@ -640,9 +628,12 @@ function StatusWorkspaceRowWithMenu({
     clipboard.copyBranchName(workspace);
   }, [clipboard, workspace]);
 
-  const handleOpenRename = useCallback(() => setIsRenameOpen(true), []);
-  const handleCloseRename = useCallback(() => setIsRenameOpen(false), []);
+  const handleOpenRename = useCallback(() => openRename(workspace), [openRename, workspace]);
   const isPinned = workspace.pinnedAt != null;
+  const isProjectPinned = workspace.projectPinnedAt != null;
+  const onToggleProjectPin = useCallback(() => {
+    onToggleWorkspacePin(workspace, "project");
+  }, [onToggleWorkspacePin, workspace]);
   const handleTogglePin = useCallback(() => {
     onToggleWorkspacePin(workspace);
   }, [onToggleWorkspacePin, workspace]);
@@ -677,42 +668,36 @@ function StatusWorkspaceRowWithMenu({
   });
 
   return (
-    <>
-      <StatusWorkspaceRowInner
-        workspace={workspace}
-        hostBadge={hostBadge}
-        projectName={projectName}
-        projectIconDataUri={projectIconDataUri}
-        selected={selected}
-        shortcutNumber={shortcutNumber}
-        showShortcutBadge={showShortcutBadge}
-        onPress={onPress}
-        isArchiving={isArchiving}
-        archiveLabel={t("sidebar.workspace.actions.archive")}
-        archiveStatus={isArchiving ? "pending" : "idle"}
-        archivePendingLabel={t("sidebar.workspace.actions.archiving")}
-        onArchive={handleArchive}
-        onCopyBranchName={workspace.projectKind === "git" ? handleCopyBranchName : undefined}
-        onCopyPath={handleCopyPath}
-        onRename={handleOpenRename}
-        onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
-        onMarkAsUnread={canMarkUnread ? handleMarkAsUnread : undefined}
-        archiveShortcutKeys={selected ? archiveShortcutKeys : null}
-        isPinned={isPinned}
-        onTogglePin={onTogglePin}
-        reserveIdleStatusIndicatorSpace={reserveIdleStatusIndicatorSpace}
-        inStatusGroup={inStatusGroup}
-        drag={drag}
-        isDragging={isDragging}
-        dragHandleProps={dragHandleProps}
-      />
-      <WorkspaceRenameModal
-        visible={isRenameOpen}
-        workspace={workspace}
-        onClose={handleCloseRename}
-        testID={`sidebar-workspace-rename-modal-${workspace.workspaceKey}`}
-      />
-    </>
+    <StatusWorkspaceRowInner
+      workspace={workspace}
+      hostBadge={hostBadge}
+      projectName={projectName}
+      projectIconDataUri={projectIconDataUri}
+      selected={selected}
+      shortcutNumber={shortcutNumber}
+      showShortcutBadge={showShortcutBadge}
+      onPress={onPress}
+      isArchiving={isArchiving}
+      archiveLabel={t("sidebar.workspace.actions.archive")}
+      archiveStatus={isArchiving ? "pending" : "idle"}
+      archivePendingLabel={t("sidebar.workspace.actions.archiving")}
+      onArchive={handleArchive}
+      onCopyBranchName={workspace.projectKind === "git" ? handleCopyBranchName : undefined}
+      onCopyPath={handleCopyPath}
+      onRename={handleOpenRename}
+      onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
+      onMarkAsUnread={canMarkUnread ? handleMarkAsUnread : undefined}
+      archiveShortcutKeys={selected ? archiveShortcutKeys : null}
+      isPinned={isPinned}
+      onTogglePin={onTogglePin}
+      isProjectPinned={isProjectPinned}
+      onToggleProjectPin={onToggleProjectPin}
+      reserveIdleStatusIndicatorSpace={reserveIdleStatusIndicatorSpace}
+      inStatusGroup={inStatusGroup}
+      drag={drag}
+      isDragging={isDragging}
+      dragHandleProps={dragHandleProps}
+    />
   );
 }
 
@@ -738,6 +723,8 @@ interface StatusWorkspaceRowInnerProps {
   archiveShortcutKeys?: ShortcutKey[][] | null;
   isPinned?: boolean;
   onTogglePin?: () => void;
+  isProjectPinned?: boolean;
+  onToggleProjectPin?: () => void;
   reserveIdleStatusIndicatorSpace?: boolean;
   /** Pinned rows are flat under their own header; status-group rows indent from theirs. */
   inStatusGroup?: boolean;
@@ -785,6 +772,8 @@ function StatusWorkspaceRowInnerContent({
   archiveShortcutKeys,
   isPinned,
   onTogglePin,
+  isProjectPinned,
+  onToggleProjectPin,
   reserveIdleStatusIndicatorSpace = true,
   inStatusGroup = true,
   isDragging = false,
@@ -838,7 +827,6 @@ function StatusWorkspaceRowInnerContent({
         const {
           trailingPresentation,
           showKebab: showKebabInSlot,
-          showScrim,
           renderSlot,
           reserveSlotWidth,
         } = resolveTrailingActionVisibility({
@@ -885,6 +873,8 @@ function StatusWorkspaceRowInnerContent({
               archiveShortcutKeys={archiveShortcutKeys}
               isPinned={isPinned}
               onTogglePin={onTogglePin}
+              isProjectPinned={isProjectPinned}
+              onToggleProjectPin={onToggleProjectPin}
               openInFileManagerPath={workspace.workspaceDirectory}
               disabled={isArchiving}
               accessibilityRole="button"
@@ -913,14 +903,14 @@ function StatusWorkspaceRowInnerContent({
                 {renderSlot ? (
                   <StatusWorkspaceActionSlot
                     workspace={workspace}
-                    backdrop={backdrop}
                     trailing={trailing}
                     trailingPresentation={trailingPresentation}
                     showKebab={showKebabInSlot}
-                    showScrim={showScrim}
                     reserveSlotWidth={reserveSlotWidth}
                     isPinned={isPinned}
                     onTogglePin={onTogglePin}
+                    isProjectPinned={isProjectPinned}
+                    onToggleProjectPin={onToggleProjectPin}
                     onCopyPath={onCopyPath}
                     onCopyBranchName={onCopyBranchName}
                     onRename={onRename}
@@ -944,14 +934,14 @@ function StatusWorkspaceRowInnerContent({
 
 function StatusWorkspaceActionSlot({
   workspace,
-  backdrop,
   trailing,
   trailingPresentation,
   showKebab,
-  showScrim,
   reserveSlotWidth,
   isPinned,
   onTogglePin,
+  isProjectPinned,
+  onToggleProjectPin,
   onCopyPath,
   onCopyBranchName,
   onRename,
@@ -964,14 +954,14 @@ function StatusWorkspaceActionSlot({
   archiveShortcutKeys,
 }: {
   workspace: SidebarWorkspaceEntry;
-  backdrop: SidebarSurfaceBackdrop;
   trailing: SidebarWorkspaceTrailing;
   trailingPresentation: SidebarWorkspaceTrailingPresentation;
   showKebab: boolean;
-  showScrim: boolean;
   reserveSlotWidth: boolean;
   isPinned?: boolean;
   onTogglePin?: () => void;
+  isProjectPinned?: boolean;
+  onToggleProjectPin?: () => void;
   onCopyPath?: () => void;
   onCopyBranchName?: () => void;
   onRename?: () => void;
@@ -989,10 +979,7 @@ function StatusWorkspaceActionSlot({
       <SidebarWorkspaceTrailingActionBase presentation={trailingPresentation}>
         <SidebarWorkspaceTrailingContent workspace={workspace} trailing={trailing} />
       </SidebarWorkspaceTrailingActionBase>
-      <SidebarWorkspaceTrailingActionOverlay
-        visible={kebab.showKebab}
-        scrimBackdrop={showScrim ? backdrop : undefined}
-      >
+      <SidebarWorkspaceTrailingStatusActions workspace={workspace} visible={kebab.showKebab}>
         {kebab.showKebab && onArchive ? (
           <SidebarWorkspaceMenu
             {...kebab.menuProps}
@@ -1012,9 +999,11 @@ function StatusWorkspaceActionSlot({
             archiveShortcutKeys={archiveShortcutKeys}
             isPinned={isPinned}
             onTogglePin={onTogglePin}
+            isProjectPinned={isProjectPinned}
+            onToggleProjectPin={onToggleProjectPin}
           />
         ) : null}
-      </SidebarWorkspaceTrailingActionOverlay>
+      </SidebarWorkspaceTrailingStatusActions>
     </SidebarWorkspaceTrailingActionSlot>
   );
 }
@@ -1043,6 +1032,10 @@ function getStatusWorkspaceRowStyle({
 }
 
 const styles = StyleSheet.create((theme) => ({
+  workspaceRowContainer: {
+    position: "relative",
+  },
+
   container: {
     flex: 1,
   },
@@ -1063,56 +1056,6 @@ const styles = StyleSheet.create((theme) => ({
     paddingBottom: theme.spacing[3],
   },
   statusWorkspaceListContainer: {},
-  statusGroupRow: {
-    minHeight: density.rowHeight,
-    paddingVertical: theme.spacing[2],
-    paddingHorizontal: theme.spacing[2],
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing[2],
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing[2],
-    userSelect: "none",
-  },
-  statusGroupRowHovered: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
-  },
-  statusGroupRowPressed: {
-    backgroundColor: theme.colors.surface2,
-  },
-  statusGroupRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[2],
-    flex: 1,
-    minWidth: 0,
-  },
-  statusGroupLeadingVisualSlot: {
-    position: "relative",
-    width: densityIconBox("md"),
-    height: densityIconBox("md"),
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statusGroupTitleGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-    flex: 1,
-    minWidth: 0,
-  },
-  statusGroupTitle: {
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.base,
-    fontWeight: "400",
-    minWidth: 0,
-    flexShrink: 1,
-  },
-  workspaceRowContainer: {
-    position: "relative",
-  },
   workspaceRow: {
     minHeight: density.rowHeight,
     marginBottom: theme.spacing[0.5],

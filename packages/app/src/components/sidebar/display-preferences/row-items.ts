@@ -13,8 +13,8 @@
  */
 
 export const SIDEBAR_ROW_ITEMS = [
-  "branch",
   "project",
+  "branch",
   "host",
   "changeRequest",
   "services",
@@ -28,7 +28,7 @@ export type SidebarRowItems = Record<SidebarRowItem, boolean>;
 /** The persisted record is merged over these explicit product defaults. */
 export const DEFAULT_SIDEBAR_ROW_ITEMS: SidebarRowItems = {
   branch: false,
-  project: false,
+  project: true,
   host: true,
   changeRequest: true,
   services: true,
