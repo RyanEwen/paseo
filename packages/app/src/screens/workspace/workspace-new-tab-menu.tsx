@@ -155,7 +155,8 @@ export function WorkspaceNewTabMenuContent({
       side="bottom"
       align="start"
       offset={4}
-      minWidth={canSplit ? 300 : 200}
+      minWidth={canSplit ? 280 : 200}
+      scrollable={canSplit}
       pages={pages}
       testID="workspace-new-tab-menu"
     >
@@ -195,6 +196,7 @@ export function WorkspaceNewTabMenuContent({
 /** Keep normal row activation separate from creating the selected view in a new split. */
 function LaunchSplitPicker({ item, paneId }: { item: WorkspaceTabLaunchItem; paneId?: string }) {
   const menu = useMenuContext("LaunchSplitPicker");
+  const intent = useMemo(() => ({ kind: "open" as const, item: item.label }), [item.label]);
   const select = useCallback(
     (position: SplitSide, firstPaneFraction: number) => {
       menu.selectItem(
@@ -206,6 +208,7 @@ function LaunchSplitPicker({ item, paneId }: { item: WorkspaceTabLaunchItem; pan
   );
   return (
     <SplitLayoutPicker
+      intent={intent}
       onSelect={select}
       disabled={item.disabled}
       testIDPrefix={`workspace-new-tab-layout-${item.id}`}

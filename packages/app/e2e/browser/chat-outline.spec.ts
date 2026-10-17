@@ -427,6 +427,18 @@ async function expectStationaryPromptLanding(
       await expect(sticky).toHaveCount(1);
       await expect(controls.getByTestId("sticky-user-message-previous")).toBeEnabled();
       await expect(controls.getByRole("button")).toHaveCount(4);
+      await expect(controls.getByRole("button", { name: "Copy message", exact: true })).toHaveCount(
+        1,
+      );
+      await expect(
+        controls.getByRole("button", { name: "Previous user message", exact: true }),
+      ).toHaveCount(1);
+      await expect(
+        controls.getByRole("button", { name: "Next user message", exact: true }),
+      ).toHaveCount(1);
+      await expect(
+        controls.getByRole("button", { name: "Rewind to this message", exact: true }),
+      ).toHaveCount(1);
       if (origin === "original") {
         // This approved visibility hold is separate from hover: the causal fixture's
         // stationary point stays below the short destination after the real jump.
@@ -1334,6 +1346,7 @@ test("keeps colored pinned disclosure readable before and during hover", async (
     await expect(sticky.getByTestId("user-message-text")).toHaveCSS("color", "rgb(24, 24, 27)");
     await page.mouse.move(2, 2);
     await expect(label).toHaveCSS("color", "rgb(24, 24, 27)");
+    await expect(disclosure).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     await disclosure.hover();
     await expect(label).toHaveCSS("color", "rgb(24, 24, 27)");
     await expect(disclosure).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");

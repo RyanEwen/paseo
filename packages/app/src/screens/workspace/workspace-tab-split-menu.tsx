@@ -1,9 +1,8 @@
-import { SplitLayoutRatioRow } from "@/components/split-layout-picker";
+import { SplitLayoutPicker } from "@/components/split-layout-picker";
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   MenuItem,
-  MenuLabel,
   MenuSubTrigger,
   useMenuContext,
   type MenuPageDefinition,
@@ -28,6 +27,7 @@ interface SplitMenuOwner {
   }) => void;
 }
 const SplitMenuContext = createContext<SplitMenuOwner | null>(null);
+const MOVE_INTENT = { kind: "move" } as const;
 
 /** Keep tab movement bound to the pane tree that owns the menu, including portalled menus. */
 export function WorkspaceSplitMenuScope({
@@ -66,54 +66,30 @@ export function useWorkspaceTabSplitMenu(tabId: string): WorkspaceTabSplitMenu {
     if (!source || source.hidden) return empty;
     const panes = collectAllPanes(owner.root).filter((pane) => !pane.hidden);
     const id = `workspace-tab-move-${tabId}`;
-    const sides: SplitSide[] = ["left", "right", "top", "bottom"];
-    const pages: MenuPageDefinition[] = sides.map((side) => ({
-      id: `${id}-${side}`,
-      title: t(`workspace.splits.${side}`),
-      content: (
-        <>
-          <MenuLabel>
-            {t(
-              side === "left" || side === "right"
-                ? "workspace.splits.columns"
-                : "workspace.splits.rows",
+    const pages: MenuPageDefinition[] = [
+      {
+        id,
+        title: t("workspace.splits.moveTab"),
+        hoverIntent: false,
+        content: (
+          <>
+            {panes.map((pane, index) =>
+              pane.id !== source.id ? (
+                <MovePaneMenuItem
+                  key={pane.id}
+                  owner={owner}
+                  tabId={tabId}
+                  paneId={pane.id}
+                  label={t("workspace.splits.pane", { index: index + 1 })}
+                  menuId={id}
+                />
+              ) : null,
             )}
-          </MenuLabel>
-          <MoveSplitRatioPage
-            owner={owner}
-            tabId={tabId}
-            targetPaneId={source.id}
-            side={side}
-            menuId={id}
-          />
-        </>
-      ),
-    }));
-    pages.unshift({
-      id,
-      title: t("workspace.splits.moveTab"),
-      content: (
-        <>
-          {panes.map((pane, index) =>
-            pane.id !== source.id ? (
-              <MovePaneMenuItem
-                key={pane.id}
-                owner={owner}
-                tabId={tabId}
-                paneId={pane.id}
-                label={t("workspace.splits.pane", { index: index + 1 })}
-                menuId={id}
-              />
-            ) : null,
-          )}
-          {sides.map((side) => (
-            <MenuSubTrigger key={side} id={`${id}-${side}`} testID={`${id}-${side}`}>
-              {t(`workspace.splits.${side}`)}
-            </MenuSubTrigger>
-          ))}
-        </>
-      ),
-    });
+            <MoveSplitPicker owner={owner} tabId={tabId} targetPaneId={source.id} menuId={id} />
+          </>
+        ),
+      },
+    ];
     return {
       trigger: (
         <MenuSubTrigger id={id} testID={id}>
@@ -125,20 +101,18 @@ export function useWorkspaceTabSplitMenu(tabId: string): WorkspaceTabSplitMenu {
   }, [owner, tabId, t]);
 }
 
-function MoveSplitRatioPage({
+function MoveSplitPicker({
   owner,
   tabId,
   targetPaneId,
-  side,
   menuId,
 }: {
   owner: SplitMenuOwner;
   tabId: string;
   targetPaneId: string;
-  side: SplitSide;
   menuId: string;
 }) {
-  const menu = useMenuContext("MoveSplitRatioPage");
+  const menu = useMenuContext("MoveSplitPicker");
   const select = useCallback(
     (position: SplitSide, firstPaneFraction: number) =>
       menu.selectItem(
@@ -147,7 +121,7 @@ function MoveSplitRatioPage({
       ),
     [owner, tabId, targetPaneId, menu],
   );
-  return <SplitLayoutRatioRow side={side} onSelect={select} testIDPrefix={menuId} />;
+  return <SplitLayoutPicker intent={MOVE_INTENT} onSelect={select} testIDPrefix={menuId} />;
 }
 
 function MovePaneMenuItem({

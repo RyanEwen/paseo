@@ -90,7 +90,7 @@ export const ar: TranslationResources = {
       },
       splitLayoutPresets: {
         label: "عناصر تقسيم التخطيط",
-        hint: "اختر النسب عند الفاصل وانقل علامات التبويب من قائمتها. عطّل لإخفاء هذه العناصر.",
+        hint: "انقر المنطقة المطلوبة في مخطط التقسيم لفتح علامة تبويب أو نقلها إليها. في 60/40 تحصل المنطقة اليمنى أو السفلية على 40٪. تغيّر إعدادات الفاصل حجم الأجزاء الحالية. أوقف الخيار لإخفاء عناصر التحكم دون تغيير التخطيط.",
       },
       mobileWorkspaceTabs: {
         label: "علامات تبويب مساحات العمل على الهاتف",
@@ -664,6 +664,8 @@ export const ar: TranslationResources = {
   },
   workspace: {
     splits: {
+      openRegion: "فتح {{item}}: {{side}}، {{percent}}٪",
+      moveRegion: "نقل علامة التبويب: {{side}}، {{percent}}٪",
       openToSide: "فتح {{item}} إلى الجانب",
       chooseRatio: "اختيار نسبة التقسيم",
       ratio: "استخدام تقسيم {{ratio}}",
@@ -2667,6 +2669,21 @@ export const ar: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "لون التمييز",
+        hint: "يُستخدم لعناصر التحكم الرئيسية ورسائلك",
+        updateHost: "حدّث مضيف الإعدادات المحدد لتغيير لون التمييز",
+        preview: "هكذا ستظهر رسائلك",
+        options: {
+          default: "الافتراضي",
+          blue: "أزرق",
+          green: "أخضر",
+          purple: "بنفسجي",
+          rose: "وردي",
+          orange: "برتقالي",
+          teal: "فيروزي",
+        },
+      },
       theme: {
         title: "سمة",
         accessibilityLabel: "الموضوع:{{value}}",

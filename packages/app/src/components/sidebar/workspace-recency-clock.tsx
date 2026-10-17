@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { isWeb } from "@/constants/platform";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";

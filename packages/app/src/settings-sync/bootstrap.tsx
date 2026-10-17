@@ -1,4 +1,6 @@
 import { bindSettingsHost } from "./binding";
+import { queryClient } from "@/data/query-client";
+import { APP_SETTINGS_QUERY_KEY } from "@/hooks/use-settings/storage";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { loadAppSettingsFromStorage } from "@/hooks/use-settings";
@@ -32,6 +34,7 @@ export function SettingsSyncBootstrap() {
       createSyncedAppSettingsSave(settingsSync, loadAppSettingsFromStorage, saveLocalUsageHost),
     );
     let hydrated = false;
+    let initializing = false;
     let active = true;
     const owner = new AbortController();
     const updateGate = () => {
@@ -53,12 +56,32 @@ export function SettingsSyncBootstrap() {
       setInitialized(true);
       updateGate();
     };
-    void initialize().catch(console.error);
+    const startInitialization = () => {
+      if (!active || hydrated || initializing) return;
+      initializing = true;
+      void initialize()
+        .catch(console.error)
+        .finally(() => {
+          initializing = false;
+        });
+    };
+    // A failed cold read keeps editing blocked. Resume only after the owning query succeeds
+    // (including the page's explicit Retry), without remounting this app-wide authority owner.
+    const stopRetry = queryClient.getQueryCache().subscribe((event) => {
+      if (
+        event.type === "updated" &&
+        event.action.type === "success" &&
+        event.query.queryKey[0] === APP_SETTINGS_QUERY_KEY[0]
+      )
+        startInitialization();
+    });
+    startInitialization();
     return () => {
       active = false;
       owner.abort();
       uninstall();
       stopGate();
+      stopRetry();
       stopSidebar();
     };
   }, []);

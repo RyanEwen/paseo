@@ -1,3 +1,4 @@
+import type { Locator } from "@playwright/test";
 import {
   expectSingleLineStickyGeometry,
   expectInlineStickyAttachmentCount,
@@ -64,6 +65,13 @@ const TEST_JSON = {
   mimeType: "application/json",
   buffer: Buffer.from(JSON.stringify({ composer: "drop" })),
 };
+
+/** An outline tick exists only once the prompt has a canonical timeline sequence. */
+async function outlinePromptSequence(entry: Locator): Promise<number> {
+  await expect(entry).toHaveAttribute("data-testid", /^chat-outline-tick-\d+$/);
+  const tickId = await entry.getAttribute("data-testid");
+  return Number(tickId!.slice("chat-outline-tick-".length));
+}
 
 test.describe("Composer attachments", () => {
   test("selected file shows a loading attachment until upload is acknowledged", async ({
@@ -340,6 +348,12 @@ test("sticky user message preserves uploaded image and file attachments", async 
     await expectAttachmentPill(page, "composer-file-attachment-pill");
     const prompt = "Attached sample.";
     await submitMessageWithButton(page, prompt);
+    const timeline = page.getByTestId("agent-chat-scroll");
+    const original = timeline.getByTestId("user-message").filter({ hasText: prompt });
+    // Image encoding precedes sending: an optimistic row or the previous idle state is not acceptance.
+    await expect(original).toHaveAttribute("aria-busy", "false");
+    const attachmentEntry = chatOutlineRail(page).getByRole("tab", { name: /Attached sample\./ });
+    const attachmentSequence = await outlinePromptSequence(attachmentEntry);
     await agent.client.waitForFinish(agent.agentId, 15_000);
     await agent.client.sendAgentMessage(
       agent.agentId,
@@ -348,12 +362,13 @@ test("sticky user message preserves uploaded image and file attachments", async 
     await agent.client.waitForFinish(agent.agentId, 15_000);
     // Select the intended attachment prompt explicitly; synthetic stream fixtures can
     // insert additional user rows, so a previous arrow does not identify this target.
-    await chatOutlineRail(page)
-      .getByRole("tab", { name: /Attached sample\./ })
-      .click();
+    const paddingEntries = chatOutlineRail(page).getByRole("tab", {
+      name: /emit 85 assistant messages before synthetic user message/,
+    });
+    await expect(paddingEntries).toHaveCount(1);
+    expect(attachmentSequence).toBeLessThan(await outlinePromptSequence(paddingEntries));
+    await attachmentEntry.click();
     await expectTimelinePromptLandedBelowTop(page, prompt);
-    const timeline = page.getByTestId("agent-chat-scroll");
-    const original = timeline.getByTestId("user-message").filter({ hasText: prompt });
     const originalBody = (await original.getByTestId("user-message-bubble").boundingBox())!;
     const viewportBox = (await timeline.boundingBox())!;
     await timeline.hover();
@@ -415,6 +430,15 @@ test("sticky user message preserves uploaded image and file attachments", async 
     await attachImageFromMenu(page, TEST_IMAGE);
     await attachFileFromMenu(page, TEST_JSON);
     await submitMessageWithButton(page, "");
+    const attachmentOnlyOriginal = timeline
+      .getByTestId("user-message")
+      .filter({ hasText: TEST_JSON.name })
+      .filter({ hasNot: page.getByTestId("user-message-text") });
+    await expect(attachmentOnlyOriginal).toHaveAttribute("aria-busy", "false");
+    const attachmentOnlyEntry = chatOutlineRail(page).getByRole("tab", {
+      name: /^\d+ of \d+:\s*$/,
+    });
+    const attachmentOnlySequence = await outlinePromptSequence(attachmentOnlyEntry);
     await agent.client.waitForFinish(agent.agentId, 15_000);
     await agent.client.sendAgentMessage(
       agent.agentId,
@@ -423,18 +447,13 @@ test("sticky user message preserves uploaded image and file attachments", async 
     await agent.client.waitForFinish(agent.agentId, 15_000);
     // This fixture has one empty-preview prompt. Synthetic user events can change
     // its order, so retain its canonical sequence tick instead of an earlier count.
-    const attachmentOnlyEntry = chatOutlineRail(page).getByRole("tab", {
-      name: /^\d+ of \d+:\s*$/,
-    });
+    await expect(paddingEntries).toHaveCount(2);
+    expect(attachmentOnlySequence).toBeLessThan(await outlinePromptSequence(paddingEntries.last()));
     await expect(attachmentOnlyEntry).toHaveCount(1);
     const attachmentOnlyTickId = await attachmentOnlyEntry.getAttribute("data-testid");
     expect(attachmentOnlyTickId).toMatch(/^chat-outline-tick-\d+$/);
     const attachmentOnlyTick = chatOutlineRail(page).getByTestId(attachmentOnlyTickId!);
     await attachmentOnlyTick.click();
-    const attachmentOnlyOriginal = timeline
-      .getByTestId("user-message")
-      .filter({ hasText: TEST_JSON.name })
-      .filter({ hasNot: page.getByTestId("user-message-text") });
     await expect(attachmentOnlyOriginal).toHaveCount(1);
 
     // Sample one mounted occurrence and its viewport together after hover, while

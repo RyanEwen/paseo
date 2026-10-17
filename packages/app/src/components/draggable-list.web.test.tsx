@@ -97,6 +97,43 @@ describe("DraggableList web row stability", () => {
   });
 });
 
+let rowActionClicks = 0;
+function handleRowActionClick() {
+  rowActionClicks += 1;
+}
+function renderActionRow(info: DraggableRenderItemInfo<Item>) {
+  return (
+    <div {...info.dragHandleProps?.attributes} {...info.dragHandleProps?.listeners}>
+      <button type="button" onClick={handleRowActionClick}>
+        Workspace actions
+      </button>
+    </div>
+  );
+}
+
+it.each([false, true])(
+  "keeps row actions enabled when dragging is disabled (handle=%s)",
+  (useDragHandle) => {
+    rowActionClicks = 0;
+    act(() =>
+      root?.render(
+        <DraggableList
+          disabled
+          data={items}
+          keyExtractor={keyExtractor}
+          renderItem={renderActionRow}
+          onDragEnd={onDragEnd}
+          useDragHandle={useDragHandle}
+        />,
+      ),
+    );
+    const button = container!.querySelector("button")!;
+    expect(button.closest('[aria-disabled="true"]')).toBeNull();
+    act(() => button.click());
+    expect(rowActionClicks).toBe(1);
+  },
+);
+
 let dragModel: DragReorderState<Item> | null = null;
 function DragStateHarness({
   data,

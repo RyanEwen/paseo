@@ -75,8 +75,10 @@ function MeasuredTestRow({ item }: { item: StreamItem }) {
   const height = item.kind === "user_message" && item.text === "grown" ? 120 : 24;
   const measure = React.useCallback(
     (node: HTMLDivElement | null) => {
-      if (!node?.parentElement) return;
-      Object.defineProperty(node.parentElement, "offsetHeight", {
+      const row = node?.closest<HTMLElement>("[data-history-row-id]");
+      if (!row) return;
+      // Model the measured row, independent of presentation wrappers inside it.
+      Object.defineProperty(row, "offsetHeight", {
         configurable: true,
         value: height,
       });

@@ -973,7 +973,8 @@ function TabChip({
           width={DROPDOWN_WIDTH}
           testID={contextMenuTestId}
           pages={splitMenu.pages}
-          minWidth={splitMenu.pages.length > 0 ? 300 : undefined}
+          minWidth={splitMenu.pages.length > 0 ? 280 : undefined}
+          scrollable={splitMenu.pages.length > 0}
         >
           {splitMenu.trigger}
           {menuEntries.map((entry) =>

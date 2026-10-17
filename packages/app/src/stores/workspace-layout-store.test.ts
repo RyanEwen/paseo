@@ -1,5 +1,17 @@
+import { SPLIT_LAYOUT_PRESETS } from "@/components/split-layout-presets";
 import { resolveWorkspaceTabLaunchDestination } from "@/workspace-tabs/launcher/internal/destination";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const splitRegionCases = SPLIT_LAYOUT_PRESETS.flatMap((preset) =>
+  (["left", "right", "top", "bottom"] as const).flatMap((position) =>
+    (["create", "move"] as const).map((operation) => ({
+      label: preset.label,
+      fraction: preset.fraction,
+      position,
+      operation,
+    })),
+  ),
+);
 
 vi.mock("@react-native-async-storage/async-storage", () => {
   const storage = new Map<string, string>();
@@ -2040,6 +2052,50 @@ describe("workspace-layout-store actions", () => {
       agentTarget,
     ]);
   });
+
+  it.each(splitRegionCases)(
+    "keeps physical regions for $operation $position $label",
+    ({ fraction, position, operation }) => {
+      const workspaceKey = createWorkspaceKey();
+      const root = createPane({
+        id: "region-main",
+        tabIds: ["keep", "move"],
+        focusedTabId: "keep",
+        targetsByTabId: {
+          keep: { kind: "file", path: "/repo/worktree/keep.ts" },
+          move: { kind: "file", path: "/repo/worktree/move.ts" },
+        },
+      });
+      workspaceLayoutStore.setState({
+        layoutByWorkspace: { [workspaceKey]: { root, focusedPaneId: "region-main" } },
+        splitSizesByWorkspace: {},
+        explorerSidebarPaneIdByWorkspace: {},
+      });
+      const input = { targetPaneId: "region-main", position, firstPaneFraction: fraction };
+      const state = workspaceLayoutStore.getState();
+      const paneId =
+        operation === "move"
+          ? state.splitPane(workspaceKey, { ...input, tabId: "move" })
+          : state.splitPaneEmpty(workspaceKey, input);
+      expect(paneId).not.toBeNull();
+      const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
+      if (layout.root.kind !== "group") throw new Error("Expected split group");
+      const first = position === "left" || position === "top";
+      expect(layout.root.group.direction).toBe(
+        position === "left" || position === "right" ? "horizontal" : "vertical",
+      );
+      expect(layout.root.group.sizes[0]).toBeCloseTo(fraction);
+      expect(layout.root.group.sizes[1]).toBeCloseTo(1 - fraction);
+      const newNode = layout.root.group.children[first ? 0 : 1];
+      expect(newNode.kind === "pane" && newNode.pane.id).toBe(paneId);
+      expect(layout.focusedPaneId).toBe(paneId);
+      expect(findPaneContainingTab(layout.root, "keep")?.id).toBe("region-main");
+      expect(findPaneContainingTab(layout.root, "move")?.id).toBe(
+        operation === "move" ? paneId : "region-main",
+      );
+      expect(collectAllTabs(layout.root)).toHaveLength(operation === "move" ? 2 : 3);
+    },
+  );
 
   it("captures a split placeholder before asynchronous tab creation and keeps the chosen ratio", () => {
     const workspaceKey = createWorkspaceKey();

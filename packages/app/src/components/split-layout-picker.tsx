@@ -1,123 +1,177 @@
 import { useCallback, useMemo } from "react";
-import { View, Text } from "react-native";
+import { Pressable, View, Text, type PressableStateCallbackType } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
+import { useIsCompactFormFactor } from "@/constants/layout";
 import { SPLIT_LAYOUT_PRESETS, type SplitSide } from "./split-layout-presets";
-import { SplitPresetGlyph } from "./split-layout-glyph";
 
-const SIDES: SplitSide[] = ["left", "right", "top", "bottom"];
+type SplitPickerIntent = { kind: "open"; item: string } | { kind: "move" };
 interface SplitLayoutPickerProps {
-  onSelect: (side: SplitSide, fraction: number) => void;
+  onSelect: (side: SplitSide, firstPaneFraction: number) => void;
+  intent: SplitPickerIntent;
   disabled?: boolean;
   testIDPrefix: string;
 }
 
-/** Explicit side and proportion choices; the highlighted diagram region is the new pane. */
-export function SplitLayoutPicker({
-  onSelect,
-  disabled = false,
-  testIDPrefix,
-}: SplitLayoutPickerProps) {
+/** Select the actual new-pane region; fractions always describe the left/top pane. */
+export function SplitLayoutPicker(props: SplitLayoutPickerProps) {
   const { t } = useTranslation();
+  const compact = useIsCompactFormFactor();
   return (
     <View style={styles.grid}>
-      {SIDES.map((side) => (
-        <View key={side} style={styles.section}>
-          <Text style={styles.label}>{t(`workspace.splits.${side}`)}</Text>
-          <SplitLayoutRatioRow
-            side={side}
-            onSelect={onSelect}
-            disabled={disabled}
-            testIDPrefix={testIDPrefix}
-          />
+      {(["horizontal", "vertical"] as const).map((direction) => (
+        <View key={direction} style={styles.section}>
+          <Text style={styles.label}>
+            {t(direction === "horizontal" ? "workspace.splits.columns" : "workspace.splits.rows")}
+          </Text>
+          <View style={styles.row}>
+            {SPLIT_LAYOUT_PRESETS.map((preset) => (
+              <SplitDiagram
+                key={preset.label}
+                {...props}
+                direction={direction}
+                compact={compact}
+                fraction={preset.fraction}
+                label={preset.label}
+              />
+            ))}
+          </View>
         </View>
       ))}
     </View>
   );
 }
 
-/** A single orientation row for a divider or a tab’s side submenu. */
-export function SplitLayoutRatioRow({
-  side,
-  onSelect,
-  disabled = false,
-  testIDPrefix,
-}: { side: SplitSide } & SplitLayoutPickerProps) {
+function SplitDiagram({
+  direction,
+  compact,
+  fraction,
+  label,
+  ...props
+}: SplitLayoutPickerProps & {
+  direction: "horizontal" | "vertical";
+  compact: boolean;
+  fraction: number;
+  label: string;
+}) {
+  const horizontal = direction === "horizontal";
+  // Exclude the gap from hit regions: 30% of compact's 148px usable axis is
+  // 44.4px; the other axis is 48px. Adjacent regions need no overlapping hitSlop.
+  const width = compact && horizontal ? 150 : 48;
+  let height = 28;
+  if (compact) height = horizontal ? 48 : 150;
+  const diagramStyle = useMemo(
+    () => [
+      styles.diagram,
+      { width, height, flexDirection: horizontal ? ("row" as const) : ("column" as const) },
+    ],
+    [width, height, horizontal],
+  );
   return (
-    <View style={styles.row}>
-      {SPLIT_LAYOUT_PRESETS.map((preset) => (
-        <SplitChoice
-          key={preset.label}
-          side={side}
-          fraction={preset.fraction}
-          label={preset.label}
-          onSelect={onSelect}
-          disabled={disabled}
-          testIDPrefix={testIDPrefix}
+    <View style={styles.choice}>
+      <View style={diagramStyle}>
+        <SplitRegion
+          {...props}
+          side={horizontal ? "left" : "top"}
+          fraction={fraction}
+          label={label}
+          percent={Math.round(fraction * 100)}
+          width={horizontal ? (width - 2) * fraction : width}
+          height={horizontal ? height : (height - 2) * fraction}
         />
-      ))}
+        <SplitRegion
+          {...props}
+          side={horizontal ? "right" : "bottom"}
+          fraction={fraction}
+          label={label}
+          percent={Math.round((1 - fraction) * 100)}
+          width={horizontal ? (width - 2) * (1 - fraction) : width}
+          height={horizontal ? height : (height - 2) * (1 - fraction)}
+        />
+      </View>
+      <Text style={styles.ratio}>{label}</Text>
     </View>
   );
 }
 
-function SplitChoice({
+function SplitRegion({
   side,
   fraction,
+  percent,
   label,
+  width,
+  height,
+  intent,
   onSelect,
-  disabled,
+  disabled = false,
   testIDPrefix,
-}: { side: SplitSide; fraction: number; label: string } & SplitLayoutPickerProps) {
+}: SplitLayoutPickerProps & {
+  side: SplitSide;
+  fraction: number;
+  percent: number;
+  label: string;
+  width: number;
+  height: number;
+}) {
   const { t } = useTranslation();
-  const select = useCallback(() => onSelect(side, fraction), [side, fraction, onSelect]);
-  const icon = useMemo(
-    () => <SplitPresetGlyph side={side} fraction={fraction} />,
-    [side, fraction],
-  );
+  // Menu callers own selectItem so closing and the iOS teardown grace run once.
+  const select = useCallback(() => {
+    if (!disabled) onSelect(side, fraction);
+  }, [disabled, onSelect, side, fraction]);
   const dataSet = useMemo(
     () => ({ menuItem: "true", menuDisabled: disabled ? "true" : "false" }),
     [disabled],
   );
+  const accessibilityState = useMemo(() => ({ disabled }), [disabled]);
+  const regionStyle = useCallback(
+    ({
+      pressed,
+      hovered = false,
+      focused = false,
+    }: PressableStateCallbackType & { hovered?: boolean; focused?: boolean }) => [
+      styles.region,
+      { width, height },
+      !disabled && (pressed || hovered || focused) ? styles.highlighted : null,
+      disabled ? styles.disabled : null,
+    ],
+    [disabled, width, height],
+  );
+  const sideLabel = t(`workspace.splits.${side}`);
+  const accessibilityLabel =
+    intent.kind === "open"
+      ? t("workspace.splits.openRegion", { item: intent.item, side: sideLabel, percent })
+      : t("workspace.splits.moveRegion", { side: sideLabel, percent });
   return (
-    <Button
-      variant="ghost"
-      size="md"
-      style={styles.choice}
-      textStyle={styles.ratio}
-      leftIcon={icon}
+    <Pressable
+      style={regionStyle}
       disabled={disabled}
       onPress={select}
-      testID={`${testIDPrefix}-${side}-${label.replace("/", "-")}`}
       accessibilityRole="menuitem"
-      accessibilityLabel={`${t(`workspace.splits.${side}`)} ${label}`}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
       dataSet={dataSet}
       tabIndex={-1}
-    >
-      {label}
-    </Button>
+      testID={`${testIDPrefix}-${side}-${label.replace("/", "-")}`}
+    />
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
-  grid: {
-    paddingHorizontal: theme.spacing[2],
-    paddingVertical: theme.spacing[1],
-    gap: theme.spacing[2],
-  },
+  grid: { width: 280, padding: theme.spacing[2], gap: theme.spacing[2] },
   section: { gap: theme.spacing[1] },
-  label: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.foregroundMuted,
-    paddingHorizontal: theme.spacing[1],
+  label: { fontSize: theme.fontSize.sm, color: theme.colors.foregroundMuted },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing[1], alignItems: "flex-start" },
+  choice: { alignItems: "center", gap: theme.spacing[1] },
+  // Physical left/right stay literal even when the surrounding language is RTL.
+  diagram: { direction: "ltr", gap: 2 },
+  region: {
+    flexShrink: 0,
+    borderWidth: 1,
+    borderRadius: 2,
+    borderColor: theme.colors.foregroundMuted,
+    backgroundColor: theme.colors.surface1,
   },
-  row: { flexDirection: "row", gap: theme.spacing[1] },
-  choice: {
-    width: 52,
-    minHeight: 58,
-    flexDirection: "column",
-    gap: theme.spacing[0.5],
-    paddingHorizontal: theme.spacing[0.5],
-  },
-  ratio: { fontSize: theme.fontSize.sm },
+  highlighted: { backgroundColor: theme.colors.surface3, borderColor: theme.colors.accent },
+  disabled: { opacity: theme.opacity[50] },
+  ratio: { fontSize: theme.fontSize.sm, color: theme.colors.foregroundMuted, direction: "ltr" },
 }));

@@ -124,6 +124,7 @@ export function MobileTabTrailingAccessory({
         width={220}
         sheetTitle={presentationLabel}
         pages={splitMenu?.pages}
+        scrollable={Boolean(splitMenu?.pages.length)}
         testID={menuTestIDBase}
       >
         {splitMenu?.trigger}

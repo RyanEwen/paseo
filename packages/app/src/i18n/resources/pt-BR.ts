@@ -96,7 +96,7 @@ export const ptBR: TranslationResources = {
       },
       splitLayoutPresets: {
         label: "Controles de divisão",
-        hint: "Escolha proporções no divisor e mova abas pelo menu. Desative para ocultar estes controles.",
+        hint: "Clique na região do diagrama onde deseja abrir ou mover uma aba. Em 60/40, a região direita ou inferior ocupa 40%. As opções do divisor redimensionam os painéis existentes. Desative para ocultar os controles sem alterar o layout.",
       },
       mobileWorkspaceTabs: {
         label: "Abas de espaços no celular",
@@ -675,6 +675,8 @@ export const ptBR: TranslationResources = {
   },
   workspace: {
     splits: {
+      openRegion: "Abrir {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Mover aba: {{side}}, {{percent}}%",
       openToSide: "Abrir {{item}} ao lado",
       chooseRatio: "Escolher proporção",
       ratio: "Usar {{ratio}}",
@@ -2721,6 +2723,21 @@ export const ptBR: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "Cor de destaque",
+        hint: "Usada nos controles principais e nas suas mensagens",
+        updateHost: "Atualize o host de configurações selecionado para alterar a cor de destaque",
+        preview: "Suas mensagens terão esta aparência",
+        options: {
+          default: "Padrão",
+          blue: "Azul",
+          green: "Verde",
+          purple: "Roxo",
+          rose: "Rosa",
+          orange: "Laranja",
+          teal: "Verde-azulado",
+        },
+      },
       theme: {
         title: "Tema",
         accessibilityLabel: "Tema: {{value}}",

@@ -8,6 +8,7 @@ import {
 } from "../support/helpers/settings-example-scenes";
 import {
   openMobileAgentSidebar,
+  closeSidebarDisplayPreferences,
   closeMobileAgentSidebar,
   expectMobileAgentSidebarVisible,
 } from "../support/helpers/sidebar";
@@ -260,9 +261,12 @@ test.describe("Settings — compact master-detail", () => {
     const workspaceRoute = buildHostWorkspaceRoute(getServerId(), workspace.workspaceId);
 
     await openWorkspace(page, workspace);
-    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    await openMobileAgentSidebar(page);
     await page.getByTestId("sidebar-hosts-trigger").click();
-    await page.getByRole("button", { name: /Open .* settings/ }).click();
+    await page
+      .getByTestId(`sidebar-host-row-${getServerId()}`)
+      .getByRole("button", { name: "Open localhost settings", exact: true })
+      .click();
 
     await expectAppRoute(page, buildSettingsHostSectionRoute(getServerId(), "host"));
     await expect(page.getByText("Overview", { exact: true })).toBeVisible();
@@ -463,10 +467,10 @@ for (const width of [1440, 390]) {
       await expect(section.getByTestId("paseo-plus-plus-link-updates")).toHaveCount(0);
       await expect(section.getByTestId("paseo-plus-plus-updates-info")).toHaveCount(0);
       await expect(section.getByText("Preview updates", { exact: true })).toHaveCount(0);
-      await expect(section.getByText("Workspace order and details", { exact: true })).toBeVisible();
-      await expect(section).toContainText("Sort projects and workspaces independently");
-      await expect(section).toContainText("project labels are on by default");
-      await expect(section).toContainText("Branch labels are optional and off by default");
+      await expect(section.getByText("Workspace sidebar controls", { exact: true })).toBeVisible();
+      await expect(section).toContainText("Each mode keeps its own preferences.");
+      await expect(section).toContainText("Workspace limits sets count and age independently");
+      await expect(section).toContainText("Empty projects offers Show, Group or Hide");
       await page.goto(buildSettingsSectionRoute("sidebar"));
       await expect(page.getByTestId("sidebar-nav-section-header")).toBeVisible();
       await expect(
@@ -500,7 +504,7 @@ for (const width of [1440, 390]) {
       await page.keyboard.press("Escape");
       await page.goto(buildSettingsSectionRoute("paseo-plus-plus"));
       const selectorSwitch = section.getByRole("switch", {
-        name: "Project selector in sidebar",
+        name: "Selected project in heading",
         exact: true,
       });
       await expect(selectorSwitch).toBeChecked();
@@ -511,7 +515,11 @@ for (const width of [1440, 390]) {
         await openMobileAgentSidebar(page);
         await expectMobileAgentSidebarVisible(page);
       }
-      await expect(page.getByTestId("sidebar-project-selector")).toHaveCount(0);
+      await expect(page.getByTestId("sidebar-project-selector")).toHaveText("Workspaces");
+      // Turning off the rich heading keeps the essential chooser available.
+      await page.getByTestId("sidebar-project-selector").click();
+      await expect(page.getByTestId("sidebar-project-selector-all")).toBeVisible();
+      await closeSidebarDisplayPreferences(page);
       await expect(
         page.getByText("Workspaces", { exact: true }).filter({ visible: true }).first(),
       ).toBeVisible();

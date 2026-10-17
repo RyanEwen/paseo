@@ -4,6 +4,8 @@ import { test, expect } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import {
   closeMobileAgentSidebar,
+  openSidebarDisplayPage,
+  closeSidebarDisplayPreferences,
   expectMobileAgentSidebarHidden,
   expectMobileAgentSidebarVisible,
   expectWorkspaceHoverCardClosed,
@@ -23,6 +25,19 @@ import { projectEquivalenceViewKey } from "../support/helpers/project-view-key";
 import { escapeRegex } from "../support/helpers/regex";
 import { openFilesPanel } from "../support/helpers/workspace-tabs";
 import { seedMockAgentWorkspace } from "../support/helpers/mock-agent";
+
+/** Set the active mode through its actual Display control rather than legacy global storage. */
+async function setWorkspaceCountLimit(page: Page, count: number | null) {
+  await openSidebarDisplayPage(page, "sidebar-display-workspace-list");
+  await page.getByTestId("sidebar-workspace-count-limit").click();
+  if (count === null) {
+    await page.getByTestId("sidebar-workspace-count-all").click();
+  } else {
+    await page.getByTestId("sidebar-workspace-count-custom").fill(String(count));
+    await page.getByTestId("sidebar-workspace-count-save").click();
+  }
+  await closeSidebarDisplayPreferences(page);
+}
 
 /** Check the outer scroll owner without confusing a visible viewport with overflowing content. */
 async function hasScrollOverflow(scroll: Locator): Promise<boolean> {
@@ -208,8 +223,8 @@ async function simulateDamagedLegacyDirectoryCache(
               return;
             }
             const stored = JSON.parse(checkpoint.payload);
-            // Accept either writer so this fixture also reproduces on the unfixed client.
-            const cursors = stored.version === 1 ? stored.cursors : stored;
+            // Strip the current writer's envelope to reproduce the raw legacy checkpoint.
+            const cursors = stored.cursors ?? stored;
             if (!cursors.workspaces?.generation) {
               transaction.abort();
               return;
@@ -354,6 +369,7 @@ test.describe("Sidebar workspace list", () => {
       await page.getByTestId("sidebar-pinned-show-more").click();
       await expect(page.locator(rowSelector)).toHaveCount(25);
       await selectSidebarStatusGrouping(page);
+      await setWorkspaceCountLimit(page, 7);
       await expect(page.locator(rowSelector)).toHaveCount(14); // Two independent initial limits.
       await page.getByTestId("sidebar-pinned-show-more").click();
       await page.getByTestId("sidebar-status-group-show-more-done").click();
@@ -363,23 +379,12 @@ test.describe("Sidebar workspace list", () => {
       expect(await statusScroll.evaluate((node) => getComputedStyle(node).scrollbarWidth)).not.toBe(
         "none",
       );
-      await page.evaluate(() => {
-        const key = "@paseo:app-settings";
-        const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
-        localStorage.setItem(
-          key,
-          JSON.stringify({ ...settings, sidebarInitialWorkspaceCount: null }),
-        );
-      });
+      await setWorkspaceCountLimit(page, null);
       await page.reload();
       await expect(page.locator(rowSelector)).toHaveCount(25);
       await expect(page.getByTestId("sidebar-pinned-show-more")).toHaveCount(0);
       await expect(page.getByTestId("sidebar-status-group-show-more-done")).toHaveCount(0);
-      await page.evaluate(() => {
-        const key = "@paseo:app-settings";
-        const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
-        localStorage.setItem(key, JSON.stringify({ ...settings, sidebarInitialWorkspaceCount: 1 }));
-      });
+      await setWorkspaceCountLimit(page, 1);
       await page.reload();
       await expect(page.locator(rowSelector)).toHaveCount(2);
       await expect.poll(() => hasScrollOverflow(statusScroll)).toBe(false);

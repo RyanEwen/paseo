@@ -149,7 +149,7 @@ exclude preview tags. The preview workflow does not publish npm packages to a re
 
 ### Final prerelease bridge and normal Latest releases
 
-This transition is planned. The source change does not publish the bridge or open normal publication.
+The bridge `v0.11.2-preview.32` is published. Normal publication remains closed pending actual updater qualification and a reviewed receipt.
 
 Publish one final prerelease containing the Android and standalone-host updater bridge, then use
 normal GitHub releases marked **Latest**. This changes GitHub's release classification. Keep
@@ -169,6 +169,8 @@ releases do not push the retained bridge outside their search. Each page still n
 API request; growing history adds latency and rate-limit exposure. Retain the bridge and legacy
 repository redirect without a calendar or release-count expiry. Removing them needs a separate
 compatibility decision after reviewing installed-client support.
+
+New desktop builds query `RyanEwen/paseo-plus-plus` directly. Android and standalone hosts use its API directly. Builds through preview32 query `RyanEwen/paseo` and depend on its retained redirect. Verify the legacy Atom feed, release API, channel manifests and installer URLs live before claiming those installs can update automatically. Never create a separate repository at the old name; that overrides the redirect.
 
 Desktop's installed electron-updater reads the Atom feed and selects the `preview` channel from
 the tag; it does not use GitHub's prerelease flag on this path. Legacy desktop installs can move
@@ -295,9 +297,9 @@ that clients may already have downloaded. Start a new workflow run for a correct
 
 ### Completed repository migration and updater compatibility
 
-The repository and integration branch migration completed on October 14, 2026. The former
-`RyanEwen/paseo` repository now redirects to RyanEwen/paseo-plus-plus, with the same repository,
-release, asset, and preview workflow identities. Current branch roles are in the
+The repository and integration branch migration completed on October 14, 2026. The current
+repository is RyanEwen/paseo-plus-plus. Historical redirect assumptions do not establish current
+availability; verify the exact legacy URLs before using them for installed-client acceptance. Current branch roles are in the
 [worktree guide](worktree-development.md#fork-branches-and-ownership). The old cutover sequence is
 complete; do not repeat its rename or local-ref operations when continuing feature work.
 

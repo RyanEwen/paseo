@@ -93,7 +93,7 @@ export const ko: TranslationResources = {
       },
       splitLayoutPresets: {
         label: "분할 레이아웃 제어",
-        hint: "구분선에서 비율을 선택하고 메뉴에서 탭을 이동합니다. 끄면 이 제어가 숨겨집니다.",
+        hint: "분할 그림에서 원하는 영역을 클릭해 탭을 열거나 이동하세요. 60/40에서 오른쪽 또는 아래쪽 영역은 40%입니다. 구분선 프리셋은 기존 창의 크기를 조절합니다. 끄면 레이아웃을 변경하지 않고 컨트롤을 숨깁니다.",
       },
       mobileWorkspaceTabs: {
         label: "모바일 작업공간 탭",
@@ -667,6 +667,8 @@ export const ko: TranslationResources = {
   },
   workspace: {
     splits: {
+      openRegion: "{{item}} 열기: {{side}}, {{percent}}%",
+      moveRegion: "탭 이동: {{side}}, {{percent}}%",
       openToSide: "{{item}}을 옆에 열기",
       chooseRatio: "분할 비율 선택",
       ratio: "{{ratio}} 분할 사용",
@@ -2679,6 +2681,21 @@ export const ko: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "강조 색상",
+        hint: "주요 컨트롤과 내 메시지에 사용됩니다",
+        updateHost: "강조 색상을 변경하려면 선택한 설정 호스트를 업데이트하세요",
+        preview: "메시지가 이렇게 표시됩니다",
+        options: {
+          default: "기본값",
+          blue: "파랑",
+          green: "초록",
+          purple: "보라",
+          rose: "장미색",
+          orange: "주황",
+          teal: "청록",
+        },
+      },
       theme: {
         title: "테마",
         accessibilityLabel: "테마: {{value}}",

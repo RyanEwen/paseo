@@ -93,7 +93,7 @@ export const ja: TranslationResources = {
       },
       splitLayoutPresets: {
         label: "分割レイアウト操作",
-        hint: "区切りで比率を選択し、メニューからタブを移動します。オフにすると操作を非表示にします。",
+        hint: "分割図の目的の領域をクリックして、タブを開くか移動します。60/40では右または下の領域が40%です。区切りのプリセットは既存のペインをサイズ変更します。オフにするとレイアウトを変えずに操作を非表示にします。",
       },
       mobileWorkspaceTabs: {
         label: "モバイルのワークスペースタブ",
@@ -673,6 +673,8 @@ export const ja: TranslationResources = {
   },
   workspace: {
     splits: {
+      openRegion: "{{item}}を開く：{{side}}、{{percent}}%",
+      moveRegion: "タブを移動：{{side}}、{{percent}}%",
       openToSide: "{{item}} を横に開く",
       chooseRatio: "分割比率を選択",
       ratio: "{{ratio}} に分割",
@@ -2694,6 +2696,21 @@ export const ja: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "アクセントカラー",
+        hint: "主要な操作と自分のメッセージに使用します",
+        updateHost: "アクセントカラーを変更するには、選択した設定ホストを更新してください",
+        preview: "メッセージはこのように表示されます",
+        options: {
+          default: "デフォルト",
+          blue: "ブルー",
+          green: "グリーン",
+          purple: "パープル",
+          rose: "ローズ",
+          orange: "オレンジ",
+          teal: "ティール",
+        },
+      },
       theme: {
         title: "テーマ",
         accessibilityLabel: "テーマ: {{value}}",

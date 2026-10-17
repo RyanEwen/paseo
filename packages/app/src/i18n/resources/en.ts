@@ -90,7 +90,7 @@ export const en = {
       },
       splitLayoutPresets: {
         label: "Split layout controls",
-        hint: "Choose common pane ratios at a divider and move tabs from their menu. Turn off to hide these controls.",
+        hint: "Click the desired region in a split diagram to open or move a tab there. In 60/40, the right or bottom region gets 40%. Divider presets resize existing panes. Turn off to hide these controls without changing your layout.",
       },
       mobileWorkspaceTabs: {
         label: "Mobile workspace tabs",
@@ -663,6 +663,8 @@ export const en = {
   },
   workspace: {
     splits: {
+      openRegion: "Open {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Move tab: {{side}}, {{percent}}%",
       openToSide: "Open {{item}} to the side",
       chooseRatio: "Choose split ratio",
       ratio: "Use {{ratio}} split",
@@ -2790,6 +2792,21 @@ export const en = {
       },
     },
     appearance: {
+      accent: {
+        title: "Accent color",
+        hint: "Used for primary controls and your messages",
+        updateHost: "Update your selected settings host to change the accent color",
+        preview: "This is how your messages will look",
+        options: {
+          default: "Default",
+          blue: "Blue",
+          green: "Green",
+          purple: "Purple",
+          rose: "Rose",
+          orange: "Orange",
+          teal: "Teal",
+        },
+      },
       theme: {
         title: "Theme",
         accessibilityLabel: "Theme: {{value}}",

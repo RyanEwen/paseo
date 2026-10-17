@@ -88,7 +88,7 @@ export const zhCN: TranslationResources = {
       },
       splitLayoutPresets: {
         label: "分屏布局控件",
-        hint: "在分隔线处选择常用比例，并从菜单移动标签页。关闭后隐藏这些控件。",
+        hint: "点击分割图中所需的区域，在那里打开或移动标签页。60/40 中右侧或下方区域占 40%。分隔线预设调整现有窗格的大小。关闭后隐藏这些控件，但不更改布局。",
       },
       mobileWorkspaceTabs: {
         label: "移动端工作区标签页",
@@ -660,6 +660,8 @@ export const zhCN: TranslationResources = {
   },
   workspace: {
     splits: {
+      openRegion: "打开 {{item}}：{{side}}，{{percent}}%",
+      moveRegion: "移动标签页：{{side}}，{{percent}}%",
       openToSide: "在侧边打开{{item}}",
       chooseRatio: "选择分屏比例",
       ratio: "使用 {{ratio}} 分屏",
@@ -2635,6 +2637,21 @@ export const zhCN: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "强调色",
+        hint: "用于主要控件和你发送的消息",
+        updateHost: "请更新所选的设置主机以更改强调色",
+        preview: "你的消息将呈现此效果",
+        options: {
+          default: "默认",
+          blue: "蓝色",
+          green: "绿色",
+          purple: "紫色",
+          rose: "玫瑰色",
+          orange: "橙色",
+          teal: "青色",
+        },
+      },
       theme: {
         title: "主题",
         accessibilityLabel: "主题：{{value}}",

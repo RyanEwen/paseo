@@ -32,13 +32,7 @@ Reopen conversations with closed tabs or archived agents from the workspace **+*
 
 The **Selected project in heading** switch shows the selected project name in the workspace heading. Off uses **Workspaces**; host and project choices remain available. The chooser lists projects directly, with **Hosts** shown when multiple hosts are available. Click a project name to show only that project, or use checkboxes to include several. **All** clears both local filters.
 
-The workspace heading, project selector, and display controls stay visible while you scroll the workspace list. Desktop expand and collapse controls stay with the heading. The bell beside them toggles Project and Status modes, each with its own sorting, filters and display preferences. Adding a project includes it in an active project selection without clearing the projects you already chose.
-
-In Project mode, enable **Display preferences → Expand one project at a time** to collapse other known project groups when you expand one. It starts off. The Pinned section and Status groups keep their existing behavior; **Expand all** still expands all visible groups.
-
-In **Display preferences → Workspace limits**, use **Count limit** and **Updated within** to limit each group by count and status updates within
-a chosen number of days. **Show more** reveals every workspace in that group, including older
-or undated entries. These controls replace the Workspace limits setting in Paseo++.
+The workspace heading, project selector, and display controls stay visible while you scroll the workspace list. Desktop expand and collapse controls stay with the heading.
 
 [View example](packages/app/assets/settings-examples/annotated/sidebarProjectSelector-project-selector.svg)
 
@@ -74,23 +68,31 @@ Follow workspaces as status changes or expanding and collapsing projects move th
 
 Check for published Paseo++ releases on startup and resume. Available updates appear in the sidebar. Follow download progress and verification in the sidebar or Settings, then approve installation in Android. Turning automatic checks off keeps manual checking and installation available.
 
+### Sidebar host updates
+
+Update a host from the sidebar when it confirms update support and a compatible release is available. Older hosts can use the manual update flow without a release-availability check. This sidebar action starts enabled; turn **Host updates in the sidebar** off in Paseo++ settings to hide it while keeping the ordinary update action in Host Settings.
+
 ## Display and reading preferences
 
 ### Tool call display
 
-New preferences start in **Summary**. Choose **Full detail** in Settings → Chat; saved choices are preserved.
-
-### Split layout controls
-
-Use the split icon beside a creation item in the workspace **+** menu to open that view on a side. Visual diagrams show the new pane and its proportions; clicking the item itself keeps its normal behavior. Hover a workspace divider to choose 50/50, 60/40, 40/60, 70/30, or 30/70 proportions. Right-click a tab and choose **Move tab** to move it into an existing pane or create a split on a side. Turn **Split layout controls** off in Paseo++ settings to hide these controls without changing your layout.
+New preferences start in **Summary**. Choose **Full detail** in **Settings → Chat**; saved choices are preserved.
 
 ### Workspace tab widths
 
 Desktop tabs have a 96 px minimum width, so short names such as Dev stay comfortable to select. The strip scrolls when the available space cannot fit that minimum. Compact tabs retain their existing larger touch layout.
 
+### Split layout controls
+
+Use the split icon beside a creation item in the workspace **+** menu, then click the region where the new view belongs. One set of diagrams splits left/right and another splits top/bottom. In a 60/40 diagram, clicking left or top gives the new pane 60%; clicking right or bottom gives it 40%. Clicking the creation item itself keeps its normal behavior.
+
+Right-click a tab and choose **Move tab** to move that same tab to an existing pane or a region in a split diagram. Compact diagrams use larger touch regions and wrap within the scrolling menu. Keyboard users can move through the region choices with Up/Down, Home/End, then Enter or Space.
+
+Hover a workspace divider to choose 50/50, 60/40, 40/60, 70/30, or 30/70 proportions for its existing adjacent panes. Divider choices resize panes; they do not create or move a tab. Turn **Split layout controls** off in Paseo++ settings to hide these controls without changing your layout.
+
 ### Mobile workspace tabs
 
-Switch between workspace tabs directly on your phone. Scroll the tab strip horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. The selected tab stays in view.
+Switch between workspace tabs directly on your phone with the tab strip enabled by default. Scroll it horizontally, use each tab's actions for renaming or closing, and open another tab from **+**. Turn **Mobile workspace tabs** off in Paseo++ settings to restore the earlier chooser while preserving your selected tab and drafts.
 
 Enable **Wider workspace tabs** in Paseo++ settings to give long tab titles up to 50% more width. Short tabs respect the minimum width, and turning it off restores the earlier maximum.
 
@@ -102,13 +104,19 @@ Choose a muted accent color in **Paseo++** settings for primary controls and you
 
 Workspace hover details wait 250 ms before opening. Moving away cancels the popup before its content mounts. Keyboard activation stays immediate.
 
-Use the bell beside expand and collapse to switch between Project and Status modes. Each mode remembers its own sorting, filters, and display choices. The workspace chooser lists projects directly; **Hosts** appears only with multiple hosts and filters which hosts supply the project list below it. Newly created projects stay visible when a project selection is active.
+In Project mode, enable **Display → Expand one project at a time** to collapse other known project groups when you expand one. It starts off. Pinned and Status groups retain their existing behavior; **Expand all** still expands all visible groups.
 
-Find sorting, row details, and **Workspace limits** controls in the sidebar's **Display** menu. Dragging is available only when the applicable project or workspace sort is **Custom**; it never changes the sort mode. Moving a filtered project places it before or after the same project when **All** is shown, while other projects keep their relative order. Pinned workspaces retain their independent manual ordering. Project status sorting places **Done** before **No status**, keeping other status priorities unchanged. Show agent activity and code-change totals together. **Show background workspaces** reveals workspaces explicitly created as background work; it does not mean workspaces you are not currently viewing. Project labels start visible; branch labels are optional and start hidden. Choose a count limit (20 by default), an update-age limit, or both. **Show more** reveals every matching workspace in the group, including older entries.
+Switch between Project and Status views with the bell beside the workspace heading. Each view keeps its own Display preferences and device-local host/project filters. Display includes sorting, labels, background workspaces, row details and activity. **Show background workspaces** reveals workspaces explicitly created for background work, which are normally hidden; it does not mean every workspace you are not currently viewing. Background visibility is retained across app reloads and reconnects. Project labels start visible; branch labels start hidden. A selected settings host must support separate sidebar modes before these synchronized controls can be edited.
 
-The filter icon beside the bell opens a quick text filter for the current mode. Match project or workspace names, titles and visible branches without changing the active workspace, saved order or sort. Project-name matches retain their scoped children; other matches retain the matching workspace and its project. Each mode keeps its own text for the current app session. Clear, close or press Escape to restore the list; collapsed sections keep their existing state. Text matching runs before the count window, so a match beyond the first 20 can still appear.
+The workspace chooser lists projects directly. With multiple hosts, its **Hosts** submenu filters them; projects from the selected hosts appear directly below it. Adding a project includes it in your current project selection. Host and label filters remain independent.
+
+Dragging is available only when the applicable project or workspace sort is **Custom**; it never changes the sort mode. Sorted workspace rows remain selectable and their action menus stay available. A filtered project move stays before or after the same anchor project when **All** is shown, preserving the relative order of other projects. Pinned workspaces retain independent manual ordering. Project status sorting places **Done** before **No status**.
+
+The filter icon beside the bell opens a quick text filter for the current mode. Match project or workspace names, titles and visible branches without changing the active workspace, saved order or sort. Project-name matches retain their scoped children; other matches retain the matching workspace and its project. Each mode keeps its own text for the current app session. Clear, close or press Escape to restore the list; collapsed sections keep their existing state.
 
 In **Display → Empty projects**, choose **Show**, **Group**, or **Hide** for project groups with no visible workspaces.
+
+In **Display → Workspace limits**, open **Count limit** or **Updated within** to choose each view’s limits independently. The count defaults to 20 and the age limit to All. Quick text matching runs before the count window, so a match beyond the first 20 can still appear. **Show more** reveals every matching workspace in that group, including older entries.
 
 ### Explorer and Changes
 
@@ -130,7 +138,7 @@ See [Browser](public-docs/browser.md) for supported actions and limitations.
 
 ### Sync app settings
 
-Choose a settings host in Paseo++ on Android or desktop to share preferences across your clients, including whether Usage appears in the sidebar. Switching hosts loads their saved settings first; an empty host requires an explicit publish action. Connection details, project filters, workspace order and collapsed groups stay local. Your settings host needs a daemon build with settings sync support. Shared settings refresh when the connection’s write permission changes. Read-only connections can retry the read without restarting the app or replacing saved preferences.
+Choose a settings host in Paseo++ on Android or desktop to share preferences across your clients, including whether Usage appears in the sidebar. Switching hosts loads their saved settings first; an empty host requires an explicit publish action. Connection details, project filters, workspace order and collapsed groups stay local. Your settings host needs a daemon build with settings sync support. Shared settings refresh when the connection’s write permission changes. Retry recovers failed initial reads without leaving editing disabled. Read-only connections can retry the read without restarting the app or replacing saved preferences.
 
 ### Android SSH hosts
 
@@ -192,7 +200,7 @@ Paseo++ apps and daemons keep separate identities, settings, and update sources 
 
 ## Install Paseo++
 
-Download desktop and Android builds from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage builds receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
+Download desktop and Android builds from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). New builds discover updates from this repository directly. The legacy repository redirect remains available for existing installations. Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage builds receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
 
 The planned transition to normal releases needs one final prerelease updater bridge for older Android apps and standalone hosts. That bridge has not been published by this change. The [release transition](docs/release.md#final-prerelease-bridge-and-normal-latest-releases) owns qualification, publication and bridge retention requirements.
 

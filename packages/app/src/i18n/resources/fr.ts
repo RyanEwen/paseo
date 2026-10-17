@@ -95,7 +95,7 @@ export const fr: TranslationResources = {
       },
       splitLayoutPresets: {
         label: "Contrôles de disposition",
-        hint: "Choisissez les proportions au séparateur et déplacez les onglets depuis leur menu. Désactivez pour masquer ces commandes.",
+        hint: "Cliquez sur la zone du schéma où ouvrir ou déplacer un onglet. Avec 60/40, la zone de droite ou du bas occupe 40 %. Les préréglages du séparateur redimensionnent les panneaux existants. Désactivez cette option pour masquer les commandes sans modifier la disposition.",
       },
       mobileWorkspaceTabs: {
         label: "Onglets des espaces sur mobile",
@@ -675,6 +675,8 @@ export const fr: TranslationResources = {
   },
   workspace: {
     splits: {
+      openRegion: "Ouvrir {{item}} : {{side}}, {{percent}} %",
+      moveRegion: "Déplacer l’onglet : {{side}}, {{percent}} %",
       openToSide: "Ouvrir {{item}} sur le côté",
       chooseRatio: "Choisir les proportions",
       ratio: "Utiliser {{ratio}}",
@@ -2736,6 +2738,22 @@ export const fr: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "Couleur d’accent",
+        hint: "Utilisée pour les commandes principales et vos messages",
+        updateHost:
+          "Mettez à jour l’hôte de paramètres sélectionné pour changer la couleur d’accent",
+        preview: "Voici l’apparence de vos messages",
+        options: {
+          default: "Par défaut",
+          blue: "Bleu",
+          green: "Vert",
+          purple: "Violet",
+          rose: "Rose",
+          orange: "Orange",
+          teal: "Sarcelle",
+        },
+      },
       theme: {
         title: "Thème",
         accessibilityLabel: "Thème : {{value}}",

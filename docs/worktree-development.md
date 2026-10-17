@@ -6,6 +6,18 @@ validation, and integration steps.
 
 ## Fork branches and ownership
 
+Every fork feature has its own maintained branch, including its tests, documentation and follow-up
+fixes. Maintain the fork assuming upstream never accepts those features. Upstream adoption is
+optional and does not determine whether we maintain or release a feature.
+
+Keep a clean upstream-facing branch alongside each fork feature branch. The upstream-facing
+branch contains upstream plus that feature and its required dependencies, ready for a focused PR
+whenever upstream wants it. Merge fork `main` into the fork companion, never into the clean
+upstream-facing branch. Carry feature changes to both branches and record their correspondence;
+a branch pair is ready only when the feature changes and checks are current on both sides.
+Resolve dependencies explicitly rather than bringing unrelated fork features into an upstream PR.
+Neither keeping a branch ready nor an upstream request authorizes pushing to upstream.
+
 The fork is [RyanEwen/paseo-plus-plus](https://github.com/RyanEwen/paseo-plus-plus). Its default
 branch is `main`. This development checkout keeps the fork and upstream remotes separate:
 
@@ -17,7 +29,8 @@ branch is `main`. This development checkout keeps the fork and upstream remotes 
 | `integration`, tracking `fork/integration` | Long-lived combined testing branch for selected feature work.                        |
 | `upstream/main`, tracking `origin/main`    | Local upstream mirror used to review upstream synchronization.                       |
 | `fork/upstream/main`                       | Preserved upstream mirror in the fork repository. Its head can lag the local mirror. |
-| Feature branches                           | Own each feature, its tests, documentation and follow-up fixes.                      |
+| Fork feature branches                      | Own each feature and receive fork `main` updates.                                    |
+| Upstream-facing feature branches           | Keep the same feature ready for an upstream PR without unrelated fork history.       |
 | Temporary review branches                  | Optional bounded reviews before combination in `integration`.                        |
 
 Inspect actual remote URLs and full heads when adopting a checkout. A ref's name does not prove

@@ -95,7 +95,7 @@ export const es: TranslationResources = {
       },
       splitLayoutPresets: {
         label: "Controles de división",
-        hint: "Elige proporciones en el separador y mueve pestañas desde su menú. Desactiva para ocultar estos controles.",
+        hint: "Haz clic en la región del diagrama donde quieras abrir o mover una pestaña. En 60/40, la región derecha o inferior ocupa el 40%. Los ajustes del divisor cambian el tamaño de los paneles existentes. Desactiva la opción para ocultar estos controles sin cambiar la distribución.",
       },
       mobileWorkspaceTabs: {
         label: "Pestañas de espacios en móvil",
@@ -675,6 +675,8 @@ export const es: TranslationResources = {
   },
   workspace: {
     splits: {
+      openRegion: "Abrir {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Mover pestaña: {{side}}, {{percent}}%",
       openToSide: "Abrir {{item}} a un lado",
       chooseRatio: "Elegir proporción",
       ratio: "Usar {{ratio}}",
@@ -2737,6 +2739,21 @@ export const es: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "Color de acento",
+        hint: "Se usa en los controles principales y tus mensajes",
+        updateHost: "Actualiza el host de ajustes seleccionado para cambiar el color de acento",
+        preview: "Así se verán tus mensajes",
+        options: {
+          default: "Predeterminado",
+          blue: "Azul",
+          green: "Verde",
+          purple: "Morado",
+          rose: "Rosa",
+          orange: "Naranja",
+          teal: "Verde azulado",
+        },
+      },
       theme: {
         title: "Tema",
         accessibilityLabel: "Tema:{{value}}",

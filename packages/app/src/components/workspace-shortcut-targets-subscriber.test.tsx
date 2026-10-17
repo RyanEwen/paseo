@@ -14,7 +14,11 @@ import { useSessionStore, type WorkspaceDescriptor } from "@/stores/session-stor
 import { seedRuntimeWorkspaces } from "@/test/seed-session";
 import { useSidebarCollapsedSectionsStore } from "@/stores/sidebar-collapsed-sections-store";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
-import { useSidebarViewStore } from "@/stores/sidebar-view-store";
+import { normalizeSidebarModeState, useSidebarViewStore } from "@/stores/sidebar-view-store";
+import {
+  defaultSidebarModeProfiles,
+  defaultSidebarLocalModeFilters,
+} from "@/stores/sidebar-mode-preferences";
 import type { HostProfile } from "@/types/host-connection";
 import { WorkspaceShortcutTargetsSubscriber } from "./workspace-shortcut-targets-subscriber";
 import { SidebarModelProvider } from "./sidebar/sidebar-model";
@@ -106,10 +110,13 @@ describe("WorkspaceShortcutTargetsSubscriber", () => {
       projectOrder: [],
       workspaceOrderByProject: {},
     });
-    useSidebarViewStore.setState({
-      groupMode: "project",
-      hostFilters: [],
-    });
+    useSidebarViewStore.setState(
+      normalizeSidebarModeState({
+        groupMode: "project",
+        modeProfiles: defaultSidebarModeProfiles(),
+        localModeFilters: defaultSidebarLocalModeFilters(),
+      }),
+    );
 
     act(() => {
       setHostProfiles([hostProfile()]);
@@ -216,7 +223,7 @@ describe("WorkspaceShortcutTargetsSubscriber", () => {
     ]);
   });
 
-  it("publishes shortcut targets from the visible host filter in project and status modes", async () => {
+  it("publishes shortcut targets from each mode’s independent visible host filter", async () => {
     act(() => {
       setHostProfiles([hostProfile("host-a"), hostProfile("host-b")]);
       useSessionStore.getState().initializeSession("host-a", null as unknown as DaemonClient);
@@ -243,9 +250,28 @@ describe("WorkspaceShortcutTargetsSubscriber", () => {
     await act(async () => {
       useSidebarViewStore.getState().setGroupMode("status");
     });
-
+    expect(useSidebarViewStore.getState().hostFilters).toEqual([]);
+    expect(useKeyboardShortcutsStore.getState().sidebarShortcutWorkspaceTargets).toEqual([
+      { serverId: "host-a", workspaceId: "a-1" },
+      { serverId: "host-b", workspaceId: "b-1" },
+    ]);
+    await act(async () => {
+      useSidebarViewStore.getState().toggleHostFilter("host-a");
+    });
+    expect(useKeyboardShortcutsStore.getState().sidebarShortcutWorkspaceTargets).toEqual([
+      { serverId: "host-a", workspaceId: "a-1" },
+    ]);
+    await act(async () => {
+      useSidebarViewStore.getState().setGroupMode("project");
+    });
     expect(useKeyboardShortcutsStore.getState().sidebarShortcutWorkspaceTargets).toEqual([
       { serverId: "host-b", workspaceId: "b-1" },
+    ]);
+    await act(async () => {
+      useSidebarViewStore.getState().setGroupMode("status");
+    });
+    expect(useKeyboardShortcutsStore.getState().sidebarShortcutWorkspaceTargets).toEqual([
+      { serverId: "host-a", workspaceId: "a-1" },
     ]);
   });
 

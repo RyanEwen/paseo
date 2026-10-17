@@ -731,7 +731,8 @@ describe("prompt jump acceptance and cancellation", () => {
     fixture.rerender({ tail: [stickyUser("old", 1), stickyUser("latest", 3)] });
     await act(async () => fixture.page.resolve());
     await waitFor(() => expect(fixture.result.current.isJumping).toBe(false));
-    expect(fixture.scrollToMessage).toHaveBeenCalledWith("old", "original");
+    expect(fixture.scrollToMessage).toHaveBeenCalledWith("old");
+    expect(fixture.scrollToMessage).toHaveBeenCalledTimes(1);
     expect(fixture.result.current.jumpError).toBe(false);
     expect(fixture.onJumpError).not.toHaveBeenCalled();
   });
