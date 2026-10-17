@@ -79,8 +79,8 @@ test.describe("Sidebar workspace rename", () => {
 });
 
 async function toggleBackgroundWorkspaces(page: Page): Promise<void> {
-  await page.getByLabel("Display preferences", { exact: true }).click();
-  await page.getByRole("menuitem", { name: "Show background", exact: true }).click();
+  await page.getByTestId("sidebar-display-preferences-menu").click();
+  await page.getByRole("menuitem", { name: "Show background workspaces", exact: true }).click();
   await page.keyboard.press("Escape");
 }
 
@@ -95,7 +95,7 @@ async function expectWorkspaceHidden(page: Page, workspaceId: string): Promise<v
 
 async function reconnectApp(page: Page): Promise<void> {
   await page.reload();
-  await expect(page.getByLabel("Display preferences", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("sidebar-display-preferences-menu")).toBeVisible();
 }
 
 async function expectWorkerOpen(page: Page): Promise<void> {

@@ -236,7 +236,7 @@ test.describe("Tab creation", () => {
       await page
         .getByTestId("workspace-new-tab-menu")
         .filter({ visible: true })
-        .getByRole("menuitem", { name: EMPTY_PROMPT_PROFILE.name })
+        .getByRole("menuitem", { name: EMPTY_PROMPT_PROFILE.name, exact: true })
         .click();
 
       await expectTerminalOutputContains(page, "prompt-args: 0");
@@ -281,7 +281,7 @@ test.describe("Tab creation", () => {
       const menu = page.getByTestId("workspace-new-tab-menu").filter({ visible: true });
       const menuIconPath = (name: string) =>
         menu
-          .getByRole("menuitem", { name })
+          .getByRole("menuitem", { name, exact: true })
           .evaluate((element) => element.querySelector("svg path")?.getAttribute("d") ?? null);
       const guessedMenuPath = await menuIconPath(guessed.name);
       const explicitMenuPath = await menuIconPath(explicit.name);
