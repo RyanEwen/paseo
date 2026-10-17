@@ -1,8 +1,9 @@
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
+import type { ImportedPrivateKey } from "./ssh-key-import-model";
 
 /** Read one bounded private-key file and erase the picker's temporary cache copy immediately. */
-export async function importPrivateKey(): Promise<{ name: string; text: string } | null> {
+export async function importPrivateKey(): Promise<ImportedPrivateKey | null> {
   const result = await DocumentPicker.getDocumentAsync({
     type: "*/*",
     multiple: false,

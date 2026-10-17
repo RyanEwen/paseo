@@ -1,3 +1,4 @@
+import { resolvePromptJumpInset, type PromptJumpPlacement } from "./prompt-jump-placement";
 interface PromptJumpScrollMetrics {
   clientHeight: number;
   scrollHeight: number;
@@ -5,7 +6,10 @@ interface PromptJumpScrollMetrics {
 }
 
 export interface PromptJumpSettleViewport {
+  /** Actual mounted row or occurrence geometry; null while the target is unmeasured. */
   findTargetTop(messageId: string): number | null;
+  /** Optional virtual geometry guides scrolling but cannot establish a settled landing. */
+  estimateTargetTop?(messageId: string): number | null;
   getContainerTop(): number;
   getScrollMetrics(): PromptJumpScrollMetrics;
   setScrollTop(scrollTop: number): void;
@@ -13,7 +17,7 @@ export interface PromptJumpSettleViewport {
 }
 
 export interface PromptJumpSettleController {
-  start(messageId: string): void;
+  start(messageId: string, options?: { smooth?: boolean; placement?: PromptJumpPlacement }): void;
   cancel(): void;
   isActive(): boolean;
 }
@@ -21,24 +25,39 @@ export interface PromptJumpSettleController {
 const POSITION_TOLERANCE_PX = 1;
 const REQUIRED_STABLE_FRAMES = 2;
 const FRAME_BUDGET = 24;
-export const PROMPT_JUMP_TOP_INSET_PX = 8;
+export const PROMPT_JUMP_TOP_INSET_PX = resolvePromptJumpInset();
 
-function distanceFromLandingPosition(targetTop: number, containerTop: number): number {
-  return targetTop - containerTop - PROMPT_JUMP_TOP_INSET_PX;
+function distanceFromLandingPosition(
+  targetTop: number,
+  containerTop: number,
+  inset: number,
+): number {
+  return targetTop - containerTop - inset;
 }
 
+/** Settle against real target geometry, using virtual estimates only to bring rows into view.
+ * The fixed frame budget and user-intent cancellation bound recovery; onFinished also runs
+ * on cancellation or budget exhaustion and is not itself a success receipt.
+ */
 export function createPromptJumpSettleController(input: {
   viewport: PromptJumpSettleViewport;
   requestFrame: (callback: () => void) => number;
   cancelFrame: (frameId: number) => void;
+  now?: () => number;
+  onFinished?: () => void;
 }): PromptJumpSettleController {
   let activeMessageId: string | null = null;
+  let startedAt = 0;
+  let smooth = false;
+  let inset = PROMPT_JUMP_TOP_INSET_PX;
+  let previousEase = 0;
   let frameId: number | null = null;
   let sampledFrames = 0;
   let stableFrames = 0;
   let unsubscribeFromUserIntent: (() => void) | null = null;
 
   function finish(): void {
+    const wasActive = activeMessageId !== null;
     if (frameId !== null) input.cancelFrame(frameId);
     unsubscribeFromUserIntent?.();
     activeMessageId = null;
@@ -46,6 +65,7 @@ export function createPromptJumpSettleController(input: {
     sampledFrames = 0;
     stableFrames = 0;
     unsubscribeFromUserIntent = null;
+    if (wasActive) input.onFinished?.();
   }
 
   function scheduleNextFrame(): void {
@@ -58,11 +78,15 @@ export function createPromptJumpSettleController(input: {
     if (messageId === null) return;
 
     sampledFrames += 1;
-    const targetTop = input.viewport.findTargetTop(messageId);
+    const measuredTargetTop = input.viewport.findTargetTop(messageId);
+    const targetTop = measuredTargetTop ?? input.viewport.estimateTargetTop?.(messageId) ?? null;
+    if (measuredTargetTop === null) stableFrames = 0;
     if (targetTop !== null) {
-      const delta = distanceFromLandingPosition(targetTop, input.viewport.getContainerTop());
+      const delta = distanceFromLandingPosition(targetTop, input.viewport.getContainerTop(), inset);
       if (Math.abs(delta) <= POSITION_TOLERANCE_PX) {
-        stableFrames += 1;
+        // A virtual estimate can match the inset before the real row mounts.
+        // Only consecutive actual measurements can complete the landing.
+        if (measuredTargetTop !== null) stableFrames += 1;
         if (stableFrames >= REQUIRED_STABLE_FRAMES) {
           finish();
           return;
@@ -70,7 +94,13 @@ export function createPromptJumpSettleController(input: {
       } else {
         stableFrames = 0;
         const before = input.viewport.getScrollMetrics();
-        input.viewport.setScrollTop(before.scrollTop + delta);
+        const progress = smooth
+          ? Math.min(1, ((input.now?.() ?? performance.now()) - startedAt) / 240)
+          : 1;
+        const ease = 1 - (1 - progress) ** 3;
+        const fraction = previousEase >= 1 ? 1 : (ease - previousEase) / (1 - previousEase);
+        previousEase = ease;
+        input.viewport.setScrollTop(before.scrollTop + delta * fraction);
         const after = input.viewport.getScrollMetrics();
         const adjustedTargetTop = input.viewport.findTargetTop(messageId);
         let remainingDelta = 0;
@@ -78,6 +108,7 @@ export function createPromptJumpSettleController(input: {
           remainingDelta = distanceFromLandingPosition(
             adjustedTargetTop,
             input.viewport.getContainerTop(),
+            inset,
           );
         }
         const maxScrollTop = Math.max(0, after.scrollHeight - after.clientHeight);
@@ -97,8 +128,12 @@ export function createPromptJumpSettleController(input: {
   }
 
   return {
-    start(messageId) {
+    start(messageId, options) {
       finish();
+      smooth = options?.smooth === true;
+      inset = resolvePromptJumpInset(options?.placement);
+      previousEase = 0;
+      startedAt = input.now?.() ?? performance.now();
       activeMessageId = messageId;
       unsubscribeFromUserIntent = input.viewport.subscribeToUserIntent(finish);
       scheduleNextFrame();

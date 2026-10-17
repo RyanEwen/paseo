@@ -11,12 +11,12 @@ export interface UsagePin {
   windowId: string;
 }
 
-/** Device-local. `pins` is in selection order. */
+/** App preferences; `pins` is in selection order. */
 export interface UsagePreferences {
   displayAs: UsageDisplayAs;
   /** null follows source defaults; an array is the user's selection, including none. */
   pins: UsagePin[] | null;
-  /** The host the user picked to show usage for; null until they pick one. */
+  /** Device-local report host; null until the user picks one. */
   serverId: string | null;
 }
 

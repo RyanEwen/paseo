@@ -1,12 +1,6 @@
-import {
-  Fragment,
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import type { PromptJumpPlacement } from "./prompt-jump-placement";
+import { PromptBubbleGeometryContext, type PromptBubbleNode } from "./prompt-bubble-geometry";
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -16,17 +10,31 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type ViewStyle,
+  type ViewToken,
 } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { withUnistyles } from "react-native-unistyles";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { StreamItem } from "@/types/stream";
 import type { Theme } from "@/styles/theme";
+import {
+  resolveNativeReadingPosition,
+  resolveNativeLivePromptOffset,
+} from "./native-reading-position";
+import { createNativePromptHandoffPair } from "./native-prompt-handoff";
+import { type PromptHandoff } from "./prompt-handoff";
+import { createNativePromptJumpController } from "./native-prompt-jump";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { useKeyboardStreamInset } from "@/keyboard/shift";
 import { useRevisedHistoryRows } from "./history-row-revision";
 import { useBottomAnchorController } from "./bottom-anchor-controller";
 import { useScrollKeyboardDismiss } from "./scroll-keyboard-dismiss/use-scroll-keyboard-dismiss";
-import type { StreamRenderInput, StreamStrategy, StreamViewportHandle } from "./strategy";
+import type {
+  StreamRenderInput,
+  StreamStrategy,
+  StreamViewportHandle,
+  ScrollToMessageOccurrence,
+} from "./strategy";
 import {
   createStreamStrategy,
   isNearBottomForStreamRenderStrategy,
@@ -64,6 +72,25 @@ const historyStartSlotStyle: ViewStyle = {
 };
 const HISTORY_START_SETTLE_FRAMES = 2;
 
+/** Record live-header row offsets without creating handlers during the parent's render. */
+function MeasuredLiveRow({
+  id,
+  onMeasure,
+  children,
+}: {
+  id: string;
+  onMeasure: (id: string, offset: number, height: number) => void;
+  children: React.ReactNode;
+}) {
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      onMeasure(id, event.nativeEvent.layout.y, event.nativeEvent.layout.height);
+    },
+    [id, onMeasure],
+  );
+  return <View onLayout={handleLayout}>{children}</View>;
+}
+
 function keyExtractor(item: { id: string }): string {
   return item.id;
 }
@@ -91,7 +118,15 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     strategy,
   } = props;
   const { renderHistoryMountedRow, renderLiveHeadRow, renderLiveAuxiliary } = renderers;
+  const reducedMotion = useReducedMotion();
   const flatListRef = useRef<FlatList<StreamItem>>(null);
+  const liveHeaderHeightRef = useRef<number | null>(null);
+  const livePromptOffsetsRef = useRef(new Map<string, number>());
+  const liveGeometryRef = useRef(new Map<string, { y: number; height: number }>());
+  const visibleHistoryRef = useRef<ViewToken<StreamItem>[]>([]);
+  const navigatingPromptRef = useRef(false);
+  const promptSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const streamViewportMetricsRef = useRef({
     containerKey: "native-virtualized",
     contentHeight: 0,
@@ -332,14 +367,232 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     bottomAnchorController.prepareForStickyContentChange();
   }, [bottomAnchorController, historyRows, segments.liveHead]);
 
+  const findHistoryPromptIndex = useStableEvent((id: string) =>
+    historyItems.findIndex((item) => item.id === id),
+  );
+  const reportPromptFailure = useStableEvent(() => props.onMessageNavigationError?.());
+  const promptNodes = useRef(new Map<string, PromptBubbleNode>());
+  const promptJumpController = useMemo(
+    () =>
+      createNativePromptJumpController({
+        viewport: {
+          findHistoryIndex: findHistoryPromptIndex,
+          findLiveOffset: (id) => {
+            const y = livePromptOffsetsRef.current.get(id);
+            const header = liveHeaderHeightRef.current;
+            if (y === undefined || header === null) return undefined;
+            return resolveNativeLivePromptOffset(
+              header,
+              streamViewportMetricsRef.current.viewportHeight,
+              y,
+            );
+          },
+          getLiveHeaderHeight: () => liveHeaderHeightRef.current,
+          measureTarget: (id, callback) => {
+            const prompt = promptNodes.current.get(id);
+            const viewport = flatListRef.current?.getNativeScrollRef();
+            if (!prompt || !viewport || !("measureInWindow" in viewport)) {
+              callback(null);
+              return;
+            }
+            viewport.measureInWindow((_x, viewportY) => {
+              prompt.measureInWindow((_promptX, promptY) => {
+                const metrics = streamViewportMetricsRef.current;
+                callback({
+                  top: promptY - viewportY,
+                  offset: metrics.offsetY,
+                  maxOffset: Math.max(0, metrics.contentHeight - metrics.viewportHeight),
+                });
+              });
+            });
+          },
+          scrollToIndex: (index) =>
+            flatListRef.current?.scrollToIndex({
+              index,
+              animated: !reducedMotion,
+              viewPosition: 1,
+            }),
+          scrollToOffset: (offset, animated) =>
+            flatListRef.current?.scrollToOffset({ offset, animated: animated && !reducedMotion }),
+        },
+        scheduleRetry: (callback) => {
+          const timer = setTimeout(callback, 100);
+          return () => clearTimeout(timer);
+        },
+        now: () => performance.now(),
+        onFailure: reportPromptFailure,
+      }),
+    [findHistoryPromptIndex, reportPromptFailure, reducedMotion],
+  );
+  const textPrefixRef = useRef(
+    new Map<string, { prefixHeightOne: number; prefixHeightTwo: number }>(),
+  );
+  const viewportWidthRef = useRef(0);
+  const measuredHandoff = useRef(new Map<string, PromptHandoff>());
+  const reportReadingPosition = useStableEvent(() => {
+    const metrics = streamViewportMetricsRef.current;
+    const { rowId, visibleUserIds } = resolveNativeReadingPosition({
+      visibleHistory: visibleHistoryRef.current,
+      liveHead: segments.liveHead,
+      liveGeometry: liveGeometryRef.current,
+      headerHeight: liveHeaderHeightRef.current,
+      viewportHeight: metrics.viewportHeight,
+      offsetY: metrics.offsetY,
+    });
+    const userHandoffs: PromptHandoff[] = [];
+    for (const handoff of measuredHandoff.current.values()) {
+      if (visibleUserIds.includes(handoff.id)) userHandoffs.push(handoff);
+    }
+    props.onReadingPositionChange?.({
+      viewportWidth: viewportWidthRef.current,
+      userHandoffs,
+      rowId,
+      visibleUserIds,
+      navigating: navigatingPromptRef.current,
+      following: bottomAnchorController.mode === "sticky-bottom",
+      manual: isUserScrollActiveRef.current,
+    });
+  });
+  const handoffSampler = useMemo(
+    () =>
+      createNativePromptHandoffPair({
+        measureViewport(callback) {
+          const node = flatListRef.current?.getNativeScrollRef();
+          if (node && "measureInWindow" in node)
+            node.measureInWindow((x, y, width, height) => callback({ x, y, width, height }));
+          else callback(null);
+        },
+        measurePrompt(id, callback) {
+          const node = promptNodes.current.get(id);
+          if (node)
+            node.measureInWindow((x, y, width, height) =>
+              callback({ x, y, width, height, ...textPrefixRef.current.get(id) }),
+            );
+          else callback(null);
+        },
+        onMeasured(frame) {
+          measuredHandoff.current.set(frame.id, frame);
+          reportReadingPosition();
+        },
+      }),
+    [reportReadingPosition],
+  );
+  const samplePromptHandoff = useStableEvent(() => {
+    if (props.trackPromptHandoff === false) {
+      handoffSampler.cancel();
+      measuredHandoff.current.clear();
+      return;
+    }
+    const metrics = streamViewportMetricsRef.current;
+    const { visibleUserIds } = resolveNativeReadingPosition({
+      visibleHistory: visibleHistoryRef.current,
+      liveHead: segments.liveHead,
+      liveGeometry: liveGeometryRef.current,
+      headerHeight: liveHeaderHeightRef.current,
+      viewportHeight: metrics.viewportHeight,
+      offsetY: metrics.offsetY,
+    });
+    const ids = [...new Set(visibleUserIds)].slice(0, 2);
+    for (const id of measuredHandoff.current.keys()) {
+      if (!ids.includes(id)) measuredHandoff.current.delete(id);
+    }
+    handoffSampler.sample(ids);
+  });
+  const registerPromptBubble = useStableEvent((id: string, node: PromptBubbleNode | null) => {
+    if (node) promptNodes.current.set(id, node);
+    else {
+      promptNodes.current.delete(id);
+      textPrefixRef.current.delete(id);
+      measuredHandoff.current.delete(id);
+    }
+  });
+  const recordPromptTextLayout = useStableEvent(
+    (id: string, lines: readonly { y: number; height: number }[]) => {
+      const first = lines[0];
+      const second = lines[1] ?? first;
+      textPrefixRef.current.set(id, {
+        prefixHeightOne: first ? first.y + first.height : 0,
+        prefixHeightTwo: second ? second.y + second.height : 0,
+      });
+      samplePromptHandoff();
+    },
+  );
+  const bubbleGeometryOwner = useMemo(
+    () =>
+      props.trackPromptHandoff === false
+        ? null
+        : {
+            register: registerPromptBubble,
+            onLayout: samplePromptHandoff,
+            onTextLayout: recordPromptTextLayout,
+          },
+    [props.trackPromptHandoff, registerPromptBubble, samplePromptHandoff, recordPromptTextLayout],
+  );
+  useEffect(() => {
+    measuredHandoff.current.clear();
+    handoffSampler.cancel();
+    return () => handoffSampler.cancel();
+  }, [agentId, handoffSampler, props.trackPromptHandoff]);
+  const finishPromptAnimation = useStableEvent(() => {
+    if (promptSettleTimerRef.current !== null) clearTimeout(promptSettleTimerRef.current);
+    promptSettleTimerRef.current = null;
+    navigatingPromptRef.current = false;
+    reportReadingPosition();
+  });
+  const schedulePromptSettle = useStableEvent((delay: number) => {
+    if (promptSettleTimerRef.current !== null) clearTimeout(promptSettleTimerRef.current);
+    promptSettleTimerRef.current = setTimeout(() => {
+      if (promptJumpController.isActive()) schedulePromptSettle(120);
+      else finishPromptAnimation();
+    }, delay);
+  });
+  const cancelPromptJump = useStableEvent(() => {
+    promptJumpController.cancel();
+    finishPromptAnimation();
+  });
+  const handleViewableItemsChanged = useStableEvent(
+    ({ viewableItems }: { viewableItems: ViewToken<StreamItem>[] }) => {
+      visibleHistoryRef.current = viewableItems;
+      samplePromptHandoff();
+      reportReadingPosition();
+    },
+  );
+  const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 0 }), []);
+
+  /** Detach once for a new intent; controller retries preserve the same target and budget. */
+  const scrollToPrompt = useStableEvent(
+    (
+      messageId: string,
+      _occurrence?: ScrollToMessageOccurrence,
+      placement?: PromptJumpPlacement,
+    ) => {
+      bottomAnchorController.detachByUser();
+      navigatingPromptRef.current = true;
+      promptJumpController.start(messageId, placement);
+      schedulePromptSettle(450);
+    },
+  );
+
+  useEffect(() => {
+    cancelPromptJump();
+    livePromptOffsetsRef.current.clear();
+    liveGeometryRef.current.clear();
+    visibleHistoryRef.current = [];
+    liveHeaderHeightRef.current = null;
+    return cancelPromptJump;
+  }, [agentId, cancelPromptJump]);
+
   useEffect(() => {
     const handle: StreamViewportHandle = {
       scrollToBottom: (reason = "jump-to-bottom") => {
+        cancelPromptJump();
         bottomAnchorController.requestLocalAnchor({
           agentId,
           reason,
         });
       },
+      scrollToMessage: scrollToPrompt,
+      cancelMessageScroll: cancelPromptJump,
       prepareForViewportChange: () => {
         bottomAnchorController.prepareForStickyViewportChange();
         markNativeViewportSettling();
@@ -351,7 +604,14 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
         viewportRef.current = null;
       }
     };
-  }, [agentId, bottomAnchorController, markNativeViewportSettling, viewportRef]);
+  }, [
+    agentId,
+    bottomAnchorController,
+    cancelPromptJump,
+    markNativeViewportSettling,
+    scrollToPrompt,
+    viewportRef,
+  ]);
 
   const isScrollEventNearBottom = useStableEvent(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -382,6 +642,9 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       contentMeasuredForKey: "native-virtualized",
     };
 
+    samplePromptHandoff();
+    reportReadingPosition();
+    if (navigatingPromptRef.current) schedulePromptSettle(120);
     const nearBottom = isScrollEventNearBottom(event);
     onNearBottomChange(nearBottom);
 
@@ -403,8 +666,10 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   });
 
   const handleScrollBeginDrag = useStableEvent((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    cancelPromptJump();
     clearPendingUserScrollEnd();
     isUserScrollActiveRef.current = true;
+    reportReadingPosition();
     scrollKeyboardDismiss.onScrollBeginDrag(event);
     bottomAnchorController.beginUserScroll();
     const rearmed = rearmHistoryStartPagination(historyStartPaginationStateRef.current);
@@ -448,6 +713,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   );
 
   const handleListLayout = useStableEvent((event: LayoutChangeEvent) => {
+    if (event.nativeEvent.layout.width > 0)
+      viewportWidthRef.current = event.nativeEvent.layout.width;
     const previousViewportWidth = streamViewportMetricsRef.current.viewportWidth;
     const previousViewportHeight = streamViewportMetricsRef.current.viewportHeight;
     const viewportWidth = Math.max(0, event.nativeEvent.layout.width);
@@ -506,6 +773,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     scheduleHistoryStartSettle,
   ]);
 
+  const handleScrollToIndexFailed = promptJumpController.handleIndexFailure;
+
   const renderItem = useStableEvent(
     ({ item, index }: ListRenderItemInfo<StreamItem>): ReactElement | null => {
       const rendered = renderHistoryMountedRow(item, index, historyItems);
@@ -513,12 +782,33 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     },
   );
 
+  const recordLivePromptOffset = useStableEvent((id: string, offset: number, height: number) => {
+    livePromptOffsetsRef.current.set(id, offset);
+    liveGeometryRef.current.set(id, { y: offset, height });
+    reportReadingPosition();
+  });
+  useEffect(() => {
+    const liveIds = new Set(segments.liveHead.map((item) => item.id));
+    for (const id of livePromptOffsetsRef.current.keys()) {
+      if (!liveIds.has(id)) {
+        livePromptOffsetsRef.current.delete(id);
+        liveGeometryRef.current.delete(id);
+      }
+    }
+  }, [segments.liveHead]);
+
+  const recordLiveHeaderHeight = useStableEvent((event: LayoutChangeEvent) => {
+    liveHeaderHeightRef.current = event.nativeEvent.layout.height;
+    reportReadingPosition();
+  });
   const liveHeaderContent = useMemo(() => {
     // Stable render events read the latest expansion state; this revision makes
     // the memo invoke them again when that state changes.
     void liveHeadRowRevision;
     const liveHeadRows = segments.liveHead.map((item, index) => (
-      <Fragment key={item.id}>{renderLiveHeadRow(item, index, segments.liveHead)}</Fragment>
+      <MeasuredLiveRow key={item.id} id={item.id} onMeasure={recordLivePromptOffset}>
+        {renderLiveHeadRow(item, index, segments.liveHead)}
+      </MeasuredLiveRow>
     ));
     const liveAuxiliary = renderLiveAuxiliary();
     if (
@@ -530,10 +820,10 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       return (listEmptyComponent ?? null) as ReactElement | null;
     }
     return (
-      <Fragment>
+      <View onLayout={recordLiveHeaderHeight}>
         {liveHeadRows}
         {liveAuxiliary}
-      </Fragment>
+      </View>
     );
   }, [
     boundary,
@@ -542,6 +832,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     renderLiveAuxiliary,
     renderLiveHeadRow,
     segments.liveHead,
+    recordLivePromptOffset,
+    recordLiveHeaderHeight,
   ]);
 
   const historyFooterContent = useMemo(() => {
@@ -560,35 +852,40 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   // RN's FlatList strictMode keeps its internal renderItem wrapper stable when
   // data or the live header changes, preserving the row identities above.
   return (
-    <FlatList
-      {...listInsetProps}
-      ref={flatListRef}
-      data={historyRows}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      strictMode
-      testID="agent-chat-scroll"
-      nativeID="agent-chat-scroll-native-virtualized"
-      ListHeaderComponent={liveHeaderContent ?? undefined}
-      ListFooterComponent={historyFooterContent ?? undefined}
-      contentContainerStyle={listContentContainerStyle}
-      style={listStyle}
-      onLayout={handleListLayout}
-      onScroll={handleScroll}
-      onScrollBeginDrag={handleScrollBeginDrag}
-      onScrollEndDrag={handleScrollEndDrag}
-      onMomentumScrollBegin={handleMomentumScrollBegin}
-      onMomentumScrollEnd={handleMomentumScrollEnd}
-      scrollEventThrottle={16}
-      onContentSizeChange={handleContentSizeChange}
-      maintainVisibleContentPosition={maintainVisibleContentPosition}
-      initialNumToRender={12}
-      windowSize={10}
-      removeClippedSubviews={false}
-      scrollEnabled={scrollEnabled}
-      showsVerticalScrollIndicator
-      inverted
-    />
+    <PromptBubbleGeometryContext.Provider value={bubbleGeometryOwner}>
+      <FlatList
+        {...listInsetProps}
+        ref={flatListRef}
+        data={historyRows}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        strictMode
+        testID="agent-chat-scroll"
+        nativeID="agent-chat-scroll-native-virtualized"
+        ListHeaderComponent={liveHeaderContent ?? undefined}
+        ListFooterComponent={historyFooterContent ?? undefined}
+        contentContainerStyle={listContentContainerStyle}
+        style={listStyle}
+        onLayout={handleListLayout}
+        onScroll={handleScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollBegin={handleMomentumScrollBegin}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        scrollEventThrottle={16}
+        onContentSizeChange={handleContentSizeChange}
+        maintainVisibleContentPosition={maintainVisibleContentPosition}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+        onViewableItemsChanged={handleViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        initialNumToRender={12}
+        windowSize={10}
+        removeClippedSubviews={false}
+        scrollEnabled={scrollEnabled}
+        showsVerticalScrollIndicator
+        inverted
+      />
+    </PromptBubbleGeometryContext.Provider>
   );
 }
 

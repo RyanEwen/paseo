@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
+  symlinkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -15,6 +17,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 import { validateDesktopManifests } from "./validate-desktop-manifests.mjs";
+import { stageDaemonRuntime } from "./preview-release/runtime.mjs";
+import { loadNativePtyModules, traceNativePtyFiles } from "./native-pty.mjs";
 import { assemblePreviewAssets, validatePreviewAssets } from "./preview-release/assets.mjs";
 import { preparePreviewBuild } from "./preview-release/prepare.mjs";
 import { resolvePreviewRelease } from "./preview-release/metadata.mjs";
@@ -25,6 +29,58 @@ import { dump, load } from "js-yaml";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
+
+test("daemon tracing and smoke load the native PTY addons used by each platform", () => {
+  for (const [platform, expected] of [
+    ["linux", ["pty"]],
+    ["darwin", ["pty"]],
+    ["win32", ["conpty", "conpty_console_list"]],
+  ]) {
+    const loaded = [];
+    const requireModule = (specifier) => {
+      assert.equal(specifier, path.resolve("node-pty/lib/utils.js"));
+      return {
+        loadNativeModule(name) {
+          loaded.push(name);
+          return { dir: "../build/Release", module: {} };
+        },
+      };
+    };
+    requireModule.resolve = (specifier) => {
+      assert.equal(specifier, "node-pty/lib/utils");
+      return path.resolve("node-pty/lib/utils.js");
+    };
+    assert.deepEqual(loadNativePtyModules(requireModule, platform), [
+      path.resolve("node-pty/build/Release"),
+    ]);
+    assert.deepEqual(loaded, expected);
+  }
+});
+
+test("native PTY tracing retains bundled ConPTY files and excludes compiler directories", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "native-pty-trace-"));
+  try {
+    mkdirSync(path.join(root, "lib"));
+    const nativeRoot = path.join(root, "build/Release");
+    mkdirSync(path.join(nativeRoot, "conpty"), { recursive: true });
+    mkdirSync(path.join(nativeRoot, "obj"));
+    const runtimeNames = [
+      "conpty.node",
+      "conpty_console_list.node",
+      "conpty/conpty.dll",
+      "conpty/OpenConsole.exe",
+    ];
+    for (const name of [...runtimeNames, "conpty.pdb", "conpty.lib", "obj/source.obj"]) {
+      writeFileSync(path.join(nativeRoot, name), "fixture");
+    }
+    const requireModule = () => ({ loadNativeModule: () => ({ dir: "../build/Release" }) });
+    requireModule.resolve = () => path.join(root, "lib/utils.js");
+    const files = await traceNativePtyFiles(requireModule, "win32");
+    assert.deepEqual(files.sort(), runtimeNames.map((name) => path.join(nativeRoot, name)).sort());
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 const { getConfig, validateConfiguration } = require("app-builder-lib/out/util/config/config.js");
 const { LinuxTargetHelper } = require("app-builder-lib/out/targets/LinuxTargetHelper.js");
 
@@ -261,7 +317,7 @@ async function withPreviewBuilds(run) {
         };
         const artifactArch = os === "linux" ? (linuxArchitectures[arch][extension] ?? arch) : arch;
         const version = extension === "AppImage" ? "" : `${release.version}-`;
-        const url = `Paseo-Debug-${version}${artifactArch}.${extension}`;
+        const url = `Paseo-Plus-Plus-${version}${artifactArch}.${extension}`;
         const bytes = Buffer.from(`${os}-${arch}-${extension}`);
         writeFileSync(path.join(folder, url), bytes);
         files.push({ url, sha512: createHash("sha512").update(bytes).digest("base64") });
@@ -269,11 +325,20 @@ async function withPreviewBuilds(run) {
       writeFileSync(path.join(folder, "preview-release.json"), JSON.stringify(release));
       writeFileSync(path.join(folder, manifestName), dump({ version: release.version, files }));
     }
+    for (const target of ["linux-x64", "linux-arm64"]) {
+      const folder = path.join(input, `preview-daemon-${target}`);
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(path.join(folder, "preview-release.json"), JSON.stringify(release));
+      writeFileSync(
+        path.join(folder, `paseo-daemon-${release.version}-${target}.tgz`),
+        "daemon-fixture",
+      );
+    }
     const android = path.join(input, "preview-android");
     mkdirSync(android);
     writeFileSync(path.join(android, "preview-release.json"), JSON.stringify(release));
     writeFileSync(
-      path.join(android, `Paseo-Debug-${release.version}-android.apk`),
+      path.join(android, `Paseo-Plus-Plus-${release.version}-android.apk`),
       "signed-apk-fixture",
     );
     await run({ root, input, output, release });
@@ -289,21 +354,25 @@ test("assembles both Windows architectures and distinct Linux update channels wi
     assert.deepEqual(
       windows.files.map((file) => file.url),
       [
-        "Paseo-Debug-0.11.0-preview.12-x64.exe",
-        "Paseo-Debug-0.11.0-preview.12-x64.zip",
-        "Paseo-Debug-0.11.0-preview.12-arm64.exe",
-        "Paseo-Debug-0.11.0-preview.12-arm64.zip",
+        "Paseo-Plus-Plus-0.11.0-preview.12-x64.exe",
+        "Paseo-Plus-Plus-0.11.0-preview.12-x64.zip",
+        "Paseo-Plus-Plus-0.11.0-preview.12-arm64.exe",
+        "Paseo-Plus-Plus-0.11.0-preview.12-arm64.zip",
       ],
     );
     assert.equal(windows.releaseDate, releaseDate);
     assert.equal(windows.rolloutHours, 0);
     const names = readdirSync(fixture.output);
+    assert.deepEqual(names.filter((name) => name.startsWith("paseo-daemon-")).sort(), [
+      "paseo-daemon-0.11.0-preview.12-linux-arm64.tgz",
+      "paseo-daemon-0.11.0-preview.12-linux-x64.tgz",
+    ]);
     assert.ok(names.includes("preview-linux-arm64.yml"));
     for (const name of [
-      "Paseo-Debug-x86_64.AppImage",
-      "Paseo-Debug-0.11.0-preview.12-amd64.deb",
-      "Paseo-Debug-0.11.0-preview.12-x86_64.rpm",
-      "Paseo-Debug-0.11.0-preview.12-aarch64.rpm",
+      "Paseo-Plus-Plus-x86_64.AppImage",
+      "Paseo-Plus-Plus-0.11.0-preview.12-amd64.deb",
+      "Paseo-Plus-Plus-0.11.0-preview.12-x86_64.rpm",
+      "Paseo-Plus-Plus-0.11.0-preview.12-aarch64.rpm",
     ]) {
       assert.ok(names.includes(name), `Missing native Linux package: ${name}`);
     }
@@ -313,7 +382,7 @@ test("assembles both Windows architectures and distinct Linux update channels wi
     );
     await validatePreviewAssets({ directory: fixture.output, release: fixture.release });
     writeFileSync(
-      path.join(fixture.output, "Paseo-Debug-0.11.0-preview.12-android.apk"),
+      path.join(fixture.output, "Paseo-Plus-Plus-0.11.0-preview.12-android.apk"),
       "changed-bytes",
     );
     await assert.rejects(
@@ -326,7 +395,7 @@ test("assembles both Windows architectures and distinct Linux update channels wi
 test("refuses a missing architecture, a mixed source commit, and a corrupt updater binary", async () => {
   await withPreviewBuilds(async (fixture) => {
     const folder = path.join(fixture.input, "preview-linux-arm64");
-    const appImage = path.join(folder, "Paseo-Debug-arm64.AppImage");
+    const appImage = path.join(folder, "Paseo-Plus-Plus-arm64.AppImage");
     rmSync(appImage);
     await assert.rejects(assemblePreviewAssets(fixture), /expected one arm64 AppImage/);
     rmSync(fixture.output, { recursive: true, force: true });
@@ -402,18 +471,18 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
     });
     const config = await getConfig(desktop, "electron-builder.preview.local.yml", null);
     validateConfiguration(config);
-    assert.equal(config.appId, "sh.paseo.desktop.debug");
-    assert.equal(config.productName, "Paseo Debug");
+    assert.equal(config.appId, "sh.paseo.plusplus.desktop");
+    assert.equal(config.productName, "Paseo++");
     assert.equal(config.publish.owner, "RyanEwen");
     assert.equal(config.publish.channel, "preview");
     assert.deepEqual(config.protocols, [
-      { name: "Paseo preview agent link", schemes: ["paseo-debug"] },
+      { name: "Paseo++ agent link", schemes: ["paseo-plus-plus"] },
     ]);
-    assert.deepEqual(config.appImage.executableArgs, ["--class=paseo-debug"]);
-    assert.equal(config.linux.executableName, "paseo-debug");
-    assert.equal(config.extraMetadata.desktopName, "paseo-debug.desktop");
-    assert.deepEqual(config.linux.executableArgs, ["--class=paseo-debug"]);
-    assert.equal(config.linux.desktop.entry.StartupWMClass, "paseo-debug");
+    assert.deepEqual(config.appImage.executableArgs, ["--class=paseo-plus-plus"]);
+    assert.equal(config.linux.executableName, "paseo-plus-plus");
+    assert.equal(config.extraMetadata.desktopName, "paseo-plus-plus.desktop");
+    assert.deepEqual(config.linux.executableArgs, ["--class=paseo-plus-plus"]);
+    assert.equal(config.linux.desktop.entry.StartupWMClass, "paseo-plus-plus");
     const desktopEntry = await new LinuxTargetHelper({
       executableName: config.linux.executableName,
       platformSpecificBuildOptions: config.linux,
@@ -425,8 +494,12 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
         description: "Preview desktop",
       },
     }).computeDesktopEntry(config.linux);
-    assert.match(desktopEntry, /^Exec="\/opt\/Paseo Debug\/paseo-debug" --class=paseo-debug %U$/m);
-    assert.match(desktopEntry, /^StartupWMClass=paseo-debug$/m);
+    assert.match(desktopEntry, /^Name=Paseo\+\+$/m);
+    assert.match(
+      desktopEntry,
+      /^Exec="\/opt\/Paseo\+\+\/paseo-plus-plus" --class=paseo-plus-plus %U$/m,
+    );
+    assert.match(desktopEntry, /^StartupWMClass=paseo-plus-plus$/m);
     assert.equal(config.extraMetadata.paseoPreview, true);
     assert.equal(config.buildVersion, "0.11.0.12");
     for (const name of ["desktop", "app", "server", "cli", "client"]) {
@@ -450,6 +523,80 @@ test("prepares a Windows ARM64 build with inherited packaging and required Azure
       JSON.parse(readFileSync(path.join(root, "packages/app/package.json"))).version,
       "0.11.0-preview.12",
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a missing or mixed-source daemon build prevents preview assembly", async () => {
+  await withPreviewBuilds(async (fixture) => {
+    rmSync(
+      path.join(
+        fixture.input,
+        "preview-daemon-linux-arm64",
+        `paseo-daemon-${fixture.release.version}-linux-arm64.tgz`,
+      ),
+    );
+    await assert.rejects(assemblePreviewAssets(fixture), /ENOENT/);
+  });
+  await withPreviewBuilds(async (fixture) => {
+    writeFileSync(
+      path.join(fixture.input, "preview-daemon-linux-x64", "preview-release.json"),
+      JSON.stringify({ ...fixture.release, commit: "b".repeat(40) }),
+    );
+    await assert.rejects(assemblePreviewAssets(fixture), /mismatched release commit/);
+  });
+});
+
+test("daemon workspace aliases contain traced files and web assets without source or ignored files", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "paseo-daemon-runtime-"));
+  const output = path.join(root, "staged");
+  try {
+    const server = path.join(root, "packages/server");
+    const webUi = path.join(server, "dist/server/web-ui");
+    mkdirSync(webUi, { recursive: true });
+    writeFileSync(
+      path.join(server, "package.json"),
+      JSON.stringify({ name: "@getpaseo/server", files: ["src/vendor/LICENSE"] }),
+    );
+    writeFileSync(path.join(server, "LICENSE"), "package-license");
+    writeFileSync(path.join(server, "NOTICE"), "package-notice");
+    writeFileSync(path.join(server, "dist/server/entry.js"), "export const daemon = true;");
+    writeFileSync(path.join(webUi, "index.html"), "web-client");
+    writeFileSync(path.join(server, ".env"), "DO_NOT_SHIP=fixture");
+    mkdirSync(path.join(server, "src/vendor"), { recursive: true });
+    writeFileSync(path.join(server, "src/vendor/LICENSE"), "vendor-license");
+    writeFileSync(path.join(server, "src/ignored.test.ts"), "development-only");
+    mkdirSync(path.join(root, "node_modules/@getpaseo"), { recursive: true });
+    symlinkSync(server, path.join(root, "node_modules/@getpaseo/server"), "junction");
+    stageDaemonRuntime({
+      root,
+      output,
+      files: [
+        "node_modules/@getpaseo/server",
+        "packages/server/package.json",
+        "packages/server/dist/server/entry.js",
+      ],
+    });
+    for (const location of ["packages/server", "node_modules/@getpaseo/server"]) {
+      const shipped = path.join(output, location);
+      assert.equal(
+        readFileSync(path.join(shipped, "dist/server/entry.js"), "utf8"),
+        "export const daemon = true;",
+      );
+      assert.equal(
+        readFileSync(path.join(shipped, "dist/server/web-ui/index.html"), "utf8"),
+        "web-client",
+      );
+      assert.equal(existsSync(path.join(shipped, ".env")), false);
+      assert.equal(existsSync(path.join(shipped, "src/ignored.test.ts")), false);
+      assert.equal(readFileSync(path.join(shipped, "LICENSE"), "utf8"), "package-license");
+      assert.equal(readFileSync(path.join(shipped, "NOTICE"), "utf8"), "package-notice");
+      assert.equal(
+        readFileSync(path.join(shipped, "src/vendor/LICENSE"), "utf8"),
+        "vendor-license",
+      );
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

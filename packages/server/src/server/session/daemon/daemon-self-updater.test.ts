@@ -60,10 +60,14 @@ function createRuntime(input: {
   currentServerPackageRoot?: string | null;
   installResult?: CommandResult;
   calls?: RuntimeCall[];
+  newerVersion?: string | null;
 }): DaemonSelfUpdateRuntime {
   const calls = input.calls ?? [];
   return {
     npm: {
+      async getNewerVersion() {
+        return input.newerVersion ?? null;
+      },
       async inspect() {
         calls.push("inspect");
         const inspection = input.inspections.shift();
@@ -256,6 +260,9 @@ describe("DaemonSelfUpdater", () => {
     });
     const runtime: DaemonSelfUpdateRuntime = {
       npm: {
+        async getNewerVersion() {
+          return null;
+        },
         async inspect() {
           calls.push("inspect");
           return npmGlobalPaseoInstall("0.1.15");
@@ -297,5 +304,55 @@ describe("DaemonSelfUpdater", () => {
     resolveInstall?.({ exitCode: 0, stdout: "updated", stderr: "" });
     await expect(firstUpdate).resolves.toMatchObject({ success: true });
     expect(calls).toEqual(["inspect", "installLatest", "inspect"]);
+  });
+});
+
+describe("read-only daemon update availability", () => {
+  test("returns a newer release only for the verified running global installation", async () => {
+    const calls: RuntimeCall[] = [];
+    const updater = new DaemonSelfUpdater(
+      createRuntime({
+        inspections: [npmGlobalPaseoInstall("0.1.15")],
+        calls,
+        newerVersion: "0.1.16",
+      }),
+    );
+    await expect(
+      updater.checkAvailability({ daemonVersion: "0.1.15", desktopManaged: false }),
+    ).resolves.toEqual({ version: "0.1.16", reason: null });
+    expect(calls).toEqual(["inspect"]);
+  });
+  test.each([
+    { linked: true, root: npmServerPackageRoot },
+    { linked: false, root: sourceServerPackageRoot },
+  ])("rejects unsupported origins before release discovery: %j", async ({ linked, root }) => {
+    const runtime = createRuntime({
+      inspections: [npmGlobalPaseoInstall("0.1.15", { linked })],
+      currentServerPackageRoot: root,
+      newerVersion: "0.1.16",
+    });
+    let discovered = false;
+    runtime.npm.getNewerVersion = async () => {
+      discovered = true;
+      return "0.1.16";
+    };
+    const result = await new DaemonSelfUpdater(runtime).checkAvailability({
+      daemonVersion: "0.1.15",
+      desktopManaged: false,
+    });
+    expect(result.version).toBeNull();
+    expect(result.reason).toContain(linked ? "linked" : "not running");
+    expect(discovered).toBe(false);
+  });
+  test("desktop managed hosts do not run npm probes", async () => {
+    const calls: RuntimeCall[] = [];
+    const updater = new DaemonSelfUpdater(createRuntime({ inspections: [], calls }));
+    await expect(
+      updater.checkAvailability({ daemonVersion: "0.1.15", desktopManaged: true }),
+    ).resolves.toEqual({
+      version: null,
+      reason: "This daemon is managed by Paseo Desktop. Update Paseo Desktop on the host.",
+    });
+    expect(calls).toEqual([]);
   });
 });

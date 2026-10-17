@@ -1,0 +1,38 @@
+{
+  "id": "project-header",
+  "source": "project-header-1791840834086.png",
+  "sourceManifestSha256": "8507b37ee58fcc422c8aa8a7cc91e9ca0789facb1e9548e558e2e7ba204ecdd9",
+  "sourceSha256": "ed5fcf356a307907de345c2f1a1fd21dd3eec12a3c5fe21fee109f74381d0d68",
+  "capturedAtUtc": "2026-10-12T21:33:54.277Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 0,
+    "top": 273,
+    "width": 319,
+    "height": 56
+  },
+  "description": "A real project title and live working activity chip. Shared image for title emphasis and activity chips.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/project-header-1791840834086.json",
+  "captureSuggestedCrop": {
+    "left": 0,
+    "top": 273,
+    "width": 319,
+    "height": 56
+  },
+  "asset": "project-header.png",
+  "assetSha256": "711f6037a98739a3e235d754d42c964b6ae176aeed9ef96aa499bae12e985c25",
+  "assetPixels": {
+    "width": 319,
+    "height": 56
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

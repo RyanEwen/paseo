@@ -306,6 +306,7 @@ const StoredWorkspaceSchema = z.strictObject({
   worktreeSlug: z.string().optional(),
   projectKind: z.enum(["git", "non_git", "directory"]),
   workspaceKind: z.enum(["directory", "local_checkout", "checkout", "worktree"]),
+  background: z.boolean().optional(),
   name: z.string(),
   title: z.string().nullable(),
   pinnedAt: z.string().nullable(),
@@ -378,15 +379,15 @@ const DirectoryCheckpointSchema = z.strictObject({
   agents: DirectoryCursorSchema.optional(),
 });
 
-// Old checkpoints could describe a baseline that an overlapping refresh had discarded.
+// Earlier checkpoints could retain rows with a discarded baseline or missing background flags.
 // Revalidate directory contents once without evicting cached rows or timelines.
 const StoredDirectoryCheckpointSchema = z.strictObject({
-  version: z.literal(1),
+  version: z.literal(2),
   cursors: DirectoryCheckpointSchema,
 });
 
 function serializeDirectoryCheckpoint(cursors: DirectoryCheckpoint) {
-  return { version: 1 as const, cursors };
+  return { version: 2 as const, cursors };
 }
 
 function deserializeDirectoryCheckpoint(payload: string): DirectoryCheckpoint {
@@ -421,6 +422,7 @@ function serializeAgentToolCall(data: AgentToolCallData): StoredToolCall {
     name: data.name,
     detail: data.detail,
     ...(data.metadata ? { metadata: data.metadata } : {}),
+    ...(data.agentMessage ? { agentMessage: data.agentMessage } : {}),
   };
   switch (data.status) {
     case "running":
@@ -584,6 +586,7 @@ function deserializeBuiltinTimelineItem(
             error: tool.error,
             detail: tool.detail,
             ...(tool.metadata ? { metadata: tool.metadata } : {}),
+            ...(tool.agentMessage ? { agentMessage: tool.agentMessage } : {}),
           },
         },
       };
@@ -696,6 +699,7 @@ function serializeWorkspace(workspace: WorkspaceDescriptor): StoredWorkspace {
     worktreeSlug: workspace.worktreeSlug,
     projectKind: workspace.projectKind,
     workspaceKind: workspace.workspaceKind,
+    background: workspace.background ?? false,
     name: workspace.name,
     title: workspace.title ?? null,
     pinnedAt: workspace.pinnedAt ?? null,

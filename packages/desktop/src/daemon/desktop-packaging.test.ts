@@ -156,9 +156,10 @@ describe("desktop packaging", () => {
   it("keeps fork settings and the local daemon isolated while pinning preview updates", () => {
     expect(resolveDesktopDistribution({ paseoPreview: true })).toEqual({
       isPreview: true,
-      appName: "Paseo Debug",
-      desktopName: "paseo-debug.desktop",
-      daemonHomeName: ".paseo-debug",
+      appName: "Paseo++",
+      userDataName: "Paseo++",
+      desktopName: "paseo-plus-plus.desktop",
+      daemonHomeName: ".paseo-plus-plus-desktop",
       daemonListen: "127.0.0.1:6790",
     });
     expect(resolveDesktopUpdateChannel(true, "stable")).toEqual({
@@ -189,14 +190,14 @@ describe("desktop packaging", () => {
       mkdirSync(dirname(shim), { recursive: true });
       copyFileSync(join(packageRoot, "bin", shimName), shim);
       chmodSync(shim, 0o755);
-      writeFileSync(join(resources, "paseo-executable-name"), "Paseo Debug\n");
-      writeFileSync(join(resources, "paseo-daemon-home-name"), ".paseo-debug\n");
+      writeFileSync(join(resources, "paseo-executable-name"), "Paseo++\n");
+      writeFileSync(join(resources, "paseo-daemon-home-name"), ".paseo-plus-plus-desktop\n");
       writeFileSync(join(resources, "paseo-daemon-listen"), "127.0.0.1:6790\n");
       const printEnvironment =
         "console.log(JSON.stringify([process.env.PASEO_HOME, process.env.PASEO_LISTEN]));";
       if (isWindows) {
         // Use a real PE with a tiny runner so this exercises cmd.exe's bundled shim.
-        copyFileSync(process.execPath, join(root, "Paseo Debug.exe"));
+        copyFileSync(process.execPath, join(root, "Paseo++.exe"));
         const runner = join(
           resources,
           "app.asar.unpacked",
@@ -207,10 +208,7 @@ describe("desktop packaging", () => {
         mkdirSync(dirname(runner), { recursive: true });
         writeFileSync(runner, printEnvironment);
       } else {
-        writeExecutable(
-          join(root, "Paseo Debug.bin"),
-          `#!${process.execPath}\n${printEnvironment}\n`,
-        );
+        writeExecutable(join(root, "Paseo++.bin"), `#!${process.execPath}\n${printEnvironment}\n`);
       }
       const env = { ...process.env, HOME: root, USERPROFILE: root };
       delete env.PASEO_HOME;
@@ -223,7 +221,10 @@ describe("desktop packaging", () => {
         windowsVerbatimArguments: isWindows,
       });
       expect(defaults.status, defaults.stderr).toBe(0);
-      expect(JSON.parse(defaults.stdout)).toEqual([join(root, ".paseo-debug"), "127.0.0.1:6790"]);
+      expect(JSON.parse(defaults.stdout)).toEqual([
+        join(root, ".paseo-plus-plus-desktop"),
+        "127.0.0.1:6790",
+      ]);
       const overridden = spawnSync(command, args, {
         encoding: "utf8",
         windowsVerbatimArguments: isWindows,

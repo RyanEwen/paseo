@@ -1,3 +1,5 @@
+import { useWorkspaceBrowserOpeningContext } from "@/workspace/browser/context";
+import { WorkspaceBrowserMenuItem } from "@/workspace/browser/link-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { type ReactElement, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/contexts/toast-context";
@@ -42,6 +45,7 @@ interface OpenTarget {
   label: string;
   icon: ReactElement;
   onOpen: () => Promise<void> | void;
+  url?: string;
 }
 
 const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
@@ -137,6 +141,7 @@ export function WorkspaceOpenInEditorButton({
             label: target.label,
             icon: renderForgeOpenTargetIcon(presentation.icon),
             onOpen: () => openExternalUrl(target.url),
+            url: target.url,
           };
         }
         return {
@@ -183,6 +188,9 @@ export function WorkspaceOpenInEditorButton({
     [openMutation],
   );
 
+  const openInPaseo = useWorkspaceBrowserOpeningContext();
+  const browserUrl = targets.find((target) => target.url)?.url;
+  const canOpenInBrowser = Boolean(openInPaseo && browserUrl);
   const handleSelectTarget = useCallback(
     (target: OpenTarget) => {
       void updatePreferredEditor(target.id).catch(() => undefined);
@@ -252,7 +260,7 @@ export function WorkspaceOpenInEditorButton({
             </View>
           )}
         </Pressable>
-        {targets.length > 1 ? (
+        {targets.length > 1 || canOpenInBrowser ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               testID="workspace-open-in-editor-caret"
@@ -264,8 +272,8 @@ export function WorkspaceOpenInEditorButton({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              minWidth={148}
-              maxWidth={176}
+              minWidth={canOpenInBrowser ? 220 : 148}
+              maxWidth={canOpenInBrowser ? 280 : 176}
               testID="workspace-open-in-editor-menu"
             >
               {targets.map((target) => (
@@ -276,6 +284,12 @@ export function WorkspaceOpenInEditorButton({
                   onSelect={handleSelectTarget}
                 />
               ))}
+              {canOpenInBrowser ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <WorkspaceBrowserMenuItem url={browserUrl} />
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}

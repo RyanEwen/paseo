@@ -1,0 +1,127 @@
+name: Android SSH Test APK
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: android-ssh-test-apk
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  APP_SOURCE_COMMIT: bf3c940408053f8b5a6ff4abf94c1a488e4e5f58
+  PASEO_PREVIEW_BUILD_NUMBER: ${{ github.run_number }}
+  ONNXRUNTIME_NODE_INSTALL: skip
+  PASEO_PREVIEW_EXPO_PROJECT_ID: ${{ vars.PREVIEW_EXPO_PROJECT_ID }}
+  PASEO_PREVIEW_EXPO_OWNER: ${{ vars.PREVIEW_EXPO_OWNER }}
+  PASEO_PREVIEW_EXPO_SLUG: ${{ vars.PREVIEW_EXPO_SLUG }}
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      APP_VARIANT: development
+      PASEO_PREVIEW_BUILD: "1"
+      PASEO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_PASSWORD }}
+      PASEO_ANDROID_KEY_ALIAS: ${{ secrets.PREVIEW_ANDROID_KEY_ALIAS }}
+      PASEO_ANDROID_KEY_PASSWORD: ${{ secrets.PREVIEW_ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.APP_SOURCE_COMMIT }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+      - name: Configure ephemeral signing paths
+        run: |
+          echo "PASEO_ANDROID_KEYSTORE=$RUNNER_TEMP/preview.keystore" >> "$GITHUB_ENV"
+          echo "GOOGLE_SERVICES_FILE_DEBUG=$RUNNER_TEMP/google-services.debug.json" >> "$GITHUB_ENV"
+      - name: Prepare preview and signing files
+        env:
+          KEYSTORE_BASE64: ${{ secrets.PREVIEW_ANDROID_KEYSTORE_BASE64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.PREVIEW_GOOGLE_SERVICES_DEBUG_JSON }}
+        run: |
+          node scripts/preview-release/prepare.mjs
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          const google = JSON.parse(process.env.GOOGLE_SERVICES_JSON);
+          if (!google.client?.some(client => client.client_info?.android_client_info?.package_name === 'sh.paseo.debug')) {
+            throw new Error('Firebase configuration must include sh.paseo.debug');
+          }
+          writeFileSync(process.env.PASEO_ANDROID_KEYSTORE, Buffer.from(process.env.KEYSTORE_BASE64, 'base64'), { mode: 0o600 });
+          writeFileSync(process.env.GOOGLE_SERVICES_FILE_DEBUG, JSON.stringify(google), { mode: 0o600 });
+          NODE
+      - name: Build standalone signed APK
+        run: |
+          npm run build:app-deps
+          cd packages/app
+          npx --no-install expo prebuild --platform android --clean --non-interactive
+          cd android
+          free -h
+          # Export the real task configuration, then release Java's heap before Metro and Hermes.
+          ./gradlew :app:writePreviewBundlePlan -I ../../../scripts/preview-release/android-bundle-plan.gradle --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
+          node ../../../scripts/preview-release/android-bundle.mjs app/build/preview-bundle-plan.json
+          # Only bundling is performed externally; native compilation and APK signing stay in Gradle.
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg.gradle.parallel=false -I ../../../scripts/preview-release/android-bundle-plan.gradle -PpaseoPreparedAndroidBundle=true
+      - name: Verify APK signature and identity
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=packages/app/android/app/build/outputs/apk/release/app-release.apk
+          expected_bundle="$(cat packages/app/android/app/build/preview-bundle-sha256.txt)"
+          unzip -p "$apk" assets/index.android.bundle | sha256sum | grep -Fq "$expected_bundle"
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apk-signature.txt"
+          keytool -exportcert -keystore "$PASEO_ANDROID_KEYSTORE" -storepass:env PASEO_ANDROID_KEYSTORE_PASSWORD -alias "$PASEO_ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/preview-signing.der"
+          expected_signer="$(sha256sum "$RUNNER_TEMP/preview-signing.der" | cut -d ' ' -f1)"
+          cat "$RUNNER_TEMP/apk-signature.txt"
+          node scripts/preview-release/android-signer.mjs "$RUNNER_TEMP/apk-signature.txt" "$expected_signer"
+          "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "package: name='sh.paseo.debug'" "$RUNNER_TEMP/apk-badging.txt"
+          actual_abis="$(unzip -Z1 "$apk" | awk -F/ '$1 == "lib" {print $2}' | sort -u)"
+          [[ "$actual_abis" == $'arm64-v8a\narmeabi-v7a\nx86\nx86_64' ]] || { echo "Unexpected APK ABIs: $actual_abis"; exit 1; }
+          expected_code="$(node -p 'JSON.parse(require("fs").readFileSync("preview-release.json", "utf8")).androidVersionCode')"
+          grep -q "versionCode='$expected_code'" "$RUNNER_TEMP/apk-badging.txt"
+          mkdir preview-android
+          cp "$apk" "preview-android/Paseo-Debug-$(node -p 'require("./preview-release.json").version')-android.apk"
+          cp preview-release.json preview-android/
+      - name: Remove signing files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/preview.keystore" "$RUNNER_TEMP/google-services.debug.json"
+      - name: Retain failed Android compiler inputs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-android-compiler-inputs
+          path: |
+            packages/app/android/app/build/preview-bundle-plan.json
+            packages/app/android/app/build/preview-prepared-bundle/compiler-input.js
+            packages/app/android/app/build/preview-prepared-bundle/maps/*
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Retain failed APK verification reports
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-android-verification
+          path: |
+            ${{ runner.temp }}/apk-signature.txt
+            ${{ runner.temp }}/apk-badging.txt
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: preview-android
+          path: preview-android/*
+          if-no-files-found: error
+          retention-days: 7

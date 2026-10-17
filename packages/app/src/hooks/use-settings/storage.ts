@@ -1,3 +1,8 @@
+import {
+  DEFAULT_PASEO_PLUS_PLUS_PREFERENCES,
+  PaseoPlusPlusPreferencesSchema,
+  type PaseoPlusPlusPreferences,
+} from "@/paseo-plus-plus/preferences";
 import { isSyntaxThemeId, type SyntaxThemeId } from "@getpaseo/highlight";
 import type { ActiveTurnBehavior } from "@getpaseo/protocol/messages";
 import type { QueryClient } from "@tanstack/react-query";
@@ -27,6 +32,7 @@ import {
   type ThemePreference,
 } from "@/styles/theme";
 import { z } from "zod";
+import { AccentColorSchema, type AccentColor } from "@/styles/accent";
 import { APP_SETTINGS_KEY, LEGACY_SETTINGS_KEY } from "./keys";
 import { migrateAppSettings } from "./migrations";
 
@@ -73,8 +79,13 @@ export { DEFAULT_CONTENT_MAX_WIDTH };
 export const MIN_CONTENT_MAX_WIDTH = 600;
 export const MAX_CONTENT_MAX_WIDTH = 4000;
 
+export const DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT = 20;
+
 export interface AppSettings {
+  /** Optional fork feature preferences, synced when a settings host is selected. */
+  paseoPlusPlus: PaseoPlusPlusPreferences;
   theme: ThemePreference;
+  accentColor: AccentColor;
   /** Which contributed theme `theme: "plugin"` selects. */
   pluginThemeId: string | null;
   language: AppLanguage;
@@ -91,6 +102,8 @@ export interface AppSettings {
   contentMaxWidth: number | null;
   syntaxTheme: SyntaxThemeId; // default "one"
   workspaceTitleSource: WorkspaceTitleSource;
+  /** Initial workspaces per sidebar group; null shows every workspace. */
+  sidebarInitialWorkspaceCount: number | null;
   sidebarWorkspaceTrailing: SidebarWorkspaceTrailing;
   sidebarRowItems: SidebarRowItems;
   sidebarChecksDisplay: SidebarChecksDisplay;
@@ -107,6 +120,14 @@ export interface AppSettings {
   /** Desktop-only preferences for implicit opens into the ordinary side pane. */
   openInSidePane: OpenInSidePanePreferences;
   pullRequestOpenLocation: PullRequestOpenLocation;
+  /** Initial Explorer visibility; saved workspace layouts keep their own choice. */
+  autoOpenExplorerSidebar: boolean;
+  /** Scope of the diff opened by selecting a file in Changes. */
+  explorerDiffScope: "all" | "single";
+  /** Initial comparison when a workspace has no remembered selection. */
+  workingDiffDefaultComparison: "uncommitted" | "base";
+  /** Automatically follow checkout dirtiness instead of retaining the selected comparison. */
+  workingDiffAutoSwitch: boolean;
 }
 
 export type AppSettingsUpdate =
@@ -135,7 +156,9 @@ export interface Settings extends AppSettings {
 }
 
 export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
+  paseoPlusPlus: DEFAULT_PASEO_PLUS_PLUS_PREFERENCES,
   theme: DEFAULT_THEME_PREFERENCE,
+  accentColor: "default",
   pluginThemeId: null,
   language: "system",
   sendBehavior: "steer",
@@ -150,6 +173,7 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   contentMaxWidth: null,
   syntaxTheme: "one",
   workspaceTitleSource: "title",
+  sidebarInitialWorkspaceCount: DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT,
   sidebarWorkspaceTrailing: "timestamp",
   sidebarRowItems: DEFAULT_SIDEBAR_ROW_ITEMS,
   sidebarChecksDisplay: DEFAULT_SIDEBAR_CHECKS_DISPLAY,
@@ -157,11 +181,15 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   sidebarFooterItems: [],
   usage: DEFAULT_USAGE_PREFERENCES,
   autoExpandReasoning: false,
-  toolCallDetailLevel: "detailed",
+  toolCallDetailLevel: "overview",
   chatOutlineEnabled: true,
   vimKeybindings: false,
   openInSidePane: DEFAULT_OPEN_IN_SIDE_PANE_PREFERENCES,
   pullRequestOpenLocation: "explorer",
+  autoOpenExplorerSidebar: false,
+  explorerDiffScope: "all",
+  workingDiffDefaultComparison: "uncommitted",
+  workingDiffAutoSwitch: false,
 };
 
 export const DEFAULT_APP_SETTINGS: Settings = {
@@ -211,7 +239,9 @@ const DEFAULT_STORED_APP_SETTINGS = {
 
 const StoredAppSettingsSchema = z
   .looseObject({
+    paseoPlusPlus: PaseoPlusPlusPreferencesSchema,
     theme: ThemePreferenceSchema.catch(DEFAULT_THEME_PREFERENCE),
+    accentColor: AccentColorSchema.catch("default"),
     pluginThemeId: z.string().nullable().catch(null),
     language: z
       .enum(["system", "ar", "en", "es", "fr", "ja", "ko", "pt-BR", "ru", "zh-CN"])
@@ -242,6 +272,13 @@ const StoredAppSettingsSchema = z
       .catch(null),
     syntaxTheme: z.string().refine(isSyntaxThemeId).catch("one"),
     workspaceTitleSource: z.enum(["title", "branch"]).catch("title"),
+    sidebarInitialWorkspaceCount: z
+      .number()
+      .int()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER)
+      .nullable()
+      .catch(DEFAULT_SIDEBAR_INITIAL_WORKSPACE_COUNT),
     sidebarWorkspaceTrailing: z.enum(["diff", "timestamp", "both", "none"]).catch("timestamp"),
     sidebarRowItems: SidebarRowItemsSchema,
     sidebarChecksDisplay: z
@@ -256,7 +293,7 @@ const StoredAppSettingsSchema = z
       .enum(["overview", "detailed"])
       .or(z.literal("concise").transform(() => "overview" as const))
       .optional()
-      .catch("detailed"),
+      .catch(DEFAULT_CLIENT_SETTINGS.toolCallDetailLevel),
     // COMPAT(compactToolCalls): migrated in v0.1.105, remove after 2027-01-12.
     compactToolCalls: z.boolean().optional().catch(undefined),
     chatOutlineEnabled: z.boolean().catch(true),
@@ -284,6 +321,10 @@ const StoredAppSettingsSchema = z
         legacyPullRequestsInSidePane: undefined,
       }),
     pullRequestOpenLocation: z.enum(["main", "side", "explorer"]).optional(),
+    autoOpenExplorerSidebar: z.boolean().catch(false),
+    explorerDiffScope: z.enum(["all", "single"]).catch("all"),
+    workingDiffDefaultComparison: z.enum(["uncommitted", "base"]).catch("uncommitted"),
+    workingDiffAutoSwitch: z.boolean().catch(false),
     // COMPAT(explorerSidebarRouting): replaced by source-specific side-pane preferences in v0.6.
     openSupportingTabsInSidePanel: z.boolean().optional().catch(undefined),
     // COMPAT(rendererDesktopSettings): these fields used to share this renderer-owned key.
@@ -305,8 +346,12 @@ const StoredAppSettingsSchema = z
       (isChecksHiddenByLegacyRowItem(stored.sidebarRowItems)
         ? "none"
         : DEFAULT_SIDEBAR_CHECKS_DISPLAY);
-    const toolCallDetailLevel =
-      stored.toolCallDetailLevel ?? (stored.compactToolCalls ? "overview" : "detailed");
+    const legacyToolCallDetailLevel = stored.compactToolCalls ? "overview" : "detailed";
+    const fallbackToolCallDetailLevel =
+      stored.compactToolCalls === undefined
+        ? DEFAULT_CLIENT_SETTINGS.toolCallDetailLevel
+        : legacyToolCallDetailLevel;
+    const toolCallDetailLevel = stored.toolCallDetailLevel ?? fallbackToolCallDetailLevel;
     return {
       ...stored,
       openInSidePane,
@@ -350,24 +395,49 @@ export interface SettingsDeps {
   desktop: DesktopSettingsBridge;
 }
 
-export async function saveAppSettings(input: {
+interface SaveAppSettingsInput {
   queryClient: QueryClient;
   updates: AppSettingsUpdate;
   deps: SettingsDeps;
-}): Promise<void> {
+}
+
+const pendingSaves = new WeakMap<QueryClient, Promise<void>>();
+
+/** Serialize read-modify-write operations and publish only successfully persisted settings. */
+export async function saveAppSettings(input: SaveAppSettingsInput): Promise<void> {
+  const previous = pendingSaves.get(input.queryClient);
+  let release = () => {};
+  const slot = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  pendingSaves.set(input.queryClient, slot);
+
+  try {
+    await previous;
+    await persistSettingsUpdate(input);
+  } finally {
+    // A failed save releases the queue too; later writes use the last durable settings.
+    release();
+    if (pendingSaves.get(input.queryClient) === slot) pendingSaves.delete(input.queryClient);
+  }
+}
+
+/** Read the latest settings after obtaining the queue slot, then commit one functional patch. */
+async function persistSettingsUpdate(input: SaveAppSettingsInput): Promise<void> {
   const storedCurrent =
     input.queryClient.getQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY) ??
     (await loadAppSettingsFromStorage(input.deps));
   const current = normalizeAppSettings(storedCurrent);
   const updates = typeof input.updates === "function" ? input.updates(current) : input.updates;
   const next = { ...current, ...updates };
-  input.queryClient.setQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY, next);
   await writeAppSettings(
     input.deps.storage,
     (await readSettingsObject(input.deps.storage, APP_SETTINGS_KEY)) ??
       StoredAppSettingsSchema.parse({}),
     next,
   );
+  // Publish only durable choices so a failed write cannot silently enable a feature.
+  input.queryClient.setQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY, next);
 }
 
 export async function loadAppSettingsFromStorage(deps: SettingsDeps): Promise<AppSettings> {

@@ -26,17 +26,24 @@ export function togglePinnedCollapsed(state: CollapsedProjectsState): CollapsedP
   return { ...state, collapsedPinned: !state.collapsedPinned };
 }
 
+export interface ProjectCollapseOptions {
+  mode: "project" | "status";
+  oneProjectAtATime: boolean;
+  /** All known host-qualified project keys, without fetching hidden host directories. */
+  projectKeys: readonly string[];
+}
+
 export function toggleProjectCollapsed(
   state: CollapsedProjectsState,
   projectKey: string,
+  options?: ProjectCollapseOptions,
 ): CollapsedProjectsState {
-  const next = new Set(state.collapsedProjectKeys);
-  if (next.has(projectKey)) {
-    next.delete(projectKey);
-  } else {
-    next.add(projectKey);
-  }
-  return { ...state, collapsedProjectKeys: next };
+  return setProjectCollapsed(
+    state,
+    projectKey,
+    !state.collapsedProjectKeys.has(projectKey),
+    options,
+  );
 }
 
 export function toggleWorkspaceGroupCollapsed(
@@ -56,14 +63,54 @@ export function setProjectCollapsed(
   state: CollapsedProjectsState,
   projectKey: string,
   collapsed: boolean,
+  options?: ProjectCollapseOptions,
 ): CollapsedProjectsState {
   const next = new Set(state.collapsedProjectKeys);
+  if (!collapsed && options?.mode === "project" && options.oneProjectAtATime) {
+    for (const key of options.projectKeys) next.add(key);
+  }
   if (collapsed) {
     next.add(projectKey);
   } else {
     next.delete(projectKey);
   }
   return { ...state, collapsedProjectKeys: next };
+}
+
+export interface SidebarCollapseTargets {
+  projectKeys: readonly string[];
+  workspaceGroupKeys: readonly string[];
+  includePinned: boolean;
+}
+
+/** Set only the rendered sections, preserving preferences hidden by the current filters. */
+export function setSectionsCollapsed(
+  state: CollapsedProjectsState,
+  targets: SidebarCollapseTargets,
+  collapsed: boolean,
+): CollapsedProjectsState {
+  const projects = new Set(state.collapsedProjectKeys);
+  const groups = new Set(state.collapsedWorkspaceGroupKeys);
+  for (const key of targets.projectKeys) {
+    if (collapsed) {
+      projects.add(key);
+    } else {
+      projects.delete(key);
+    }
+  }
+  for (const key of targets.workspaceGroupKeys) {
+    if (collapsed) {
+      groups.add(key);
+    } else {
+      groups.delete(key);
+    }
+  }
+  return {
+    ...state,
+    collapsedProjectKeys: projects,
+    collapsedWorkspaceGroupKeys: groups,
+    collapsedPinned: targets.includePinned ? collapsed : state.collapsedPinned,
+  };
 }
 
 export function serializeCollapsedProjects(state: CollapsedProjectsState): {

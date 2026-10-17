@@ -2,7 +2,7 @@ import { parseAgentDeepLink, type AgentDeepLinkTarget } from "@getpaseo/protocol
 
 /** Normalize the fork's OS link scheme without changing the renderer storage origin. */
 export function parseDesktopAgentDeepLink(input: string): AgentDeepLinkTarget | null {
-  return parseAgentDeepLink(input.replace(/^paseo-debug:/, "paseo:"));
+  return parseAgentDeepLink(input.replace(/^paseo-plus-plus:/, "paseo:"));
 }
 
 export function parseAgentDeepLinkFromArgv(argv: string[]): AgentDeepLinkTarget | null {

@@ -37,6 +37,8 @@ export interface NavigateToWorkspaceDeps extends PrepareWorkspaceTabDeps {
   isWorkspaceLayoutHydrated: () => boolean;
   rememberLastWorkspace: (selection: ActiveWorkspaceSelection) => void;
   navigateToRoute: (route: string) => void;
+  /** Reveal the compact workspace pane when navigation names a particular tab. */
+  revealWorkspaceContent: () => void;
 }
 
 export interface NavigateToLastWorkspaceDeps extends NavigateToWorkspaceDeps {
@@ -123,6 +125,11 @@ export function navigateToWorkspace(
         )
       : buildHostWorkspaceRoute(input.serverId, input.workspaceId);
   deps.rememberLastWorkspace({ serverId: input.serverId, workspaceId: input.workspaceId });
+  if (input.target) {
+    // A route and selected tab do not close the compact workspace list or explorer.
+    // Reveal even while hydration defers the agent open intent to the destination.
+    deps.revealWorkspaceContent();
+  }
   deps.navigateToRoute(route);
   return route;
 }

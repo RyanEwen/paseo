@@ -1,0 +1,38 @@
+{
+  "id": "previous-agents",
+  "source": "previous-agents-1791840609029.png",
+  "sourceManifestSha256": "0cf9381502201d07e54a3b8bdaf21caa80d7b716f1b55a59e6f285030603f939",
+  "sourceSha256": "b49c0ce5010ae66305e84f365ac2038b3a2b65f96695d1064121fd29164fc480",
+  "capturedAtUtc": "2026-10-12T21:30:09.236Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 376,
+    "top": 167,
+    "width": 330,
+    "height": 270
+  },
+  "description": "A previously closed agent is available to reopen. Search belongs to the dialog header.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/previous-agents-1791840609029.json",
+  "captureSuggestedCrop": {
+    "left": 377,
+    "top": 208,
+    "width": 686,
+    "height": 524
+  },
+  "asset": "previous-agents.png",
+  "assetSha256": "4b6fcc245d450d0cd91568259ce28b4c631fe386f0a829c6d22db4295343f356",
+  "assetPixels": {
+    "width": 330,
+    "height": 270
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

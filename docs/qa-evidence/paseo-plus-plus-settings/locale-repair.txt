@@ -1,0 +1,12 @@
+
+> @getpaseo/app@0.11.2 test
+> vitest run src/i18n/resources.test.ts --bail=1 --maxWorkers=1
+
+
+ RUN  v4.1.7 /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/paseo-plus-plus-settings/packages/app
+
+
+ Test Files  1 passed (1)
+      Tests  40 passed (40)
+   Start at  04:31:37
+   Duration  1.11s (transform 518ms, setup 60ms, import 540ms, tests 359ms, environment 0ms)

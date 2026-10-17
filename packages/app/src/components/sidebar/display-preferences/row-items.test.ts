@@ -6,15 +6,33 @@ import {
 } from "./row-items";
 
 describe("parseSidebarRowItems", () => {
-  it("shows operational metadata but hides identity badges by default", () => {
+  it("shows project and operational metadata by default with branches opt-in", () => {
     expect(DEFAULT_SIDEBAR_ROW_ITEMS).toEqual({
       branch: false,
-      project: false,
+      project: true,
       host: true,
       changeRequest: true,
       services: true,
       labels: true,
     });
+  });
+
+  it.each([undefined, null, {}, { branch: null }, { branch: "true" }])(
+    "keeps missing or invalid branch visibility opt-in for %j",
+    (stored) => {
+      const parsed = parseSidebarRowItems(stored);
+      expect(parsed.branch).toBe(false);
+      expect(parsed.project).toBe(true);
+    },
+  );
+
+  it.each([
+    { project: false, branch: false },
+    { project: false, branch: true },
+    { project: true, branch: false },
+    { project: true, branch: true },
+  ])("preserves explicit identity choices %j", (stored) => {
+    expect(parseSidebarRowItems(stored)).toEqual({ ...DEFAULT_SIDEBAR_ROW_ITEMS, ...stored });
   });
 
   it("applies stored overrides", () => {

@@ -46,11 +46,16 @@ export function useWorkingDiff({
   const currentBranchName =
     gitStatus?.currentBranch && gitStatus.currentBranch !== "HEAD" ? gitStatus.currentBranch : null;
 
-  const { comparison: diffMode, selectComparison } = useWorkingDiffComparison({
+  const {
+    comparison: diffMode,
+    selectComparison,
+    isLoading: comparisonLoading,
+  } = useWorkingDiffComparison({
     serverId,
     workspaceId,
     cwd,
     isDirty: hasUncommittedChanges,
+    statusReady: status !== null,
   });
   const selectUncommitted = useCallback(() => selectComparison("uncommitted"), [selectComparison]);
   const selectBase = useCallback(() => selectComparison("base"), [selectComparison]);
@@ -66,7 +71,7 @@ export function useWorkingDiff({
     mode: diffMode,
     baseRef,
     ignoreWhitespace,
-    enabled: enabled && isGit,
+    enabled: enabled && isGit && !comparisonLoading,
     queryScope,
   });
   const reviewDraftKey = useMemo(
@@ -104,7 +109,7 @@ export function useWorkingDiff({
     files,
     diffPayloadError,
     diffTooLarge,
-    isDiffLoading,
+    isDiffLoading: isDiffLoading || comparisonLoading,
     reviewActions,
     reviewAttachment,
   };

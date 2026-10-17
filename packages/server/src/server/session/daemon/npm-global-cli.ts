@@ -1,9 +1,14 @@
 import { lstatSync } from "node:fs";
+import semver from "semver";
+import { downloadForkPreview, resolveForkPreview } from "./fork-preview.js";
 import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import { z } from "zod";
 import { execCommand } from "../../../utils/spawn.js";
 
-export const PASEO_CLI_PACKAGE = "@getpaseo/cli";
+import { daemonDistribution, FORK_DAEMON_PACKAGE } from "../../daemon-distribution.js";
+
+export { FORK_DAEMON_PACKAGE };
+export const PASEO_CLI_PACKAGE = daemonDistribution.cliPackage;
 
 const NPM_PROBE_TIMEOUT_MS = 10_000;
 const NPM_INSTALL_TIMEOUT_MS = 300_000;
@@ -50,6 +55,7 @@ export interface NpmGlobalPaseoInstall {
 }
 
 export interface NpmGlobalPaseoCli {
+  getNewerVersion(currentVersion: string): Promise<string | null>;
   inspect(options?: NpmGlobalOptions): Promise<NpmGlobalPaseoInstall>;
   installLatest(options?: NpmGlobalOptions): Promise<CommandResult>;
 }
@@ -89,7 +95,10 @@ async function runExternalCommand(
   }
 }
 
-function parseNpmGlobalPaseoInstall(stdout: string): NpmGlobalPaseoInstall | null {
+function parseNpmGlobalPaseoInstall(
+  stdout: string,
+  packageName: string,
+): NpmGlobalPaseoInstall | null {
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(stdout);
@@ -102,7 +111,7 @@ function parseNpmGlobalPaseoInstall(stdout: string): NpmGlobalPaseoInstall | nul
     return null;
   }
 
-  const rawCliPackage = list.data.dependencies?.[PASEO_CLI_PACKAGE];
+  const rawCliPackage = list.data.dependencies?.[packageName];
   const cliPackage = NpmGlobalCliPackageSchema.safeParse(rawCliPackage);
   if (!cliPackage.success) {
     return null;
@@ -119,13 +128,16 @@ function parseNpmGlobalPaseoInstall(stdout: string): NpmGlobalPaseoInstall | nul
 }
 
 export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
-  constructor(private readonly runCommand: CommandRunner = runExternalCommand) {}
+  constructor(
+    private readonly runCommand: CommandRunner = runExternalCommand,
+    private readonly packageName: string = PASEO_CLI_PACKAGE,
+  ) {}
 
   async inspect(options: NpmGlobalOptions = {}): Promise<NpmGlobalPaseoInstall> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
     const result = await this.runCommand(
       "npm",
-      ["-g", "ls", PASEO_CLI_PACKAGE, "--json", "--depth=0", "--long", ...prefixArgs],
+      ["-g", "ls", this.packageName, "--json", "--depth=0", "--long", ...prefixArgs],
       {
         timeout: NPM_PROBE_TIMEOUT_MS,
         maxBuffer: NPM_MAX_BUFFER_BYTES,
@@ -136,16 +148,59 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
       throw new Error(result.stderr.trim() || "npm is not available on this host");
     }
 
-    const install = parseNpmGlobalPaseoInstall(result.stdout);
+    const install = parseNpmGlobalPaseoInstall(result.stdout, this.packageName);
     if (!install) {
-      throw new Error(`${PASEO_CLI_PACKAGE} is not installed with npm -g on this host`);
+      throw new Error(`${this.packageName} is not installed with npm -g on this host`);
     }
     return install;
   }
 
-  installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
+  /** Use the same release channel as installation; fork builds have a durable preview counter. */
+  async getNewerVersion(currentVersion: string): Promise<string | null> {
+    if (this.packageName === FORK_DAEMON_PACKAGE) {
+      const preview = await resolveForkPreview();
+      return isNewerDaemonVersion({
+        current: currentVersion,
+        candidate: preview.version,
+        distribution: "fork",
+      })
+        ? preview.version
+        : null;
+    }
+    const result = await this.runCommand(
+      "npm",
+      ["view", `${this.packageName}@latest`, "version", "--json"],
+      {
+        timeout: NPM_PROBE_TIMEOUT_MS,
+        maxBuffer: NPM_MAX_BUFFER_BYTES,
+      },
+    );
+    if (result.exitCode !== 0)
+      throw new Error(result.stderr.trim() || "Unable to check npm update");
+    const version = z.string().parse(JSON.parse(result.stdout));
+    return isNewerDaemonVersion({
+      current: currentVersion,
+      candidate: version,
+      distribution: "upstream",
+    })
+      ? version
+      : null;
+  }
+
+  async installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
-    return this.runCommand("npm", ["install", "-g", `${PASEO_CLI_PACKAGE}@latest`, ...prefixArgs], {
+    if (this.packageName === FORK_DAEMON_PACKAGE) {
+      const download = await downloadForkPreview();
+      try {
+        return await this.runCommand("npm", ["install", "-g", download.file, ...prefixArgs], {
+          timeout: NPM_INSTALL_TIMEOUT_MS,
+          maxBuffer: NPM_MAX_BUFFER_BYTES,
+        });
+      } finally {
+        await download.cleanup();
+      }
+    }
+    return this.runCommand("npm", ["install", "-g", `${this.packageName}@latest`, ...prefixArgs], {
       timeout: NPM_INSTALL_TIMEOUT_MS,
       maxBuffer: NPM_MAX_BUFFER_BYTES,
     });
@@ -153,3 +208,26 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
 }
 
 export const npmGlobalPaseoCli = new DefaultNpmGlobalPaseoCli();
+
+interface DaemonVersionComparison {
+  current: string;
+  candidate: string;
+  distribution: "fork" | "upstream";
+}
+
+/** Compare only known channel versions; unknown versions cannot establish update eligibility. */
+export function isNewerDaemonVersion({
+  current,
+  candidate,
+  distribution,
+}: DaemonVersionComparison): boolean {
+  if (distribution === "fork") {
+    const pattern = /^\d+\.\d+\.\d+-preview\.(\d+)$/;
+    const currentBuild = pattern.exec(current);
+    const candidateBuild = pattern.exec(candidate);
+    if (!currentBuild || !candidateBuild) return false;
+    return BigInt(candidateBuild[1]) > BigInt(currentBuild[1]);
+  }
+  if (!semver.valid(current) || !semver.valid(candidate)) return false;
+  return semver.gt(candidate, current);
+}

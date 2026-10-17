@@ -382,6 +382,7 @@ function shouldPreserveReplacementContinuity(input: {
   return input.currentEpoch === input.responseEpoch || !input.reset;
 }
 
+/** Replace overlapping window rows after matching user presentations, preserving local attachments. */
 function mergeTimelineWindow(args: {
   timelineUnits: TimelineUnit[];
   payload: ProcessTimelineResponseInput["payload"];
@@ -417,10 +418,11 @@ function mergeTimelineWindow(args: {
     epoch: payload.epoch,
     currentEndSeq: currentCursor.endSeq,
   });
-  const retainedTail = projected.tail.filter((item) => {
+  const isOutsideWindow = (item: StreamItem) => {
     const cursor = item.timelineCursor;
     return cursor?.epoch !== payload.epoch || cursor.seq < startSeq || cursor.seq > endSeq;
-  });
+  };
+  const retainedTail = projected.tail.filter(isOutsideWindow);
   const retainedHead = projected.head;
   const reservedItemIds = new Set([...retainedTail, ...retainedHead].map((item) => item.id));
   const hydrated = hydrateStreamState(
@@ -432,10 +434,12 @@ function mergeTimelineWindow(args: {
   );
   const reconciled = reconcilePromptWindowItems({
     hydrated,
-    tail: retainedTail,
+    // Match user identities before dropping covered rows: canonical pages do not
+    // contain the device-local image metadata attached to the original submission.
+    tail: projected.tail.filter((item) => item.kind === "user_message" || isOutsideWindow(item)),
     head: retainedHead,
   });
-  const tail = [...reconciled.tail, ...reconciled.page]
+  const tail = [...reconciled.tail.filter(isOutsideWindow), ...reconciled.page]
     .map((item, order) => ({ item, order }))
     .sort((left, right) => {
       const leftSeq = left.item.timelineCursor?.seq ?? Number.POSITIVE_INFINITY;

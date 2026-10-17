@@ -22,7 +22,9 @@ export function getForkOverview(readme) {
     .slice(start + startMarker.length, end)
     .trim()
     .replaceAll("\r\n", "\n");
-  if (!section.startsWith("## Ryan's Paseo fork\n") || section.length < 100) {
+  // PR review reads historical base revisions that still use the original heading.
+  const hasHeading = /^(?:# Paseo\+\+|## Ryan's Paseo fork)\n/.test(section);
+  if (!hasHeading || section.length < 100) {
     throw new Error("The fork overview must contain its heading and a description of the fork.");
   }
   return section;

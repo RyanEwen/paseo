@@ -1,4 +1,197 @@
 export const en = {
+  settingsSync: {
+    title: "Settings sync",
+    hint: "Sync app preferences and sidebar item visibility through one chosen host. Host/project filters, workspace order and collapsed groups stay local. Switching loads saved settings before editing.",
+    host: "Settings host",
+    deviceOnly: "This device only",
+    unavailableHost: "Selected host unavailable",
+    status: "Status",
+    publish: "Use this device settings",
+    publishHint:
+      "This host has no saved app settings. Publishing copies your current preferences to it.",
+    useHost: "Use host settings",
+    keepDevice: "Publish my changes",
+    keepDeviceHint:
+      "Explicitly overwrite conflicting preferences on {{host}} with your pending changes. Other preferences are preserved.",
+    restore: "Restore device settings",
+    restoreHint: "Stop syncing and restore the preferences saved before adopting this host.",
+    conflictHint:
+      "These preferences changed on another client. Use {{host}} settings to discard only its pending edits.",
+    retryHint: "Reconnect and read settings again. Pending edits stay with their original host.",
+    states: {
+      loading: "Loading sync configuration",
+      local: "Preferences are saved on this device",
+      reading: "Waiting to load the selected host",
+      ready: "Connected. Pending changes: {{count}}",
+      offline: "Offline. Pending changes: {{count}}",
+      empty: "No settings published on this host",
+      unsupported: "Update this host to sync app settings",
+      error: "Settings could not be synced. Your pending edits are retained.",
+      conflict: "Conflicting changes need your choice",
+      readonly: "This connection can read settings but cannot change them",
+    },
+  },
+  paseoPlusPlus: {
+    workspaceLimit: {
+      save: "Save",
+      title: "Workspace limits",
+      label: "Initially show per group",
+      limited: "Limited",
+      all: "Show all",
+      count: "Workspace count",
+      invalid: "Enter a positive whole number.",
+    },
+    examples: {
+      annotated: "Arrows highlight the feature.",
+      before: "Before the status change",
+      after: "After the status change",
+      imageLabel: "{{title}} example",
+      positions:
+        "Settled positions before and after a status change. These still images do not show animation timing.",
+      explorer: "Example of the Changes list and working-copy diff.",
+      workspaceLimit:
+        "Choose a starting count for each group or Show all. Groups you have expanded stay expanded.",
+    },
+    loadFailed: "Unable to load saved preferences. Retry before changing features.",
+    saving: "Saving...",
+    title: "Paseo++",
+    optional: "Optional features",
+    optionalHint:
+      "Optional feature switches start on. Display preferences have independent defaults; Expand one project at a time starts off. Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
+    preferences: "Workspace sidebar controls",
+    fixes: "Fixes and fork essentials",
+    fixesHint: "These improvements stay enabled",
+    additions: "Other additions",
+    additionsHint: "These workflows remain available",
+    saveFailed: "Unable to save. Try again.",
+    features: {
+      workspaceChatLinks: {
+        label: "Open chat links in Paseo",
+        hint: "Open web links from workspace chats in that workspace’s browser on desktop. Turn off to use your external browser. Open in Paseo remains in the link menu.",
+      },
+      sidebarHostUpdates: {
+        label: "Host updates in the sidebar",
+        hint: "Show host update actions in the host menu. Host settings remain available when this is off.",
+      },
+      splitLayoutPresets: {
+        label: "Split layout controls",
+        hint: "Click the desired region in a split diagram to open or move a tab there. In 60/40, the right or bottom region gets 40%. Divider presets resize existing panes. Turn off to hide these controls without changing your layout.",
+      },
+      mobileWorkspaceTabs: {
+        label: "Mobile workspace tabs",
+        hint: "Show a scrolling tab strip in compact workspaces. Turn off to use the earlier tab chooser without changing the selected tab.",
+      },
+
+      descriptiveToolCalls: {
+        label: "Readable tool activity",
+        hint: "Describe known operations while keeping exact commands and output in details. Turn off to restore classic labels.",
+      },
+
+      sidebarProjectSelector: {
+        label: "Selected project in heading",
+        hint: "Show the selected project name in the workspace heading. Off uses Workspaces; host and project choices remain available.",
+      },
+      stickyUserPrompts: {
+        label: "Keep user prompts in view",
+        hint: "Keep the current prompt above the chat, with expansion and previous/next navigation",
+      },
+      previousAgents: {
+        label: "Previous agents",
+        hint: "Reopen closed or archived conversations from the workspace + menu",
+      },
+      sidebarActivityChips: {
+        label: "Project activity chips",
+        hint: "Show project activity and working workspace counts",
+      },
+      sidebarProjectEmphasis: {
+        label: "Bold project names",
+        hint: "Emphasize project headings in the sidebar",
+      },
+      sidebarBulkActions: {
+        label: "Expand and collapse all",
+        hint: "Show controls for all visible sidebar groups",
+      },
+      projectPinning: {
+        label: "Pin workspaces within projects",
+        hint: "Keep selected workspaces first in their project and mark them with a pin beside the name. Saved pins return when re-enabled.",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "Animate workspace moves",
+        hint: "Use quick transitions when workspace positions change, including when projects expand or collapse",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Automatic Android update checks",
+        hint: "Check for previews on startup and resume. Manual check and installation remain available.",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "Modes, filters and display",
+        hint: "Use the bell in the workspace sidebar to switch Project and Status modes. The filter icon opens quick text filtering. In Display, Workspace limits sets count and age independently, and Empty projects offers Show, Group or Hide. Each mode keeps its own preferences.",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Paseo++ links",
+        hint: "Open the fork repository and published release notes. Upstream issue, sponsorship and Discord actions are removed.",
+      },
+      backgroundBrowser: {
+        label: "Background browser automation",
+        hint: "Desktop agents can use tabs with a hidden pane, unfocused app or minimized window",
+      },
+      notifications: {
+        label: "Notification targets",
+        hint: "Notifications open the owning workspace and chat, including after desktop restarts",
+      },
+      reading: {
+        label: "Steadier reading",
+        hint: "Image resizing preserves visible text on desktop and web; prompt and history loading recover correctly",
+      },
+      mobile: {
+        label: "Mobile navigation",
+        hint: "Larger tab-switcher touch targets, safer Android Back behavior and separate development notifications",
+      },
+      pickers: {
+        label: "Workspace pickers and status",
+        hint: "Clearer setup order, full-value tooltips, status recency and preserved sidebar collapse choices",
+      },
+      identity: {
+        label: "Independent fork installations",
+        hint: "Separate Paseo++ app and daemon identities, settings and updates; verified Android downloads",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Android SSH hosts",
+        hint: "Import keys, verify fingerprints and save encrypted credentials to connect directly from Android",
+      },
+      worktrees: {
+        label: "Branch and worktree choices",
+        hint: "Create or adopt worktrees with explicit branch and folder names on hosts that support these choices; retry keeps existing work",
+      },
+      video: {
+        label: "Android plugin video",
+        hint: "Compatible plugins can play encoded video on Android with decoder recovery. A video-providing plugin is required.",
+      },
+    },
+  },
+
+  androidUpdates: {
+    title: "App update",
+    idle: "Check for new fork previews.",
+    checking: "Checking for updates…",
+    current: "You have the latest published preview.",
+    available: "Preview {{version}} is available.",
+    downloading: "Preparing the update download…",
+    downloadProgress: "Downloading {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "Downloading {{downloaded}}…",
+    verifying: "Verifying the downloaded update…",
+    permission:
+      "Allow updates from this app in Android Settings, then return and tap Install update again.",
+    installer: "Finish installation in Android. If you cancelled, tap Install update to try again.",
+    install: "Install update",
+    failed: "Unable to update. Try again.",
+  },
   paneFind: {
     connectionFailure: "Could not search this chat. Check the host connection and retry.",
     historyChangedFailure: "The chat changed while searching. Search again.",
@@ -223,6 +416,23 @@ export const en = {
       mode: "Change mode",
     },
   },
+  stickyPrompt: {
+    goToMessage: "Go to this message",
+    more: "more…",
+    less: "less…",
+    none: "No user messages in this chat.",
+    cancelled: "Loading cancelled.",
+    moreHistory: "More history is available. Retry to continue looking.",
+
+    latest: "Latest user message",
+    selected: "User message",
+    expand: "Expand user message",
+    collapse: "Collapse user message",
+    previous: "Previous user message",
+    next: "Next user message",
+    failed: "Could not load user messages.",
+    attachments: "{{count}} attachments",
+  },
   agentStream: {
     empty: "Start chatting with this agent...",
     scrollToBottom: "Scroll to bottom",
@@ -271,6 +481,10 @@ export const en = {
     },
   },
   sessions: {
+    previousTitle: "Reopen closed agent",
+    previousEmpty: "No closed agents in this workspace",
+    workspaceHistoryUpdateRequired: "Update this host to view previous workspace agents.",
+
     title: "History",
     empty: "No sessions yet",
     noMatches: "No sessions match",
@@ -429,6 +643,22 @@ export const en = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Open {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Move tab: {{side}}, {{percent}}%",
+      openToSide: "Open {{item}} to the side",
+      chooseRatio: "Choose split ratio",
+      ratio: "Use {{ratio}} split",
+      moveTab: "Move tab",
+      left: "Left",
+      right: "Right",
+      top: "Top",
+      bottom: "Bottom",
+      columns: "Left / right",
+      rows: "Top / bottom",
+      pane: "Pane {{index}}",
+    },
+
     route: {
       loading: "Loading workspace",
       connecting: "Connecting",
@@ -564,6 +794,8 @@ export const en = {
       },
     },
     browser: {
+      openInPaseo: "Open in Paseo browser",
+      openExternally: "Open in external browser",
       unavailable: {
         title: "Browser is desktop-only",
         subtitle: "Open this workspace in Electron to use the built-in browser.",
@@ -591,14 +823,6 @@ export const en = {
         placeholder: "Message to the agent about this element…",
         submit: "Attach",
         cancel: "Cancel",
-      },
-      extensions: {
-        label: "Extensions",
-        empty: "No enabled extensions.",
-        noPopup: "No popup provided",
-        loading: "Loading extensions...",
-        manage: "Manage extensions",
-        openFailed: "Couldn't open extension",
       },
       devices: {
         label: "Device size",
@@ -1154,15 +1378,58 @@ export const en = {
     },
   },
   sidebar: {
+    projectSelector: {
+      noKnownProjects: "No known projects for this host yet.",
+      selectOnlyProject: "Show only {{project}}",
+      includeProject: "Include {{project}}",
+      workspaces: "Workspaces",
+      all: "All",
+      allWorkspaces: "All Workspaces",
+      projectWorkspaces: "{{project}} Workspaces",
+      multipleWorkspaces_one: "{{count}} Project’s Workspaces",
+      multipleWorkspaces_other: "{{count}} Projects’ Workspaces",
+      title: "Projects",
+    },
     statusGroupAccessibility: "{{label}} group",
     statusBucket: {
+      workingCount: "{{count}} working",
       needsInput: "Needs input",
       failed: "Failed",
       readyToReview: "Ready to review",
       working: "Working",
       done: "Done",
     },
+    quickFilter: {
+      open: "Filter projects and workspaces",
+      close: "Close and clear quick filter",
+      placeholder: "Filter projects or workspaces…",
+      clear: "Clear quick filter",
+      emptyTitle: "No matching projects or workspaces",
+      emptyDescription: "Try another name or clear this mode’s quick filter.",
+      guidance:
+        "Use the filter icon to search names and visible branches in this mode. Count and age limits still apply; Show more reveals all matching rows.",
+    },
     display: {
+      modeToggle: "{{current}} view. Switch to {{next}} view.",
+      workspaceList: {
+        countLimit: "Count limit",
+        updatedWithin: "Updated within",
+        day: "1 day",
+        twoDays: "2 days",
+        threeDays: "3 days",
+        fiveDays: "5 days",
+        week: "1 week",
+        twoWeeks: "2 weeks",
+        month: "1 month",
+        twoMonths: "2 months",
+        threeMonths: "3 months",
+      },
+      expandAll: "Expand all",
+      collapseAll: "Collapse all",
+      oneProjectAtATime: "Expand one project at a time",
+      reorderGuidance:
+        "Drag to reorder only with Custom sorting. Filtered project moves keep the same before/after neighbor when all projects are shown. Pins always use manual ordering.",
+      showBackground: "Show background workspaces",
       trigger: "Display preferences",
       heading: "Display",
       grouping: {
@@ -1180,6 +1447,12 @@ export const en = {
         status: "Status",
         custom: "Custom order",
         emptyProjects: "Sort empty projects",
+      },
+      emptyWorkspaces: {
+        label: "Empty projects",
+        show: "Show",
+        group: "Group",
+        hide: "Hide",
       },
       projectVisibility: {
         label: "Filter",
@@ -1210,7 +1483,7 @@ export const en = {
         none: "Hidden",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "All hosts",
       },
       projectFilter: {
@@ -1246,9 +1519,6 @@ export const en = {
       sectionHelp: "Help",
       diagnostics: "Run diagnostics",
       shortcuts: "Keyboard shortcuts",
-      reportIssue: "Report an issue",
-      discord: "Discord",
-      github: "Create GitHub issue",
       whatsNew: "What's new",
       appName: "Paseo",
     },
@@ -1314,7 +1584,9 @@ export const en = {
         copyPath: "Copy path",
         copyBranchName: "Copy branch name",
         rename: "Rename workspace",
-        pin: "Pin to top",
+        pin: "Pin to sidebar top",
+        pinInProject: "Pin in project",
+        unpinInProject: "Unpin in project",
         unpin: "Unpin",
         archive: "Archive",
         archiveWorkspace: "Archive workspace",
@@ -1335,6 +1607,7 @@ export const en = {
         invalidBranchName: "Invalid branch name",
       },
       toasts: {
+        updateHostToPinInProject: "Update this host to pin workspaces in a project.",
         workspacePathUnavailable: "Workspace path not available",
         pathCopied: "Path copied",
         branchNameCopied: "Branch name copied",
@@ -1753,7 +2026,7 @@ export const en = {
       },
       remoteSsh: {
         title: "Remote SSH",
-        description: "Connect through the desktop SSH client.",
+        description: "Connect over SSH.",
       },
       scanQr: {
         title: "Scan QR code",
@@ -2020,6 +2293,69 @@ export const en = {
     input: "Input",
     output: "Output",
   },
+  toolActivity: {
+    files: { intent: "Change files", running: "Changing files", completed: "Changed files" },
+    read: {
+      intent: "Read",
+      running: "Reading",
+      completed: "Read",
+    },
+    edit: {
+      intent: "Edit",
+      running: "Editing",
+      completed: "Edited",
+    },
+    write: {
+      intent: "Write",
+      running: "Writing",
+      completed: "Wrote",
+    },
+    create: {
+      intent: "Create",
+      running: "Creating",
+      completed: "Created",
+    },
+    delete: {
+      intent: "Delete",
+      running: "Deleting",
+      completed: "Deleted",
+    },
+    search: {
+      intent: "Search",
+      running: "Searching",
+      completed: "Searched",
+    },
+    list: {
+      intent: "List files",
+      running: "Listing files",
+      completed: "Listed files",
+    },
+    command: {
+      intent: "Run command",
+      running: "Running command",
+      completed: "Ran command",
+    },
+    script: {
+      intent: "Run script",
+      running: "Running script",
+      completed: "Ran script",
+    },
+    activity: {
+      intent: "Run operations",
+      running: "Running operations",
+      completed: "Ran operations",
+    },
+    failed: "Failed: {{action}}",
+    canceled: "Canceled: {{action}}",
+    counts: {
+      editedFiles: { one: "{{count}} file operation", other: "{{count}} file operations" },
+      commands: { one: "{{count}} command", other: "{{count}} commands" },
+      readFiles: { one: "{{count}} file read", other: "{{count}} file reads" },
+      searches: { one: "{{count}} search", other: "{{count}} searches" },
+      otherTools: { one: "{{count}} other operation", other: "{{count}} other operations" },
+      paseoCalls: { one: "{{count}} Paseo call", other: "{{count}} Paseo calls" },
+    },
+  },
   toolCallGroup: {
     editedFiles: {
       one: "edited {{count}} file",
@@ -2112,6 +2448,28 @@ export const en = {
       about: "About",
     },
     layout: {
+      explorer: {
+        title: "Explorer",
+        comparison: {
+          label: "Default comparison",
+          description: "Used when this workspace has no saved comparison.",
+          options: { uncommitted: "Uncommitted", base: "Committed" },
+        },
+        autoSwitch: {
+          label: "Automatically switch comparison",
+          description:
+            "Show Uncommitted when there are local changes and Committed otherwise. Turn off to remember your selection.",
+        },
+        autoOpen: {
+          label: "Open sidebar for new workspaces",
+          description: "Automatically show the Explorer sidebar in new desktop workspaces.",
+        },
+        diffScope: {
+          label: "Clicking a file in Changes",
+          description: "Choose how many changed files appear in the diff.",
+          options: { all: "All changed files", single: "Selected file only" },
+        },
+      },
       openInSidePane: {
         title: "Open location",
         destinations: {
@@ -2262,25 +2620,6 @@ export const en = {
     general: {
       title: "General",
       sending: "Sending",
-      browserExtensions: {
-        title: "Extensions",
-        compatibility:
-          "Some Chrome extension features are unsupported. Extensions are not updated automatically.",
-        store: "Chrome Web Store",
-        openStore: "Open Web Store",
-        refresh: "Refresh",
-        enable: "Enable",
-        disable: "Disable",
-        retry: "Retry",
-        remove: "Remove",
-        removeTitle: "Remove {{name}}?",
-        removeMessage: "This removes the extension from Paseo. Unpacked source folders are kept.",
-        loading: "Loading extensions...",
-        empty: "No extensions installed.",
-        unpackedHint: "Load an extension from a folder containing manifest.json.",
-        loadUnpacked: "Load unpacked",
-        unavailable: "Extension support is unavailable. Update the desktop app.",
-      },
       browserData: {
         title: "Browser data",
         siteData: "Cookies and site data",
@@ -2405,6 +2744,21 @@ export const en = {
       },
     },
     appearance: {
+      accent: {
+        title: "Accent color",
+        hint: "Used for primary controls and your messages",
+        updateHost: "Update your selected settings host to change the accent color",
+        preview: "This is how your messages will look",
+        options: {
+          default: "Default",
+          blue: "Blue",
+          green: "Green",
+          purple: "Purple",
+          rose: "Rose",
+          orange: "Orange",
+          teal: "Teal",
+        },
+      },
       theme: {
         title: "Theme",
         accessibilityLabel: "Theme: {{value}}",

@@ -1,0 +1,380 @@
+[metro] Starting project at /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/source/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:40997
+[metro] Logs for your project will appear below.
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓░░░░░░░░░ 43.8% (1201/1814)
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (5500/5500)
+[metro] Web Bundled 5566ms packages/app/index.ts (5501 modules)
+[metro] Web Bundled 313ms packages/app/index.ts (1 module)
+[e2e] Metro warmed on port 40997
+
+Running 1 test using 1 worker
+
+(node:49411) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:49411) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 37411, home: /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/homes-attempt2/worker-0
+SCENE desktop-on opening 67f58255-bdf0-4e4a-b936-efc252b389f5
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 487ms packages/app/index.ts (1 module)
+[desktop-on:console:info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[desktop-on:console:log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[metro]  LOG  [web] Logs will appear in the browser console
+[desktop-on:console:warning] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[desktop-on:console:warning] Require cycle: src/plugins/registry.ts -> src/plugins/client-runtime.ts -> src/runtime/host-runtime.ts -> src/desktop/browser/automation/handler.ts -> src/stores/workspace-layout-store.ts -> src/plugins/workspace-panels/locations.ts -> src/plugins/registry.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-on:console:warning] Require cycle: src/runtime/host-runtime.ts -> src/runtime/directory-sync/index.ts -> src/runtime/directory-sync/agent-replica.ts -> src/hooks/use-archive-agent.ts -> src/runtime/host-runtime.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-on:console:warning] Require cycle: src/plugins/themes/index.ts -> src/plugins/registry.ts -> src/plugins/evaluate.ts -> src/plugins/themes/index.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-on:console:warning] Require cycle: src/components/sidebar-workspace-list.tsx -> src/components/sidebar/sidebar-status-list.tsx -> src/components/sidebar/sidebar-workspace-row-content.tsx -> src/components/workspace-hover-card.tsx -> src/components/sidebar-workspace-list.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-on:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/agent-panel.tsx -> src/panels/agent-tracks.tsx -> src/subagents/track.tsx -> src/screens/workspace/workspace-tab-presentation.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-on:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/new-tab-panel.tsx -> src/workspace-tabs/launcher/index.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-on:console:warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[desktop-on:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. uniProps uniprops
+[metro] Web Bundled 138ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[desktop-on:console:warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+SCENE desktop-on route settled
+[desktop-on:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. accessibilityElementsHidden accessibilityelementshidden
+[desktop-on:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. importantForAccessibility importantforaccessibility
+CAPTURE desktop-on labels /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-labels.png
+[desktop-on:console:error] In HTML, %s cannot be a descendant of <%s>.
+This will cause a hydration error.%s <button> button 
+
+  ...
+    <View onLayout={function} collapsable={false} ref={function} style={[...]}>
+      <div dir={null} ref={function forwardRef} className={"css-view..."}>
+        <ToolCallSlot itemId="agent_tool..." onInlineDetailsExpandedChangeByItemId={function} toolName="shell" ...>
+          <ToolCall toolName="shell" error={null} status="completed" detail={{type:"shell", ...}} cwd="/home/rewe..." ...>
+            <ExpandableBadge testID="tool-call-..." label="Read" secondaryLabel="src/notifi..." icon={{...}} ...>
+              <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function}>
+                <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function} ...>
+                  <div onPointerEnter={function} onPointerLeave={function} dir={null} ref={function forwardRef} ...>
+                    <Pressable onPress={function t9} onPressIn={function} onPressOut={function} ...>
+                      <View accessibilityRole="button" accessibilityState={{expanded:false}} ...>
+>                       <button
+>                         onKeyDown={function}
+>                         onClick={function onClick}
+>                         onContextMenu={function}
+>                         onBlur={function}
+>                         onFocus={function}
+>                         dir={null}
+>                         ref={function forwardRef}
+>                         role="button"
+>                         tabIndex={0}
+>                         className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_1tr28apukrs "}
+>                         type="button"
+>                       >
+                          ...
+                            <Pressable onPress={function} onHoverIn={function} onHoverOut={function} ...>
+                              <View accessibilityRole="button" accessibilityLabel="Open file" testID="tool-call-..." ...>
+>                               <button
+>                                 onKeyDown={function}
+>                                 onClick={function onClick}
+>                                 onContextMenu={function}
+>                                 onBlur={function}
+>                                 onFocus={function}
+>                                 dir={null}
+>                                 ref={function forwardRef}
+>                                 aria-label="Open file"
+>                                 role="button"
+>                                 tabIndex={0}
+>                                 className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_czvek6..."}
+>                                 data-testid="tool-call-open-file"
+>                                 type="button"
+>                               >
+        ...
+
+[desktop-on:console:error] <%s> cannot contain a nested %s.
+See this log for the ancestor stack trace. button <button>
+CAPTURE desktop-on read /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-read.png
+CAPTURE desktop-on files /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-files.png
+CAPTURE desktop-on opaque /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-on-opaque.png
+SCENE desktop-off opening 8ff4b3a6-9662-4602-8eda-f18d09010f45
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 579ms packages/app/index.ts (1 module)
+[desktop-off:console:info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[desktop-off:console:log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[metro]  LOG  [web] Logs will appear in the browser console
+[desktop-off:console:warning] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[desktop-off:console:warning] Require cycle: src/plugins/registry.ts -> src/plugins/client-runtime.ts -> src/runtime/host-runtime.ts -> src/desktop/browser/automation/handler.ts -> src/stores/workspace-layout-store.ts -> src/plugins/workspace-panels/locations.ts -> src/plugins/registry.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-off:console:warning] Require cycle: src/runtime/host-runtime.ts -> src/runtime/directory-sync/index.ts -> src/runtime/directory-sync/agent-replica.ts -> src/hooks/use-archive-agent.ts -> src/runtime/host-runtime.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-off:console:warning] Require cycle: src/plugins/themes/index.ts -> src/plugins/registry.ts -> src/plugins/evaluate.ts -> src/plugins/themes/index.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-off:console:warning] Require cycle: src/components/sidebar-workspace-list.tsx -> src/components/sidebar/sidebar-status-list.tsx -> src/components/sidebar/sidebar-workspace-row-content.tsx -> src/components/workspace-hover-card.tsx -> src/components/sidebar-workspace-list.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-off:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/agent-panel.tsx -> src/panels/agent-tracks.tsx -> src/subagents/track.tsx -> src/screens/workspace/workspace-tab-presentation.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-off:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/new-tab-panel.tsx -> src/workspace-tabs/launcher/index.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[desktop-off:console:warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[metro] Web Bundled 26ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[desktop-off:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. uniProps uniprops
+[desktop-off:console:warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+SCENE desktop-off route settled
+[desktop-off:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. accessibilityElementsHidden accessibilityelementshidden
+[desktop-off:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. importantForAccessibility importantforaccessibility
+CAPTURE desktop-off labels /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-labels.png
+[desktop-off:console:error] In HTML, %s cannot be a descendant of <%s>.
+This will cause a hydration error.%s <button> button 
+
+  ...
+    <View onLayout={function} collapsable={false} ref={function} style={[...]}>
+      <div dir={null} ref={function forwardRef} className={"css-view..."}>
+        <ToolCallSlot itemId="agent_tool..." onInlineDetailsExpandedChangeByItemId={function} toolName="shell" ...>
+          <ToolCall toolName="shell" error={null} status="completed" detail={{type:"shell", ...}} cwd="/home/rewe..." ...>
+            <ExpandableBadge testID="tool-call-..." label="Shell" secondaryLabel="cat src/no..." icon={{...}} ...>
+              <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function}>
+                <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function} ...>
+                  <div onPointerEnter={function} onPointerLeave={function} dir={null} ref={function forwardRef} ...>
+                    <Pressable onPress={function t9} onPressIn={function} onPressOut={function} ...>
+                      <View accessibilityRole="button" accessibilityState={{expanded:false}} ...>
+>                       <button
+>                         onKeyDown={function}
+>                         onClick={function onClick}
+>                         onContextMenu={function}
+>                         onBlur={function}
+>                         onFocus={function}
+>                         dir={null}
+>                         ref={function forwardRef}
+>                         role="button"
+>                         tabIndex={0}
+>                         className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_1tr28apukrs "}
+>                         type="button"
+>                       >
+                          ...
+                            <Pressable onPress={function} onHoverIn={function} onHoverOut={function} ...>
+                              <View accessibilityRole="button" accessibilityLabel="Open file" testID="tool-call-..." ...>
+>                               <button
+>                                 onKeyDown={function}
+>                                 onClick={function onClick}
+>                                 onContextMenu={function}
+>                                 onBlur={function}
+>                                 onFocus={function}
+>                                 dir={null}
+>                                 ref={function forwardRef}
+>                                 aria-label="Open file"
+>                                 role="button"
+>                                 tabIndex={0}
+>                                 className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_czvek6..."}
+>                                 data-testid="tool-call-open-file"
+>                                 type="button"
+>                               >
+        ...
+
+[desktop-off:console:error] <%s> cannot contain a nested %s.
+See this log for the ancestor stack trace. button <button>
+CAPTURE desktop-off read /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-read.png
+CAPTURE desktop-off files /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-files.png
+CAPTURE desktop-off opaque /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/desktop-off-opaque.png
+SCENE compact-on opening c30b2e5f-6b87-4ced-bbe6-07d3e428750b
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 515ms packages/app/index.ts (1 module)
+[compact-on:console:info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[compact-on:console:log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[metro]  LOG  [web] Logs will appear in the browser console
+[compact-on:console:warning] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[compact-on:console:warning] Require cycle: src/plugins/registry.ts -> src/plugins/client-runtime.ts -> src/runtime/host-runtime.ts -> src/desktop/browser/automation/handler.ts -> src/stores/workspace-layout-store.ts -> src/plugins/workspace-panels/locations.ts -> src/plugins/registry.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-on:console:warning] Require cycle: src/runtime/host-runtime.ts -> src/runtime/directory-sync/index.ts -> src/runtime/directory-sync/agent-replica.ts -> src/hooks/use-archive-agent.ts -> src/runtime/host-runtime.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-on:console:warning] Require cycle: src/plugins/themes/index.ts -> src/plugins/registry.ts -> src/plugins/evaluate.ts -> src/plugins/themes/index.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-on:console:warning] Require cycle: src/components/sidebar-workspace-list.tsx -> src/components/sidebar/sidebar-status-list.tsx -> src/components/sidebar/sidebar-workspace-row-content.tsx -> src/components/workspace-hover-card.tsx -> src/components/sidebar-workspace-list.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-on:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/agent-panel.tsx -> src/panels/agent-tracks.tsx -> src/subagents/track.tsx -> src/screens/workspace/workspace-tab-presentation.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-on:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/new-tab-panel.tsx -> src/workspace-tabs/launcher/index.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-on:console:warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[metro] Web Bundled 24ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[compact-on:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. uniProps uniprops
+SCENE compact-on route settled
+[compact-on:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. accessibilityElementsHidden accessibilityelementshidden
+[compact-on:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. importantForAccessibility importantforaccessibility
+[compact-on:console:error] Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release.
+[compact-on:console:error] Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release.
+CAPTURE compact-on labels /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-labels.png
+[compact-on:console:error] In HTML, %s cannot be a descendant of <%s>.
+This will cause a hydration error.%s <button> button 
+
+  ...
+    <View style={[...]} ref={function}>
+      <div dir={null} ref={function forwardRef} className={"css-view..."}>
+        <ToolCallSlot itemId="agent_tool..." onInlineDetailsExpandedChangeByItemId={function} toolName="shell" ...>
+          <ToolCall toolName="shell" error={null} status="completed" detail={{type:"shell", ...}} cwd="/home/rewe..." ...>
+            <ExpandableBadge testID="tool-call-..." label="Read" secondaryLabel="src/notifi..." icon={{...}} ...>
+              <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function}>
+                <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function} ...>
+                  <div onPointerEnter={function} onPointerLeave={function} dir={null} ref={function forwardRef} ...>
+                    <Pressable onPress={function t9} onPressIn={function} onPressOut={function} ...>
+                      <View accessibilityRole="button" accessibilityState={{expanded:false}} ...>
+>                       <button
+>                         onKeyDown={function}
+>                         onClick={function onClick}
+>                         onContextMenu={function}
+>                         onBlur={function}
+>                         onFocus={function}
+>                         dir={null}
+>                         ref={function forwardRef}
+>                         role="button"
+>                         tabIndex={0}
+>                         className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_1tr28apukrs "}
+>                         type="button"
+>                       >
+                          ...
+                            <Pressable onPress={function} onHoverIn={function} onHoverOut={function} ...>
+                              <View accessibilityRole="button" accessibilityLabel="Open file" testID="tool-call-..." ...>
+>                               <button
+>                                 onKeyDown={function}
+>                                 onClick={function onClick}
+>                                 onContextMenu={function}
+>                                 onBlur={function}
+>                                 onFocus={function}
+>                                 dir={null}
+>                                 ref={function forwardRef}
+>                                 aria-label="Open file"
+>                                 role="button"
+>                                 tabIndex={0}
+>                                 className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_czvek6..."}
+>                                 data-testid="tool-call-open-file"
+>                                 type="button"
+>                               >
+        ...
+
+[compact-on:console:error] <%s> cannot contain a nested %s.
+See this log for the ancestor stack trace. button <button>
+CAPTURE compact-on read /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-read.png
+CAPTURE compact-on files /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-files.png
+CAPTURE compact-on opaque /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-on-opaque.png
+SCENE compact-off opening 234d58b9-20f3-4a97-ad2d-93cb453f8d9a
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 320ms packages/app/index.ts (1 module)
+[compact-off:console:info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[compact-off:console:log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[metro]  LOG  [web] Logs will appear in the browser console
+[compact-off:console:warning] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[compact-off:console:warning] Require cycle: src/plugins/registry.ts -> src/plugins/client-runtime.ts -> src/runtime/host-runtime.ts -> src/desktop/browser/automation/handler.ts -> src/stores/workspace-layout-store.ts -> src/plugins/workspace-panels/locations.ts -> src/plugins/registry.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-off:console:warning] Require cycle: src/runtime/host-runtime.ts -> src/runtime/directory-sync/index.ts -> src/runtime/directory-sync/agent-replica.ts -> src/hooks/use-archive-agent.ts -> src/runtime/host-runtime.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-off:console:warning] Require cycle: src/plugins/themes/index.ts -> src/plugins/registry.ts -> src/plugins/evaluate.ts -> src/plugins/themes/index.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-off:console:warning] Require cycle: src/components/sidebar-workspace-list.tsx -> src/components/sidebar/sidebar-status-list.tsx -> src/components/sidebar/sidebar-workspace-row-content.tsx -> src/components/workspace-hover-card.tsx -> src/components/sidebar-workspace-list.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-off:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/agent-panel.tsx -> src/panels/agent-tracks.tsx -> src/subagents/track.tsx -> src/screens/workspace/workspace-tab-presentation.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-off:console:warning] Require cycle: src/panels/register-panels.ts -> src/panels/new-tab-panel.tsx -> src/workspace-tabs/launcher/index.tsx -> src/panels/register-panels.ts
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[compact-off:console:warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[metro] Web Bundled 19ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[compact-off:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. uniProps uniprops
+SCENE compact-off route settled
+[compact-off:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. accessibilityElementsHidden accessibilityelementshidden
+[compact-off:console:error] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. importantForAccessibility importantforaccessibility
+[compact-off:console:error] Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release.
+[compact-off:console:error] Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release.
+CAPTURE compact-off labels /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-labels.png
+[compact-off:console:error] In HTML, %s cannot be a descendant of <%s>.
+This will cause a hydration error.%s <button> button 
+
+  ...
+    <View style={[...]} ref={function}>
+      <div dir={null} ref={function forwardRef} className={"css-view..."}>
+        <ToolCallSlot itemId="agent_tool..." onInlineDetailsExpandedChangeByItemId={function} toolName="shell" ...>
+          <ToolCall toolName="shell" error={null} status="completed" detail={{type:"shell", ...}} cwd="/home/rewe..." ...>
+            <ExpandableBadge testID="tool-call-..." label="Shell" secondaryLabel="cat src/no..." icon={{...}} ...>
+              <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function}>
+                <View style={[...]} testID="tool-call-..." onPointerEnter={function} onPointerLeave={function} ...>
+                  <div onPointerEnter={function} onPointerLeave={function} dir={null} ref={function forwardRef} ...>
+                    <Pressable onPress={function t9} onPressIn={function} onPressOut={function} ...>
+                      <View accessibilityRole="button" accessibilityState={{expanded:false}} ...>
+>                       <button
+>                         onKeyDown={function}
+>                         onClick={function onClick}
+>                         onContextMenu={function}
+>                         onBlur={function}
+>                         onFocus={function}
+>                         dir={null}
+>                         ref={function forwardRef}
+>                         role="button"
+>                         tabIndex={0}
+>                         className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_1tr28apukrs "}
+>                         type="button"
+>                       >
+                          ...
+                            <Pressable onPress={function} onHoverIn={function} onHoverOut={function} ...>
+                              <View accessibilityRole="button" accessibilityLabel="Open file" testID="tool-call-..." ...>
+>                               <button
+>                                 onKeyDown={function}
+>                                 onClick={function onClick}
+>                                 onContextMenu={function}
+>                                 onBlur={function}
+>                                 onFocus={function}
+>                                 dir={null}
+>                                 ref={function forwardRef}
+>                                 aria-label="Open file"
+>                                 role="button"
+>                                 tabIndex={0}
+>                                 className={"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73 unistyles_czvek6..."}
+>                                 data-testid="tool-call-open-file"
+>                                 type="button"
+>                               >
+        ...
+
+[compact-off:console:error] <%s> cannot contain a nested %s.
+See this log for the ancestor stack trace. button <button>
+CAPTURE compact-off read /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-read.png
+CAPTURE compact-off files /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-files.png
+CAPTURE compact-off opaque /home/rewen/.paseo-plus-plus/worktrees/3m44i0ag/readable-tool-activity/.dev/readable-tool-capture/screens/compact-off-opaque.png
+  ✓  1 e2e/browser/supplemental-capture.spec.ts:180:5 › supplemental durable capture scene (55.0s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  1 passed (1.3m)

@@ -4,7 +4,8 @@ import { addConnectedHostsAndReload, waitForConnectedHost } from "./hosts";
 import { openProjectSettings } from "./project-settings";
 import { selectSettingsHost } from "./settings";
 import { waitForSidebarHydration } from "./workspace-ui";
-import { buildProjectsSettingsRoute } from "@/utils/host-routes";
+import { buildDefaultSettingsRoute, buildProjectsSettingsRoute } from "@/utils/host-routes";
+import { expectAppRoute } from "./route-assertions";
 
 const PROJECT_VISIBILITY_TIMEOUT = 30_000;
 
@@ -70,8 +71,14 @@ export async function expectSeparateProjects(
 export async function beginWorkspaceFromProject(page: Page, projectName: string): Promise<void> {
   const group = projectGroup(page, projectName);
   await expect(group).toBeVisible({ timeout: PROJECT_VISIBILITY_TIMEOUT });
-  await group.hover();
-  await group.getByLabel(`Create a new workspace for ${projectName}`).click();
+  // Group bounds include workspace children; only hovering the header enables its action rail.
+  const projectRow = group.locator('[data-testid^="sidebar-project-row-"]');
+  await expect(projectRow).toHaveCount(1);
+  await projectRow.hover();
+  const createWorkspace = group.getByLabel(`Create a new workspace for ${projectName}`);
+  await expect(createWorkspace).toBeEnabled();
+  await createWorkspace.click();
+  await expect(page).toHaveURL(/\/new(?:\?.*)?$/, { timeout: PROJECT_VISIBILITY_TIMEOUT });
   await expect(page.getByRole("button", { name: "Workspace project", exact: true })).toContainText(
     projectName,
     { timeout: PROJECT_VISIBILITY_TIMEOUT },
@@ -113,10 +120,10 @@ export async function openGroupedProjectSettings(
   input: { serverId: string; projectName: string },
 ): Promise<void> {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/general$/);
+  await expectAppRoute(page, buildDefaultSettingsRoute());
   await selectSettingsHost(page, input.serverId);
   await page.locator('[data-testid="settings-host-section-projects"]:visible').click();
-  await expect(page).toHaveURL(/\/settings\/hosts\/[^/]+\/projects$/);
+  await expectAppRoute(page, buildProjectsSettingsRoute(input.serverId));
   await openProjectSettings(page, input.projectName);
 }
 

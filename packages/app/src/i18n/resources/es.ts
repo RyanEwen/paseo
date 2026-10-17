@@ -2,6 +2,202 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
+  settingsSync: {
+    title: "Sincronización de ajustes",
+    hint: "Sincroniza las preferencias y la visibilidad de la barra lateral con un host elegido. Los filtros de host/proyecto, el orden de espacios y los grupos contraídos siguen siendo locales. Al cambiar se cargan los ajustes antes de editarlos.",
+    host: "Host de ajustes",
+    deviceOnly: "Solo este dispositivo",
+    unavailableHost: "Host seleccionado no disponible",
+    status: "Estado",
+    publish: "Usar los ajustes de este dispositivo",
+    publishHint:
+      "Este host no tiene ajustes guardados. Publicarlos copia tus preferencias actuales al host.",
+    useHost: "Usar los ajustes del host",
+    keepDevice: "Publicar mis cambios",
+    keepDeviceHint:
+      "Sobrescribe explícitamente las preferencias en conflicto de {{host}} con tus cambios pendientes. Las demás preferencias se conservan.",
+    restore: "Restaurar ajustes del dispositivo",
+    restoreHint:
+      "Detén la sincronización y restaura las preferencias guardadas antes de elegir este host.",
+    conflictHint:
+      "Estas preferencias cambiaron en otro cliente. Usa los ajustes de {{host}} para descartar solo sus cambios pendientes.",
+    retryHint:
+      "Vuelve a conectar y a leer los ajustes. Los cambios pendientes permanecen en su host original.",
+    states: {
+      loading: "Cargando configuración",
+      local: "Preferencias guardadas en este dispositivo",
+      reading: "Esperando los ajustes del host elegido",
+      ready: "Conectado. Cambios pendientes: {{count}}",
+      offline: "Sin conexión. Cambios pendientes: {{count}}",
+      empty: "Este host no tiene ajustes publicados",
+      unsupported: "Actualiza este host para sincronizar ajustes",
+      error: "No se pudieron sincronizar los ajustes. Tus cambios pendientes se conservan.",
+      conflict: "Los cambios en conflicto requieren tu elección",
+      readonly: "Esta conexión puede leer los ajustes, pero no cambiarlos",
+    },
+  },
+  paseoPlusPlus: {
+    workspaceLimit: {
+      save: "Guardar",
+      title: "Límites de espacios de trabajo",
+      label: "Mostrar inicialmente por grupo",
+      limited: "Limitado",
+      all: "Mostrar todo",
+      count: "Cantidad de espacios de trabajo",
+      invalid: "Introduce un número entero positivo.",
+    },
+    examples: {
+      annotated: "Las flechas señalan la función.",
+      before: "Antes del cambio de estado",
+      after: "Después del cambio de estado",
+      imageLabel: "Ejemplo de {{title}}",
+      positions:
+        "Posiciones finales antes y después de un cambio de estado. Estas imágenes no muestran la duración de la animación.",
+      explorer: "Ejemplo de la lista de cambios y las diferencias de la copia de trabajo.",
+      workspaceLimit:
+        "Elige una cantidad inicial por grupo o Mostrar todo. Los grupos que hayas expandido permanecen expandidos.",
+    },
+    loadFailed: "No se pudieron cargar las preferencias. Reintenta antes de cambiar funciones.",
+    saving: "Guardando...",
+    title: "Paseo++",
+    optional: "Funciones opcionales",
+    optionalHint:
+      "Los interruptores de funciones opcionales están activados por defecto. Las preferencias de Mostrar tienen valores predeterminados independientes; Expandir un proyecto a la vez está desactivado al inicio. Las opciones siguen al host de ajustes seleccionado al sincronizar. Desactivar una función conserva sus datos y preferencias.",
+    preferences: "Controles de la barra lateral de espacios de trabajo",
+    fixes: "Correcciones y elementos esenciales",
+    fixesHint: "Estas mejoras siguen activas",
+    additions: "Otras mejoras",
+    additionsHint: "Estas funciones siguen disponibles",
+    saveFailed: "No se pudo guardar. Vuelve a intentarlo.",
+    features: {
+      workspaceChatLinks: {
+        label: "Abrir enlaces del chat en Paseo",
+        hint: "En escritorio, abrir los enlaces web del chat en el navegador de su espacio. Desactiva para usar el navegador externo. Abrir en Paseo sigue disponible en el menú del enlace.",
+      },
+      sidebarHostUpdates: {
+        label: "Actualizaciones de hosts en la barra lateral",
+        hint: "Mostrar acciones de actualización en el menú de hosts. Los ajustes del host siguen disponibles al desactivar esta opción.",
+      },
+      splitLayoutPresets: {
+        label: "Controles de división",
+        hint: "Haz clic en la región del diagrama donde quieras abrir o mover una pestaña. En 60/40, la región derecha o inferior ocupa el 40%. Los ajustes del divisor cambian el tamaño de los paneles existentes. Desactiva la opción para ocultar estos controles sin cambiar la distribución.",
+      },
+      mobileWorkspaceTabs: {
+        label: "Pestañas de espacios en móvil",
+        hint: "Mostrar una barra de pestañas desplazable en espacios compactos. Desactiva para usar el selector anterior sin cambiar la pestaña seleccionada.",
+      },
+
+      descriptiveToolCalls: {
+        label: "Actividad de herramientas legible",
+        hint: "Describe operaciones conocidas y conserva comandos y resultados exactos en los detalles. Desactiva para restaurar las etiquetas clásicas.",
+      },
+
+      sidebarProjectSelector: {
+        label: "Proyecto seleccionado en el encabezado",
+        hint: "Muestra el nombre del proyecto seleccionado en el encabezado de espacios de trabajo. Al desactivarlo se muestra Espacios de trabajo; las opciones de host y proyecto siguen disponibles.",
+      },
+      stickyUserPrompts: {
+        label: "Mantener mensajes visibles",
+        hint: "Muestra el mensaje actual sobre el chat, con expansión y navegación anterior/siguiente",
+      },
+      previousAgents: {
+        label: "Agentes anteriores",
+        hint: "Reabre conversaciones cerradas o archivadas desde el menú + del espacio de trabajo",
+      },
+      sidebarActivityChips: {
+        label: "Indicadores de actividad de proyectos",
+        hint: "Muestra la actividad y el número de espacios trabajando",
+      },
+      sidebarProjectEmphasis: {
+        label: "Nombres de proyectos en negrita",
+        hint: "Destaca los encabezados en la barra lateral",
+      },
+      sidebarBulkActions: {
+        label: "Expandir y contraer todo",
+        hint: "Muestra controles para todos los grupos visibles",
+      },
+      projectPinning: {
+        label: "Fijar espacios dentro de proyectos",
+        hint: "Mantén los espacios de trabajo seleccionados al principio de su proyecto, con una chincheta junto al nombre. Las fijaciones guardadas vuelven al reactivar.",
+      },
+      sidebarWorkspaceTransitions: {
+        label: "Animar movimientos",
+        hint: "Usa transiciones rápidas cuando cambian las posiciones en la barra lateral",
+      },
+      androidAutomaticUpdateChecks: {
+        label: "Comprobaciones automáticas de Android",
+        hint: "Busca versiones preliminares al iniciar y reanudar. La comprobación e instalación manual siguen disponibles.",
+      },
+    },
+    links: {
+      sidebar: {
+        label: "Modos, filtros y visualización",
+        hint: "Usa la campana de la barra lateral para alternar entre Proyecto y Estado. El icono de filtro abre el filtro rápido de texto. En Mostrar, Límites de espacios de trabajo ajusta la cantidad y la antigüedad por separado; Proyectos vacíos permite mostrar, agrupar u ocultar. Cada modo conserva sus preferencias.",
+      },
+    },
+    fixesList: {
+      forkLinks: {
+        label: "Enlaces de Paseo++",
+        hint: "Abre el repositorio del fork y las notas publicadas. Se eliminan las acciones de incidencias, patrocinio y Discord originales.",
+      },
+      backgroundBrowser: {
+        label: "Automatización en segundo plano",
+        hint: "Los agentes de escritorio usan pestañas aunque el panel esté oculto o la ventana minimizada",
+      },
+      notifications: {
+        label: "Destinos de notificaciones",
+        hint: "Abre el espacio y chat correctos, incluso tras reiniciar el escritorio",
+      },
+      reading: {
+        label: "Lectura estable",
+        hint: "Cambiar el tamaño de imágenes conserva el texto visible en escritorio y web; la carga de mensajes e historial se recupera",
+      },
+      mobile: {
+        label: "Navegación móvil",
+        hint: "Botones táctiles más grandes, regreso seguro en Android y notificaciones de desarrollo separadas",
+      },
+      pickers: {
+        label: "Selectores y estado de espacios",
+        hint: "Orden claro, ayudas con valores completos, estados recientes y grupos contraídos conservados",
+      },
+      identity: {
+        label: "Instalaciones independientes",
+        hint: "Identidades, ajustes y actualizaciones propios de Paseo++; descargas Android verificadas",
+      },
+    },
+    additionsList: {
+      ssh: {
+        label: "Hosts SSH de Android",
+        hint: "Importa claves, verifica huellas y guarda credenciales cifradas para conectar directamente",
+      },
+      worktrees: {
+        label: "Ramas y worktrees",
+        hint: "Crea o adopta worktrees con nombres explícitos en hosts compatibles; reintentar conserva el trabajo",
+      },
+      video: {
+        label: "Vídeo de plugins Android",
+        hint: "Los plugins compatibles reproducen vídeo codificado con recuperación del decodificador. Se requiere un plugin que proporcione vídeo.",
+      },
+    },
+  },
+
+  androidUpdates: {
+    title: "Actualización de la aplicación",
+    idle: "Busca nuevas versiones preliminares del fork.",
+    checking: "Buscando actualizaciones…",
+    current: "Tienes la última versión preliminar publicada.",
+    available: "La versión preliminar {{version}} está disponible.",
+    downloading: "Descargando y verificando la actualización…",
+    downloadProgress: "Descargando {{percent}}% ({{downloaded}} / {{total}})",
+    downloadBytes: "Descargando {{downloaded}}…",
+    verifying: "Verificando la actualización descargada…",
+    permission:
+      "Permite las actualizaciones desde esta aplicación en los ajustes de Android, vuelve y pulsa Instalar actualización de nuevo.",
+    installer:
+      "Completa la instalación en Android. Si la cancelaste, pulsa Instalar actualización para reintentarlo.",
+    install: "Instalar actualización",
+    failed: "No se puede actualizar. Inténtalo de nuevo.",
+  },
   paneFind: {
     connectionFailure:
       "No se pudo buscar en este chat. Comprueba la conexión con el host y vuelve a intentarlo.",
@@ -229,6 +425,23 @@ export const es: TranslationResources = {
       mode: "Cambiar modo",
     },
   },
+  stickyPrompt: {
+    goToMessage: "Ir a este mensaje",
+    more: "más…",
+    less: "menos…",
+    none: "No hay mensajes del usuario en este chat.",
+    cancelled: "Carga cancelada.",
+    moreHistory: "Hay más historial disponible. Reintenta para seguir buscando.",
+
+    latest: "Último mensaje del usuario",
+    selected: "Mensaje del usuario",
+    expand: "Expandir mensaje del usuario",
+    collapse: "Contraer mensaje del usuario",
+    previous: "Mensaje anterior del usuario",
+    next: "Mensaje siguiente del usuario",
+    failed: "No se pudieron cargar los mensajes del usuario.",
+    attachments: "{{count}} archivos adjuntos",
+  },
   agentStream: {
     empty: "Comience a chatear con este agente...",
     scrollToBottom: "Desplazarse hacia abajo",
@@ -279,6 +492,11 @@ export const es: TranslationResources = {
     },
   },
   sessions: {
+    previousTitle: "Reabrir agente cerrado",
+    previousEmpty: "No hay agentes anteriores en este espacio de trabajo",
+    workspaceHistoryUpdateRequired:
+      "Actualiza este host para ver los agentes anteriores del espacio de trabajo.",
+
     title: "Historial",
     empty: "Aún no hay sesiones",
     noMatches: "No hay sesiones que coincidan",
@@ -437,6 +655,22 @@ export const es: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Abrir {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Mover pestaña: {{side}}, {{percent}}%",
+      openToSide: "Abrir {{item}} a un lado",
+      chooseRatio: "Elegir proporción",
+      ratio: "Usar {{ratio}}",
+      moveTab: "Mover pestaña",
+      left: "Izquierda",
+      right: "Derecha",
+      top: "Arriba",
+      bottom: "Abajo",
+      columns: "Izquierda / derecha",
+      rows: "Arriba / abajo",
+      pane: "Panel {{index}}",
+    },
+
     route: {
       loading: "Cargando espacio de trabajo",
       connecting: "Conectando",
@@ -573,6 +807,8 @@ export const es: TranslationResources = {
       },
     },
     browser: {
+      openInPaseo: "Abrir en el navegador de Paseo",
+      openExternally: "Abrir en un navegador externo",
       unavailable: {
         title: "El navegador es solo para escritorio",
         subtitle: "Abra este espacio de trabajo en Electron para usar el navegador integrado.",
@@ -600,14 +836,6 @@ export const es: TranslationResources = {
         placeholder: "Mensaje al agente sobre este elemento…",
         submit: "Adjuntar",
         cancel: "Cancelar",
-      },
-      extensions: {
-        label: "Extensiones",
-        empty: "No hay extensiones habilitadas.",
-        noPopup: "No incluye ventana emergente",
-        loading: "Cargando extensiones...",
-        manage: "Administrar extensiones",
-        openFailed: "No se pudo abrir la extensión",
       },
       devices: {
         label: "Tamaño del dispositivo",
@@ -1182,15 +1410,58 @@ export const es: TranslationResources = {
     },
   },
   sidebar: {
+    projectSelector: {
+      noKnownProjects: "Aún no hay proyectos conocidos de este host.",
+      selectOnlyProject: "Mostrar solo {{project}}",
+      includeProject: "Incluir {{project}}",
+      workspaces: "Espacios de trabajo",
+      all: "Todos",
+      allWorkspaces: "Todos los espacios",
+      projectWorkspaces: "Espacios de {{project}}",
+      multipleWorkspaces_one: "Espacios de {{count}} proyecto",
+      multipleWorkspaces_other: "Espacios de {{count}} proyectos",
+      title: "Proyectos",
+    },
     statusGroupAccessibility: "Grupo {{label}}",
     statusBucket: {
+      workingCount: "{{count}} trabajando",
       needsInput: "Necesita datos",
       failed: "Con error",
       readyToReview: "Para revisar",
       working: "En ejecución",
       done: "Terminado",
     },
+    quickFilter: {
+      open: "Filtrar proyectos y espacios de trabajo",
+      close: "Cerrar y borrar el filtro rápido",
+      placeholder: "Filtrar proyectos o espacios de trabajo…",
+      clear: "Borrar el filtro rápido",
+      emptyTitle: "No hay proyectos ni espacios de trabajo coincidentes",
+      emptyDescription: "Prueba otro nombre o borra el filtro rápido de este modo.",
+      guidance:
+        "Usa el icono de filtro para buscar nombres y ramas visibles en este modo. Los límites de cantidad y antigüedad siguen activos; Mostrar más revela todas las coincidencias.",
+    },
     display: {
+      modeToggle: "Vista {{current}}. Cambiar a vista {{next}}.",
+      workspaceList: {
+        countLimit: "Límite de cantidad",
+        updatedWithin: "Actualizado en",
+        day: "1 día",
+        twoDays: "2 días",
+        threeDays: "3 días",
+        fiveDays: "5 días",
+        week: "1 semana",
+        twoWeeks: "2 semanas",
+        month: "1 mes",
+        twoMonths: "2 meses",
+        threeMonths: "3 meses",
+      },
+      expandAll: "Expandir todo",
+      collapseAll: "Contraer todo",
+      oneProjectAtATime: "Expandir un proyecto a la vez",
+      reorderGuidance:
+        "Arrastra para ordenar solo con orden Personalizado. Los proyectos filtrados conservan el mismo vecino anterior o posterior al mostrar todos los proyectos. Los elementos fijados siempre se ordenan manualmente.",
+      showBackground: "Mostrar espacios en segundo plano",
       trigger: "Preferencias de visualización",
       heading: "Visualización",
       grouping: {
@@ -1208,6 +1479,12 @@ export const es: TranslationResources = {
         status: "Estado",
         custom: "Orden personalizado",
         emptyProjects: "Ordenar proyectos vacíos",
+      },
+      emptyWorkspaces: {
+        label: "Proyectos vacíos",
+        show: "Mostrar",
+        group: "Agrupar",
+        hide: "Ocultar",
       },
       projectVisibility: {
         label: "Filtro",
@@ -1238,7 +1515,7 @@ export const es: TranslationResources = {
         none: "Oculto",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "Todos los hosts",
       },
       projectFilter: {
@@ -1274,9 +1551,6 @@ export const es: TranslationResources = {
       sectionHelp: "Ayuda",
       diagnostics: "Ejecutar diagnóstico",
       shortcuts: "Atajos de teclado",
-      reportIssue: "Informar de un problema",
-      discord: "Discord",
-      github: "Crear incidencia en GitHub",
       whatsNew: "Novedades",
       appName: "Paseo",
     },
@@ -1342,7 +1616,9 @@ export const es: TranslationResources = {
         copyPath: "Copiar ruta",
         copyBranchName: "Copiar nombre de sucursal",
         rename: "Cambiar nombre del espacio de trabajo",
-        pin: "Anclar arriba",
+        pin: "Fijar al inicio de la barra lateral",
+        pinInProject: "Fijar en el proyecto",
+        unpinInProject: "Desfijar del proyecto",
         unpin: "Desanclar",
         archive: "Archivo",
         archiveWorkspace: "Archivar espacio de trabajo",
@@ -1363,6 +1639,8 @@ export const es: TranslationResources = {
         invalidBranchName: "Nombre de sucursal no válido",
       },
       toasts: {
+        updateHostToPinInProject:
+          "Actualiza este host para fijar espacios de trabajo en un proyecto.",
         workspacePathUnavailable: "RutaWorkspaceno disponible",
         pathCopied: "Ruta copiada",
         branchNameCopied: "Nombre de la sucursal copiado",
@@ -1774,7 +2052,7 @@ export const es: TranslationResources = {
       },
       remoteSsh: {
         title: "SSH remoto",
-        description: "Conéctate mediante el cliente SSH de escritorio.",
+        description: "Conéctate mediante SSH.",
       },
       scanQr: {
         title: "Escanea el códigoQR",
@@ -2043,6 +2321,76 @@ export const es: TranslationResources = {
     input: "Aporte",
     output: "Producción",
   },
+  toolActivity: {
+    files: {
+      intent: "Cambiar archivos",
+      running: "Cambiando archivos",
+      completed: "Archivos cambiados",
+    },
+    read: {
+      intent: "Leer archivos",
+      running: "Leyendo archivos",
+      completed: "Archivos leídos",
+    },
+    edit: {
+      intent: "Editar archivos",
+      running: "Editando archivos",
+      completed: "Archivos editados",
+    },
+    write: {
+      intent: "Escribir archivos",
+      running: "Escribiendo archivos",
+      completed: "Archivos escritos",
+    },
+    create: {
+      intent: "Crear archivos",
+      running: "Creando archivos",
+      completed: "Archivos creados",
+    },
+    delete: {
+      intent: "Eliminar archivos",
+      running: "Eliminando archivos",
+      completed: "Archivos eliminados",
+    },
+    search: {
+      intent: "Buscar",
+      running: "Buscando",
+      completed: "Búsqueda realizada",
+    },
+    list: {
+      intent: "Listar archivos",
+      running: "Listando archivos",
+      completed: "Archivos listados",
+    },
+    command: {
+      intent: "Ejecutar comando",
+      running: "Ejecutando comando",
+      completed: "Comando ejecutado",
+    },
+    script: {
+      intent: "Ejecutar script",
+      running: "Ejecutando script",
+      completed: "Script ejecutado",
+    },
+    activity: {
+      intent: "Ejecutar operaciones",
+      running: "Ejecutando operaciones",
+      completed: "Operaciones ejecutadas",
+    },
+    failed: "Falló: {{action}}",
+    canceled: "Cancelado: {{action}}",
+    counts: {
+      editedFiles: {
+        one: "{{count}} operación de archivos",
+        other: "{{count}} operaciones de archivos",
+      },
+      commands: { one: "{{count}} comando", other: "{{count}} comandos" },
+      readFiles: { one: "{{count}} lectura de archivo", other: "{{count}} lecturas de archivos" },
+      searches: { one: "{{count}} búsqueda", other: "{{count}} búsquedas" },
+      otherTools: { one: "{{count}} otra operación", other: "{{count}} otras operaciones" },
+      paseoCalls: { one: "{{count}} llamada a Paseo", other: "{{count}} llamadas a Paseo" },
+    },
+  },
   toolCallGroup: {
     editedFiles: {
       one: "editó {{count}} archivo",
@@ -2134,7 +2482,35 @@ export const es: TranslationResources = {
       diagnostics: "Diagnóstico",
       about: "Acerca de",
     },
-    layout: en.settings.layout,
+    layout: {
+      ...en.settings.layout,
+      explorer: {
+        title: "Explorador",
+        comparison: {
+          label: "Comparación predeterminada",
+          description: "Se usa cuando este espacio de trabajo no tiene una comparación guardada.",
+          options: { uncommitted: "Sin confirmar", base: "Confirmado" },
+        },
+        autoSwitch: {
+          label: "Cambiar la comparación automáticamente",
+          description:
+            "Mostrar los cambios sin confirmar si existen; de lo contrario, los confirmados. Desactiva esta opción para recordar tu selección.",
+        },
+        autoOpen: {
+          label: "Abrir la barra lateral en espacios de trabajo nuevos",
+          description:
+            "Mostrar automáticamente la barra lateral del Explorador en espacios de trabajo nuevos de escritorio.",
+        },
+        diffScope: {
+          label: "Al hacer clic en un archivo en Cambios",
+          description: "Elige cuántos archivos modificados aparecen en el diff.",
+          options: {
+            all: "Todos los archivos modificados",
+            single: "Solo el archivo seleccionado",
+          },
+        },
+      },
+    },
     editor: {
       title: "Editor",
       vimKeybindings: "Atajos de Vim",
@@ -2185,26 +2561,6 @@ export const es: TranslationResources = {
     general: {
       title: "General",
       sending: "Envío",
-      browserExtensions: {
-        title: "Extensiones",
-        compatibility:
-          "Algunas funciones de las extensiones de Chrome no son compatibles. Las extensiones no se actualizan automáticamente.",
-        store: "Chrome Web Store",
-        openStore: "Abrir Web Store",
-        refresh: "Actualizar",
-        enable: "Activar",
-        disable: "Desactivar",
-        retry: "Reintentar",
-        remove: "Eliminar",
-        removeTitle: "¿Eliminar {{name}}?",
-        removeMessage:
-          "Esto elimina la extensión de Paseo. Se conservan las carpetas de origen sin empaquetar.",
-        loading: "Cargando extensiones...",
-        empty: "No hay extensiones instaladas.",
-        unpackedHint: "Carga una extensión desde una carpeta que contenga manifest.json.",
-        loadUnpacked: "Cargar sin empaquetar",
-        unavailable: "Las extensiones no están disponibles. Actualiza la aplicación de escritorio.",
-      },
       browserData: {
         title: "Datos del navegador",
         siteData: "Cookies y datos de sitios",
@@ -2334,6 +2690,21 @@ export const es: TranslationResources = {
       },
     },
     appearance: {
+      accent: {
+        title: "Color de acento",
+        hint: "Se usa en los controles principales y tus mensajes",
+        updateHost: "Actualiza el host de ajustes seleccionado para cambiar el color de acento",
+        preview: "Así se verán tus mensajes",
+        options: {
+          default: "Predeterminado",
+          blue: "Azul",
+          green: "Verde",
+          purple: "Morado",
+          rose: "Rosa",
+          orange: "Naranja",
+          teal: "Verde azulado",
+        },
+      },
       theme: {
         title: "Tema",
         accessibilityLabel: "Tema:{{value}}",

@@ -99,8 +99,6 @@ import {
 } from "./daemon/quit-lifecycle.js";
 import { runDesktopStartup } from "./desktop-startup.js";
 import { registerBrowserAutomationIpc } from "./features/browser-automation/ipc.js";
-import { registerBrowserExtensions } from "./features/browser-extensions/index.js";
-import { buildBrowserExtensionContextMenuItems } from "./features/browser-extensions/context-menus.js";
 import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
 import { installAppUpdateOnQuit } from "./features/auto-updater.js";
 import {
@@ -118,6 +116,7 @@ const APP_SCHEME = "paseo";
 const PASEO_DEBUG = process.env.PASEO_DEBUG === "1";
 const DISABLE_SINGLE_INSTANCE_LOCK = process.env.PASEO_DISABLE_SINGLE_INSTANCE_LOCK === "1";
 const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || desktopDistribution.appName;
+const USER_DATA_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || desktopDistribution.userDataName;
 const forcedUserDataDir = process.env.PASEO_ELECTRON_USER_DATA_DIR?.trim();
 const DESKTOP_WINDOW_CHROME_MODE = resolveDesktopWindowChromeMode({
   platform: process.platform,
@@ -142,7 +141,8 @@ if (desktopDistribution.isPreview) {
   process.env.PASEO_LISTEN ??= desktopDistribution.daemonListen;
   // An explicit profile is applied below and must not require the default profile to exist.
   if (!forcedUserDataDir) {
-    app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
+    // Keep the fork profile explicit and independent of upstream or legacy preview profiles.
+    app.setPath("userData", path.join(app.getPath("appData"), USER_DATA_NAME));
   }
 }
 
@@ -207,17 +207,8 @@ function showBrowserWebviewContextMenu(
   contents: Electron.WebContents,
   params: Electron.ContextMenuParams,
 ): void {
-  const items = buildStandardContextMenuItems(contents, params);
-  const extensionItems = buildBrowserExtensionContextMenuItems(contents, params);
-  if (extensionItems.length > 0) {
-    if (items.length > 0) {
-      items.push({ type: "separator" });
-    }
-    items.push(...extensionItems);
-  }
-
   const menu = Menu.buildFromTemplate([
-    ...items,
+    ...buildStandardContextMenuItems(contents, params),
     ...(app.isPackaged
       ? []
       : [
@@ -996,7 +987,6 @@ async function bootstrap(): Promise<void> {
   ipcMain.handle("paseo:opener:openUrl", (_event, value: unknown) => openExternalUrl(value));
   registerEditorTargetHandlers();
   registerBrowserAutomationIpc();
-  await registerBrowserExtensions();
 
   // In-app "Open in new window": opens a window that lands on the given project
   // via the same open-project flow as a CLI launch (no move, no ownership).

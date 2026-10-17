@@ -6,6 +6,7 @@ interface ContextMenuAnchor {
   y: number;
 }
 
+/** Click an actionable row and measure placement from its actual trusted context-menu event. */
 async function openContextMenuAtRowPoint(
   page: Page,
   rowTestID: string,
@@ -16,13 +17,36 @@ async function openContextMenuAtRowPoint(
   const bounds = await row.boundingBox();
   if (!bounds) throw new Error(`Could not measure ${rowTestID}`);
 
-  const anchor = {
-    x: bounds.x + Math.min(60, bounds.width / 2),
-    y: bounds.y + bounds.height / 2,
-  };
-  await page.mouse.click(anchor.x, anchor.y, { button: "right" });
-  await expect(page.getByTestId(menuTestID)).toBeVisible({ timeout: 10_000 });
-  return anchor;
+  const position = { x: Math.min(60, bounds.width / 2), y: bounds.height / 2 };
+  // A restored pin can reorder this row after it becomes visible. Locator actions wait
+  // for stable geometry and hit testing; pre-action global coordinates can become stale.
+  const capture = await row.evaluateHandle((element) => {
+    let anchor: ContextMenuAnchor | null = null;
+    const onContextMenu = (event: Event) => {
+      if (event.isTrusted && event.currentTarget === element && event instanceof MouseEvent) {
+        anchor = { x: event.clientX, y: event.clientY };
+      }
+    };
+    element.addEventListener("contextmenu", onContextMenu, true);
+    return {
+      read: () => anchor,
+      stop: () => element.removeEventListener("contextmenu", onContextMenu, true),
+    };
+  });
+
+  try {
+    await row.click({ button: "right", position });
+    const anchor = await capture.evaluate((observation) => observation.read());
+    if (!anchor) throw new Error(`No trusted context-menu event received by ${rowTestID}`);
+    await expect(page.getByTestId(menuTestID)).toBeVisible({ timeout: 10_000 });
+    return anchor;
+  } finally {
+    try {
+      await capture.evaluate((observation) => observation.stop());
+    } finally {
+      await capture.dispose();
+    }
+  }
 }
 
 async function expectContextMenuAtPointer(
@@ -98,7 +122,12 @@ export async function expectWorkspaceRowHoverCleared(
   workspaceId: string,
 ): Promise<void> {
   const workspaceKey = `${getServerId()}:${workspaceId}`;
-  await expect(page.getByTestId(`sidebar-workspace-kebab-${workspaceKey}`)).toBeHidden();
+  // The animated rail stays mounted; hidden means no painted or interactive action space.
+  const actions = page.getByTestId(`sidebar-workspace-hover-actions-${workspaceKey}`);
+  await expect(actions).toHaveCSS("opacity", "0");
+  await expect(actions).toHaveCSS("width", "0px");
+  await expect(actions).toHaveCSS("pointer-events", "none");
+  await expect(actions).toHaveJSProperty("inert", true);
   await expect(page.getByTestId("workspace-hover-card")).toHaveCount(0);
 }
 
@@ -205,34 +234,55 @@ export async function openSidebarDisplayPage(page: Page, branchTestID: string): 
   await page.getByTestId(branchTestID).click();
 }
 
-// Project filters live a page below the display-preferences root, like the host filters.
+// The heading chooser owns local host/project filters even when the rich heading is off.
 export async function openSidebarProjectFilter(page: Page): Promise<void> {
-  await openSidebarDisplayPage(page, "sidebar-display-project-filter");
+  await page.getByTestId("sidebar-project-selector").click();
 }
 
 // The filter rows are keyed by the project's sidebar view key. A project seeded from its own temp
 // repo has a `projectKey` unique on the host, so the view key IS that key — see
 // `buildWorkspaceStructureProjects`.
 export async function toggleProjectFilter(page: Page, projectViewKey: string): Promise<void> {
-  await page.getByTestId(`sidebar-project-filter-${projectViewKey}`).click();
+  await page.getByTestId(`sidebar-project-selector-root-${projectViewKey}-checkbox`).click();
 }
 
 export async function selectAllProjectsFilter(page: Page): Promise<void> {
-  await page.getByTestId("sidebar-project-filter-all").click();
+  await page.getByTestId("sidebar-project-selector-all").click();
 }
 
+/** Dismiss the compact sheet through its backdrop, or the desktop popover with Escape. */
 export async function closeSidebarDisplayPreferences(page: Page): Promise<void> {
-  await page.keyboard.press("Escape");
-  await expect(page.getByTestId("sidebar-display-preferences-content")).toHaveCount(0);
+  const surfaces = page.locator(
+    '[data-testid="sidebar-display-preferences-content"], [data-testid="sidebar-display-preferences-content-content"], [data-testid="sidebar-project-selector-content"], [data-testid="sidebar-project-selector-content-content"]',
+  );
+  if ((await surfaces.count()) === 0) return;
+  const backdrop = page.getByRole("button", { name: "Bottom sheet backdrop" }).first();
+  if (await backdrop.isVisible()) {
+    await backdrop.click({ position: { x: 12, y: 12 } });
+    await expect(backdrop).not.toBeVisible();
+  } else {
+    await page.keyboard.press("Escape");
+  }
+  await expect(surfaces).toHaveCount(0);
 }
 
 export async function selectSidebarStatusGrouping(page: Page): Promise<void> {
-  await openSidebarDisplayPage(page, "sidebar-display-grouping");
-  await page.getByTestId("sidebar-grouping-status").click();
+  const toggle = page.getByTestId("sidebar-view-mode-toggle");
+  if ((await toggle.getAttribute("aria-checked")) !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+}
+
+export async function selectSidebarProjectGrouping(page: Page): Promise<void> {
+  const toggle = page.getByTestId("sidebar-view-mode-toggle");
+  if ((await toggle.getAttribute("aria-checked")) !== "false") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
 }
 
 export async function openMobileAgentSidebar(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Open menu" }).click();
+  await page
+    .getByTestId("menu-button")
+    .and(page.getByRole("button", { name: "Open menu", exact: true }))
+    .click();
 }
 
 export async function closeMobileAgentSidebar(page: Page): Promise<void> {

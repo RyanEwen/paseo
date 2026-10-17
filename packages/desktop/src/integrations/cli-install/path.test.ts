@@ -8,7 +8,7 @@ describe("cli-install-path", () => {
     for (const platform of ["win32", "linux", "darwin"] as const) {
       const extension = platform === "win32" ? ".cmd" : "";
       expect(resolveCliTargetFilename(platform, false)).toBe(`paseo${extension}`);
-      expect(resolveCliTargetFilename(platform, true)).toBe(`paseo-debug${extension}`);
+      expect(resolveCliTargetFilename(platform, true)).toBe(`paseo-plus-plus-desktop${extension}`);
     }
   });
   it("uses the bundled shim for packaged macOS installs", () => {

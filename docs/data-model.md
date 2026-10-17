@@ -34,6 +34,33 @@ Paseo uses **file-based JSON persistence** instead of a traditional database. Al
 
 All server-side stores live under `$PASEO_HOME` (defaults to `~/.paseo`).
 
+## App preferences
+
+Each daemon owns an independent `app-settings.json`. Each client can select one settings host,
+independently of its active workspace. Selection reads the destination before enabling edits.
+An empty host requires the explicit **Use this device settings** action; selecting it never
+publishes the preferences already on the device.
+
+Sidebar Project and Status modes own separate synchronized display profiles. Switching modes
+projects one profile and its device-local host/project filters together. Legacy preferences seed
+only the previously active mode, after both local stores have loaded; the other mode starts with
+explicit defaults. Existing profiles take precedence over legacy flat fields. Selecting a settings
+host adopts only that host's document and keeps both local filter sets.
+
+Connection credentials, desktop daemon controls, the Usage report host selection, custom order,
+collapsed groups, workspace layouts, navigation and drafts stay local. Project and workspace pins
+retain their existing daemon registry authority.
+
+The client stores its settings-host selection, pre-adoption backups and pending edits locally.
+Pending edits belong permanently to their original host. Reconnect reads before sending touched
+preference leaves. Concurrent edits to the same leaf require an explicit conflict choice;
+unrelated leaves can merge. Unknown stored preferences survive edits from older clients.
+
+Paseo++ missing or malformed feature choices enable the feature; only an explicit saved `false`
+disables it. Disabling changes presentation or automatic work without deleting saved configuration
+or user data. Keep fork fixes, installation identity and verification outside these opt-outs.
+The canonical preference schema lives in `packages/app/src/paseo-plus-plus/preferences.ts`.
+
 ## Store Surface Rules
 
 Store APIs own persistence atomicity and should not make services coordinate raw reads and writes. A good store method maps cleanly to one SQL statement or one SQL transaction, even when the current implementation is JSON files. If a caller needs a queue, lock, read-merge-write loop, or uniqueness race workaround, that behavior belongs behind the store surface.
@@ -45,6 +72,7 @@ Store APIs own persistence atomicity and should not make services coordinate raw
 ```
 $PASEO_HOME/
 ├── config.json                          # Daemon configuration
+├── app-settings.json                    # Optional shared app preferences and leaf revisions
 ├── server-id                            # Stable daemon identifier (plain text, "srv_<base64url>")
 ├── daemon-keypair.json                  # E2EE keypair for relay (mode 0600)
 ├── paseo.pid                            # Daemon PID lock file
@@ -505,6 +533,12 @@ Array of workspace records. A workspace is a specific working directory within a
 | `untrustedSource`              | `{ kind: "change_request", forge, number, headRepository }?` | Provenance captured when a cross-repository change request creates the workspace. Missing means repository automation is allowed; explicit setup removes the field.                           |
 
 > **Opaque-ID invariant:** `workspaceId` is opaque identity, never a filesystem path. Filesystem and git operations take `cwd`/`workspaceDirectory` only — never the id. A compatibility-only first-materialization bootstrap still groups pre-registry agent records by path and Git remote so existing installs retain their legacy records. That grouping never runs against a live registry, and its keys are not runtime project or workspace identity.
+
+Workspace pin scope is host-owned and exclusive: global pins use `pinnedAt`; project pins use
+optional `projectPinnedAt`. Missing project pin timestamps mean unpinned in that scope. Archive and
+restore retain the pin choice. Project pins take priority over workspace sorting only in Project
+grouping; Status grouping retains its status ordering. Manual pin order remains a client preference,
+shared with the existing global pin ordering and keyed by host plus workspace identity.
 
 ### Workspace label catalog
 

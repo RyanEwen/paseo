@@ -19,7 +19,7 @@ const previewExpoProject = {
 };
 
 if (isPreviewBuild && appVariant !== "development") {
-  throw new Error("Fork previews must use the development app identity");
+  throw new Error("Fork preview builds require APP_VARIANT=development");
 }
 if (isPreviewBuild && Object.values(previewExpoProject).some((value) => !value?.trim())) {
   throw new Error("Fork previews require their own Expo project ID, owner, and slug");
@@ -80,6 +80,14 @@ function resolveSecretFile(params) {
 }
 
 const variants = {
+  preview: {
+    name: "Paseo++",
+    packageId: "sh.paseo.plusplus",
+    googleServicesFile: resolveSecretFile({
+      envKey: "GOOGLE_SERVICES_FILE_PREVIEW",
+      fallbackRelativePath: "./.secrets/google-services.preview.json",
+    }),
+  },
   production: {
     name: "Paseo",
     packageId: "sh.paseo",
@@ -106,19 +114,19 @@ const variants = {
   },
 };
 
-const variant = variants[appVariant] ?? variants.production;
+const variant = isPreviewBuild ? variants.preview : (variants[appVariant] ?? variants.production);
 const nativeReleaseVersion = isPreviewBuild
   ? getPreviewReleaseVersion(pkg.version, Number(process.env.PASEO_PREVIEW_BUILD_NUMBER))
   : getNativeReleaseVersion(pkg.version);
 
 export default {
   expo: {
-    name: variant.name,
+    name: isPreviewBuild ? "Paseo++" : variant.name,
     slug: isPreviewBuild ? previewExpoProject.slug : "voice-mobile",
     version: isPreviewBuild ? nativeReleaseVersion.version : nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "paseo",
+    scheme: isPreviewBuild ? "paseo-plus-plus" : "paseo",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
@@ -143,7 +151,10 @@ export default {
       softwareKeyboardLayoutMode: "resize",
       // Allow HTTP connections for local network hosts (required for release builds)
       usesCleartextTraffic: true,
-      permissions: buildProfile.androidPermissions,
+      permissions: [
+        ...buildProfile.androidPermissions,
+        ...(isPreviewBuild ? ["android.permission.REQUEST_INSTALL_PACKAGES"] : []),
+      ],
       package: variant.packageId,
       versionCode: nativeReleaseVersion.androidVersionCode,
       ...(variant.googleServicesFile ? { googleServicesFile: variant.googleServicesFile } : {}),
@@ -188,6 +199,12 @@ export default {
           android: {
             minSdkVersion: 29,
             kotlinVersion: "2.1.20",
+            // SSH cryptography jars share license paths. Retain every notice in the APK.
+            packagingOptions: {
+              merge: ["META-INF/LICENSE.md"],
+              // Android does not use the jars' duplicate OSGi bundle manifests.
+              exclude: ["META-INF/versions/9/OSGI-INF/MANIFEST.MF"],
+            },
             // Allow HTTP connections for local network hosts in release builds
             usesCleartextTraffic: true,
           },
@@ -205,6 +222,7 @@ export default {
     extra: {
       fdroidBuild: isFdroidBuild,
       profileBuild: isProfileBuild,
+      previewBuild: isPreviewBuild,
       router: {},
       eas: {
         projectId: isPreviewBuild

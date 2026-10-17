@@ -1,3 +1,4 @@
+import { getSettingsSyncSaveHandler } from "@/settings-sync/save-handler";
 import { useCallback, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -149,6 +150,9 @@ export function useAppSettings(): UseAppSettingsReturn {
     queryFn: () => loadAppSettingsFromStorage(),
     staleTime: Infinity,
     gcTime: Infinity,
+    // Keep failed hydration visible when a settings surface mounts its own observer.
+    // Recovery belongs to explicit invalidation, rather than remounting the loading gate.
+    retryOnMount: false,
   });
 
   const updateSettings = useCallback(
@@ -165,9 +169,7 @@ export function useAppSettings(): UseAppSettingsReturn {
 
   const resetSettings = useCallback(async () => {
     try {
-      const next = { ...DEFAULT_CLIENT_SETTINGS };
-      queryClient.setQueryData<AppSettings>(APP_SETTINGS_QUERY_KEY, next);
-      await AsyncStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(next));
+      await saveAppSettings({ queryClient, updates: DEFAULT_CLIENT_SETTINGS });
     } catch (err) {
       console.error("[AppSettings] Failed to reset settings:", err);
       throw err;
@@ -257,6 +259,8 @@ export async function saveAppSettings(input: {
   updates: AppSettingsUpdate;
   deps?: SettingsDeps;
 }): Promise<void> {
+  const syncHandler = getSettingsSyncSaveHandler();
+  if (syncHandler && (await syncHandler(input.queryClient, input.updates))) return;
   await saveAppSettingsPure({
     queryClient: input.queryClient,
     updates: input.updates,

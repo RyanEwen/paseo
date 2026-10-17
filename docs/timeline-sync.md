@@ -63,6 +63,34 @@ the anchored page still leaves the viewport at history start, as with short or c
 that case pagination continues as one loading operation until the page fills the viewport or history
 is exhausted.
 
+## Prompt navigation
+
+The Chat outline and sticky user-message surface share the viewed timeline's prompt index and
+window loading. Keep scrolling inside that owner: an indexed prompt may sit outside the loaded
+window, and a loaded row may sit outside the mounted presentation window. Resolve presentation
+rows to authoritative timeline positions before selecting prompts; Markdown blocks and plugin
+cards do not share the canonical row IDs. Child transcripts use their own history pagination.
+
+Keep the original user bubble in the transcript. Its compact copy appears after the bubble leaves
+the viewport, within the same content rail. The copy overlays the viewport so its visibility does
+not shift the reading position. Manual scrolling selects the prompt for the response at the
+reading edge. Arrow navigation retains its selected prompt through the smooth scroll, including
+landings clamped by the end of the conversation. Bottom-following intent starts at the latest
+prompt and resumes when you send or use Jump to bottom. Incoming messages do not move an older
+reading selection. Retained panes keep their own selection; session and epoch changes isolate it.
+
+A content-only read can recover the indexed prompt for an already-visible response without
+applying a transcript window. Index-free history may begin with several pages containing no user
+prompt. Discovery must use the pagination owner, check cursor progress, and stop with usable
+feedback on exhaustion, failure, cancellation, or its work budget. An explicit retry can continue
+past the budget.
+
+Cancel obsolete navigation at the window-acceptance boundary as well as the scroll boundary.
+Returning to bottom, sending, or starting manual reading must invalidate delayed page application,
+errors, and animation callbacks without cancelling unrelated shared reads or weakening epoch and
+request fences. Native index recovery must include the measured live-header extent in its estimate
+and retain a bounded progress budget across retries.
+
 ## Durable item anchors
 
 Provider message IDs are not guaranteed for every displayed item. Paseo-generated system errors are one example. Rendered item indices are not durable either because pagination and projection can merge source rows.
@@ -223,7 +251,7 @@ submission. Overlapping sends settle independently rather than collapsing to one
 message.
 
 Daemons advertising `server_info.features.canonicalSubmittedPrompts` guarantee that every accepted
-prompt carrying a client message id is recorded and streamed as a canonical `user_message` with that
+human prompt carrying a client message id is recorded and streamed as a canonical `user_message` with that
 same id. This includes daemon-handled commands that do not allocate a foreground turn; their submitted
 row is recorded before handler output. The app tracks submission transactions only for hosts with this
 capability. Older hosts keep the shipped untracked optimistic-row behavior and roll that row back on RPC
@@ -238,10 +266,24 @@ foreground control ownership remains a separate daemon concern. Cancellation req
 with that record rather than in a React component, so an old request cannot clear a newer one. Submissions
 remain a separate pre-turn registry and retire on canonical acknowledgement.
 
-Canonical turns and visible responses are different boundaries. System-injected prompts are absent from
-the Paseo timeline, so one visible response can span several canonical turns without a user message
-between them. Layout and copy group that response together; lifecycle, timing, tool sequences, and exact
+Canonical turns and visible responses are different boundaries. Agent-originated prompts and lifecycle
+notifications project into tool rows, so they do not create a human-message boundary. Legacy system
+prompts, including schedule injections, remain hidden. One visible response can span several canonical
+turns; layout and copy group that response together while lifecycle, timing, tool sequences, and exact
 fork positions retain the canonical `turnId` boundaries.
+
+Agent-message XML belongs to the daemon's `agent/agent-messages` boundary. Prompt delivery encodes
+provenance; acceptance, provider echoes, import, and replay share its projection. The delivery ID is
+also the projected call ID, so a provider echo cannot create a second row. Sender IDs are opaque and
+do not imply local ownership or authorization. Capture the sender title at delivery: archived or
+removed senders must remain understandable without a live directory lookup.
+
+The optional `agentMessage` payload carries event, sender, and delivered text. Shared client
+presentation (`protocol/agent-message-display`) owns its heading and expanded details. The daemon
+must not construct UI labels or prepend sender labels to the semantic message body. The existing
+`tool_call` / `plain_text` envelope is a compatibility adapter: older clients still parse the row and
+expand its body. New clients use the typed payload, never infer the event from a tool name or parse
+XML. Stream reduction and disk-cache serialization preserve the payload without rendering it.
 
 The compatibility boundary for older daemons is snapshot normalization: running/idle status becomes an
 anonymous active turn or idle state once, and downstream code consumes the same activity shape. The app
@@ -250,7 +292,7 @@ second running state. Disconnect preserves the last replicated turn until cache 
 advances it; replica removal remains the destructive close boundary. Elapsed time comes only from turn
 liveness, never from submission records or whichever timeline rows happen to be mounted.
 
-The daemon records one canonical submitted user row at acceptance. Its wire `messageId` is the
+For human prompts, the daemon records one canonical submitted user row at acceptance. Its wire `messageId` is the
 submission's `clientMessageId`, so the row is born with its final identity and remains immutable on
 the wire. A correlated provider echo records the provider's native identity internally without
 dispatching another timeline event. Rewind resolves the wire identity to that provider identity at

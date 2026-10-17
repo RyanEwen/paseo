@@ -1,3 +1,6 @@
+import { PaseoLogo } from "@/components/icons/paseo-logo";
+import { PaseoPlusPlusSection } from "@/screens/settings/paseo-plus-plus-section";
+import { AndroidAppUpdateRow } from "@/app-updates/settings-row";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import {
@@ -85,7 +88,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { DesktopPermissionsSection } from "@/desktop/components/desktop-permissions-section";
 import { DesktopNotificationsSection } from "@/desktop/components/desktop-notifications-section";
-import { BrowserSettingsSection } from "@/desktop/browser/settings";
+import { BrowserDataSection } from "@/desktop/browser/settings/browser-data-section";
 import { IntegrationsSection } from "@/desktop/components/integrations-section";
 import { isElectronRuntime } from "@/desktop/host";
 import { useDesktopAppUpdater } from "@/desktop/updates/use-desktop-app-updater";
@@ -150,6 +153,12 @@ interface SidebarSectionItem {
 }
 
 const SIDEBAR_SECTION_ITEMS: SidebarSectionItem[] = [
+  {
+    id: "paseo-plus-plus",
+    labelKey: "paseoPlusPlus.title",
+    icon: PaseoLogo,
+    Content: PaseoPlusPlusSection,
+  },
   { id: "general", labelKey: "settings.sections.general", icon: Settings },
   {
     id: "appearance",
@@ -175,7 +184,7 @@ const SIDEBAR_SECTION_ITEMS: SidebarSectionItem[] = [
     labelKey: "settings.sections.browser",
     icon: Globe,
     desktopOnly: true,
-    Content: BrowserSettingsSection,
+    Content: BrowserDataSection,
   },
   {
     id: "editor",
@@ -464,6 +473,7 @@ function AboutSection({ appVersion, appVersionText, isDesktopApp }: AboutSection
             <Text style={styles.aboutValue}>{appVersionText}</Text>
           </View>
           <WhatsNewRow />
+          <AndroidAppUpdateRow />
           {isDesktopApp ? (
             <DesktopAppUpdateRow isPreview={appVersion?.includes("-preview.") === true} />
           ) : null}

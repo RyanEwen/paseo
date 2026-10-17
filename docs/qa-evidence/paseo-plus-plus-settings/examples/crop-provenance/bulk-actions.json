@@ -1,0 +1,38 @@
+{
+  "id": "bulk-actions",
+  "source": "bulk-actions-1791840834352.png",
+  "sourceManifestSha256": "8507b37ee58fcc422c8aa8a7cc91e9ca0789facb1e9548e558e2e7ba204ecdd9",
+  "sourceSha256": "1032ed48718bc564fbb8deeff1b75222ab5f7acb032633c72ede51795e00dbea",
+  "capturedAtUtc": "2026-10-12T21:33:54.534Z",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 0,
+    "top": 125,
+    "width": 312,
+    "height": 58
+  },
+  "description": "The actual expand-all and collapse-all controls.",
+  "boundary": "Illustrative still. No timing or physical native behavior is qualified.",
+  "rawRecord": "assets/raw/bulk-actions-1791840834352.json",
+  "captureSuggestedCrop": {
+    "left": 223,
+    "top": 135,
+    "width": 60,
+    "height": 36
+  },
+  "asset": "bulk-actions.png",
+  "assetSha256": "92f934b86b87cf7c407449d097f333bc2a528174898b1c695767fe95bea9170c",
+  "assetPixels": {
+    "width": 312,
+    "height": 58
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

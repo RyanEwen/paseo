@@ -10,9 +10,11 @@ export function resolveDesktopDistribution(metadata: unknown) {
   if (paseoPreview) {
     return {
       isPreview: true,
-      appName: "Paseo Debug",
-      desktopName: "paseo-debug.desktop",
-      daemonHomeName: ".paseo-debug",
+      appName: "Paseo++",
+      // The fork uses a fresh profile independent of upstream and legacy preview installs.
+      userDataName: "Paseo++",
+      desktopName: "paseo-plus-plus.desktop",
+      daemonHomeName: ".paseo-plus-plus-desktop",
       daemonListen: "127.0.0.1:6790",
     } as const;
   }
@@ -20,6 +22,7 @@ export function resolveDesktopDistribution(metadata: unknown) {
   return {
     isPreview: false,
     appName: "Paseo",
+    userDataName: "Paseo",
     desktopName: "Paseo.desktop",
     daemonHomeName: null,
     daemonListen: null,

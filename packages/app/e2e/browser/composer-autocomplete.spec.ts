@@ -9,8 +9,13 @@ import { expectWorkspaceTabVisible, openSessions } from "../support/helpers/arch
 import { daemonWsRoutePattern } from "../support/helpers/daemon-port";
 import { getServerId } from "../support/helpers/server-id";
 import { switchWorkspaceViaSidebar } from "../support/helpers/workspace-ui";
-import { expectMobileAgentSidebarVisible } from "../support/helpers/sidebar";
+import {
+  expectMobileAgentSidebarVisible,
+  openMobileAgentSidebar,
+} from "../support/helpers/sidebar";
 import { expectNewWorkspaceProjectSelected } from "../support/helpers/new-workspace";
+import { buildDefaultSettingsRoute } from "@/utils/host-routes";
+import { expectAppRoute } from "../support/helpers/route-assertions";
 
 const TEST_COMMANDS = [
   {
@@ -157,7 +162,7 @@ async function openAppWideNewWorkspace(page: Page): Promise<void> {
 
 async function openSettingsThenBackToWorkspace(page: Page): Promise<void> {
   await page.getByTestId("sidebar-settings").filter({ visible: true }).first().click();
-  await expect(page).toHaveURL(/\/settings\/general$/, { timeout: 30_000 });
+  await expectAppRoute(page, buildDefaultSettingsRoute(), { timeout: 30_000 });
   await page.getByTestId("settings-back-to-workspace").click();
   await page.waitForURL((url) => url.pathname.includes("/workspace/"), { timeout: 30_000 });
 }
@@ -701,7 +706,7 @@ test.describe("Composer autocomplete", () => {
           timeout: 30_000,
         });
 
-        await page.getByRole("button", { name: "Open menu" }).click();
+        await openMobileAgentSidebar(page);
         await expectMobileAgentSidebarVisible(page);
 
         const popoverBox = await popover.boundingBox();

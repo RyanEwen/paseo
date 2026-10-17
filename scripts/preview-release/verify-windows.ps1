@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 # Inspect the PE produced by packaging, including builds requested with --arm64.
 $unpacked = @(Get-ChildItem 'packages/desktop/release' -Directory | Where-Object { $_.Name -match '^win.*unpacked$' })
 if ($unpacked.Count -ne 1) { throw 'Expected exactly one unpacked Windows preview' }
-$executable = Join-Path $unpacked[0].FullName 'Paseo Debug.exe'
+$executable = Join-Path $unpacked[0].FullName 'Paseo++.exe'
 $bytes = [System.IO.File]::ReadAllBytes($executable)
 $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
 $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)

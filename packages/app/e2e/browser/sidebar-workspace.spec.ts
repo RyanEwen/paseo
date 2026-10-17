@@ -1,9 +1,11 @@
 import path from "node:path";
-import type { Page, TestInfo } from "@playwright/test";
+import type { Page, TestInfo, Locator } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import {
   closeMobileAgentSidebar,
+  openSidebarDisplayPage,
+  closeSidebarDisplayPreferences,
   expectMobileAgentSidebarHidden,
   expectMobileAgentSidebarVisible,
   expectWorkspaceHoverCardClosed,
@@ -13,6 +15,7 @@ import {
   movePointerAwayFromWorkspaceHoverCard,
   openMobileAgentSidebar,
   pinWorkspaceFromSidebar,
+  selectSidebarStatusGrouping,
 } from "../support/helpers/sidebar";
 import { seedWorkspace } from "../support/helpers/seed-client";
 import { expectWorkspaceHeader } from "../support/helpers/workspace-ui";
@@ -22,6 +25,24 @@ import { projectEquivalenceViewKey } from "../support/helpers/project-view-key";
 import { escapeRegex } from "../support/helpers/regex";
 import { openFilesPanel } from "../support/helpers/workspace-tabs";
 import { seedMockAgentWorkspace } from "../support/helpers/mock-agent";
+
+/** Set the active mode through its actual Display control rather than legacy global storage. */
+async function setWorkspaceCountLimit(page: Page, count: number | null) {
+  await openSidebarDisplayPage(page, "sidebar-display-workspace-list");
+  await page.getByTestId("sidebar-workspace-count-limit").click();
+  if (count === null) {
+    await page.getByTestId("sidebar-workspace-count-all").click();
+  } else {
+    await page.getByTestId("sidebar-workspace-count-custom").fill(String(count));
+    await page.getByTestId("sidebar-workspace-count-save").click();
+  }
+  await closeSidebarDisplayPreferences(page);
+}
+
+/** Check the outer scroll owner without confusing a visible viewport with overflowing content. */
+async function hasScrollOverflow(scroll: Locator): Promise<boolean> {
+  return scroll.evaluate((node) => node.scrollHeight > node.clientHeight);
+}
 
 const GITHUB_REMOTE_URL = "https://github.com/test-owner/test-repo.git";
 
@@ -79,6 +100,15 @@ async function openWorkspaceHoverCard(page: import("@playwright/test").Page, wor
   return hoverCard;
 }
 
+/** Assert the rendered hover-card value is readable without single-line clipping. */
+async function expectHoverCardValueFits(page: Page, testID: string, value: string): Promise<void> {
+  const text = page.getByTestId(testID);
+  await expect(text).toHaveText(value);
+  await expect
+    .poll(async () => text.evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBe(0);
+}
+
 interface PaseoOwnedWorktree {
   projectName: string;
   workspaceId: string;
@@ -88,8 +118,12 @@ interface PaseoOwnedWorktree {
 async function withPaseoOwnedWorktree(
   run: (workspace: PaseoOwnedWorktree) => Promise<void>,
 ): Promise<void> {
-  const project = await seedWorkspace({ repoPrefix: "sidebar-hover-owned-worktree-" });
-  const worktreeSlug = "hover-card-owned-worktree";
+  const branchName = "feature/hover-card-with-a-long-branch-name-that-should-remain-readable";
+  const project = await seedWorkspace({
+    repoPrefix: "sidebar-hover-owned-worktree-",
+    repo: { branches: [branchName] },
+  });
+  const worktreeSlug = "hover-card-owned-worktree-with-a-long-directory";
 
   try {
     const created = await project.client.createWorkspace({
@@ -98,6 +132,8 @@ async function withPaseoOwnedWorktree(
         cwd: project.repoPath,
         projectId: project.projectId,
         worktreeSlug,
+        action: "checkout",
+        refName: branchName,
       },
     });
     if (!created.workspace) {
@@ -187,8 +223,8 @@ async function simulateDamagedLegacyDirectoryCache(
               return;
             }
             const stored = JSON.parse(checkpoint.payload);
-            // Accept either writer so this fixture also reproduces on the unfixed client.
-            const cursors = stored.version === 1 ? stored.cursors : stored;
+            // Strip the current writer's envelope to reproduce the raw legacy checkpoint.
+            const cursors = stored.cursors ?? stored;
             if (!cursors.workspaces?.generation) {
               transaction.abort();
               return;
@@ -294,6 +330,69 @@ async function expectRecoveredWorkspacesAfterReload(
 }
 
 test.describe("Sidebar workspace list", () => {
+  test("configurable limits cover project, status and pinned groups with outer scroll indicators", async ({
+    page,
+  }) => {
+    const workspace = await seedWorkspace({ repoPrefix: "sidebar-initial-limit-" });
+    try {
+      const ids = [workspace.workspaceId];
+      for (let index = 1; index < 25; index += 1) {
+        const created = await workspace.client.createWorkspace({
+          source: { kind: "directory", path: workspace.repoPath, projectId: workspace.projectId },
+          title: `Limited workspace ${index}`,
+        });
+        if (!created.workspace) throw new Error(created.error ?? "Unable to fill sidebar");
+        ids.push(created.workspace.id);
+      }
+      await page.addInitScript(() => {
+        const key = "@paseo:app-settings";
+        const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+        if (settings.sidebarInitialWorkspaceCount === undefined)
+          settings.sidebarInitialWorkspaceCount = 7;
+        localStorage.setItem(key, JSON.stringify(settings));
+      });
+      await gotoAppShell(page);
+      const rowSelector = '[data-testid^="sidebar-workspace-row-"]';
+      await expect(page.locator(rowSelector)).toHaveCount(7);
+      const projectToggle = page.getByTestId(
+        `sidebar-project-show-more-${projectEquivalenceViewKey(workspace.projectKey)}`,
+      );
+      await projectToggle.click();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      const projectScroll = page.getByTestId("sidebar-project-workspace-list-scroll");
+      await expect.poll(() => hasScrollOverflow(projectScroll)).toBe(true);
+      expect(
+        await projectScroll.evaluate((node) => getComputedStyle(node).scrollbarWidth),
+      ).not.toBe("none");
+      for (const id of ids.slice(0, 9)) await pinWorkspaceFromSidebar(page, id);
+      await expect(page.locator(rowSelector)).toHaveCount(23); // Expanded project16 + initially pinned7.
+      await page.getByTestId("sidebar-pinned-show-more").click();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      await selectSidebarStatusGrouping(page);
+      await setWorkspaceCountLimit(page, 7);
+      await expect(page.locator(rowSelector)).toHaveCount(14); // Two independent initial limits.
+      await page.getByTestId("sidebar-pinned-show-more").click();
+      await page.getByTestId("sidebar-status-group-show-more-done").click();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      const statusScroll = page.getByTestId("sidebar-status-list-scroll");
+      await expect.poll(() => hasScrollOverflow(statusScroll)).toBe(true);
+      expect(await statusScroll.evaluate((node) => getComputedStyle(node).scrollbarWidth)).not.toBe(
+        "none",
+      );
+      await setWorkspaceCountLimit(page, null);
+      await page.reload();
+      await expect(page.locator(rowSelector)).toHaveCount(25);
+      await expect(page.getByTestId("sidebar-pinned-show-more")).toHaveCount(0);
+      await expect(page.getByTestId("sidebar-status-group-show-more-done")).toHaveCount(0);
+      await setWorkspaceCountLimit(page, 1);
+      await page.reload();
+      await expect(page.locator(rowSelector)).toHaveCount(2);
+      await expect.poll(() => hasScrollOverflow(statusScroll)).toBe(false);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   test("recovers missing workspaces from a damaged legacy cache after reload", async ({
     page,
   }, testInfo) => {
@@ -481,13 +580,26 @@ test.describe("Sidebar workspace list", () => {
     }
   });
 
-  test("Paseo-owned worktree hover card shows the worktree directory name", async ({ page }) => {
+  test("Paseo-owned worktree hover card fits long branch and directory names", async ({
+    page,
+  }, testInfo) => {
     await withPaseoOwnedWorktree(async ({ projectName, workspaceId, worktreeSlug }) => {
       await gotoAppShell(page);
       await waitForSidebarProject(page, projectName);
       await openWorkspaceHoverCard(page, workspaceId);
 
-      await expect(page.getByTestId("hover-card-workspace-cwd")).toHaveText(worktreeSlug);
+      await expectHoverCardValueFits(page, "hover-card-workspace-cwd", worktreeSlug);
+      await expectHoverCardValueFits(
+        page,
+        "hover-card-workspace-branch",
+        "feature/hover-card-with-a-long-branch-name-that-should-remain-readable",
+      );
+      const card = page.getByTestId("workspace-hover-card");
+      const bounds = await card.boundingBox();
+      if (!bounds) throw new Error("Workspace hover card has no rendered bounds");
+      expect(bounds.width).toBeGreaterThan(260);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(1280);
+      await page.screenshot({ path: testInfo.outputPath("workspace-hover-card-long-names.png") });
     });
   });
 });

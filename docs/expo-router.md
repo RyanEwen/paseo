@@ -115,6 +115,10 @@ targets.
   `/h/[serverId]/agent/[agentId]`; that route waits for the named host, resolves
   the agent's workspace from the host, and then opens the agent there.
 
+Explicit tab navigation also reveals the compact workspace pane. Selecting a tab alone
+leaves the workspace list or explorer in front of it. Deferred route intents reveal
+the pane again when the destination consumes them after layout hydration.
+
 Both paths converge on `navigateToAgent()`. Do not make notification routing
 guess a workspace, and do not add a workspace to the stable agent URL format.
 
@@ -123,6 +127,13 @@ focused. Retained native screens still have their own workspace params; reading
 the global `open` value there pairs another screen's chat with the wrong workspace.
 Nested workspace navigation must also clear `open` when no target is supplied,
 because React Navigation merges params on retained screens.
+
+OS notification dismissal follows the visible chat, independently of navigation or
+server attention. A retained route, unfocused pane, loading chat, hidden window,
+or compact sidebar does not acknowledge a notification. Browser cleanup covers
+only notifications created by that browser session. Windows history cleanup
+requires the executable-owned fork notification identity; legacy Debug and upstream
+histories remain separate.
 
 ## Params
 

@@ -1,3 +1,4 @@
+import type { SidebarCollapseTargets } from "@/stores/sidebar-collapsed-sections-store/state";
 import type { WorkspaceTitleSource } from "@/hooks/use-settings";
 import type { TFunction } from "i18next";
 import { buildStatusGroups } from "@/hooks/sidebar-status-view-model";
@@ -10,6 +11,7 @@ import type {
   SidebarProjectEntry,
   SidebarWorkspaceEntry,
 } from "@/hooks/use-sidebar-workspaces-list";
+import { applyStoredOrdering } from "@/hooks/sidebar-workspaces-view-model";
 import { arrangeSidebarWorkspaces } from "./sidebar-arrangement";
 import type { SidebarWorkspaceSortMode, SidebarGroupMode } from "@/stores/sidebar-view-store";
 import {
@@ -46,6 +48,7 @@ export interface SidebarProjectionInput {
   projectNamesByViewKey: Map<string, string>;
   groupMode: SidebarGroupMode;
   workspaceSortMode: SidebarWorkspaceSortMode;
+  projectPinningEnabled: boolean;
   workspaceTitleSource: WorkspaceTitleSource;
   statusWorkspaceOrder: string[];
   pinnedCollapsed: boolean;
@@ -64,12 +67,15 @@ export function buildSidebarProjection(input: SidebarProjectionInput): SidebarPr
   if (input.groupMode === "project") {
     pinnedGroups.unpinnedProjects = pinnedGroups.unpinnedProjects.map((project) => ({
       ...project,
-      workspaces: arrangeSidebarWorkspaces({
-        workspaces: project.workspaces,
-        mode: input.workspaceSortMode,
-        entries: input.workspaceEntriesByKey,
-        workspaceTitleSource: input.workspaceTitleSource,
-      }),
+      workspaces: arrangeProjectPinnedWorkspaces(
+        input,
+        arrangeSidebarWorkspaces({
+          workspaces: project.workspaces,
+          mode: input.workspaceSortMode,
+          entries: input.workspaceEntriesByKey,
+          workspaceTitleSource: input.workspaceTitleSource,
+        }),
+      ),
     }));
   }
   const pinnedWorkspaceKeys = new Set(input.pinnedKeys.pinnedWorkspaceKeys);
@@ -144,4 +150,59 @@ function buildWorkspaceGroups(
       });
     }
   }
+}
+
+/** Keep project pins ahead of sorted siblings without writing their saved custom order. */
+function arrangeProjectPinnedWorkspaces(
+  input: SidebarProjectionInput,
+  workspaces: SidebarProjectEntry["workspaces"],
+): SidebarProjectEntry["workspaces"] {
+  // Disabling the client feature changes presentation only; persisted pins remain intact.
+  if (!input.projectPinningEnabled) return workspaces;
+
+  const pins = workspaces.filter(
+    (workspace) => input.workspaceEntriesByKey.get(workspace.workspaceKey)?.projectPinnedAt != null,
+  );
+  const pinKeys = new Set(pins.map((workspace) => workspace.workspaceKey));
+  pins.sort((a, b) => {
+    const aTime = input.workspaceEntriesByKey.get(a.workspaceKey)?.projectPinnedAt ?? "";
+    const bTime = input.workspaceEntriesByKey.get(b.workspaceKey)?.projectPinnedAt ?? "";
+    return bTime.localeCompare(aTime);
+  });
+  return [
+    ...applyStoredOrdering({
+      items: pins,
+      storedOrder: input.pinnedWorkspaceOrder,
+      getKey: (workspace) => workspace.workspaceKey,
+    }),
+    ...workspaces.filter((workspace) => !pinKeys.has(workspace.workspaceKey)),
+  ];
+}
+
+interface SidebarCollapseTargetsInput
+  extends
+    Pick<SidebarProjectionInput, "projects" | "groupMode">,
+    Pick<SidebarProjection, "pinnedGroups" | "workspaceGroups"> {
+  groupEmptyProjects: boolean;
+}
+
+/** Resolve bulk collapse targets from the same filtered projection that renders the sidebar. */
+export function resolveSidebarCollapseTargets(
+  input: SidebarCollapseTargetsInput,
+): SidebarCollapseTargets {
+  // Global pinning removes child rows from project sections, but it does not make the
+  // original project empty. Empty-section headers are rendered from the filtered originals.
+  const emptyProjects = input.projects.filter((project) => project.workspaces.length === 0);
+  const renderedProjects =
+    input.groupMode === "project" ? input.pinnedGroups.unpinnedProjects : emptyProjects;
+  const workspaceGroupKeys =
+    input.groupMode === "status" ? input.workspaceGroups.map((group) => group.key) : [];
+  if (input.groupEmptyProjects && emptyProjects.length > 0) {
+    workspaceGroupKeys.push("no-unarchived-workspaces");
+  }
+  return {
+    projectKeys: renderedProjects.map((project) => project.viewKey),
+    workspaceGroupKeys,
+    includePinned: input.pinnedGroups.pinnedChats.length > 0,
+  };
 }

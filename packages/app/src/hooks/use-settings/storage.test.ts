@@ -1,3 +1,6 @@
+import { ACCENT_OPTIONS } from "@/styles/accent";
+import { SYNC_APP_SETTING_KEYS } from "@getpaseo/protocol/app-settings";
+import { DEFAULT_PASEO_PLUS_PLUS_PREFERENCES } from "@/paseo-plus-plus/preferences";
 import { describe, expect, it } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import {
@@ -45,6 +48,154 @@ function makeDeps(
 }
 
 describe("loadAppSettingsFromStorage", () => {
+  it.each([undefined, null, "unknown", 4])(
+    "defaults invalid accent %s without changing theme",
+    async (accentColor) => {
+      const deps = makeDeps({
+        storage: createInMemoryKeyValueStorage({
+          [APP_SETTINGS_KEY]: JSON.stringify({ accentColor, theme: "pureBlack" }),
+        }),
+      });
+      const settings = await loadAppSettingsFromStorage(deps);
+      expect(settings.accentColor).toBe("default");
+      expect(settings.theme).toBe("pureBlack");
+    },
+  );
+
+  it.each(ACCENT_OPTIONS)(
+    "retains accent %s through unrelated saves and reload",
+    async (accentColor) => {
+      const deps = makeDeps();
+      const queryClient = new QueryClient();
+      await saveAppSettings({ deps, queryClient, updates: { accentColor } });
+      await saveAppSettings({ deps, queryClient, updates: { theme: "light" } });
+      const settings = await loadAppSettingsFromStorage(deps);
+      expect(settings.accentColor).toBe(accentColor);
+      expect(settings.theme).toBe("light");
+    },
+  );
+
+  it.each([undefined, 0, -1, 1.5, "25", Number.MAX_SAFE_INTEGER + 1])(
+    "defaults malformed sidebar initial count %s to 20",
+    async (value) => {
+      const deps = makeDeps({
+        storage: createInMemoryKeyValueStorage({
+          [APP_SETTINGS_KEY]: JSON.stringify({ sidebarInitialWorkspaceCount: value }),
+        }),
+      });
+      const settings = await loadAppSettingsFromStorage(deps);
+      expect(settings.sidebarInitialWorkspaceCount).toBe(20);
+    },
+  );
+
+  it.each([1, 37, Number.MAX_SAFE_INTEGER, null])(
+    "retains sidebar initial count %s across save and reload",
+    async (value) => {
+      const deps = makeDeps();
+      const queryClient = new QueryClient();
+      await saveAppSettings({
+        deps,
+        queryClient,
+        updates: { sidebarInitialWorkspaceCount: value },
+      });
+      const settings = await loadAppSettingsFromStorage(deps);
+      expect(settings.sidebarInitialWorkspaceCount).toBe(value);
+    },
+  );
+
+  it.each(Object.keys(DEFAULT_PASEO_PLUS_PLUS_PREFERENCES))(
+    "normalizes missing or malformed %s to on while retaining an explicit off",
+    async (feature) => {
+      for (const value of [undefined, null, "false", 0, false]) {
+        const deps = makeDeps({
+          storage: createInMemoryKeyValueStorage({
+            [APP_SETTINGS_KEY]: JSON.stringify({ paseoPlusPlus: { [feature]: value } }),
+          }),
+        });
+        const settings = await loadAppSettingsFromStorage(deps);
+        expect(settings.paseoPlusPlus[feature]).toBe(value !== false);
+      }
+    },
+  );
+
+  it("keeps effective fork choices unchanged when persistence fails", async () => {
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    const current = await loadAppSettingsFromStorage(deps);
+    queryClient.setQueryData(APP_SETTINGS_QUERY_KEY, current);
+    deps.storage.setItem = async () => {
+      throw new Error("storage unavailable");
+    };
+    await expect(
+      saveAppSettings({
+        queryClient,
+        deps,
+        updates: (settings) => ({
+          paseoPlusPlus: { ...settings.paseoPlusPlus, previousAgents: false },
+        }),
+      }),
+    ).rejects.toThrow("storage unavailable");
+    expect(queryClient.getQueryData(APP_SETTINGS_QUERY_KEY)).toEqual(current);
+  });
+
+  it("defaults fork opt-outs independently and retains unknown future choices", async () => {
+    const defaults = await loadAppSettingsFromStorage(makeDeps());
+    expect(defaults.paseoPlusPlus).toEqual({
+      workspaceChatLinks: true,
+      sidebarHostUpdates: true,
+      mobileWorkspaceTabs: true,
+      splitLayoutPresets: true,
+      descriptiveToolCalls: true,
+      stickyUserPrompts: true,
+      previousAgents: true,
+      sidebarProjectSelector: true,
+      sidebarActivityChips: true,
+      sidebarProjectEmphasis: true,
+      sidebarBulkActions: true,
+      projectPinning: true,
+      sidebarWorkspaceTransitions: true,
+      androidAutomaticUpdateChecks: true,
+    });
+    const deps = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify({
+          paseoPlusPlus: {
+            previousAgents: false,
+            sidebarBulkActions: "invalid",
+            futureFeature: false,
+          },
+        }),
+      }),
+    });
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.paseoPlusPlus.previousAgents).toBe(false);
+    expect(restored.paseoPlusPlus.sidebarBulkActions).toBe(true);
+    expect(restored.paseoPlusPlus.stickyUserPrompts).toBe(true);
+    expect(restored.paseoPlusPlus.futureFeature).toBe(false);
+    await saveAppSettings({ queryClient: new QueryClient(), deps, updates: { language: "fr" } });
+    expect((await loadAppSettingsFromStorage(deps)).paseoPlusPlus.futureFeature).toBe(false);
+  });
+
+  it("persists independent fork choices without clearing existing preferences", async () => {
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    await saveAppSettings({ queryClient, deps, updates: { explorerDiffScope: "single" } });
+    for (const previousAgents of [false, true]) {
+      await saveAppSettings({
+        queryClient,
+        deps,
+        updates: (current) => ({
+          paseoPlusPlus: { ...current.paseoPlusPlus, previousAgents, stickyUserPrompts: false },
+        }),
+      });
+      const restored = await loadAppSettingsFromStorage(deps);
+      expect(restored.paseoPlusPlus.previousAgents).toBe(previousAgents);
+      expect(restored.paseoPlusPlus.stickyUserPrompts).toBe(false);
+      expect(restored.paseoPlusPlus.projectPinning).toBe(true);
+      expect(restored.explorerDiffScope).toBe("single");
+    }
+  });
+
   it.each(["diff", "timestamp", "both", "none"] as const)(
     "preserves saved sidebar trailing mode %s",
     async (mode) => {
@@ -74,6 +225,46 @@ describe("loadAppSettingsFromStorage", () => {
     const neither = toggleSidebarTrailingItem({ trailing: diffOnly, choice: "diff" });
     expect(neither).toBe("none");
     expect(toggleSidebarTrailingItem({ trailing: neither, choice: "timestamp" })).toBe("timestamp");
+  });
+
+  it("defaults Explorer preferences and preserves persisted choices", async () => {
+    const defaults = await loadAppSettingsFromStorage(makeDeps());
+    expect(defaults.autoOpenExplorerSidebar).toBe(false);
+    expect(defaults.explorerDiffScope).toBe("all");
+    expect(defaults.workingDiffDefaultComparison).toBe("uncommitted");
+    expect(defaults.workingDiffAutoSwitch).toBe(false);
+
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    await saveAppSettings({
+      queryClient,
+      updates: {
+        autoOpenExplorerSidebar: true,
+        explorerDiffScope: "single",
+        workingDiffDefaultComparison: "base",
+        workingDiffAutoSwitch: true,
+      },
+      deps,
+    });
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.autoOpenExplorerSidebar).toBe(true);
+    expect(restored.explorerDiffScope).toBe("single");
+    expect(restored.workingDiffDefaultComparison).toBe("base");
+    expect(restored.workingDiffAutoSwitch).toBe(true);
+  });
+
+  it("uses Explorer defaults when stored values are invalid", async () => {
+    const deps = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify({
+          autoOpenExplorerSidebar: "yes",
+          explorerDiffScope: "future",
+        }),
+      }),
+    });
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.autoOpenExplorerSidebar).toBe(false);
+    expect(restored.explorerDiffScope).toBe("all");
   });
 
   it("preserves a persisted steer send behavior", async () => {
@@ -547,6 +738,43 @@ describe("loadAppSettingsFromStorage", () => {
 });
 
 describe("saveAppSettings", () => {
+  it("serializes cold concurrent fork changes and recovers after a failed write", async () => {
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+    const setItem = deps.storage.setItem;
+    let failOnce = true;
+    deps.storage.setItem = async (key, value) => {
+      if (failOnce) {
+        failOnce = false;
+        throw new Error("storage unavailable");
+      }
+      await setItem(key, value);
+    };
+    const results = await Promise.allSettled([
+      saveAppSettings({
+        queryClient,
+        deps,
+        updates: (current) => ({
+          paseoPlusPlus: { ...current.paseoPlusPlus, previousAgents: false },
+        }),
+      }),
+      saveAppSettings({
+        queryClient,
+        deps,
+        updates: (current) => ({
+          paseoPlusPlus: { ...current.paseoPlusPlus, stickyUserPrompts: false },
+        }),
+      }),
+      saveAppSettings({ queryClient, deps, updates: { language: "fr" } }),
+    ]);
+    expect(results.map((result) => result.status)).toEqual(["rejected", "fulfilled", "fulfilled"]);
+    const restored = await loadAppSettingsFromStorage(deps);
+    expect(restored.paseoPlusPlus.previousAgents).toBe(true);
+    expect(restored.paseoPlusPlus.stickyUserPrompts).toBe(false);
+    expect(restored.language).toBe("fr");
+    expect(queryClient.getQueryData(APP_SETTINGS_QUERY_KEY)).toEqual(restored);
+  });
+
   it("applies consecutive functional updates to the latest cached settings", async () => {
     const deps = makeDeps();
     const queryClient = new QueryClient();
@@ -812,7 +1040,20 @@ describe("appearance settings", () => {
     expect(result.contentFontSize).toBe(DEFAULT_UI_BASE_FONT_SIZE);
     expect(result.codeFontSize).toBe(DEFAULT_CODE_FONT_SIZE);
     expect(result.syntaxTheme).toBe("one");
-    expect(result.toolCallDetailLevel).toBe("detailed");
+    expect(result.toolCallDetailLevel).toBe("overview");
+  });
+
+  it.each([
+    { stored: { toolCallDetailLevel: "detailed" }, expected: "detailed" },
+    { stored: { toolCallDetailLevel: "overview" }, expected: "overview" },
+    { stored: { compactToolCalls: false }, expected: "detailed" },
+  ])("preserves the saved tool call display choice $stored", async ({ stored, expected }) => {
+    const deps = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify(stored),
+      }),
+    });
+    expect((await loadAppSettingsFromStorage(deps)).toolCallDetailLevel).toBe(expected);
   });
 
   it("migrates the enabled compact tool call preference to overview", async () => {
@@ -832,7 +1073,7 @@ describe("appearance settings", () => {
       }),
     });
 
-    expect((await loadAppSettingsFromStorage(deps)).toolCallDetailLevel).toBe("detailed");
+    expect((await loadAppSettingsFromStorage(deps)).toolCallDetailLevel).toBe("overview");
   });
 
   it("migrates a switched-off checks row item to the hidden checks display", async () => {
@@ -1126,4 +1367,10 @@ describe("content max width", () => {
     expect((await load(10)).contentMaxWidth).toBe(600);
     expect((await load("wide")).contentMaxWidth).toBeNull();
   });
+});
+
+it("includes every app preference in the daemon sync scope and excludes desktop settings", () => {
+  expect([...SYNC_APP_SETTING_KEYS].sort()).toEqual(Object.keys(DEFAULT_CLIENT_SETTINGS).sort());
+  expect(SYNC_APP_SETTING_KEYS).not.toContain("manageBuiltInDaemon");
+  expect(SYNC_APP_SETTING_KEYS).not.toContain("releaseChannel");
 });

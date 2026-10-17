@@ -234,6 +234,9 @@ export function WorkspaceHeaderMenuMobile({
     host: "main",
     surface: "menu",
   });
+  const previousAgents = launchGroups
+    .flatMap((group) => group.items)
+    .find((item) => item.id === "reopen-closed-agent");
   const pluginPanels = launchGroups.find((group) => group.id === "plugin-panels");
   const profiles = useMemo(
     () => resolveTerminalProfiles(config?.terminalProfiles),
@@ -268,6 +271,7 @@ export function WorkspaceHeaderMenuMobile({
         >
           {t("workspace.header.actions.newAgent")}
         </DropdownMenuItem>
+        {previousAgents ? <WorkspaceNewTabMenuItem item={previousAgents} /> : null}
         {showCreateBrowserTab ? (
           <DropdownMenuItem
             testID="workspace-header-new-browser"

@@ -1,3 +1,4 @@
+import type { AgentDeepLinkTarget } from "@getpaseo/protocol/agent-deep-link";
 import { Platform } from "react-native";
 import { getElectronHost } from "@/desktop/electron/host";
 import type { BrowserKeyboardPolicy } from "@/desktop/browser/shortcuts";
@@ -54,6 +55,10 @@ export interface DesktopDialogBridge {
 }
 
 export interface DesktopNotificationBridge {
+  setViewedAgent?: (input: {
+    target: AgentDeepLinkTarget | null;
+    revision: number;
+  }) => Promise<void>;
   isSupported?: () => Promise<boolean>;
   sendNotification?: (
     payload: string | { title: string; body?: string; data?: Record<string, unknown> },
@@ -145,15 +150,6 @@ export interface DesktopAttachedBrowserRegistration {
 }
 
 export interface DesktopBrowserBridge {
-  extensions?: {
-    list(): Promise<DesktopBrowserExtension[]>;
-    actions(): Promise<DesktopBrowserExtensionAction[]>;
-    openPopup(id: string, browserId: string): Promise<void>;
-    setEnabled(id: string, enabled: boolean): Promise<void>;
-    remove(id: string): Promise<void>;
-    loadUnpacked(): Promise<void>;
-    openStore(): Promise<void>;
-  };
   setShortcutPolicy?: (input: BrowserKeyboardPolicy) => Promise<void>;
   readonly profilePartition?: string;
   registerAttachedBrowser?: (input: DesktopAttachedBrowserRegistration) => Promise<void>;
@@ -175,21 +171,6 @@ export interface DesktopBrowserBridge {
   ) => Promise<string | null>;
   /** Copy element text and/or an image to the system clipboard from main. */
   copyElement?: (payload: { text?: string; imageDataUrl?: string }) => Promise<boolean>;
-}
-
-export interface DesktopBrowserExtension {
-  id: string;
-  name: string;
-  version: string;
-  source: "store" | "unpacked";
-  enabled: boolean;
-  error?: string;
-}
-
-export interface DesktopBrowserExtensionAction {
-  id: string;
-  name: string;
-  hasPopup: boolean;
 }
 
 export interface DesktopInvokeBridge {

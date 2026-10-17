@@ -1,3 +1,4 @@
+import { childContextPageReader } from "@/agent-stream/fetch-reading-prompt-context";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -26,6 +27,7 @@ import {
 } from "@/subagents/provider-store";
 import { useTranslation } from "react-i18next";
 import type { PendingPermission } from "@/types/shared";
+import type { TimelinePageAcceptance } from "@/timeline/fetch-viewed-timeline-page";
 import type { StreamItem } from "@/types/stream";
 import { deriveSidebarStateBucket } from "@/utils/sidebar-agent-state";
 import { TIMELINE_FETCH_PAGE_SIZE } from "@/timeline/timeline-fetch-policy";
@@ -113,11 +115,15 @@ function ProviderSubagentPanel() {
   invariant(target.kind === "provider_subagent", "ProviderSubagentPanel requires provider target");
   const key = providerSubagentKey(serverId, target.parentAgentId, target.subagentId);
   const streamId = `provider:${encodeURIComponent(target.parentAgentId)}:${encodeURIComponent(target.subagentId)}`;
-  const { descriptor, timeline } = useProviderSubagentStore(
-    useShallow((state) => ({
-      descriptor: state.descriptors.get(key) ?? null,
-      timeline: state.timelines.get(key) ?? null,
-    })),
+  const { descriptor, timeline, epoch } = useProviderSubagentStore(
+    useShallow((state) => {
+      const cachedTimeline = state.timelines.get(key) ?? null;
+      return {
+        descriptor: state.descriptors.get(key) ?? null,
+        timeline: cachedTimeline,
+        epoch: cachedTimeline?.epoch ?? null,
+      };
+    }),
   );
   const parent = useSessionStore(
     (state) =>
@@ -168,35 +174,45 @@ function ProviderSubagentPanel() {
     });
   }, [client, supported, serverId, target.parentAgentId, target.subagentId]);
 
-  const loadOlder = useCallback((): boolean => {
-    if (!client || !supported || isLoadingOlder || !timeline?.hasOlder || !timeline.epoch) {
-      return false;
-    }
-    const firstSeq = timeline.cursor?.startSeq ?? null;
-    if (firstSeq === null) return false;
-    setIsLoadingOlder(true);
-    void client
-      .fetchProviderSubagentTimeline(target.parentAgentId, target.subagentId, {
-        direction: "before",
-        cursor: { epoch: timeline.epoch, seq: firstSeq },
-        limit: TIMELINE_FETCH_PAGE_SIZE,
-      })
-      .then((payload) => {
+  // Return settlement to prompt navigation, which may need several tool-only pages.
+  const loadOlder = useCallback(
+    async (acceptance?: TimelinePageAcceptance): Promise<boolean> => {
+      if (acceptance?.signal.aborted) return false;
+      if (!client || !supported || isLoadingOlder || !timeline?.hasOlder || !timeline.epoch) {
+        return false;
+      }
+      const firstSeq = timeline.cursor?.startSeq ?? null;
+      if (firstSeq === null) return false;
+      setIsLoadingOlder(true);
+      try {
+        const payload = await client.fetchProviderSubagentTimeline(
+          target.parentAgentId,
+          target.subagentId,
+          {
+            direction: "before",
+            cursor: { epoch: timeline.epoch, seq: firstSeq },
+            limit: TIMELINE_FETCH_PAGE_SIZE,
+          },
+        );
+        if (acceptance?.signal.aborted) return false;
         useProviderSubagentStore.getState().replaceTimeline(serverId, payload);
-        return undefined;
-      })
-      .catch(() => undefined)
-      .finally(() => setIsLoadingOlder(false));
-    return true;
-  }, [
-    client,
-    isLoadingOlder,
-    serverId,
-    supported,
-    target.parentAgentId,
-    target.subagentId,
-    timeline,
-  ]);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        setIsLoadingOlder(false);
+      }
+    },
+    [
+      client,
+      isLoadingOlder,
+      serverId,
+      supported,
+      target.parentAgentId,
+      target.subagentId,
+      timeline,
+    ],
+  );
   const firstTimelineSeq = timeline?.cursor?.startSeq ?? null;
   const progressKey =
     timeline?.epoch && firstTimelineSeq !== null ? `${timeline.epoch}:${firstTimelineSeq}` : null;
@@ -214,14 +230,23 @@ function ProviderSubagentPanel() {
     }),
     [descriptor, parent, serverId, streamId],
   );
+  const readPromptContext = useMemo(
+    () =>
+      client && supported
+        ? childContextPageReader(client, target.parentAgentId, target.subagentId)
+        : undefined,
+    [client, supported, target.parentAgentId, target.subagentId],
+  );
   const historyPagination = useMemo(
     () => ({
+      epoch,
       hasOlder: timeline?.hasOlder === true,
       isLoadingOlder,
       progressKey,
       onLoadOlder: loadOlder,
+      readPromptContext,
     }),
-    [isLoadingOlder, loadOlder, progressKey, timeline?.hasOlder],
+    [epoch, isLoadingOlder, loadOlder, progressKey, timeline?.hasOlder, readPromptContext],
   );
   const turnPresentation = useMemo<TurnPresentation>(
     () => ({

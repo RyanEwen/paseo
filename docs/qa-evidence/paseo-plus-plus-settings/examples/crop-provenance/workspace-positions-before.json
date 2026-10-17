@@ -1,0 +1,38 @@
+{
+  "id": "workspace-positions-before",
+  "source": "workspace-motion-owner-before.png",
+  "sourceSha256": "7c0fd6475756d888314fb128d279ec1f918d3b7f8669139d4a88bcb0500fd4f5",
+  "originalOwnerEvidence": "docs/qa-evidence/sidebar-workspace-transitions/verification.md",
+  "originalEvidenceCopy": "workspace-motion-owner-verification.md",
+  "platform": "browser web",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pixels": {
+    "width": 1440,
+    "height": 900
+  },
+  "crop": {
+    "left": 0,
+    "top": 174,
+    "width": 312,
+    "height": 183
+  },
+  "description": "Qualified owner motion capture. The focused pink workspace moves from the second Done row to Ready to review. Crop excludes historical heading and hover card.",
+  "boundary": "Historical owner capture from committed QA evidence, not a new current-source capture or animation timing proof.",
+  "rawRecord": "assets/raw/workspace-motion-owner-before.json",
+  "captureSuggestedCrop": {
+    "left": 0,
+    "top": 174,
+    "width": 312,
+    "height": 183
+  },
+  "asset": "workspace-positions-before.png",
+  "assetSha256": "06c0bbc9df677881e9967b7e6fc1532e5ba458a2567ef665c71f4c3d0e5c08f4",
+  "assetPixels": {
+    "width": 312,
+    "height": 183
+  },
+  "transformation": "Lossless rectangular crop only. No compositing, resizing or generated pixels."
+}

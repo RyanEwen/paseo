@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateSidebarStateBuckets,
+  aggregateKnownSidebarStateBuckets,
   deriveSidebarStateBucket,
   type SidebarStateBucket,
 } from "./sidebar-agent-state";
@@ -95,5 +96,20 @@ describe("aggregateSidebarStateBuckets", () => {
     expect(aggregateSidebarStateBuckets(buckets)).toBe(
       aggregateSidebarStateBuckets(buckets.toReversed()),
     );
+  });
+});
+
+describe("known project activity", () => {
+  it("does not label empty, loading or offline projects as completed", () => {
+    expect(aggregateKnownSidebarStateBuckets([])).toBeNull();
+    expect(aggregateKnownSidebarStateBuckets([null])).toBeNull();
+    expect(aggregateKnownSidebarStateBuckets(["done", null])).toBeNull();
+    expect(aggregateKnownSidebarStateBuckets(["done", "done"])).toBe("done");
+  });
+  it("preserves real activity and the existing mixed-workspace priority", () => {
+    expect(aggregateKnownSidebarStateBuckets(["attention", "running", null])).toBe("running");
+    expect(aggregateKnownSidebarStateBuckets(["running", "failed"])).toBe("failed");
+    expect(aggregateKnownSidebarStateBuckets(["failed", "needs_input"])).toBe("needs_input");
+    expect(aggregateKnownSidebarStateBuckets(["done", "attention"])).toBe("attention");
   });
 });

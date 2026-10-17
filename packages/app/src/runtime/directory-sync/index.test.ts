@@ -33,6 +33,10 @@ type ProjectListResult = Awaited<ReturnType<DaemonClient["listProjects"]>>;
 type AgentFetchResult = Awaited<ReturnType<DaemonClient["fetchAgents"]>>;
 
 class FakeDirectoryClient {
+  supportsBackgroundWorkspaces(): boolean {
+    return false;
+  }
+
   supportsWorkspaceLabels = false;
   listWorkspaceLabelsCalls = 0;
   fetchAgentsCalls = 0;
@@ -1206,6 +1210,41 @@ describe("DirectorySync session readiness", () => {
     await currentRefresh;
 
     expect(client.fetchAgentsCalls).toBe(1);
+    directory.dispose();
+  });
+
+  it("retains a newly created workspace accepted while an older snapshot is loading", async () => {
+    const serverId = "created-workspace-during-refresh";
+    const { client, directory } = createDirectory(serverId);
+    const store = useSessionStore.getState();
+    store.initializeSession(serverId, client as unknown as DaemonClient, 1);
+    store.updateSessionServerInfo(serverId, {
+      serverId,
+      hostname: null,
+      version: "test",
+      features: { workspaceMultiplicity: true },
+    });
+    const completeFetch = client.holdWorkspaceFetch();
+    const refresh = directory.refreshWorkspaces();
+    await expect.poll(() => client.fetchWorkspacesCalls).toBe(1);
+
+    const created = normalizeWorkspaceDescriptor(createWorkspaceEntry("just-created"));
+    directory.acceptWorkspaces([created]);
+    expect(useSessionStore.getState().sessions[serverId]?.workspaces.get(created.id)).toEqual(
+      created,
+    );
+
+    completeFetch({
+      requestId: "workspaces",
+      entries: [],
+      emptyProjects: [],
+      pageInfo: { hasMore: false, nextCursor: null, prevCursor: null },
+    });
+    await refresh;
+
+    expect(useSessionStore.getState().sessions[serverId]?.workspaces.get(created.id)).toEqual(
+      created,
+    );
     directory.dispose();
   });
 

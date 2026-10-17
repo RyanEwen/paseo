@@ -11,6 +11,58 @@ const {
 } = require("./native-release-version");
 
 describe("native release version", () => {
+  const identities = {
+    production: { appName: "Paseo", packageId: "sh.paseo", scheme: "paseo" },
+    development: { appName: "Paseo Debug", packageId: "sh.paseo.debug", scheme: "paseo" },
+    preview: { appName: "Paseo++", packageId: "sh.paseo.plusplus", scheme: "paseo-plus-plus" },
+  };
+  it.each([
+    { variant: "production", preview: false, fdroid: false },
+    { variant: "development", preview: false, fdroid: false },
+    { variant: "production", preview: false, fdroid: true },
+    { variant: "development", preview: true, fdroid: false },
+  ])(
+    "enables APK installation only in a fork preview ($variant, preview=$preview, fdroid=$fdroid)",
+    ({ variant, preview, fdroid }) => {
+      const output = execFileSync(
+        process.execPath,
+        [
+          "-e",
+          `
+        const { getConfig } = require("expo/config");
+        const { exp } = getConfig(process.cwd());
+        process.stdout.write(JSON.stringify({
+          enabled: exp.extra.previewBuild,
+          canInstall: exp.android.permissions.includes("android.permission.REQUEST_INSTALL_PACKAGES"),
+          appName: exp.name,
+          packageId: exp.android.package,
+          scheme: exp.scheme,
+        }));
+      `,
+        ],
+        {
+          cwd: import.meta.dirname,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            APP_VARIANT: variant,
+            PASEO_PREVIEW_BUILD: preview ? "1" : "0",
+            PASEO_FDROID_BUILD: fdroid ? "1" : "0",
+            PASEO_PREVIEW_BUILD_NUMBER: "14",
+            PASEO_PREVIEW_EXPO_PROJECT_ID: "00000000-0000-0000-0000-000000000000",
+            PASEO_PREVIEW_EXPO_OWNER: "validation",
+            PASEO_PREVIEW_EXPO_SLUG: "validation",
+          },
+        },
+      );
+      expect(JSON.parse(output)).toEqual({
+        enabled: preview,
+        canInstall: preview,
+        ...identities[preview ? "preview" : (variant as "production" | "development")],
+      });
+    },
+  );
+
   it("replaces development signing only in the installed Expo template's release build", () => {
     const template = path.join(path.dirname(require.resolve("expo/package.json")), "template.tgz");
     const gradle = execFileSync("tar", ["-xOf", template, "package/android/app/build.gradle"], {

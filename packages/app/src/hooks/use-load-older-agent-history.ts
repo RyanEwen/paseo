@@ -8,6 +8,7 @@ import {
   type AgentTimelineCursorState,
 } from "@/stores/session-store";
 import { planTimelineOlderFetch } from "@/timeline/timeline-sync-plan";
+import type { TimelinePageAcceptance } from "@/timeline/fetch-viewed-timeline-page";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
 
 export interface LoadOlderAgentHistoryClient {
@@ -35,6 +36,7 @@ export interface LoadOlderAgentHistoryDeps {
   toast?: ToastApi | null;
   logger?: LoadOlderAgentHistoryLogger;
   failedMessage?: string;
+  acceptance?: TimelinePageAcceptance;
 }
 
 export async function loadOlderAgentHistory(
@@ -57,11 +59,13 @@ export async function loadOlderAgentHistory(
       planTimelineOlderFetch({ epoch: cursor.epoch, seq: cursor.startSeq }),
     );
   } catch (error) {
+    if (deps.acceptance?.signal.aborted) return false;
     (logger ?? console).warn("[Timeline] failed to load older agent history", agentId, error);
     toast?.show(failedMessage ?? i18n.t("loadOlderHistory.failed"), {
       durationMs: 2200,
       testID: "agent-load-older-history-toast",
     });
+    return false;
   } finally {
     setInFlight(false);
   }
@@ -109,24 +113,34 @@ export function useLoadOlderAgentHistory({
     [agentId, serverId, setOlderFetchInFlight],
   );
 
-  const loadOlder = useCallback(async (): Promise<boolean> => {
-    const session = useSessionStore.getState().sessions[serverId];
-    const timeline = selectAgentTimelineState(session, agentId);
-    return await loadOlderAgentHistory(agentId, {
-      client: session?.client
-        ? {
-            fetchAgentTimeline: (timelineAgentId, request) =>
-              getHostRuntimeStore().fetchAgentTimeline(serverId, timelineAgentId, request),
-          }
-        : null,
-      cursor: timeline.status === "synced" ? (timeline.range ?? undefined) : undefined,
-      hasOlder: timeline.status === "synced" && timeline.older === "available",
-      isLoadingOlder: session?.agentTimelineOlderFetchInFlight.get(agentId) === true,
-      setInFlight,
-      toast,
-      failedMessage: t("loadOlderHistory.failed"),
-    });
-  }, [agentId, serverId, setInFlight, toast, t]);
+  const loadOlder = useCallback(
+    async (acceptance?: TimelinePageAcceptance): Promise<boolean> => {
+      if (acceptance?.signal.aborted) return false;
+      const session = useSessionStore.getState().sessions[serverId];
+      const timeline = selectAgentTimelineState(session, agentId);
+      return await loadOlderAgentHistory(agentId, {
+        client: session?.client
+          ? {
+              fetchAgentTimeline: (timelineAgentId, request) =>
+                getHostRuntimeStore().fetchAgentTimeline(
+                  serverId,
+                  timelineAgentId,
+                  request,
+                  acceptance,
+                ),
+            }
+          : null,
+        cursor: timeline.status === "synced" ? (timeline.range ?? undefined) : undefined,
+        hasOlder: timeline.status === "synced" && timeline.older === "available",
+        isLoadingOlder: session?.agentTimelineOlderFetchInFlight.get(agentId) === true,
+        setInFlight,
+        toast,
+        failedMessage: t("loadOlderHistory.failed"),
+        acceptance,
+      });
+    },
+    [agentId, serverId, setInFlight, toast, t],
+  );
 
   return {
     isLoadingOlder,

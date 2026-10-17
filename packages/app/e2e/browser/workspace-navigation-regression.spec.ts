@@ -1,4 +1,5 @@
 import {
+  buildDefaultSettingsRoute,
   buildHostAgentDetailRoute,
   buildHostWorkspaceOpenRoute,
   buildHostWorkspaceRoute,
@@ -315,7 +316,7 @@ test.describe("Workspace navigation regression", () => {
     await expectWorkspaceHeaderAbsent(page);
     await expectWorkspaceTabsAbsent(page);
     await openSettings(page);
-    await expect(page).toHaveURL(/\/settings\/general$/);
+    await expectAppRoute(page, buildDefaultSettingsRoute());
   });
 
   test("cold workspace URL keeps sidebar workspace navigation functional", async ({ page }) => {

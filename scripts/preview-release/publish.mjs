@@ -1,20 +1,21 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { getGitHubRelease, getReleaseLookupTag } from "../github-release.mjs";
+import { getGitHubRelease, getReleaseLookupTag, waitForGitHubRelease } from "../github-release.mjs";
 import { uploadWithRetry } from "../upload-release-assets.mjs";
 import { isMainModule } from "../is-main-module.mjs";
 import { validatePreviewAssets } from "./assets.mjs";
+import { requirePreviewRepository } from "./source.mjs";
+import { requirePublicationPolicy, updaterBridgeMarker } from "./publication-policy.mjs";
 
 /** Publish only a complete validated draft; never replace the bytes of a published preview. */
-export async function publishPreviewRelease({ directory, repo, notes, publish }) {
-  if (repo !== "RyanEwen/paseo") {
-    throw new Error("Preview publishing is restricted to RyanEwen/paseo");
-  }
+export async function publishPreviewRelease({ directory, repo, notes, publish, kind = "bridge" }) {
+  requirePreviewRepository(repo);
   if (!notes?.trim()) {
     throw new Error("Provide user-facing release notes before creating a preview");
   }
   const release = JSON.parse(readFileSync(path.join(directory, "preview-release.json"), "utf8"));
+  requirePublicationPolicy({ kind, repo, release });
   await validatePreviewAssets({ directory, release });
   const existing = getGitHubRelease(repo, release.tag);
   if (existing && (!existing.draft || existing.target_commitish !== release.commit)) {
@@ -23,16 +24,19 @@ export async function publishPreviewRelease({ directory, repo, notes, publish })
   const notesFile = path.join(process.env.RUNNER_TEMP, "preview-notes.md");
   const body = `${notes.trim()}
 
-Windows (x64 and ARM64), Linux (x64 and ARM64), and Android builds are attached.
-Install Paseo Debug alongside the official app. Windows and Linux AppImage builds
-receive future previews from this fork. Android updates use the APK downloads.
+Windows (x64 and ARM64), Linux (x64 and ARM64), standalone Linux daemon/CLI packages, and Android builds are attached.
+Install Paseo++ alongside the official app. Windows and Linux AppImage builds
+receive future updates from this fork. Standalone hosts can install their matching daemon
+package with npm and run paseo-plus-plus; host updates stay on fork releases.
+Android builds check for updates in the app and install them with Android's approval.
 
-The first public Android preview uses a dedicated signing key. If you already
-installed a development-signed Paseo Debug, preserve your host connection details,
-then uninstall that build before installing this APK. Android clears that app's
-saved settings when you uninstall it. Later previews install over this signed build.
+Paseo++ has its own desktop and Android identities and starts with fresh settings.
+Install it separately from the former Debug app, then set up your connections again.
+Subsequent Paseo++ releases update the new installation in place.
 
 macOS, iOS, and hosted web previews are not included.
+
+${kind === "bridge" ? updaterBridgeMarker : ""}
 
 *AI disclosure: this comment and the related code were written with the assistance of AI.*
 `;
@@ -50,7 +54,7 @@ macOS, iOS, and hosted web previews are not included.
         "--target",
         release.commit,
         "--title",
-        `Paseo ${release.tag}`,
+        `Paseo++ ${release.tag}`,
         "--draft",
         "--prerelease",
         "--notes-file",
@@ -61,12 +65,19 @@ macOS, iOS, and hosted web previews are not included.
   } else {
     execFileSync(
       "gh",
-      ["release", "edit", getReleaseLookupTag(existing), "--repo", repo, "--notes-file", notesFile],
+      [
+        "api",
+        "--method",
+        "PATCH",
+        `repos/${repo}/releases/${existing.id}`,
+        "-F",
+        `body=@${notesFile}`,
+      ],
       { stdio: "inherit" },
     );
   }
-  const draft = getGitHubRelease(repo, release.tag);
-  if (!draft?.draft) {
+  const draft = await waitForGitHubRelease(repo, release.tag);
+  if (!draft?.draft || draft.target_commitish !== release.commit) {
     throw new Error("Expected a draft preview before uploading assets");
   }
   const lookup = getReleaseLookupTag(draft);
@@ -87,17 +98,21 @@ macOS, iOS, and hosted web previews are not included.
     );
   }
   if (publish) {
+    // The qualified bridge must still be public and unchanged after uploads finish.
+    const policy = requirePublicationPolicy({ kind, repo, release });
     execFileSync(
       "gh",
       [
-        "release",
-        "edit",
-        lookup,
-        "--repo",
-        repo,
-        "--draft=false",
-        "--prerelease",
-        "--latest=false",
+        "api",
+        "--method",
+        "PATCH",
+        `repos/${repo}/releases/${draft.id}`,
+        "-F",
+        "draft=false",
+        "-F",
+        `prerelease=${policy.prerelease}`,
+        "-f",
+        `make_latest=${policy.makeLatest}`,
       ],
       { stdio: "inherit" },
     );
@@ -114,5 +129,6 @@ if (isMainModule(import.meta.url)) {
     repo: process.env.GITHUB_REPOSITORY,
     notes: process.env.PASEO_PREVIEW_NOTES,
     publish: process.env.PASEO_PREVIEW_PUBLISH === "true",
+    kind: process.env.PASEO_PREVIEW_RELEASE_KIND ?? "bridge",
   });
 }

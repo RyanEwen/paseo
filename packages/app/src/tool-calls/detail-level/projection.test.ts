@@ -1,3 +1,4 @@
+import { buildOverviewGroup } from "./overview/model";
 import { describe, expect, it } from "vitest";
 import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
 import type { StreamItem, ToolCallItem } from "@/types/stream";
@@ -478,5 +479,45 @@ describe("tool call detail-level projection", () => {
     expect(result.head).toEqual([singleCall, plan, speak]);
     expect(result.groupsByHostId.get(singleCall.id)?.run.calls).toEqual([singleCall]);
     expect(result.groupsByHostId.size).toBe(1);
+  });
+});
+
+describe("descriptive overview counts", () => {
+  it("counts every proven read/search and file change while preserving classic counts", () => {
+    const command = toolCall("1", { type: "shell", command: "cat a.ts; rg needle; custom" });
+    const patch = toolCall(
+      "2",
+      { type: "edit", filePath: "/work/a.ts", oldString: "x", newString: "y" },
+      { status: "failed" },
+    );
+    if (command.payload.source !== "agent" || patch.payload.source !== "agent")
+      throw new Error("Expected provider calls");
+    command.payload.data.metadata = {
+      commandActions: [
+        { type: "read", command: "cat a.ts", name: "a.ts", path: "/work/a.ts" },
+        { type: "search", command: "rg needle", query: "needle", path: null },
+        { type: "unknown", command: "custom" },
+      ],
+    };
+    patch.payload.data.metadata = {
+      fileChanges: [
+        { path: "/work/a.ts", kind: "add" },
+        { path: "/work/b.ts", kind: "update" },
+        { path: "/work/c.ts", kind: "delete" },
+      ],
+    };
+    const run = { id: command.id, calls: [command, patch], latest: patch, isSealed: true };
+    expect(buildOverviewGroup(run, { descriptive: true }).summary).toMatchObject({
+      readFileCount: 1,
+      searchCount: 1,
+      commandCount: 1,
+      editedFileCount: 3,
+    });
+    expect(buildOverviewGroup(run).summary).toMatchObject({
+      readFileCount: 0,
+      searchCount: 0,
+      commandCount: 1,
+      editedFileCount: 1,
+    });
   });
 });

@@ -40,6 +40,18 @@ The app checks for the capability and either runs the feature or tells the user 
 
 Existing functionality keeps working across versions because of the protocol contract. Gating a new feature never substitutes for that.
 
+The `appSettingsAccentColor` capability belongs to the explicitly selected settings host,
+independent of the active workspace host. Without it, disable the accent picker and explain
+that the settings host needs updating. Device-only preferences remain available. Explicit
+initialization omits only the unsupported accent field; normal edits and pending outboxes
+retain their existing host ownership and failure behavior.
+
+The `appSettingsSidebarModeProfiles` capability also belongs to the selected settings host.
+Without it, keep the existing view readable and local host/project filters usable, but disable
+mode and synchronized display edits with an update instruction. Explicit initialization omits
+mode profiles on an unsupported host. Legacy flat fields remain accepted for older clients;
+new clients write canonical profiles without mirroring every edit into the old representation.
+
 ## Client capability ownership
 
 The client package advertises the protocol behavior it implements. Add each new capability to

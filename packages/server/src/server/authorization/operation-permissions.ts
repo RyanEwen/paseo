@@ -6,6 +6,8 @@ type OutboundOperation = SessionOutboundMessage["type"];
 export type PermissionRequirement = DaemonPermission | readonly DaemonPermission[] | null;
 
 const INBOUND_PERMISSION = {
+  "app.settings.get.request": "daemon.read",
+  "app.settings.patch.request": "daemon.manage",
   abort_request: "workspace.write",
   "agent.config.apply.request": ["workspace.write", "hub.execute"],
   "agent.detach.request": "workspace.write",
@@ -70,6 +72,7 @@ const INBOUND_PERMISSION = {
   "daemon.config.reload.request": "daemon.manage",
   "daemon.get_pairing_offer.request": "access.manage",
   "daemon.get_status.request": "daemon.read",
+  "daemon.update.check_availability.request": "daemon.manage",
   "daemon.update.request": "daemon.manage",
   delete_agent_request: "workspace.write",
   "diagnostics.request": "daemon.read",
@@ -215,6 +218,9 @@ const INBOUND_PERMISSION = {
 } as const satisfies Record<InboundOperation, PermissionRequirement>;
 
 const OUTBOUND_PERMISSION = {
+  "app.settings.get.response": "daemon.read",
+  "app.settings.patch.response": "daemon.manage",
+  "app.settings.changed": "daemon.read",
   "agent.create.response": ["workspace.write", "hub.execute"],
   "agent.create.update": ["workspace.write", "hub.execute"],
   "workspace.create.update": "workspace.manage",
@@ -292,6 +298,7 @@ const OUTBOUND_PERMISSION = {
   "daemon.get_pairing_offer.response": "access.manage",
   "daemon.get_status.response": "daemon.read",
   "daemon.update.progress": "daemon.manage",
+  "daemon.update.check_availability.response": "daemon.manage",
   "daemon.update.response": "daemon.manage",
   "diagnostics.response": "daemon.read",
   dictation_stream_ack: "workspace.write",

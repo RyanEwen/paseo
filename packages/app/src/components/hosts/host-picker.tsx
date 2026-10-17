@@ -60,6 +60,7 @@ export interface HostPickerOptionProps {
   active: boolean;
   onPress: () => void;
   onOpenHostSettings?: (serverId: string) => void;
+  renderHostAction?: (serverId: string) => ReactNode;
   testID?: string;
 }
 
@@ -71,6 +72,7 @@ export function HostPickerOption({
   active,
   onPress,
   onOpenHostSettings,
+  renderHostAction,
   testID,
 }: HostPickerOptionProps): ReactElement {
   const { theme } = useUnistyles();
@@ -88,21 +90,27 @@ export function HostPickerOption({
     [onOpenHostSettings, serverId],
   );
   const trailingSlot = useMemo(() => {
-    if (!onOpenHostSettings) return undefined;
+    const action = renderHostAction?.(serverId);
+    if (!onOpenHostSettings) return action;
     return (
-      <Pressable
-        onPress={handleSettingsPress}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${label} settings`}
-      >
-        <Settings size={theme.iconSize.sm} color={theme.colors.foregroundMuted} />
-      </Pressable>
+      <View style={styles.actions}>
+        {action}
+        <Pressable
+          onPress={handleSettingsPress}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${label} settings`}
+        >
+          <Settings size={theme.iconSize.sm} color={theme.colors.foregroundMuted} />
+        </Pressable>
+      </View>
     );
   }, [
     handleSettingsPress,
     label,
     onOpenHostSettings,
+    renderHostAction,
+    serverId,
     theme.colors.foregroundMuted,
     theme.iconSize.sm,
   ]);
@@ -174,6 +182,7 @@ export interface HostPickerProps {
   onEnableBuiltInDaemon?: () => void;
   showActiveConnection?: boolean;
   onOpenHostSettings?: (serverId: string) => void;
+  renderHostAction?: (serverId: string) => ReactNode;
   searchable?: boolean;
   title?: string;
   desktopPlacement?: ComboboxProps["desktopPlacement"];
@@ -197,6 +206,7 @@ export function HostPicker({
   onEnableBuiltInDaemon,
   showActiveConnection,
   onOpenHostSettings,
+  renderHostAction,
   searchable,
   title,
   desktopPlacement = "bottom-start",
@@ -284,6 +294,7 @@ export function HostPicker({
           active={active}
           onPress={onPress}
           onOpenHostSettings={onOpenHostSettings ? handleOpenHostSettings : undefined}
+          renderHostAction={renderHostAction}
           testID={hostOptionTestID?.(option.id)}
         />
       );
@@ -292,6 +303,7 @@ export function HostPicker({
       addHostTestID,
       hostOptionTestID,
       onOpenHostSettings,
+      renderHostAction,
       showActiveConnection,
       handleOpenHostSettings,
     ],
@@ -319,6 +331,7 @@ export function HostPicker({
 }
 
 const styles = StyleSheet.create((theme) => ({
+  actions: { flexDirection: "row", alignItems: "center", gap: theme.spacing[3] },
   statusDotSlot: {
     width: theme.iconSize.sm,
     height: theme.iconSize.sm,

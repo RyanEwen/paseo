@@ -72,6 +72,10 @@ test.afterAll(async () => {
 // Tab Creation Tests
 // ═══════════════════════════════════════════════════════════════════════════
 
+function isTerminalTab(id: string): boolean {
+  return id.includes("terminal");
+}
+
 test.describe("Tab creation", () => {
   test("Cmd+T keeps creating a New tab after workspace switches", async ({ page }) => {
     if (!secondWorkspaceId) {
@@ -166,6 +170,7 @@ test.describe("Tab creation", () => {
 
     const panel = page.getByTestId("workspace-new-tab-panel").filter({ visible: true });
     const agent = panel.getByRole("button", { name: /^Agent/ });
+    const previous = panel.getByRole("button", { name: "Reopen closed agent", exact: true });
     const terminal = panel.getByRole("button", { name: /^Terminal/ });
     const diff = panel.getByRole("button", { name: /Diff/ });
     const shortcutPrefix = process.platform === "darwin" ? /⇧⌘/ : /Ctrl.*Shift/;
@@ -175,7 +180,15 @@ test.describe("Tab creation", () => {
     await expect(agent).toBeFocused();
 
     await page.keyboard.press("ArrowDown");
+    await expect(previous).toBeFocused();
+    await page.keyboard.press("ArrowDown");
     await expect(terminal).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(diff).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(terminal).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(previous).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(agent).toBeFocused();
 
@@ -210,9 +223,9 @@ test.describe("Tab creation", () => {
 
     await expectTerminalSurfaceVisible(page);
 
-    const tabsAfter = await getTabTestIds(page);
-    const terminalTabs = tabsAfter.filter((id) => id.includes("terminal"));
-    expect(terminalTabs.length).toBeGreaterThanOrEqual(1);
+    await expect
+      .poll(async () => (await getTabTestIds(page)).filter(isTerminalTab).length)
+      .toBeGreaterThanOrEqual(1);
   });
 
   test("launching a profile from the New tab menu drops its empty prompt argument", async ({
@@ -227,7 +240,7 @@ test.describe("Tab creation", () => {
       await page
         .getByTestId("workspace-new-tab-menu")
         .filter({ visible: true })
-        .getByRole("menuitem", { name: EMPTY_PROMPT_PROFILE.name })
+        .getByRole("menuitem", { name: EMPTY_PROMPT_PROFILE.name, exact: true })
         .click();
 
       await expectTerminalOutputContains(page, "prompt-args: 0");
@@ -272,7 +285,7 @@ test.describe("Tab creation", () => {
       const menu = page.getByTestId("workspace-new-tab-menu").filter({ visible: true });
       const menuIconPath = (name: string) =>
         menu
-          .getByRole("menuitem", { name })
+          .getByRole("menuitem", { name, exact: true })
           .evaluate((element) => element.querySelector("svg path")?.getAttribute("d") ?? null);
       const guessedMenuPath = await menuIconPath(guessed.name);
       const explicitMenuPath = await menuIconPath(explicit.name);

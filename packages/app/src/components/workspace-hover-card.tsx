@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import {
   useCallback,
   useState,
@@ -5,7 +6,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { Text, View } from "react-native";
+import { Text, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import {
@@ -19,7 +20,7 @@ import {
 } from "lucide-react-native";
 import { getForgePresentation, normalizeForge } from "@/git/forge";
 import { ForgeBrandIcon } from "@/git/forge-icon";
-import type { Theme } from "@/styles/theme";
+import { SPACING, type Theme } from "@/styles/theme";
 import { DiffStat } from "@/components/diff-stat";
 import { Pressable } from "react-native";
 import type { GestureResponderEvent } from "react-native";
@@ -58,20 +59,21 @@ export function WorkspaceHoverCard({
 }: PropsWithChildren<WorkspaceHoverCardProps>): ReactNode {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
+  const { width: viewportWidth } = useWindowDimensions();
 
   if (isCompact) {
     return children;
   }
 
   return (
-    <HoverCard disabled={isDragging || disabled}>
+    <HoverCard openDelay={250} disabled={isDragging || disabled}>
       <HoverCardTrigger>{children}</HoverCardTrigger>
       <HoverCardContent
         placement="right"
         role="menu"
         accessibilityLabel={t("workspace.hoverCard.scriptsAccessibility")}
         testID="workspace-hover-card"
-        style={styles.card}
+        style={[styles.card, { maxWidth: Math.max(0, viewportWidth - SPACING[3] * 2) }]}
       >
         <WorkspaceHoverCardContent workspace={workspace} prHint={prHint} />
       </HoverCardContent>
@@ -334,14 +336,16 @@ function ChecksSummaryPressable({
   );
 
   return (
-    <Pressable
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="link"
-      style={checksSummaryPressableStyle}
-      onPress={handlePress}
-    >
-      {renderChildren}
-    </Pressable>
+    <WorkspaceHttpLinkMenu url={buildForgeChecksUrl(forge, url) ?? url}>
+      <Pressable
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="link"
+        style={checksSummaryPressableStyle}
+        onPress={handlePress}
+      >
+        {renderChildren}
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 
@@ -356,7 +360,7 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.borderAccent,
     borderRadius: theme.borderRadius.lg,
     paddingTop: theme.spacing[2],
-    width: HOVER_CARD_WIDTH,
+    minWidth: HOVER_CARD_WIDTH,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -385,7 +389,8 @@ const styles = StyleSheet.create((theme) => ({
     paddingBottom: theme.spacing[2],
   },
   cardInfoText: {
-    flex: 1,
+    // Natural text width determines the card size; only shrink at the viewport ceiling.
+    flexShrink: 1,
     minWidth: 0,
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.sm,

@@ -56,7 +56,7 @@ export function WorktreeBranchPicker({
   );
   return (
     <>
-      <TriggerTooltip label={tooltipLabel}>
+      <TriggerTooltip label={`${tooltipLabel}: ${label}`}>
         <ComboboxTrigger
           ref={anchorRef}
           testID="new-workspace-branch-picker-trigger"

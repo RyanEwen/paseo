@@ -1,3 +1,4 @@
+import { WorkspaceHttpLinkMenu } from "@/workspace/browser/link-menu";
 import { Fragment, useCallback, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View, type GestureResponderEvent } from "react-native";
@@ -202,31 +203,33 @@ function PullRequestItem({ hint }: { hint: PrHint }) {
   const handleHoverOut = useCallback(() => setIsHovered(false), []);
 
   return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={t("workspace.git.pr.accessibility.pullRequest", {
-        number: hint.number,
-        context: presentation.changeRequestContext,
-      })}
-      hitSlop={4}
-      onPressIn={handlePressIn}
-      onPress={handlePress}
-      onHoverIn={handleHoverIn}
-      onHoverOut={handleHoverOut}
-      style={pressableItemStyle}
-    >
-      {isHovered ? (
-        <ThemedExternalLink size={META_ICON_SIZE} uniProps={foregroundMapping} />
-      ) : (
-        <PullRequestStateIcon state={hint.state} size={META_ICON_SIZE} />
-      )}
-      <Text style={isHovered ? styles.prTextHovered : styles.prText} numberOfLines={1}>
-        {hint.number}
-        {/* An open change request is the unremarkable case and says nothing extra; a merged
+    <WorkspaceHttpLinkMenu url={hint.url}>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t("workspace.git.pr.accessibility.pullRequest", {
+          number: hint.number,
+          context: presentation.changeRequestContext,
+        })}
+        hitSlop={4}
+        onPressIn={handlePressIn}
+        onPress={handlePress}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
+        style={pressableItemStyle}
+      >
+        {isHovered ? (
+          <ThemedExternalLink size={META_ICON_SIZE} uniProps={foregroundMapping} />
+        ) : (
+          <PullRequestStateIcon state={hint.state} size={META_ICON_SIZE} />
+        )}
+        <Text style={isHovered ? styles.prTextHovered : styles.prText} numberOfLines={1}>
+          {hint.number}
+          {/* An open change request is the unremarkable case and says nothing extra; a merged
             or closed one is why the row still looks like it has work in it. */}
-        {hint.state === "open" ? "" : ` ${t(PR_STATE_LABEL_KEYS[hint.state])}`}
-      </Text>
-    </Pressable>
+          {hint.state === "open" ? "" : ` ${t(PR_STATE_LABEL_KEYS[hint.state])}`}
+        </Text>
+      </Pressable>
+    </WorkspaceHttpLinkMenu>
   );
 }
 

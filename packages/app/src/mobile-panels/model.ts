@@ -158,6 +158,21 @@ export function isMobilePanelActive(
   return state.settledTarget === panel;
 }
 
+/** Read actual motion when a side effect requires a settled panel rather than retained activity. */
+export function isMobilePanelAtRest(input: {
+  state: MobilePanelMotionState;
+  panel: MobilePanelView;
+  position: number;
+}): boolean {
+  "worklet";
+  const motionMatchesPanel =
+    input.state.target === input.panel &&
+    input.state.motionTarget === input.panel &&
+    input.state.settledTarget === input.panel;
+  const atAnchor = Math.abs(input.position - getMobilePanelAnchor(input.panel)) <= 0.002;
+  return input.state.gesture === null && motionMatchesPanel && atAnchor;
+}
+
 export function getMobilePanelFrame(position: number, width: number) {
   "worklet";
   const clampedPosition = Math.max(-1, Math.min(1, position));

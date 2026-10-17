@@ -28,6 +28,21 @@ describe("resolveWorkspaceName", () => {
     );
   });
 
+  test("createPersistedWorkspaceRecord defaults background to false and preserves explicit intent", () => {
+    const base = {
+      workspaceId: "ws-1",
+      projectId: "proj-1",
+      cwd: "/tmp/repo",
+      kind: "local_checkout" as const,
+      displayName: "main",
+      createdAt: "2026-03-01T00:00:00.000Z",
+      updatedAt: "2026-03-01T00:00:00.000Z",
+    };
+    expect(createPersistedWorkspaceRecord(base).background).toBe(false);
+    expect(createPersistedWorkspaceRecord({ ...base, background: false }).background).toBe(false);
+    expect(createPersistedWorkspaceRecord({ ...base, background: true }).background).toBe(true);
+  });
+
   test("resolveWorkspaceDisplayName applies the same rule over the persisted record", () => {
     const record = createPersistedWorkspaceRecord({
       workspaceId: "ws-1",
@@ -498,6 +513,40 @@ describe("workspace registries", () => {
     expect(await reloaded.get("workspace-auto-archive")).toMatchObject({
       archivedAt: "2026-03-02T00:00:00.000Z",
       autoArchivedChangeRequestUrl: "https://github.com/acme/repo/pull/123",
+    });
+  });
+
+  test("retains project pins across reload and archive for same-cwd siblings", async () => {
+    await workspaceRegistry.initialize();
+    for (const id of ["pin", "ordinary"]) {
+      await workspaceRegistry.upsert(
+        createPersistedWorkspaceRecord({
+          workspaceId: id,
+          projectId: "proj-1",
+          cwd: "/tmp/repo",
+          kind: "local_checkout",
+          displayName: id,
+          createdAt: "2026-10-11T12:00:00.000Z",
+          updatedAt: "2026-10-11T12:00:00.000Z",
+          ...(id === "pin" ? { projectPinnedAt: "2026-10-11T12:00:00.000Z" } : {}),
+        }),
+      );
+    }
+    await workspaceRegistry.archive("pin", "2026-10-11T13:00:00.000Z");
+    const reloaded = new FileBackedWorkspaceRegistry(
+      path.join(tmpDir, "projects", "workspaces.json"),
+      logger,
+    );
+    await reloaded.initialize();
+    expect(await reloaded.get("pin")).toMatchObject({
+      pinnedAt: null,
+      projectPinnedAt: "2026-10-11T12:00:00.000Z",
+    });
+    expect((await reloaded.get("ordinary"))?.projectPinnedAt).toBeUndefined();
+    await reloaded.update("pin", (record) => ({ ...record, archivedAt: null }));
+    expect(await reloaded.get("pin")).toMatchObject({
+      archivedAt: null,
+      projectPinnedAt: "2026-10-11T12:00:00.000Z",
     });
   });
 

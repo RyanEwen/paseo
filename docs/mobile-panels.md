@@ -82,6 +82,9 @@ definition, no longer eligible to begin.
   `useBlockMobilePanelOpenGestures`. Register only while the conflicting interaction is active and
   unregister when the surface is hidden or unfocused. The blocker never disables gestures that close
   an already-open panel.
+- Horizontal workspace tab strips own swipes inside their scroll hitbox. Use
+  `MobileHorizontalScrollGesture` to give the scroll surface priority over panel-opening gestures;
+  panel swipes outside the strip and gestures that close an open panel keep their existing ownership.
 - Keep `SidebarModelProvider` outside `MobileGestureWrapper`. The provider shares sidebar derivation
   across consumers, while Gesture Handler requires the wrapper's direct child to be a native `View`
   so its injected `collapsable={false}` reaches Android/Fabric.
