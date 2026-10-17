@@ -3615,6 +3615,8 @@ export const ServerInfoStatusPayloadSchema = z
         workspaceLabels: z.boolean().optional(),
         // COMPAT(appSettingsSync): added in v0.11.2, remove after 2027-10-12.
         appSettingsSync: z.boolean().optional(),
+        // COMPAT(appSettingsSidebarModeProfiles): added in v0.11.2, remove after 2027-10-16.
+        appSettingsSidebarModeProfiles: z.boolean().optional(),
         // COMPAT(appSettingsAccentColor): added in v0.11.2, remove gate after 2027-10-14.
         appSettingsAccentColor: z.boolean().optional(),
         // COMPAT(workspaceSetupRun): added in v0.8.0, remove gate after 2027-09-02.

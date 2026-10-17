@@ -1,11 +1,11 @@
 import { RefreshControl } from "react-native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import DraggableFlatList, {
   NestableDraggableFlatList,
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
 import { Easing, LinearTransition, ReduceMotion } from "react-native-reanimated";
-import { isDragGroupOrderValid } from "./drag-reorder/reorder-items";
+import { describeDragReorderMove, isDragGroupOrderValid } from "./drag-reorder/reorder-items";
 import { usePositionTransitionDuration } from "./drag-reorder/use-position-transition";
 import { useUnistyles } from "react-native-unistyles";
 import type { DraggableListProps, DraggableRenderItemInfo } from "./draggable-list.types";
@@ -15,6 +15,7 @@ export type { DraggableListProps, DraggableRenderItemInfo };
 const SCROLL_ENABLED_FLEX_STYLE = { flex: 1 };
 
 export function DraggableList<T>({
+  disabled = false,
   data,
   keyExtractor,
   renderItem,
@@ -34,6 +35,7 @@ export function DraggableList<T>({
   refreshing,
   onRefresh,
   extraData,
+  positionTransitionRevision,
   simultaneousGestureRef,
   gestureHostPresented,
   waitFor,
@@ -42,6 +44,7 @@ export function DraggableList<T>({
 }: DraggableListProps<T>) {
   const { theme } = useUnistyles();
   const [isDragging, setIsDragging] = useState(false);
+  const dragItems = useRef<T[] | null>(null);
 
   // Pass the ref directly to DraggableFlatList - it handles gesture
   // coordination internally for nestable lists.
@@ -61,36 +64,49 @@ export function DraggableList<T>({
       const info: DraggableRenderItemInfo<T> = {
         item,
         index,
-        drag: getDragGroupKey?.(item) === null ? () => {} : drag,
+        drag: disabled || getDragGroupKey?.(item) === null ? () => {} : drag,
         isActive,
       };
       return renderItem(info);
     },
-    [getDragGroupKey, renderItem],
+    [disabled, getDragGroupKey, renderItem],
   );
 
   const handleDragEnd = useCallback(
-    ({ data: newData }: { data: T[] }) => {
+    ({ data: newData, from, to }: { data: T[]; from: number; to: number }) => {
       setIsDragging(false);
+      const original = dragItems.current ?? data;
+      dragItems.current = null;
+      if (disabled) return;
       if (
         getDragGroupKey &&
         !isDragGroupOrderValid({
-          original: data,
+          original,
           reordered: newData,
           keyExtractor,
           getDragGroupKey,
         })
       )
         return;
-      onDragEnd(newData);
+      const move = describeDragReorderMove({
+        items: newData,
+        originalItems: original,
+        from,
+        to,
+        keyExtractor,
+      });
+      if (!move && from !== to) return;
+      onDragEnd(newData, move ?? undefined);
     },
-    [data, getDragGroupKey, keyExtractor, onDragEnd],
+    [data, disabled, getDragGroupKey, keyExtractor, onDragEnd],
   );
 
   const handleDragBegin = useCallback(() => {
+    if (disabled) return;
+    dragItems.current = data;
     setIsDragging(true);
     onDragBeginProp?.();
-  }, [onDragBeginProp]);
+  }, [data, disabled, onDragBeginProp]);
 
   const handleRelease = useCallback(() => {
     setIsDragging(false);
@@ -138,7 +154,10 @@ export function DraggableList<T>({
     () => (getDragGroupKey ? data.map(getDragGroupKey) : undefined),
     [data, getDragGroupKey],
   );
-  const listExtraData = useMemo(() => [extraData, motionDuration], [extraData, motionDuration]);
+  const listExtraData = useMemo(
+    () => [extraData, motionDuration, disabled, positionTransitionRevision],
+    [extraData, motionDuration, disabled, positionTransitionRevision],
+  );
 
   return (
     <ListComponent

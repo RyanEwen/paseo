@@ -1,3 +1,5 @@
+export const MIN_WORKSPACE_TAB_WIDTH = 96;
+
 export type WorkspaceTabCloseButtonPolicy = "all";
 
 export interface WorkspaceTabLayoutMetrics {

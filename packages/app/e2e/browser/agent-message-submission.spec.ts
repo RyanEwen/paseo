@@ -354,11 +354,21 @@ async function selectSendBehaviorInSettings(
     .toBe(stored);
 }
 
+/** These streaming races exercise detailed tool cards, independently of the fork default. */
+async function seedDetailedToolCalls(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const key = "@paseo:app-settings";
+    const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+    localStorage.setItem(key, JSON.stringify({ ...settings, toolCallDetailLevel: "detailed" }));
+  });
+}
+
 async function replaySteeredSleepTurnInBrowser(
   page: Page,
   testInfo: { workerIndex: number },
   shape: "claude" | "codex",
 ): Promise<void> {
+  await seedDetailedToolCalls(page);
   const gate = await installDaemonWebSocketGate(page);
   gate.holdNextShellToolCall("completed");
   await gotoAppShell(page);
@@ -665,6 +675,7 @@ async function expectStaleCanonicalPagePreservesNewerLiveOutput(
   page: Page,
   testInfo: { workerIndex: number },
 ): Promise<void> {
+  await seedDetailedToolCalls(page);
   const gate = await installDaemonWebSocketGate(page);
   const agent = await seedMockAgentWorkspace({
     repoPrefix: `submission-stale-canonical-${testInfo.workerIndex}-`,

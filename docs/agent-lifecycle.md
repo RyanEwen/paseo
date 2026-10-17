@@ -95,7 +95,7 @@ creates one without an override, and accept explicit true or false.
 The daemon derives agent discovery from workspace ownership. Default workspace and agent lists,
 including History requests, exclude background work; `filter.includeBackground` includes it.
 Exact-ID operations bypass discovery filtering. The app replicates both kinds and filters only
-its sidebar with **Show background**, so direct navigation and restored tabs remain available.
+its sidebar with **Show background workspaces**, so direct navigation and restored tabs remain available.
 
 Sequenced directories keep complete canonical collections. A filtered read must never replace
 those collections with its subset. Inclusive and default observations have distinct cursor

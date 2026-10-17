@@ -101,7 +101,7 @@ interface SortableItemProps<T> {
   useDragHandle: boolean;
   dragDisabled: boolean;
   positionTransitionDuration: number | undefined;
-  positionRevision: string;
+  positionRevision: unknown;
 }
 
 function SortableItemInner<T>({
@@ -156,7 +156,11 @@ function SortableItemInner<T>({
     }),
     [combinedTransform, transition, isDragging],
   );
-  const stableAttributes = useShallowStableRecord(attributes as unknown as Record<string, unknown>);
+  // Sorting can disable reordering while the row and its nested actions remain interactive.
+  // dnd-kit's aria-disabled describes the drag activator, so do not put it on that row.
+  const stableAttributes = useShallowStableRecord(
+    dragDisabled ? undefined : (attributes as unknown as Record<string, unknown>),
+  );
   const stableListeners = useStableListenerRecord(
     listeners as unknown as Record<string, unknown> | undefined,
   );
@@ -182,7 +186,7 @@ function SortableItemInner<T>({
 
   const wrapperProps = useDragHandle
     ? { ref: setNodeRef }
-    : { ref: setNodeRef, ...attributes, ...listeners };
+    : { ref: setNodeRef, ...stableAttributes, ...stableListeners };
 
   return (
     <div {...wrapperProps} style={style}>
@@ -200,12 +204,14 @@ function SortableItemInner<T>({
 const SortableItem = memo(SortableItemInner) as typeof SortableItemInner;
 
 export function DraggableList<T>({
+  disabled = false,
   data,
   keyExtractor,
   renderItem,
   onDragEnd,
   getDragGroupKey,
   positionTransitionDuration,
+  positionTransitionRevision,
   style,
   containerStyle,
   contentContainerStyle,
@@ -227,6 +233,7 @@ export function DraggableList<T>({
     onDragEnd,
     onDragBegin,
     getDragGroupKey,
+    disabled,
   });
   const collisionDetection: CollisionDetection = useCallback(
     (args) => {
@@ -275,7 +282,10 @@ export function DraggableList<T>({
     keys: motionKeys,
     dragging: activeId !== null,
   });
-  const positionRevision = JSON.stringify(ids);
+  const positionRevision = useMemo(
+    () => [JSON.stringify(ids), positionTransitionRevision],
+    [ids, positionTransitionRevision],
+  );
 
   const wrapperStyle = useMemo(
     () => [
@@ -317,7 +327,7 @@ export function DraggableList<T>({
                     renderItem={renderItem}
                     activeId={activeId}
                     useDragHandle={useDragHandle}
-                    dragDisabled={getDragGroupKey?.(item) === null}
+                    dragDisabled={disabled || getDragGroupKey?.(item) === null}
                     positionTransitionDuration={
                       positionTransitionDuration === undefined ? undefined : motionDuration
                     }
@@ -353,7 +363,7 @@ export function DraggableList<T>({
                     renderItem={renderItem}
                     activeId={activeId}
                     useDragHandle={useDragHandle}
-                    dragDisabled={getDragGroupKey?.(item) === null}
+                    dragDisabled={disabled || getDragGroupKey?.(item) === null}
                     positionTransitionDuration={
                       positionTransitionDuration === undefined ? undefined : motionDuration
                     }

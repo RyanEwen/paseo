@@ -34,7 +34,7 @@ export const en = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Save",
-      title: "Workspace list",
+      title: "Workspace limits",
       label: "Initially show per group",
       limited: "Limited",
       all: "Show all",
@@ -57,8 +57,8 @@ export const en = {
     title: "Paseo++",
     optional: "Optional features",
     optionalHint:
-      "Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
-    preferences: "More sidebar controls",
+      "Optional feature switches start on. Display preferences have independent defaults; Expand one project at a time starts off. Choices follow your selected settings host when sync is enabled. Turning a feature off preserves its saved data and preferences.",
+    preferences: "Workspace sidebar controls",
     fixes: "Fixes and fork essentials",
     fixesHint: "These improvements stay enabled",
     additions: "Other additions",
@@ -73,6 +73,10 @@ export const en = {
         label: "Host updates in the sidebar",
         hint: "Show host update actions in the host menu. Host settings remain available when this is off.",
       },
+      splitLayoutPresets: {
+        label: "Split layout controls",
+        hint: "Click the desired region in a split diagram to open or move a tab there. In 60/40, the right or bottom region gets 40%. Divider presets resize existing panes. Turn off to hide these controls without changing your layout.",
+      },
       mobileWorkspaceTabs: {
         label: "Mobile workspace tabs",
         hint: "Show a scrolling tab strip in compact workspaces. Turn off to use the earlier tab chooser without changing the selected tab.",
@@ -84,8 +88,8 @@ export const en = {
       },
 
       sidebarProjectSelector: {
-        label: "Project selector in sidebar",
-        hint: "Choose a project from the workspace heading; turning this off restores the Project filter menu",
+        label: "Selected project in heading",
+        hint: "Show the selected project name in the workspace heading. Off uses Workspaces; host and project choices remain available.",
       },
       stickyUserPrompts: {
         label: "Keep user prompts in view",
@@ -109,11 +113,11 @@ export const en = {
       },
       projectPinning: {
         label: "Pin workspaces within projects",
-        hint: "Keep selected workspaces first in their project. Saved pins return when re-enabled.",
+        hint: "Keep selected workspaces first in their project and mark them with a pin beside the name. Saved pins return when re-enabled.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animate workspace moves",
-        hint: "Use quick transitions when sidebar workspace positions change",
+        hint: "Use quick transitions when workspace positions change, including when projects expand or collapse",
       },
       androidAutomaticUpdateChecks: {
         label: "Automatic Android update checks",
@@ -122,8 +126,8 @@ export const en = {
     },
     links: {
       sidebar: {
-        label: "Workspace order and details",
-        hint: "Sort projects and workspaces independently by name, status or custom order. Show last activity and code-change totals together; project labels are on by default. Branch labels are optional and off by default. Adjust these in Display in the workspace sidebar.",
+        label: "Modes, filters and display",
+        hint: "Use the bell in the workspace sidebar to switch Project and Status modes. The filter icon opens quick text filtering. In Display, Workspace limits sets count and age independently, and Empty projects offers Show, Group or Hide. Each mode keeps its own preferences.",
       },
     },
     fixesList: {
@@ -643,6 +647,22 @@ export const en = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Open {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Move tab: {{side}}, {{percent}}%",
+      openToSide: "Open {{item}} to the side",
+      chooseRatio: "Choose split ratio",
+      ratio: "Use {{ratio}} split",
+      moveTab: "Move tab",
+      left: "Left",
+      right: "Right",
+      top: "Top",
+      bottom: "Bottom",
+      columns: "Left / right",
+      rows: "Top / bottom",
+      pane: "Pane {{index}}",
+    },
+
     route: {
       loading: "Loading workspace",
       connecting: "Connecting",
@@ -1369,6 +1389,7 @@ export const en = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "No known projects for this host yet.",
       selectOnlyProject: "Show only {{project}}",
       includeProject: "Include {{project}}",
       workspaces: "Workspaces",
@@ -1388,10 +1409,37 @@ export const en = {
       working: "Working",
       done: "Done",
     },
+    quickFilter: {
+      open: "Filter projects and workspaces",
+      close: "Close and clear quick filter",
+      placeholder: "Filter projects or workspaces…",
+      clear: "Clear quick filter",
+      emptyTitle: "No matching projects or workspaces",
+      emptyDescription: "Try another name or clear this mode’s quick filter.",
+      guidance:
+        "Use the filter icon to search names and visible branches in this mode. Count and age limits still apply; Show more reveals all matching rows.",
+    },
     display: {
+      modeToggle: "{{current}} view. Switch to {{next}} view.",
+      workspaceList: {
+        countLimit: "Count limit",
+        updatedWithin: "Updated within",
+        day: "1 day",
+        twoDays: "2 days",
+        threeDays: "3 days",
+        fiveDays: "5 days",
+        week: "1 week",
+        twoWeeks: "2 weeks",
+        month: "1 month",
+        twoMonths: "2 months",
+        threeMonths: "3 months",
+      },
       expandAll: "Expand all",
       collapseAll: "Collapse all",
-      showBackground: "Show background",
+      oneProjectAtATime: "Expand one project at a time",
+      reorderGuidance:
+        "Drag to reorder only with Custom sorting. Filtered project moves keep the same before/after neighbor when all projects are shown. Pins always use manual ordering.",
+      showBackground: "Show background workspaces",
       trigger: "Display preferences",
       heading: "Display",
       grouping: {
@@ -1409,6 +1457,12 @@ export const en = {
         status: "Status",
         custom: "Custom order",
         emptyProjects: "Sort empty projects",
+      },
+      emptyWorkspaces: {
+        label: "Empty projects",
+        show: "Show",
+        group: "Group",
+        hide: "Hide",
       },
       projectVisibility: {
         label: "Filter",
@@ -1439,7 +1493,7 @@ export const en = {
         none: "Hidden",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "All hosts",
       },
       projectFilter: {

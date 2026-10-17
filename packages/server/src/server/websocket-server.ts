@@ -1795,6 +1795,7 @@ export class VoiceAssistantWebSocketServer {
       ...(this.serverCapabilities ? { capabilities: this.serverCapabilities } : {}),
       features: {
         appSettingsSync: true,
+        appSettingsSidebarModeProfiles: true,
         appSettingsAccentColor: true,
         usageSources: true,
         ownedSubscriptions: true,

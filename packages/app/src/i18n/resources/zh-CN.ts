@@ -34,7 +34,7 @@ export const zhCN: TranslationResources = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "保存",
-      title: "工作区列表",
+      title: "工作区显示限制",
       label: "每组初始显示",
       limited: "限制数量",
       all: "显示全部",
@@ -54,8 +54,9 @@ export const zhCN: TranslationResources = {
     saving: "正在保存...",
     title: "Paseo++",
     optional: "可选功能",
-    optionalHint: "启用同步后，选项跟随所选的设置主机。关闭功能会保留已保存的数据和偏好。",
-    preferences: "更多侧边栏设置",
+    optionalHint:
+      "可选功能开关默认开启。显示偏好各有独立默认值；每次只展开一个项目默认关闭。启用同步后，选项跟随所选设置主机。关闭功能会保留已保存的数据和偏好。",
+    preferences: "工作区侧边栏设置",
     fixes: "修复和分支基本功能",
     fixesHint: "这些改进始终启用",
     additions: "其他新增功能",
@@ -70,6 +71,10 @@ export const zhCN: TranslationResources = {
         label: "侧边栏中的主机更新",
         hint: "在主机菜单中显示更新操作。关闭后仍可使用主机设置。",
       },
+      splitLayoutPresets: {
+        label: "分屏布局控件",
+        hint: "点击分割图中所需的区域，在那里打开或移动标签页。60/40 中右侧或下方区域占 40%。分隔线预设调整现有窗格的大小。关闭后隐藏这些控件，但不更改布局。",
+      },
       mobileWorkspaceTabs: {
         label: "移动端工作区标签页",
         hint: "在紧凑布局中显示可滚动的标签栏。关闭后使用原来的标签选择器，并保留当前选中的标签。",
@@ -81,8 +86,8 @@ export const zhCN: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "侧边栏项目选择器",
-        hint: "从工作区标题选择项目；关闭后恢复项目过滤菜单",
+        label: "标题中的所选项目",
+        hint: "在工作区标题中显示所选项目名称。关闭后使用“工作区”；主机和项目选项仍可使用。",
       },
       stickyUserPrompts: {
         label: "保持用户消息可见",
@@ -106,7 +111,7 @@ export const zhCN: TranslationResources = {
       },
       projectPinning: {
         label: "在项目内置顶工作区",
-        hint: "优先显示选定工作区。重新启用时会恢复已保存的置顶。",
+        hint: "将选定的工作区保留在项目顶部，并在名称旁显示图钉。重新启用后会恢复已保存的置顶状态。",
       },
       sidebarWorkspaceTransitions: {
         label: "工作区移动动画",
@@ -119,8 +124,8 @@ export const zhCN: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "工作区顺序和详情",
-        hint: "分别按名称、状态或自定义顺序排列项目和工作区。同时显示最近活动时间和代码更改总计；项目名称默认显示。分支名称可选择显示，默认不显示。请在工作区侧边栏的显示菜单中调整。",
+        label: "模式、筛选和显示",
+        hint: "用侧边栏的铃铛切换项目和状态模式。筛选图标可打开快速文本筛选。在显示菜单中，工作区限制分别设置数量和更新期限，空项目可选择显示、分组或隐藏。每种模式各自保留偏好。",
       },
     },
     fixesList: {
@@ -639,6 +644,22 @@ export const zhCN: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "打开 {{item}}：{{side}}，{{percent}}%",
+      moveRegion: "移动标签页：{{side}}，{{percent}}%",
+      openToSide: "在侧边打开{{item}}",
+      chooseRatio: "选择分屏比例",
+      ratio: "使用 {{ratio}} 分屏",
+      moveTab: "移动标签页",
+      left: "左侧",
+      right: "右侧",
+      top: "上方",
+      bottom: "下方",
+      columns: "左 / 右",
+      rows: "上 / 下",
+      pane: "窗格 {{index}}",
+    },
+
     route: {
       loading: "正在加载 workspace",
       connecting: "正在连接",
@@ -1346,6 +1367,7 @@ export const zhCN: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "尚无此主机的已知项目。",
       selectOnlyProject: "仅显示 {{project}}",
       includeProject: "包含 {{project}}",
       workspaces: "工作区",
@@ -1365,9 +1387,36 @@ export const zhCN: TranslationResources = {
       working: "运行中",
       done: "已完成",
     },
+    quickFilter: {
+      open: "筛选项目和工作区",
+      close: "关闭并清除快速筛选",
+      placeholder: "筛选项目或工作区…",
+      clear: "清除快速筛选",
+      emptyTitle: "没有匹配的项目或工作区",
+      emptyDescription: "请尝试其他名称或清除此模式的快速筛选。",
+      guidance:
+        "使用筛选图标搜索此模式中的名称和可见分支。数量和时间限制仍然有效；显示更多可查看所有匹配项。",
+    },
     display: {
+      modeToggle: "当前为{{current}}视图。切换到{{next}}视图。",
+      workspaceList: {
+        countLimit: "数量限制",
+        updatedWithin: "最近更新时间",
+        day: "1天",
+        twoDays: "2 天",
+        threeDays: "3天",
+        fiveDays: "5天",
+        week: "1周",
+        twoWeeks: "2周",
+        month: "1个月",
+        twoMonths: "2个月",
+        threeMonths: "3个月",
+      },
       expandAll: "全部展开",
       collapseAll: "全部折叠",
+      oneProjectAtATime: "一次只展开一个项目",
+      reorderGuidance:
+        "仅在自定义排序下可拖动调整顺序。显示所有项目后，筛选时移动的项目仍位于同一相邻项目之前或之后。置顶项目始终使用手动排序。",
       showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",
@@ -1386,6 +1435,12 @@ export const zhCN: TranslationResources = {
         status: "状态",
         custom: "自定义顺序",
         emptyProjects: "空项目排序",
+      },
+      emptyWorkspaces: {
+        label: "空项目",
+        show: "显示",
+        group: "分组",
+        hide: "隐藏",
       },
       projectVisibility: {
         label: "筛选",
