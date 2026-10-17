@@ -1,3 +1,8 @@
+import {
+  ProjectExpansionAnchorContext,
+  useProjectExpansionAnchor,
+} from "./sidebar/project-expansion-anchor";
+import { useProjectExpansionScroll } from "./sidebar/use-project-expansion-scroll";
 import { SidebarPinnedList } from "@/components/sidebar/pinned-list";
 import { useSidebarQuickFilterStore } from "@/stores/sidebar-quick-filter-store";
 import type { DragReorderMove } from "@/components/drag-reorder/reorder-items";
@@ -1854,9 +1859,21 @@ function ProjectBlock({
     })();
   }, [isRemovingProject, displayName, t, toast, project.hosts]);
 
+  const { ref: projectAnchorRef, anchor: anchorExpansion } = useProjectExpansionAnchor();
   const handleToggleCollapsed = useCallback(() => {
-    onToggleCollapsed(project.viewKey);
-  }, [onToggleCollapsed, project.viewKey]);
+    const toggle = () => onToggleCollapsed(project.viewKey);
+    const view = useSidebarViewStore.getState();
+    if (
+      collapsed &&
+      view.groupMode === "project" &&
+      view.oneProjectAtATime &&
+      projectAnchorRef.current
+    ) {
+      anchorExpansion(projectAnchorRef.current, toggle);
+    } else {
+      toggle();
+    }
+  }, [anchorExpansion, collapsed, onToggleCollapsed, project.viewKey, projectAnchorRef]);
 
   let projectChildren = null;
   if (!collapsed) {
@@ -1906,6 +1923,8 @@ function ProjectBlock({
 
   return (
     <View
+      ref={projectAnchorRef}
+      collapsable={false}
       role="group"
       accessibilityLabel={displayName}
       style={projectChildren ? styles.projectBlockExpanded : undefined}
@@ -2320,6 +2339,7 @@ function ProjectModeList({
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspacePlacement[]) => void;
 }) {
   const positionTransitionDuration = useSidebarPositionTransitionDuration();
+  const expansionScroll = useProjectExpansionScroll(positionTransitionDuration);
   const projectStatusBuckets = useSidebarProjectActivity(projects, workspaceEntriesByKey);
   const { settings } = useAppSettings();
   const projectPinningEnabled = settings.paseoPlusPlus.projectPinning;
@@ -2716,28 +2736,34 @@ function ProjectModeList({
   if (bodyOnly) return content;
 
   return (
-    <View style={styles.container}>
-      {platformIsNative ? (
-        <NestableScrollContainer
-          {...nativeScrollGestureProps}
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={true}
-          testID="sidebar-project-workspace-list-scroll"
-        >
-          {content}
-        </NestableScrollContainer>
-      ) : (
-        <ScrollView
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={true}
-          testID="sidebar-project-workspace-list-scroll"
-        >
-          {content}
-        </ScrollView>
-      )}
-    </View>
+    <ProjectExpansionAnchorContext value={expansionScroll.anchor}>
+      <View style={styles.container}>
+        {platformIsNative ? (
+          <NestableScrollContainer
+            ref={expansionScroll.ref}
+            onScrollBeginDrag={expansionScroll.cancel}
+            onTouchStart={expansionScroll.cancel}
+            {...nativeScrollGestureProps}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={true}
+            testID="sidebar-project-workspace-list-scroll"
+          >
+            {content}
+          </NestableScrollContainer>
+        ) : (
+          <ScrollView
+            ref={expansionScroll.ref}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={true}
+            testID="sidebar-project-workspace-list-scroll"
+          >
+            {content}
+          </ScrollView>
+        )}
+      </View>
+    </ProjectExpansionAnchorContext>
   );
 }
 

@@ -1,3 +1,4 @@
+import { anchorProjectExpansion } from "./sidebar/project-expansion-anchor";
 /**
  * @vitest-environment jsdom
  */
@@ -453,4 +454,100 @@ it("animates unchanged rows when surrounding groups collapse or expand and respe
       else Reflect.deleteProperty(HTMLElement.prototype, key);
     });
   }
+});
+
+describe("accordion expansion scroll anchoring", () => {
+  function scenario(duration = 100) {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    let layoutTop = 900;
+    let offset = 600;
+    let cancelled: (() => void) | undefined;
+    const scrolls: number[] = [];
+    const toggle = vi.fn();
+    const begin = () => {
+      cancelled = anchorProjectExpansion({
+        duration,
+        toggle,
+        measure: (receive) => receive({ headerTop: 40 + layoutTop - offset, viewportTop: 40 }),
+        scrollBy: (delta) => {
+          offset = Math.max(0, offset + delta);
+          scrolls.push(offset);
+        },
+        requestFrame: (callback) => {
+          frames.set(++nextFrame, callback);
+          return nextFrame;
+        },
+        cancelFrame: (id) => {
+          frames.delete(id);
+        },
+      });
+    };
+    const frame = (time: number, top: number) => {
+      layoutTop = top;
+      const callbacks = [...frames.values()];
+      frames.clear();
+      callbacks.forEach((callback) => callback(time));
+    };
+    return {
+      begin,
+      frame,
+      toggle,
+      scrolls,
+      frames,
+      cancel: () => cancelled?.(),
+      top: () => layoutTop - offset,
+    };
+  }
+
+  it("keeps the clicked project at its original viewport position throughout an upper collapse", () => {
+    const run = scenario();
+    run.begin();
+    expect(run.toggle).toHaveBeenCalledTimes(1);
+    run.frame(0, 900);
+    run.frame(25, 800);
+    expect(run.top()).toBe(300);
+    run.frame(50, 600);
+    expect(run.top()).toBe(300);
+    run.frame(100, 350);
+    expect(run.top()).toBe(300);
+    expect(run.scrolls).toEqual([500, 300, 50]);
+    expect(run.frames.size).toBe(0);
+  });
+
+  it("keeps the header visible at the scroll boundary and handles reduced motion in one frame", () => {
+    const run = scenario(0);
+    run.begin();
+    run.frame(0, 100);
+    expect(run.scrolls).toEqual([0]);
+    expect(run.top()).toBe(100);
+    expect(run.frames.size).toBe(0);
+  });
+
+  it("releases scrolling when the user takes over or the scroll owner unmounts", () => {
+    const run = scenario();
+    run.begin();
+    run.frame(0, 900);
+    run.frame(25, 800);
+    run.cancel();
+    run.frame(50, 600);
+    expect(run.scrolls).toEqual([500]);
+    expect(run.frames.size).toBe(0);
+  });
+
+  it("ignores an outstanding native measurement after cancellation", () => {
+    let receive: ((value: { headerTop: number; viewportTop: number } | null) => void) | undefined;
+    const toggle = vi.fn();
+    const cancel = anchorProjectExpansion({
+      duration: 100,
+      toggle,
+      scrollBy: vi.fn(),
+      measure: (callback) => {
+        receive = callback;
+      },
+    });
+    cancel();
+    receive?.({ headerTop: 300, viewportTop: 0 });
+    expect(toggle).not.toHaveBeenCalled();
+  });
 });
