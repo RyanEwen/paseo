@@ -146,6 +146,9 @@ test.describe("Agent message rewind", () => {
       const providerMessage = originalUserMessages(page).filter({ hasText: providerPrompt });
       await expect(providerMessage).toBeVisible();
       await expectAgentReadyToInterrupt(page);
+      // Leave follow mode before hovering a message above the growing assistant response.
+      await scrollChatAwayFromBottom(page, { deltaY: -900, minDistanceFromBottom: 100 });
+      await expectAgentReadyToInterrupt(page);
       await providerMessage.getByText(providerPrompt, { exact: true }).hover();
       await expect(
         providerMessage.getByRole("button", { name: "Rewind to this message", exact: true }),
