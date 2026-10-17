@@ -223,8 +223,8 @@ async function simulateDamagedLegacyDirectoryCache(
               return;
             }
             const stored = JSON.parse(checkpoint.payload);
-            // Accept either writer so this fixture also reproduces on the unfixed client.
-            const cursors = stored.version === 1 ? stored.cursors : stored;
+            // Strip the current writer's envelope to reproduce the raw legacy checkpoint.
+            const cursors = stored.cursors ?? stored;
             if (!cursors.workspaces?.generation) {
               transaction.abort();
               return;
