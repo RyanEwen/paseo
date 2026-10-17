@@ -88,7 +88,7 @@ Use the split icon beside a creation item in the workspace **+** menu, then clic
 
 Right-click a tab and choose **Move tab** to move that same tab to an existing pane or a region in a split diagram. Compact diagrams use larger touch regions and wrap within the scrolling menu. Keyboard users can move through the region choices with Up/Down, Home/End, then Enter or Space.
 
-Hover a workspace divider to choose 50/50, 60/40, 40/60, 70/30, or 30/70 proportions for its existing adjacent panes. Divider choices resize panes; they do not create or move a tab. Turn **Split layout controls** off in Paseo++ settings to hide these controls without changing your layout.
+Hover a workspace divider to choose 70/30, 60/40, 50/50, 40/60, or 30/70 proportions for its existing adjacent panes. Divider choices resize panes; they do not create or move a tab. Turn **Split layout controls** off in Paseo++ settings to hide these controls without changing your layout.
 
 ### Mobile workspace tabs
 

@@ -1,22 +1,18 @@
 import Svg, { Rect } from "react-native-svg";
 import { withUnistyles } from "react-native-unistyles";
 import type { Theme } from "@/styles/theme";
-import type { SplitSide } from "./split-layout-presets";
 
-/** The filled region marks the new pane; proportions read left-to-right or top-to-bottom. */
+/** Divider presets describe both existing panes without selecting either one. */
 function SplitLayoutGlyph({
-  side,
+  direction,
   fraction,
   color = "",
-  fill = "",
 }: {
-  side: SplitSide;
+  direction: "horizontal" | "vertical";
   fraction: number;
   color?: string;
-  fill?: string;
 }) {
-  const horizontal = side === "left" || side === "right";
-  const first = side === "left" || side === "top";
+  const horizontal = direction === "horizontal";
   const span = horizontal ? 42 : 24;
   const firstSize = (span - 2) * fraction;
   const secondSize = span - 2 - firstSize;
@@ -30,8 +26,7 @@ function SplitLayoutGlyph({
         rx={2}
         stroke={color}
         strokeWidth={1}
-        fill={first ? fill : "none"}
-        fillOpacity={0.3}
+        fill="none"
       />
       <Rect
         x={horizontal ? firstSize + 3 : 1}
@@ -41,19 +36,23 @@ function SplitLayoutGlyph({
         rx={2}
         stroke={color}
         strokeWidth={1}
-        fill={first ? "none" : fill}
-        fillOpacity={0.3}
+        fill="none"
       />
     </Svg>
   );
 }
 const mapping = (theme: Theme) => ({
   color: theme.colors.foregroundMuted,
-  fill: theme.colors.foregroundMuted,
 });
 const ThemedGlyph = withUnistyles(SplitLayoutGlyph);
 
-/** Use the same diagram in launcher choices, tab menus, and divider presets. */
-export function SplitPresetGlyph({ side, fraction }: { side: SplitSide; fraction: number }) {
-  return <ThemedGlyph side={side} fraction={fraction} uniProps={mapping} />;
+/** Show the whole adjacent pair when choosing a divider ratio. */
+export function SplitPresetGlyph({
+  direction,
+  fraction,
+}: {
+  direction: "horizontal" | "vertical";
+  fraction: number;
+}) {
+  return <ThemedGlyph direction={direction} fraction={fraction} uniProps={mapping} />;
 }

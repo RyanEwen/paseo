@@ -40,12 +40,7 @@ export function SplitResizePresets({
       SPLIT_LAYOUT_PRESETS.map((preset) => ({
         label: preset.label,
         fraction: preset.fraction,
-        icon: (
-          <SplitPresetGlyph
-            side={direction === "horizontal" ? "right" : "bottom"}
-            fraction={preset.fraction}
-          />
-        ),
+        icon: <SplitPresetGlyph direction={direction} fraction={preset.fraction} />,
         select: () => onSelect(applySplitLayoutPreset(sizes, index, preset.fraction)),
       })),
     [sizes, index, onSelect, direction],
