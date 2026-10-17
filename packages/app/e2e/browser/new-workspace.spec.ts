@@ -120,7 +120,7 @@ async function expectCompactAdoptedAgent({
   await expect(adoptedDeck.getByTestId("workspace-new-tab-button")).toBeVisible();
 }
 
-/** First-agent conversion keeps its optimistic draft identity in the legacy chooser. */
+/** First-agent conversion keeps its optimistic draft identity in the compact tab-count chooser. */
 async function expectLegacyCompactAdoptedAgent({
   page,
   workspaceId,
@@ -131,7 +131,8 @@ async function expectLegacyCompactAdoptedAgent({
     .getByTestId(`workspace-deck-entry-${getServerId()}:${workspaceId}`)
     .filter({ visible: true });
   const switcher = deck.getByTestId("workspace-tab-switcher-trigger");
-  await expect(switcher).toContainText(agentTitle);
+  await expect(switcher).toHaveText("1");
+  await expect(switcher).toHaveAttribute("aria-label", "Switch tabs (1 open)");
   await expect(deck.getByTestId("workspace-tabs-scroll")).toHaveCount(0);
   const raw = await page.evaluate(() => localStorage.getItem("workspace-layout-state"));
   if (!raw) throw new Error("Expected the adopted workspace layout");
@@ -154,9 +155,11 @@ async function expectLegacyCompactAdoptedAgent({
     .click({ position: { x: 12, y: 12 } });
   await expect(page.getByTestId(menuId)).toHaveCount(0);
   await page.reload();
-  await expect(switcher).toContainText(agentTitle);
+  await expect(switcher).toHaveText("1");
+  await expect(switcher).toHaveAttribute("aria-label", "Switch tabs (1 open)");
   await switcher.click();
   await expect(page.getByTestId(menuId)).toBeVisible();
+  await expect(page.getByText(agentTitle, { exact: true }).last()).toBeVisible();
   await page
     .getByRole("button", { name: "Bottom sheet backdrop" })
     .filter({ visible: true })

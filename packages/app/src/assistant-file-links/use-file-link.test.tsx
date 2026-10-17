@@ -119,6 +119,28 @@ describe("useFileLink", () => {
     vi.clearAllMocks();
   });
 
+  it("opens standalone Markdown URLs externally without a resolver provider", async () => {
+    const queryClient = createQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const source = { href: "https://example.invalid/standalone" };
+    const { result } = renderHook(
+      () => {
+        const context = useAssistantFileLinkResolverContext();
+        const link = useFileLink(source);
+        return { context, link };
+      },
+      { wrapper },
+    );
+    expect(result.current.context.httpLinkDestination).toBe("external");
+    expect(result.current.context.openHttpLinksInPaseoRef.current).toBe(false);
+    await act(async () => {
+      result.current.link.onPress();
+    });
+    expect(openExternalUrl).toHaveBeenCalledWith(source.href);
+  });
+
   it.each([true, false])(
     "uses the selected primary browser destination when workspaceChatLinks is %s",
     async (enabled) => {

@@ -1,10 +1,17 @@
-import type { ReplicaHostRows, ReplicaRow, ReplicaRowChanges, ReplicaRowStore } from "./row-store";
+import type {
+  ReplicaHostRows,
+  ReplicaRow,
+  ReplicaRowChanges,
+  ReplicaRowExpectation,
+  ReplicaRowStore,
+} from "./row-store";
 import { REPLICA_ROW_STORE_SCHEMA_VERSION } from "./row-store-schema";
 
 export type {
   ReplicaHostRows,
   ReplicaRow,
   ReplicaRowChanges,
+  ReplicaRowExpectation,
   ReplicaRowKey,
   ReplicaRowKind,
   ReplicaRowStore,
@@ -169,15 +176,36 @@ export function createIndexedDbReplicaRowStore(
   }
 
   async function apply(changes: ReplicaRowChanges): Promise<void> {
+    await applyIfUnchanged(changes, []);
+  }
+
+  async function applyIfUnchanged(
+    changes: ReplicaRowChanges,
+    expected: readonly ReplicaRowExpectation[],
+  ): Promise<boolean> {
+    let applied = false;
     await runTransaction(getDatabase(), ROWS_STORE, async (transaction) => {
       const rows = transaction.objectStore(ROWS_STORE);
+      for (const condition of expected) {
+        const current = await requestResult<ReplicaRow | undefined>(
+          rows.get([condition.serverId, condition.kind, condition.id]),
+        );
+        if (
+          condition.payload === null
+            ? current !== undefined
+            : current === undefined || current.payload !== condition.payload
+        )
+          return;
+      }
       for (const key of changes.deletes) {
         await requestResult(rows.delete([key.serverId, key.kind, key.id]));
       }
       for (const row of changes.upserts) {
         await requestResult(rows.put(row));
       }
+      applied = true;
     });
+    return applied;
   }
 
   async function deleteHost(serverId: string): Promise<void> {
@@ -207,7 +235,7 @@ export function createIndexedDbReplicaRowStore(
     });
   }
 
-  return { open, read, readAll, apply, deleteHost, renameHost, clear };
+  return { open, read, readAll, apply, applyIfUnchanged, deleteHost, renameHost, clear };
 }
 
 export function createReplicaRowStore(): ReplicaRowStore {

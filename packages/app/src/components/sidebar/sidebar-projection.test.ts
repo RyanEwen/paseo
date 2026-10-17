@@ -160,9 +160,14 @@ describe("buildSidebarProjection", () => {
       sorted,
     );
     expect(projection.pinnedGroups.pinnedChats.map((row) => row.name)).toEqual(["pinned"]);
-    expect(projection.shortcutModel.shortcutTargets.map((row) => row.workspaceId)).toEqual(
-      ["pinned", ...sorted].slice(0, 9),
-    );
+    expect(projection.shortcutModel.shortcutTargets.map((row) => row.workspaceId)).toEqual([
+      "pinned",
+      ...sorted,
+    ]);
+    expect(projection.shortcutModel.shortcutIndexByWorkspaceKey.size).toBe(9);
+    expect(
+      projection.shortcutModel.shortcutIndexByWorkspaceKey.has(missing.entry.workspaceKey),
+    ).toBe(false);
     expect(input.projects[0].workspaces.map((row) => row.name)).toEqual(savedOrder);
     const custom = buildSidebarProjection(input);
     expect(custom.pinnedGroups.unpinnedProjects[0].workspaces.map((row) => row.name)).toEqual(

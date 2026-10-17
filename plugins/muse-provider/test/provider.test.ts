@@ -3,7 +3,6 @@ import { UsageSourceRegistry } from "../../../packages/server/src/server/plugins
 import { Usage as MuseUsage } from "../server/usage.js";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
-import { performance } from "node:perf_hooks";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -76,13 +75,8 @@ async function harness(
     from = 0,
     timeoutMs?: number,
   ): Promise<ProviderEvent> {
-    const startedAt = performance.now();
-    for (let count = 0; ; count++) {
-      if (timeoutMs === undefined) {
-        if (count >= 200) break;
-      } else if (performance.now() - startedAt >= timeoutMs) {
-        break;
-      }
+    const deadline = Date.now() + (timeoutMs ?? 5000);
+    while (Date.now() < deadline) {
       const event = events.slice(from).find(predicate);
       if (event) return event;
       await delay(10);
@@ -1250,6 +1244,18 @@ test("silent active turns page after two minutes and stop polling on recovered t
   await vi.advanceTimersByTimeAsync(240000);
   expect((await h.recorded()).filter((f) => f.method === "view/page")).toHaveLength(1);
 });
+test("session readiness accepts initialization beyond the old event polling window", async () => {
+  const h = await harness("text-reasoning", { MUSE_TEST_INITIALIZE_DELAY_MS: "3500" });
+  expect(await h.open()).toMatchObject({ type: "session.ready" });
+  expect((await h.recorded()).find((frame) => frame.event === "hostStarted").args).toEqual([
+    "serve",
+    "--sandbox-network",
+    "proxy-only",
+    "--disable-sandbox",
+    "--trust-workspace",
+  ]);
+}, 10000);
+
 test("default launch disables sandbox and trusts workspace", async () => {
   const h = await harness();
   await h.open();
