@@ -203,6 +203,8 @@ test("last activity and diff stats can be shown together and toggled independent
   await expect(timestamp).toBeVisible();
   await expect(diff).toBeVisible();
   await moveWorkspaceToStatusGrouping(page);
+  // Status mode has independent trailing preferences.
+  await toggleTrailing(page, "Diff stats");
   await expect(timestamp).toBeVisible();
   await expect(diff).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("sidebar-both-stats.png") });

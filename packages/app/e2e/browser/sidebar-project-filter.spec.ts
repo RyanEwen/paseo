@@ -18,19 +18,35 @@ import {
   expectMobileAgentSidebarVisible,
   selectAllProjectsFilter,
   selectSidebarStatusGrouping,
+  selectSidebarProjectGrouping,
   toggleProjectFilter,
 } from "../support/helpers/sidebar";
 
 /** Read the durable allowlist, including keys for currently unavailable projects. */
 async function readStoredProjectFilters(page: Page): Promise<string[]> {
-  return page.evaluate(
-    () => JSON.parse(localStorage.getItem("sidebar-view") ?? "{}").state.projectFilters,
-  );
+  return page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem("sidebar-view") ?? "{}").state;
+    return state.localModeFilters[state.groupMode].projectFilters;
+  });
 }
 
 /** Read the actual scroll owner so a stationary list cannot satisfy the geometry case. */
 async function readScrollTop(scroll: Locator): Promise<number> {
   return scroll.evaluate((element) => element.scrollTop);
+}
+
+/** Walk the production menu's registered order; pre-existing cached projects may precede the seed. */
+async function arrowDownToMenuItem(page: Page, surface: Locator, target: Locator): Promise<void> {
+  // The chooser opens from cached metadata before its host inventory has necessarily arrived.
+  await expect(target).toBeVisible();
+  const itemCount = await surface
+    .locator('[data-menu-item="true"]:not([data-menu-disabled="true"])')
+    .count();
+  for (let step = 0; step < itemCount; step++) {
+    await page.keyboard.press("ArrowDown");
+    if (await target.evaluate((node) => node === document.activeElement)) return;
+  }
+  await expect(target).toBeFocused();
 }
 
 /** Pick a display option through the same menu on desktop and compact layouts. */
@@ -50,7 +66,7 @@ async function expectStatusOnRight(row: Locator, state: string): Promise<void> {
 
 test.describe("Sidebar project filter", () => {
   test.describe.configure({ timeout: 180_000 });
-  // This suite owns the legacy Display filter. The selector has its own coverage below.
+  // Heading opt-out keeps the essential chooser available; richer labels are covered below.
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       const key = "@paseo:app-settings";
@@ -82,49 +98,34 @@ test.describe("Sidebar project filter", () => {
       await expect(occupiedRow).toBeVisible({ timeout: 30_000 });
       await expect(emptyProjectRow).toBeVisible();
 
+      await selectDisplayOption(page, "empty-workspaces", "sidebar-empty-workspaces-group");
       await expect(page.getByTestId("sidebar-empty-project-group")).toBeVisible();
-      await selectDisplayOption(page, "grouping", "sidebar-grouping-empty-projects");
+      await selectDisplayOption(page, "empty-workspaces", "sidebar-empty-workspaces-show");
       await expect(page.getByTestId("sidebar-empty-project-group")).toHaveCount(0);
       await expect(emptyProjectRow).toBeVisible();
-      await selectDisplayOption(page, "grouping", "sidebar-grouping-empty-projects");
-      await expect(page.getByTestId("sidebar-empty-project-group")).toBeVisible();
-
-      await selectDisplayOption(
-        page,
-        "project-visibility",
-        "sidebar-project-visibility-unarchived",
-      );
+      await selectDisplayOption(page, "empty-workspaces", "sidebar-empty-workspaces-hide");
       await expect(emptyProjectRow).toHaveCount(0);
       await expect(occupiedRow).toBeVisible();
       await selectSidebarStatusGrouping(page);
-      await expect(page.getByTestId("sidebar-empty-project-group")).toHaveCount(0);
-
-      await selectDisplayOption(page, "project-visibility", "sidebar-project-visibility-all");
-      await expect(page.getByTestId("sidebar-empty-project-group")).toBeVisible();
+      await selectDisplayOption(page, "empty-workspaces", "sidebar-empty-workspaces-group");
       await expect(emptyProjectRow).toBeVisible();
-      await expect(occupiedRow).toBeVisible();
-      await selectDisplayOption(page, "grouping", "sidebar-grouping-empty-projects");
-      await expect(page.getByTestId("sidebar-empty-project-group")).toHaveCount(0);
-      await expect(emptyProjectRow).toBeVisible();
-      await page.reload();
-      await expect(emptyProjectRow).toBeVisible({ timeout: 30_000 });
-      await expect(page.getByTestId("sidebar-empty-project-group")).toHaveCount(0);
-      await selectDisplayOption(page, "grouping", "sidebar-grouping-empty-projects");
-      await expect(page.getByTestId("sidebar-empty-project-group")).toBeVisible();
       await page.getByTestId("sidebar-status-group-no-unarchived-workspaces").click();
       await expect(emptyProjectRow).toHaveCount(0);
       await page.getByTestId("sidebar-status-group-no-unarchived-workspaces").click();
       await expect(emptyProjectRow).toBeVisible();
-      await selectDisplayOption(page, "grouping", "sidebar-grouping-project");
+      await selectDisplayOption(page, "empty-workspaces", "sidebar-empty-workspaces-show");
+      await page.reload();
+      await expect(emptyProjectRow).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId("sidebar-empty-project-group")).toHaveCount(0);
+      await selectSidebarProjectGrouping(page);
+      await expect(emptyProjectRow).toHaveCount(0);
+      await selectDisplayOption(page, "empty-workspaces", "sidebar-empty-workspaces-show");
       await selectDisplayOption(page, "sorting", "sidebar-sorting-project");
       await page.reload();
       await expect(emptyProjectRow).toBeVisible({ timeout: 30_000 });
       await page.getByTestId("sidebar-display-preferences-menu").click();
-      await expect(page.getByTestId("sidebar-display-grouping")).toContainText("Project");
       await expect(page.getByTestId("sidebar-display-sorting")).toContainText("Project name");
-      await expect(page.getByTestId("sidebar-display-project-visibility")).toContainText(
-        "All projects",
-      );
+      await expect(page.getByTestId("sidebar-display-empty-workspaces")).toContainText("Show");
       await page.screenshot({ path: testInfo.outputPath("sidebar-empty-project-group.png") });
       await closeSidebarDisplayPreferences(page);
     } finally {
@@ -133,14 +134,13 @@ test.describe("Sidebar project filter", () => {
     }
   });
 
-  test("pins the sidebar to one project across both grouping modes", async ({ page }) => {
-    // Two temp repos means two projects, which is also what makes the `Project ›` row appear.
+  test("persists independent project filters in both grouping modes", async ({ page }) => {
+    // Independent projects make each mode’s local allowlist observable.
     const alpha = await seedWorkspace({ repoPrefix: "project-filter-alpha-", title: "Alpha work" });
     const beta = await seedWorkspace({ repoPrefix: "project-filter-beta-", title: "Beta work" });
     const serverId = getServerId();
     const alphaRow = page.getByTestId(`sidebar-workspace-row-${serverId}:${alpha.workspaceId}`);
     const betaRow = page.getByTestId(`sidebar-workspace-row-${serverId}:${beta.workspaceId}`);
-    const filterTrigger = page.getByTestId("sidebar-display-project-filter");
 
     try {
       await gotoAppShell(page);
@@ -148,30 +148,37 @@ test.describe("Sidebar project filter", () => {
       await expect(betaRow).toBeVisible({ timeout: 30_000 });
 
       await openSidebarProjectFilter(page);
-      await expect(page.getByTestId("sidebar-project-filter-all")).toBeVisible();
+      await expect(page.getByTestId("sidebar-project-selector-all")).toBeVisible();
       await toggleProjectFilter(page, alpha.projectKey);
       await closeSidebarDisplayPreferences(page);
 
       await expect(alphaRow).toBeVisible();
       await expect(betaRow).toHaveCount(0, { timeout: 10_000 });
 
-      // The indicator reads the filter as it is applied, so it must be on here.
-      await page.getByTestId("sidebar-display-preferences-menu").click();
-      await expect(filterTrigger).toBeVisible();
-      await expect(filterTrigger.getByTestId("menu-sub-indicator")).toBeVisible();
-      await closeSidebarDisplayPreferences(page);
-
-      // Status grouping builds its rows from the workspace entries rather than the projects
-      // array, so a filter applied in only one of the two places passes every check above and
-      // silently fails right here.
+      await expect(page.getByTestId("sidebar-project-selector")).toHaveText("Workspaces");
       await selectSidebarStatusGrouping(page);
-      await closeSidebarDisplayPreferences(page);
       await expect(alphaRow).toBeVisible({ timeout: 15_000 });
+      await expect(betaRow).toBeVisible();
+      await openSidebarProjectFilter(page);
+      await toggleProjectFilter(page, beta.projectKey);
+      await closeSidebarDisplayPreferences(page);
+      await expect(alphaRow).toHaveCount(0);
+      await expect(betaRow).toBeVisible();
+      await selectSidebarProjectGrouping(page);
+      await expect(alphaRow).toBeVisible();
       await expect(betaRow).toHaveCount(0);
-
       // The filter is view state and survives a cold load.
       await page.reload();
       await expect(alphaRow).toBeVisible({ timeout: 30_000 });
+      await expect(betaRow).toHaveCount(0);
+      await selectSidebarStatusGrouping(page);
+      await expect(alphaRow).toHaveCount(0);
+      await expect(betaRow).toBeVisible();
+      await page.reload();
+      await expect(betaRow).toBeVisible({ timeout: 30_000 });
+      await expect(alphaRow).toHaveCount(0);
+      await selectSidebarProjectGrouping(page);
+      await expect(alphaRow).toBeVisible();
       await expect(betaRow).toHaveCount(0);
 
       await openSidebarProjectFilter(page);
@@ -225,7 +232,7 @@ test.describe("Sidebar project filter", () => {
     }
   });
 
-  test("hides the filter row when there is only one project", async ({ page }) => {
+  test("keeps the essential chooser with one project and heading opt-out", async ({ page }) => {
     const only = await seedWorkspace({ repoPrefix: "project-filter-solo-", title: "Solo work" });
     const serverId = getServerId();
 
@@ -238,6 +245,13 @@ test.describe("Sidebar project filter", () => {
       await page.getByTestId("sidebar-display-preferences-menu").click();
       await expect(page.getByTestId("sidebar-display-preferences-content")).toBeVisible();
       await expect(page.getByTestId("sidebar-display-project-filter")).toHaveCount(0);
+      await closeSidebarDisplayPreferences(page);
+      await expect(page.getByTestId("sidebar-project-selector")).toHaveText("Workspaces");
+      await openSidebarProjectFilter(page);
+      await expect(page.getByTestId("sidebar-chooser-hosts")).toHaveCount(0);
+      await expect(
+        page.getByTestId(`sidebar-project-selector-root-${only.projectKey}`),
+      ).toBeVisible();
     } finally {
       await only.cleanup();
     }
@@ -335,7 +349,7 @@ test("project chips stay visible through bulk collapse and reload", async ({ pag
     await expect(row).toHaveCount(0);
     await page.getByTestId("sidebar-expand-all").click();
     await expect(row).toBeVisible();
-    await selectDisplayOption(page, "grouping", "sidebar-grouping-project");
+    await selectSidebarProjectGrouping(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ colorScheme: "dark" });
     await openMobileAgentSidebar(page);
@@ -569,11 +583,11 @@ test.describe("Sidebar project selector", () => {
           ).toHaveCount(1);
         }
         await display.click();
-        await expect(page.getByTestId("sidebar-display-grouping")).toBeVisible();
+        await expect(page.getByTestId("sidebar-display-workspace-list")).toBeVisible();
         await closeSidebarDisplayPreferences(page);
         await selector.click();
         await page
-          .getByTestId(`sidebar-project-selector-${projects[0].projectKey}-checkbox`)
+          .getByTestId(`sidebar-project-selector-root-${projects[0].projectKey}-checkbox`)
           .click();
         await expect.poll(() => readStoredProjectFilters(page)).toEqual([projects[0].projectKey]);
       } finally {
@@ -602,14 +616,18 @@ test.describe("Sidebar project selector", () => {
         await expect(trigger).toHaveText("All Workspaces");
         await pinWorkspaceFromSidebar(page, beta.workspaceId);
         await trigger.click();
-        await page.getByTestId(`sidebar-project-selector-${alpha.projectKey}-checkbox`).click();
+        await page
+          .getByTestId(`sidebar-project-selector-root-${alpha.projectKey}-checkbox`)
+          .click();
         await expect(surface).toBeVisible();
         await expect(alphaRow).toBeVisible();
         await expect(betaRow).toHaveCount(0);
         await expect(trigger).toContainText("Workspaces");
         // The catalog stays complete after selecting one project.
-        await expect(page.getByTestId(`sidebar-project-selector-${beta.projectKey}`)).toBeVisible();
-        await page.getByTestId(`sidebar-project-selector-${beta.projectKey}-checkbox`).click();
+        await expect(
+          page.getByTestId(`sidebar-project-selector-root-${beta.projectKey}`),
+        ).toBeVisible();
+        await page.getByTestId(`sidebar-project-selector-root-${beta.projectKey}-checkbox`).click();
         await expect(trigger).toHaveText("2 Projects’ Workspaces");
         await expect(betaRow).toBeVisible();
         if (compact) {
@@ -640,7 +658,9 @@ test.describe("Sidebar project selector", () => {
         await expect(alphaRow).toBeVisible();
         await expect(betaRow).toBeVisible();
         await trigger.click();
-        await page.getByTestId(`sidebar-project-selector-${beta.projectKey}-checkbox`).click();
+        await page
+          .getByTestId(`sidebar-project-selector-root-${alpha.projectKey}-checkbox`)
+          .click();
         await expect(betaRow).toHaveCount(0);
         await page.getByTestId("sidebar-project-selector-all").click();
         await expect(trigger).toHaveText("All Workspaces");
@@ -670,12 +690,14 @@ test.describe("Sidebar project selector", () => {
       const surface = page.getByTestId(
         compact ? "sidebar-project-selector-content-content" : "sidebar-project-selector-content",
       );
-      const alphaName = page.getByTestId(`sidebar-project-selector-${alpha.projectKey}`);
-      const betaName = page.getByTestId(`sidebar-project-selector-${beta.projectKey}`);
+      const alphaName = page.getByTestId(`sidebar-project-selector-root-${alpha.projectKey}`);
+      const betaName = page.getByTestId(`sidebar-project-selector-root-${beta.projectKey}`);
       const alphaCheckbox = page.getByTestId(
-        `sidebar-project-selector-${alpha.projectKey}-checkbox`,
+        `sidebar-project-selector-root-${alpha.projectKey}-checkbox`,
       );
-      const betaCheckbox = page.getByTestId(`sidebar-project-selector-${beta.projectKey}-checkbox`);
+      const betaCheckbox = page.getByTestId(
+        `sidebar-project-selector-root-${beta.projectKey}-checkbox`,
+      );
       try {
         if (compact) await page.setViewportSize({ width: 390, height: 844 });
         await gotoAppShell(page);
@@ -727,14 +749,14 @@ test.describe("Sidebar project selector", () => {
     const alpha = await seedWorkspace({ repoPrefix: "selector-keyboard-alpha-" });
     const trigger = page.getByTestId("sidebar-project-selector");
     const surface = page.getByTestId("sidebar-project-selector-content");
-    const name = page.getByTestId(`sidebar-project-selector-${alpha.projectKey}`);
-    const checkbox = page.getByTestId(`sidebar-project-selector-${alpha.projectKey}-checkbox`);
+    const name = page.getByTestId(`sidebar-project-selector-root-${alpha.projectKey}`);
+    const checkbox = page.getByTestId(`sidebar-project-selector-root-${alpha.projectKey}-checkbox`);
     try {
       await gotoAppShell(page);
       await trigger.focus();
       await page.keyboard.press("Enter");
       await expect(page.getByTestId("sidebar-project-selector-all")).toBeFocused();
-      await page.keyboard.press("ArrowDown");
+      await arrowDownToMenuItem(page, surface, name);
       await expect(name).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(surface).toHaveCount(0, { timeout: 2000 });
@@ -742,7 +764,8 @@ test.describe("Sidebar project selector", () => {
       await expect.poll(() => readStoredProjectFilters(page)).toEqual([alpha.projectKey]);
       await page.keyboard.press("Enter");
       await expect(page.getByTestId("sidebar-project-selector-all")).toBeFocused();
-      await page.keyboard.press("ArrowDown");
+      await arrowDownToMenuItem(page, surface, name);
+      await expect(name).toBeFocused();
       await page.keyboard.press("ArrowDown");
       await expect(checkbox).toBeFocused();
       await page.screenshot({ path: testInfo.outputPath("split-checkbox-keyboard-focus.png") });
@@ -780,12 +803,12 @@ test.describe("Sidebar project selector", () => {
       const trigger = page.getByTestId("sidebar-project-selector");
       await expect(trigger).toHaveText("2 Projects’ Workspaces");
       await trigger.click();
-      await page.getByTestId(`sidebar-project-selector-${alpha.projectKey}-checkbox`).click();
+      await page.getByTestId(`sidebar-project-selector-root-${alpha.projectKey}-checkbox`).click();
       await expect(page.getByTestId("sidebar-project-selector-content")).toBeVisible();
       await expect
         .poll(() => readStoredProjectFilters(page))
         .toEqual([beta.projectKey, "offline-project"]);
-      await page.getByTestId(`sidebar-project-selector-${alpha.projectKey}-checkbox`).click();
+      await page.getByTestId(`sidebar-project-selector-root-${alpha.projectKey}-checkbox`).click();
       await page.keyboard.press("Escape");
       const toggledFilters = [beta.projectKey, "offline-project", alpha.projectKey];
       await expect.poll(() => readStoredProjectFilters(page)).toEqual(toggledFilters);
@@ -801,16 +824,14 @@ test.describe("Sidebar project selector", () => {
         );
       });
       await page.reload();
-      await expect(trigger).toHaveCount(0);
+      await expect(trigger).toHaveText("Workspaces");
       await openSidebarProjectFilter(page);
-      await expect(page.getByTestId(`sidebar-project-filter-${alpha.projectKey}`)).toHaveAttribute(
-        "aria-checked",
-        "true",
-      );
-      await expect(page.getByTestId(`sidebar-project-filter-${beta.projectKey}`)).toHaveAttribute(
-        "aria-checked",
-        "true",
-      );
+      await expect(
+        page.getByTestId(`sidebar-project-selector-root-${alpha.projectKey}-checkbox`),
+      ).toHaveAttribute("aria-checked", "true");
+      await expect(
+        page.getByTestId(`sidebar-project-selector-root-${beta.projectKey}-checkbox`),
+      ).toHaveAttribute("aria-checked", "true");
       await closeSidebarDisplayPreferences(page);
       await expect.poll(() => readStoredProjectFilters(page)).toEqual(toggledFilters);
     } finally {
@@ -833,12 +854,14 @@ test.describe("Sidebar project selector activity", () => {
       const surface = page.getByTestId(
         compact ? "sidebar-project-selector-content-content" : "sidebar-project-selector-content",
       );
-      const busyChoice = page.getByTestId(`sidebar-project-selector-${busy.seed.projectKey}`);
-      const quietChoice = page.getByTestId(`sidebar-project-selector-${quiet.projectKey}`);
+      const busyChoice = page.getByTestId(`sidebar-project-selector-root-${busy.seed.projectKey}`);
+      const quietChoice = page.getByTestId(`sidebar-project-selector-root-${quiet.projectKey}`);
       const busyChip = page.getByTestId(
-        `sidebar-project-selector-${busy.seed.projectKey}-activity`,
+        `sidebar-project-selector-root-${busy.seed.projectKey}-activity`,
       );
-      const quietChip = page.getByTestId(`sidebar-project-selector-${quiet.projectKey}-activity`);
+      const quietChip = page.getByTestId(
+        `sidebar-project-selector-root-${quiet.projectKey}-activity`,
+      );
       try {
         if (compact) await page.setViewportSize({ width: 390, height: 844 });
         await gotoAppShell(page);
@@ -871,7 +894,9 @@ test.describe("Sidebar project selector activity", () => {
         await expect(surface).toHaveCount(0);
         await trigger.click();
         await expect(busyChip).toHaveText("2 working");
-        await page.getByTestId(`sidebar-project-selector-${busy.seed.projectKey}-checkbox`).click();
+        await page
+          .getByTestId(`sidebar-project-selector-root-${busy.seed.projectKey}-checkbox`)
+          .click();
         await expect(surface).toBeVisible();
         await expect(busyChip).toHaveText("2 working");
         await page.screenshot({
@@ -879,7 +904,9 @@ test.describe("Sidebar project selector activity", () => {
             `selector-activity-working-${compact ? "compact" : "desktop"}.png`,
           ),
         });
-        await page.getByTestId(`sidebar-project-selector-${busy.seed.projectKey}-checkbox`).click();
+        await page
+          .getByTestId(`sidebar-project-selector-root-${busy.seed.projectKey}-checkbox`)
+          .click();
         await expect.poll(() => readStoredProjectFilters(page)).toEqual([quiet.projectKey]);
         // This live priority change happens while the busy project's sidebar rows are filtered out.
         const approval = await busy.seed.client.createWorkspace({
@@ -891,7 +918,7 @@ test.describe("Sidebar project selector activity", () => {
         await expect(busyChip).toHaveText("Needs input");
         await expect(quietChip).toHaveText("Done");
         await expect(
-          page.getByTestId(`sidebar-project-selector-${busy.seed.projectKey}-working-spinner`),
+          page.getByTestId(`sidebar-project-selector-root-${busy.seed.projectKey}-working-spinner`),
         ).toHaveCount(0);
         await page.screenshot({
           path: testInfo.outputPath(
@@ -932,7 +959,9 @@ test.describe("Sidebar project selector activity", () => {
           page.getByTestId(`sidebar-project-status-${busy.seed.projectKey}`),
         ).toHaveCount(0);
         await trigger.click();
-        await page.getByTestId(`sidebar-project-selector-${quiet.projectKey}-checkbox`).click();
+        await page
+          .getByTestId(`sidebar-project-selector-root-${quiet.projectKey}-checkbox`)
+          .click();
         await expect(surface).toBeVisible();
         await expect
           .poll(() => readStoredProjectFilters(page))

@@ -79,6 +79,8 @@ export class SettingsSyncModel {
     canWrite: false,
   };
   private generation = 0;
+  private loadRevision = 0;
+  private hydrated = false;
   private adoptedHost: string | null = null;
   private transport: SettingsSyncTransport | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -96,18 +98,26 @@ export class SettingsSyncModel {
   };
 
   /** Read failures stay visible and cannot silently reset the settings authority to local. */
-  async load(): Promise<void> {
+  async load(signal?: AbortSignal): Promise<void> {
+    if (this.hydrated || signal?.aborted) return;
+    const revision = ++this.loadRevision;
+    const generation = this.generation;
+    const current = () =>
+      !signal?.aborted && revision === this.loadRevision && generation === this.generation;
     try {
       const value = await this.deps.readLocal();
+      if (!current()) return;
       this.local =
         value === null ? { selectedHost: null, hosts: {} } : LocalStateSchema.parse(value);
+      this.hydrated = true;
       this.publish({
         selectedHost: this.local.selectedHost,
+        error: null,
         status: this.local.selectedHost ? "reading" : "local",
         canWrite: this.local.selectedHost === null,
       });
     } catch (error) {
-      this.fail(error);
+      if (current()) this.fail(error);
     }
   }
 
@@ -125,6 +135,7 @@ export class SettingsSyncModel {
         const next = { ...this.local, selectedHost: host };
         await this.deps.writeLocal(next);
         this.local = next;
+        this.hydrated = true;
         this.publish({
           selectedHost: host,
           status: host ? "reading" : "local",
@@ -293,7 +304,11 @@ export class SettingsSyncModel {
   async retry(): Promise<void> {
     const host = this.state.selectedHost;
     if (host && this.transport) await this.connect(host, this.transport);
-    else if (!host) await this.load();
+    else if (!host) {
+      if (this.hydrated && this.state.status === "error") {
+        this.publish({ status: "local", error: null, canWrite: true });
+      } else await this.load();
+    }
   }
 
   /** Read before resolving, so a failed refresh retains every pending edit. */

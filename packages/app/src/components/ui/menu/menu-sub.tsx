@@ -29,6 +29,8 @@ const mutedIconMapping = (theme: Theme) => ({ color: theme.colors.foregroundMute
  */
 export function MenuSubTrigger({
   id,
+  iconOnly = false,
+  accessibilityLabel,
   value,
   indicator = false,
   leading,
@@ -38,6 +40,8 @@ export function MenuSubTrigger({
 }: PropsWithChildren<{
   /** Matches the `id` of a `MenuPageDefinition` passed to the surface. */
   id: string;
+  iconOnly?: boolean;
+  accessibilityLabel?: string;
   /** Current value of the decision this row leads to. */
   value?: string;
   /** Marks the branch as holding a non-default setting, e.g. an active filter. */
@@ -90,12 +94,14 @@ export function MenuSubTrigger({
       onPointerLeave={isPopover && !disabled ? handlePointerLeave : undefined}
     >
       <MenuItem
+        iconOnly={iconOnly}
+        accessibilityLabel={accessibilityLabel}
         active={isOpen}
         closeOnSelect={false}
         disabled={disabled}
         onSelect={handleSelect}
         leading={leading}
-        trailing={trailing}
+        trailing={iconOnly ? null : trailing}
         testID={testID}
       >
         {children}

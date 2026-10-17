@@ -122,7 +122,7 @@ describe("Android repository rename bridge", () => {
     });
   });
 
-  it("keeps querying the old repository when the API returns renamed canonical assets", async () => {
+  it("queries the current repository directly when the API returns canonical assets", async () => {
     const response = Response.json([renamedRelease()]);
     // GitHub's API may redirect a renamed repository to its stable numeric ID.
     Object.defineProperties(response, {
@@ -134,7 +134,7 @@ describe("Android repository rename bridge", () => {
     const update = await findAndroidUpdate(1_000_000_013);
     expect(update?.url).toBe(renamedRelease().assets[0].browser_download_url);
     expect(fetchResource).toHaveBeenCalledExactlyOnceWith(
-      "https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100&page=1",
+      "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100&page=1",
       { signal: expect.any(AbortSignal) },
     );
   });

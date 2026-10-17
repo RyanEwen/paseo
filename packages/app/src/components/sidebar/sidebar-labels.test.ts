@@ -178,3 +178,104 @@ describe("stable status-list cells", () => {
     );
   });
 });
+
+describe("workspace updated-within limits", () => {
+  const now = Date.parse("2026-10-16T12:00:00Z");
+  const cutoff = now - 86_400_000;
+  const rows = [
+    { ...workspace("old", []), statusEnteredAt: new Date(cutoff - 1) },
+    { ...workspace("boundary", []), statusEnteredAt: new Date(cutoff) },
+    { ...workspace("recent", []), statusEnteredAt: new Date(now - 60_000) },
+    { ...workspace("unknown", []), statusEnteredAt: null },
+    { ...workspace("invalid", []), statusEnteredAt: new Date(Number.NaN) },
+    { ...workspace("future", []), statusEnteredAt: new Date(now + 60_000) },
+  ];
+  const updatedWithin = {
+    days: 1,
+    now,
+    getStatusEnteredAt: (row: SidebarWorkspaceEntry) => row.statusEnteredAt,
+  };
+
+  test("filters by status time before applying the count without reordering rows", () => {
+    const result = limitSidebarWorkspaces({
+      items: rows,
+      initialCount: 2,
+      expanded: false,
+      updatedWithin,
+    });
+    expect(result.visibleItems.map((row) => row.workspaceId)).toEqual(["boundary", "recent"]);
+    expect(result.canToggle).toBe(true);
+    expect(rows.map((row) => row.workspaceId)).toEqual([
+      "old",
+      "boundary",
+      "recent",
+      "unknown",
+      "invalid",
+      "future",
+    ]);
+  });
+
+  test("age still applies when the count is unlimited, with inclusive cutoff and clock-skew tolerance", () => {
+    expect(
+      limitSidebarWorkspaces({
+        items: rows,
+        initialCount: null,
+        expanded: false,
+        updatedWithin,
+      }).visibleItems.map((row) => row.workspaceId),
+    ).toEqual(["boundary", "recent", "future"]);
+  });
+
+  test("Show more reveals every older or undated row and Show less restores both limits", () => {
+    const result = limitSidebarWorkspaces({
+      items: rows,
+      initialCount: 1,
+      expanded: true,
+      updatedWithin,
+    });
+    expect(result.visibleItems).toEqual(rows);
+    expect(result.canToggle).toBe(true);
+    expect(
+      limitSidebarWorkspaces({
+        items: rows,
+        initialCount: 1,
+        expanded: false,
+        updatedWithin,
+      }).visibleItems.map((row) => row.workspaceId),
+    ).toEqual(["boundary"]);
+  });
+
+  test("keeps a footer for a status group whose every row is older than the limit", () => {
+    const groups: SidebarWorkspaceGroup[] = [
+      {
+        key: "done",
+        label: "Done",
+        leading: { kind: "status", bucket: "done" },
+        rows: [rows[0], rows[3]],
+      },
+    ];
+    const input = {
+      groups,
+      collapsedGroupKeys: new Set<string>(),
+      expandedGroupKeys: new Set<string>(),
+      initialCount: null,
+      updatedWithin: { days: 1, now },
+    };
+    expect(buildStatusListItems(input).map((item) => item.kind)).toEqual(["header", "footer"]);
+    expect(buildStatusListItems(input).at(-1)).toMatchObject({ canToggle: true, expanded: false });
+    expect(
+      buildStatusListItems({ ...input, expandedGroupKeys: new Set(["done"]) }).filter(
+        (item) => item.kind === "workspace",
+      ),
+    ).toHaveLength(2);
+  });
+
+  test("disabled age filtering preserves undated rows and the existing count policy", () => {
+    expect(
+      limitSidebarWorkspaces({ items: rows, initialCount: 1, expanded: false }).visibleItems,
+    ).toEqual([rows[0]]);
+    expect(
+      limitSidebarWorkspaces({ items: rows, initialCount: null, expanded: false }).visibleItems,
+    ).toEqual(rows);
+  });
+});

@@ -1,3 +1,4 @@
+import type { SidebarProjectActivity } from "./sidebar-project-activity";
 import type { WorkspaceTitleSource } from "@/hooks/use-settings";
 import { resolveSidebarWorkspacePrimaryLabel } from "./sidebar-workspace-title";
 import type {
@@ -6,7 +7,7 @@ import type {
   SidebarWorkspacePlacement,
 } from "@/hooks/use-sidebar-workspaces-list";
 import {
-  aggregateSidebarStateBuckets,
+  aggregateKnownSidebarStateBuckets,
   compareSidebarStatusRecency,
   STATUS_BUCKET_ORDER,
 } from "@/utils/sidebar-agent-state";
@@ -21,6 +22,7 @@ interface SidebarProjectArrangement {
   mode: SidebarSortMode;
   entries: ReadonlyMap<string, SidebarWorkspaceEntry>;
   projectNames: ReadonlyMap<string, string>;
+  projectActivity?: ReadonlyMap<string, SidebarProjectActivity>;
 }
 
 /**
@@ -44,13 +46,14 @@ export function filterSidebarProjects(
 /**
  * Sort project headers, leaving each project's workspace order and saved custom order intact.
  * Status uses the same aggregate as the collapsed project's dot; ties keep their custom order.
- * Call only in project grouping. Empty projects sort with completed projects.
+ * Call only in project grouping. No-status projects follow every known status.
  */
 export function arrangeSidebarProjects({
   projects,
   mode,
   entries,
   projectNames,
+  projectActivity,
 }: SidebarProjectArrangement): SidebarProjectEntry[] {
   if (mode === "custom") return projects;
   if (mode === "project") {
@@ -59,12 +62,16 @@ export function arrangeSidebarProjects({
 
   const statusRanks = new Map(
     projects.map((project) => {
-      const buckets = project.workspaces.flatMap((workspace) => {
-        const entry = entries.get(workspace.workspaceKey);
-        return entry ? [entry.statusBucket] : [];
-      });
-      const status = aggregateSidebarStateBuckets(buckets);
-      return [project.viewKey, STATUS_BUCKET_ORDER.indexOf(status)];
+      const buckets = project.workspaces.map(
+        (workspace) => entries.get(workspace.workspaceKey)?.statusBucket ?? null,
+      );
+      const status = projectActivity?.has(project.viewKey)
+        ? projectActivity.get(project.viewKey)!.bucket
+        : aggregateKnownSidebarStateBuckets(buckets);
+      return [
+        project.viewKey,
+        status === null ? STATUS_BUCKET_ORDER.length : STATUS_BUCKET_ORDER.indexOf(status),
+      ];
     }),
   );
   return [...projects].sort((a, b) => statusRanks.get(a.viewKey)! - statusRanks.get(b.viewKey)!);

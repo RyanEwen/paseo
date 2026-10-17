@@ -39,7 +39,7 @@ export const ptBR: TranslationResources = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Salvar",
-      title: "Lista de espaços de trabalho",
+      title: "Limites de espaços de trabalho",
       label: "Exibir inicialmente por grupo",
       limited: "Limitado",
       all: "Mostrar todos",
@@ -63,8 +63,8 @@ export const ptBR: TranslationResources = {
     title: "Paseo++",
     optional: "Recursos opcionais",
     optionalHint:
-      "As opções seguem o host de configurações selecionado quando a sincronização está ativada. Desativar um recurso preserva seus dados e preferências.",
-    preferences: "Mais controles da barra lateral",
+      "Os interruptores dos recursos opcionais começam ativados. As preferências de Exibição têm padrões independentes; Expandir um projeto por vez começa desativado. As opções seguem o host de configurações selecionado ao sincronizar. Desativar um recurso preserva seus dados e preferências.",
+    preferences: "Controles da barra lateral de espaços de trabalho",
     fixes: "Correções e itens essenciais",
     fixesHint: "Estas melhorias permanecem ativas",
     additions: "Outras melhorias",
@@ -79,6 +79,10 @@ export const ptBR: TranslationResources = {
         label: "Atualizações de hosts na barra lateral",
         hint: "Mostrar ações de atualização no menu de hosts. As configurações do host continuam disponíveis quando esta opção está desativada.",
       },
+      splitLayoutPresets: {
+        label: "Controles de divisão",
+        hint: "Clique na região do diagrama onde deseja abrir ou mover uma aba. Em 60/40, a região direita ou inferior ocupa 40%. As opções do divisor redimensionam os painéis existentes. Desative para ocultar os controles sem alterar o layout.",
+      },
       mobileWorkspaceTabs: {
         label: "Abas de espaços no celular",
         hint: "Mostrar uma barra de abas rolável em espaços compactos. Desative para usar o seletor anterior sem mudar a aba selecionada.",
@@ -90,8 +94,8 @@ export const ptBR: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "Seletor de projeto na barra lateral",
-        hint: "Escolha um projeto no título dos espaços; desativar restaura o filtro Projeto",
+        label: "Projeto selecionado no título",
+        hint: "Mostre o nome do projeto selecionado no título dos espaços de trabalho. Ao desativar, aparece Espaços de trabalho; as opções de host e projeto continuam disponíveis.",
       },
       stickyUserPrompts: {
         label: "Manter mensagens visíveis",
@@ -115,7 +119,7 @@ export const ptBR: TranslationResources = {
       },
       projectPinning: {
         label: "Fixar espaços nos projetos",
-        hint: "Coloca os espaços escolhidos primeiro. As posições salvas voltam ao reativar.",
+        hint: "Mantenha os espaços de trabalho selecionados no início do projeto e marque-os com um alfinete ao lado do nome. As fixações salvas retornam ao reativar.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animar movimentos",
@@ -128,8 +132,8 @@ export const ptBR: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Ordem e detalhes dos espaços de trabalho",
-        hint: "Ordene projetos e espaços de trabalho separadamente por nome, status ou ordem personalizada. Mostre a última atividade e os totais de alterações de código juntos; os rótulos de projeto estão ativados por padrão. Os rótulos de branch são opcionais e estão desativados por padrão. Ajuste essas opções em Exibição, na barra lateral dos espaços de trabalho.",
+        label: "Modos, filtros e exibição",
+        hint: "Use o sino da barra lateral para alternar entre Projeto e Status. O ícone de filtro abre o filtro rápido de texto. Em Exibição, Limites de espaços de trabalho ajusta a quantidade e a idade separadamente; Projetos vazios permite mostrar, agrupar ou ocultar. Cada modo mantém suas preferências.",
       },
     },
     fixesList: {
@@ -651,6 +655,22 @@ export const ptBR: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Abrir {{item}}: {{side}}, {{percent}}%",
+      moveRegion: "Mover aba: {{side}}, {{percent}}%",
+      openToSide: "Abrir {{item}} ao lado",
+      chooseRatio: "Escolher proporção",
+      ratio: "Usar {{ratio}}",
+      moveTab: "Mover aba",
+      left: "Esquerda",
+      right: "Direita",
+      top: "Acima",
+      bottom: "Abaixo",
+      columns: "Esquerda / direita",
+      rows: "Acima / abaixo",
+      pane: "Painel {{index}}",
+    },
+
     route: {
       loading: "Carregando workspace",
       connecting: "Conectando",
@@ -1390,6 +1410,7 @@ export const ptBR: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Ainda não há projetos conhecidos neste host.",
       selectOnlyProject: "Mostrar apenas {{project}}",
       includeProject: "Incluir {{project}}",
       workspaces: "Espaços de trabalho",
@@ -1409,9 +1430,36 @@ export const ptBR: TranslationResources = {
       working: "Em execução",
       done: "Concluído",
     },
+    quickFilter: {
+      open: "Filtrar projetos e espaços de trabalho",
+      close: "Fechar e limpar filtro rápido",
+      placeholder: "Filtrar projetos ou espaços de trabalho…",
+      clear: "Limpar filtro rápido",
+      emptyTitle: "Nenhum projeto ou espaço de trabalho correspondente",
+      emptyDescription: "Tente outro nome ou limpe o filtro rápido deste modo.",
+      guidance:
+        "Use o ícone de filtro para buscar nomes e branches visíveis neste modo. Os limites de quantidade e idade continuam ativos; Mostrar mais revela todas as correspondências.",
+    },
     display: {
+      modeToggle: "Visualização {{current}}. Alternar para {{next}}.",
+      workspaceList: {
+        countLimit: "Limite de quantidade",
+        updatedWithin: "Atualizado nos últimos",
+        day: "1 dia",
+        twoDays: "2 dias",
+        threeDays: "3 dias",
+        fiveDays: "5 dias",
+        week: "1 semana",
+        twoWeeks: "2 semanas",
+        month: "1 mês",
+        twoMonths: "2 meses",
+        threeMonths: "3 meses",
+      },
       expandAll: "Expandir tudo",
       collapseAll: "Recolher tudo",
+      oneProjectAtATime: "Expandir um projeto por vez",
+      reorderGuidance:
+        "Arraste para reordenar apenas na ordenação Personalizada. Projetos filtrados mantêm o mesmo vizinho anterior ou posterior ao mostrar todos os projetos. Itens fixados sempre usam ordem manual.",
       showBackground: "Mostrar espaços em segundo plano",
       trigger: "Preferências de exibição",
       heading: "Exibição",
@@ -1430,6 +1478,12 @@ export const ptBR: TranslationResources = {
         status: "Status",
         custom: "Ordem personalizada",
         emptyProjects: "Ordenar projetos vazios",
+      },
+      emptyWorkspaces: {
+        label: "Projetos vazios",
+        show: "Mostrar",
+        group: "Agrupar",
+        hide: "Ocultar",
       },
       projectVisibility: {
         label: "Filtro",
@@ -1460,7 +1514,7 @@ export const ptBR: TranslationResources = {
         none: "Oculto",
       },
       hostFilter: {
-        label: "Host",
+        label: "Hosts",
         all: "Todos os hosts",
       },
       projectFilter: {

@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { DiffStat } from "@/components/diff-stat";
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
-import { useAppSettings } from "@/hooks/use-settings";
+import { useSidebarViewStore } from "@/stores/sidebar-view-store";
 import type { SidebarWorkspaceTrailing } from "@/hooks/use-settings";
 import { useCompactTimeAgo } from "@/hooks/use-time-ago";
 
@@ -12,10 +12,7 @@ export type { SidebarWorkspaceTrailing };
 
 /** Read the shared trailing preference so every sidebar row keeps the same overlay geometry. */
 export function useSidebarWorkspaceTrailing(): SidebarWorkspaceTrailing {
-  const {
-    settings: { sidebarWorkspaceTrailing },
-  } = useAppSettings();
-  return sidebarWorkspaceTrailing;
+  return useSidebarViewStore((state) => state.sidebarWorkspaceTrailing);
 }
 
 /** Whether the slot has anything to draw for this workspace under the current preference. */

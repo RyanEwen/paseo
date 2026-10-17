@@ -1,3 +1,4 @@
+import { resolveWorkspaceTabLaunchDestination } from "@/workspace-tabs/launcher/internal/destination";
 import type { OpenWorkspaceBrowserUrl } from "@/workspace/browser/use-opening";
 import { WorkspaceBrowserScope } from "@/workspace/browser/context";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -1970,11 +1971,21 @@ function WorkspaceScreenContent({
       if (!persistenceKey) {
         return;
       }
+      const resolvedDestination = resolveWorkspaceTabLaunchDestination(
+        persistenceKey,
+        destination,
+        useWorkspaceLayoutStore,
+      );
+      if (!resolvedDestination) return;
       const openTarget = (target: WorkspaceTab["target"]) => {
-        if (destination.kind === "replace") {
-          replaceWorkspaceTabTarget(persistenceKey, destination.tabId, target);
+        if (resolvedDestination.kind === "replace") {
+          replaceWorkspaceTabTarget(persistenceKey, resolvedDestination.tabId, target);
         } else {
-          createWorkspaceTab(persistenceKey, target, paneLocalPlacement(destination.paneId));
+          createWorkspaceTab(
+            persistenceKey,
+            target,
+            paneLocalPlacement(resolvedDestination.paneId),
+          );
         }
       };
       if (selection.kind === "target") {
@@ -1991,7 +2002,7 @@ function WorkspaceScreenContent({
       if (selection.kind === "terminal") {
         createTerminal({
           profile: selection.profile,
-          destination,
+          destination: resolvedDestination,
         });
         return;
       }
@@ -3394,6 +3405,7 @@ function WorkspaceScreenContent({
       showPullRequest: hasPullRequest,
       showBrowser: showCreateBrowserTab,
       terminalDisabled: createTerminalDisabled,
+      canSplit: !syncFocusedPaneOnly,
       launch: launchWorkspaceTab,
     }),
     [
@@ -3404,6 +3416,7 @@ function WorkspaceScreenContent({
       isGitCheckout,
       launchWorkspaceTab,
       showCreateBrowserTab,
+      syncFocusedPaneOnly,
     ],
   );
   const focusedPaneIdOrUndefined = useMemo(() => focusedPaneId ?? undefined, [focusedPaneId]);

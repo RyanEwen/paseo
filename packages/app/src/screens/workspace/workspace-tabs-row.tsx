@@ -1,3 +1,4 @@
+import { useWorkspaceTabSplitMenu } from "./workspace-tab-split-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import React, {
   useCallback,
@@ -51,7 +52,10 @@ import type { ShortcutKey } from "@/utils/format-shortcut";
 import { Shortcut } from "@/components/ui/shortcut";
 import { useWorkspaceTabScroll } from "@/screens/workspace/use-workspace-tab-scroll";
 import { useWorkspaceTabLayout } from "@/screens/workspace/use-workspace-tab-layout";
-import { retainWorkspaceTabMeasuredWidth } from "@/screens/workspace/workspace-tab-layout";
+import {
+  MIN_WORKSPACE_TAB_WIDTH,
+  retainWorkspaceTabMeasuredWidth,
+} from "@/screens/workspace/workspace-tab-layout";
 import {
   WorkspaceTabPresentationResolver,
   WorkspaceTabIcon,
@@ -113,7 +117,6 @@ const TAB_ICON_WIDTH = 14;
 const TAB_CONTENT_GAP = 4;
 const TAB_DROP_INDICATOR_WIDTH = 4;
 const TAB_MODIFIED_DOT_SIZE = 8;
-const TAB_MIN_WIDTH = 64;
 const TAB_MAX_WIDTH = 160;
 const TAB_CLOSE_BUTTON_RESERVED_WIDTH = 0;
 const TAB_LABEL_LAYOUT_ALLOWANCE = 4;
@@ -770,6 +773,7 @@ function TabChip({
   dragHandleProps: DraggableListDragHandleProps | undefined;
 }) {
   const { closeButtonTestId, contextMenuTestId, menuEntries } = resolvedTab;
+  const splitMenu = useWorkspaceTabSplitMenu(tab.tabId);
   const { t } = useTranslation();
   const middleClickRef = useMiddleClickClose(
     useCallback(() => void onCloseTab(tab.tabId), [onCloseTab, tab.tabId]),
@@ -959,11 +963,20 @@ function TabChip({
             menuTestIDBase={`workspace-tab-menu-${tab.tabId}`}
             presentationLabel={accessibilityLabel}
             menuEntries={menuEntries}
+            splitMenu={splitMenu}
             touchSized
           />
         ) : null}
 
-        <ContextMenuContent align="start" width={DROPDOWN_WIDTH} testID={contextMenuTestId}>
+        <ContextMenuContent
+          align="start"
+          width={DROPDOWN_WIDTH}
+          testID={contextMenuTestId}
+          pages={splitMenu.pages}
+          minWidth={splitMenu.pages.length > 0 ? 280 : undefined}
+          scrollable={splitMenu.pages.length > 0}
+        >
+          {splitMenu.trigger}
           {menuEntries.map((entry) =>
             entry.kind === "separator" ? (
               <ContextMenuSeparator key={entry.key} />
@@ -1128,7 +1141,7 @@ function ResolvedWorkspaceTabsRow({
       ),
       rowPaddingHorizontal: TAB_ROW_PADDING_HORIZONTAL,
       tabGap: TAB_CHIP_GAP,
-      minTabWidth: isCompact ? 120 : TAB_MIN_WIDTH,
+      minTabWidth: isCompact ? 120 : MIN_WORKSPACE_TAB_WIDTH,
       maxTabWidth: isCompact ? 240 : TAB_MAX_WIDTH,
       tabIconWidth: TAB_ICON_WIDTH,
       tabContentGap: TAB_CONTENT_GAP,

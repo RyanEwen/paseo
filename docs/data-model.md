@@ -41,10 +41,15 @@ independently of its active workspace. Selection reads the destination before en
 An empty host requires the explicit **Use this device settings** action; selecting it never
 publishes the preferences already on the device.
 
-App preferences and general sidebar grouping, sorting, visibility and label filtering can sync.
-Connection credentials, desktop daemon controls, the Usage report host selection, host/project filters, custom order, collapsed
-groups, workspace layouts, navigation and drafts stay local. Project and workspace pins retain
-their existing daemon registry authority.
+Sidebar Project and Status modes own separate synchronized display profiles. Switching modes
+projects one profile and its device-local host/project filters together. Legacy preferences seed
+only the previously active mode, after both local stores have loaded; the other mode starts with
+explicit defaults. Existing profiles take precedence over legacy flat fields. Selecting a settings
+host adopts only that host's document and keeps both local filter sets.
+
+Connection credentials, desktop daemon controls, the Usage report host selection, custom order,
+collapsed groups, workspace layouts, navigation and drafts stay local. Project and workspace pins
+retain their existing daemon registry authority.
 
 The client stores its settings-host selection, pre-adoption backups and pending edits locally.
 Pending edits belong permanently to their original host. Reconnect reads before sending touched

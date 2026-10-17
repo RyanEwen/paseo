@@ -95,7 +95,7 @@ test("downloads the selected fork bytes, verifies them, and removes the temporar
   try {
     expect(await readFile(download.file)).toEqual(bytes);
     expect(calls).toEqual([
-      "https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100&page=1",
+      "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100&page=1",
       preview.assets[1].browser_download_url,
       preview.assets[0].browser_download_url,
     ]);
@@ -174,12 +174,13 @@ describe("daemon repository rename bridge", () => {
     },
   );
 
-  test("discovers through the old API and downloads only the renamed package and checksum", async () => {
+  test("discovers through the current API and downloads only the canonical package and checksum", async () => {
     const preview = renamedRelease();
     const filename = preview.assets[0].name;
     const bytes = Buffer.from("verified renamed daemon");
     const calls: string[] = [];
-    const metadataUrl = "https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100&page=1";
+    const metadataUrl =
+      "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100&page=1";
     const download = await downloadForkPreview({
       async request(url) {
         calls.push(url);
@@ -220,7 +221,7 @@ describe("daemon repository rename bridge", () => {
     await expect(
       downloadForkPreview({
         async request(url) {
-          if (url.startsWith("https://api.github.com/repos/RyanEwen/paseo/"))
+          if (url.startsWith("https://api.github.com/repos/RyanEwen/paseo-plus-plus/"))
             return Response.json([preview]);
           if (url === preview.assets[1].browser_download_url)
             return new Response(`${digest}  ${filename}\n`);
@@ -243,7 +244,7 @@ test("availability discovers the platform package and checksum asset without dow
   });
   expect(result.version).toBe("0.11.1-preview.12");
   expect(calls).toEqual([
-    "https://api.github.com/repos/RyanEwen/paseo/releases?per_page=100&page=1",
+    "https://api.github.com/repos/RyanEwen/paseo-plus-plus/releases?per_page=100&page=1",
   ]);
 });
 

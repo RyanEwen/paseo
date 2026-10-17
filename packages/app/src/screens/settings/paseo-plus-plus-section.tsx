@@ -1,4 +1,3 @@
-import { SidebarLimitSection } from "@/screens/settings/paseo-plus-plus/sidebar-limit-section";
 import { FEATURE_EXAMPLE_IMAGES } from "@/paseo-plus-plus/settings-examples";
 import { SettingsExample } from "@/components/settings/settings-example";
 import { SettingsSyncSection } from "./settings-sync-section";
@@ -18,6 +17,7 @@ const OPTIONAL_FEATURES: readonly PaseoPlusPlusFeature[] = [
   "workspaceChatLinks",
   "sidebarHostUpdates",
   "mobileWorkspaceTabs",
+  "splitLayoutPresets",
   "descriptiveToolCalls",
   "stickyUserPrompts",
   "previousAgents",
@@ -95,7 +95,6 @@ export function PaseoPlusPlusSection() {
           ))}
         </SettingsCard>
       </SettingsSection>
-      <SidebarLimitSection />
       <ExplorerSection />
       <SettingsSection title={t("paseoPlusPlus.preferences")}>
         <SettingsCard>

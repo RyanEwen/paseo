@@ -39,7 +39,7 @@ export const fr: TranslationResources = {
   paseoPlusPlus: {
     workspaceLimit: {
       save: "Enregistrer",
-      title: "Liste des espaces de travail",
+      title: "Limites des espaces de travail",
       label: "Affichage initial par groupe",
       limited: "Limité",
       all: "Tout afficher",
@@ -62,8 +62,8 @@ export const fr: TranslationResources = {
     title: "Paseo++",
     optional: "Fonctions facultatives",
     optionalHint:
-      "Les choix suivent l’hôte de paramètres sélectionné lorsque la synchronisation est activée. La désactivation conserve les données et préférences.",
-    preferences: "Autres commandes de la barre latérale",
+      "Les interrupteurs des fonctions facultatives sont activés par défaut. Les préférences d’affichage ont leurs propres valeurs par défaut ; Développer un projet à la fois est initialement désactivé. Les choix suivent l’hôte de paramètres sélectionné lors de la synchronisation. Désactiver une fonction conserve ses données et préférences.",
+    preferences: "Commandes de la barre latérale des espaces de travail",
     fixes: "Correctifs et éléments essentiels",
     fixesHint: "Ces améliorations restent actives",
     additions: "Autres ajouts",
@@ -78,6 +78,10 @@ export const fr: TranslationResources = {
         label: "Mises à jour des hôtes dans la barre latérale",
         hint: "Afficher les actions de mise à jour dans le menu des hôtes. Les réglages des hôtes restent accessibles si cette option est désactivée.",
       },
+      splitLayoutPresets: {
+        label: "Contrôles de disposition",
+        hint: "Cliquez sur la zone du schéma où ouvrir ou déplacer un onglet. Avec 60/40, la zone de droite ou du bas occupe 40 %. Les préréglages du séparateur redimensionnent les panneaux existants. Désactivez cette option pour masquer les commandes sans modifier la disposition.",
+      },
       mobileWorkspaceTabs: {
         label: "Onglets des espaces sur mobile",
         hint: "Afficher une barre d’onglets défilante dans les espaces compacts. Désactivez pour retrouver le sélecteur précédent sans changer l’onglet actif.",
@@ -89,8 +93,8 @@ export const fr: TranslationResources = {
       },
 
       sidebarProjectSelector: {
-        label: "Sélecteur de projet dans la barre latérale",
-        hint: "Choisissez un projet dans l’en-tête des espaces; la désactivation rétablit le filtre Projet",
+        label: "Projet sélectionné dans l’en-tête",
+        hint: "Affiche le nom du projet sélectionné dans l’en-tête des espaces de travail. Sinon, l’en-tête indique Espaces de travail ; les choix d’hôtes et de projets restent disponibles.",
       },
       stickyUserPrompts: {
         label: "Garder les messages en vue",
@@ -114,7 +118,7 @@ export const fr: TranslationResources = {
       },
       projectPinning: {
         label: "Épingler dans les projets",
-        hint: "Place les espaces choisis en premier. Les épingles conservées reviennent à la réactivation.",
+        hint: "Gardez les espaces de travail choisis en tête de leur projet, avec une épingle à côté du nom. Les épingles enregistrées reviennent à la réactivation.",
       },
       sidebarWorkspaceTransitions: {
         label: "Animer les déplacements",
@@ -127,8 +131,8 @@ export const fr: TranslationResources = {
     },
     links: {
       sidebar: {
-        label: "Ordre et détails des espaces de travail",
-        hint: "Triez séparément les projets et les espaces de travail par nom, état ou ordre personnalisé. Affichez ensemble la dernière activité et les totaux des modifications du code ; les libellés de projet sont activés par défaut. Les libellés de branche sont facultatifs et désactivés par défaut. Réglez ces options dans Affichage, dans la barre latérale des espaces de travail.",
+        label: "Modes, filtres et affichage",
+        hint: "Utilisez la cloche de la barre latérale pour alterner entre Projet et État. L’icône de filtre ouvre le filtre textuel rapide. Dans Affichage, Limites des espaces de travail règle séparément le nombre et l’ancienneté ; Projets vides permet d’afficher, regrouper ou masquer. Chaque mode conserve ses préférences.",
       },
     },
     fixesList: {
@@ -651,6 +655,22 @@ export const fr: TranslationResources = {
     },
   },
   workspace: {
+    splits: {
+      openRegion: "Ouvrir {{item}} : {{side}}, {{percent}} %",
+      moveRegion: "Déplacer l’onglet : {{side}}, {{percent}} %",
+      openToSide: "Ouvrir {{item}} sur le côté",
+      chooseRatio: "Choisir les proportions",
+      ratio: "Utiliser {{ratio}}",
+      moveTab: "Déplacer l’onglet",
+      left: "Gauche",
+      right: "Droite",
+      top: "Haut",
+      bottom: "Bas",
+      columns: "Gauche / droite",
+      rows: "Haut / bas",
+      pane: "Volet {{index}}",
+    },
+
     route: {
       loading: "Chargement de l’espace de travail…",
       connecting: "Connexion…",
@@ -1390,6 +1410,7 @@ export const fr: TranslationResources = {
   },
   sidebar: {
     projectSelector: {
+      noKnownProjects: "Aucun projet connu pour cet hôte pour le moment.",
       selectOnlyProject: "Afficher uniquement {{project}}",
       includeProject: "Inclure {{project}}",
       workspaces: "Espaces de travail",
@@ -1409,9 +1430,36 @@ export const fr: TranslationResources = {
       working: "En cours",
       done: "Terminé",
     },
+    quickFilter: {
+      open: "Filtrer les projets et espaces de travail",
+      close: "Fermer et effacer le filtre rapide",
+      placeholder: "Filtrer les projets ou espaces de travail…",
+      clear: "Effacer le filtre rapide",
+      emptyTitle: "Aucun projet ni espace de travail correspondant",
+      emptyDescription: "Essayez un autre nom ou effacez le filtre rapide de ce mode.",
+      guidance:
+        "Utilisez l’icône de filtre pour chercher les noms et branches visibles de ce mode. Les limites de nombre et d’âge restent actives ; Afficher plus révèle toutes les correspondances.",
+    },
     display: {
+      modeToggle: "Vue {{current}}. Passer à la vue {{next}}.",
+      workspaceList: {
+        countLimit: "Limite du nombre",
+        updatedWithin: "Mis à jour depuis",
+        day: "1 jour",
+        twoDays: "2 jours",
+        threeDays: "3 jours",
+        fiveDays: "5 jours",
+        week: "1 semaine",
+        twoWeeks: "2 semaines",
+        month: "1 mois",
+        twoMonths: "2 mois",
+        threeMonths: "3 mois",
+      },
       expandAll: "Tout déplier",
       collapseAll: "Tout replier",
+      oneProjectAtATime: "Déplier un projet à la fois",
+      reorderGuidance:
+        "Le déplacement nécessite le tri Personnalisé. Les projets filtrés gardent le même voisin avant ou après lorsque tous les projets sont affichés. Les éléments épinglés restent ordonnés manuellement.",
       showBackground: "Afficher les espaces en arrière-plan",
       trigger: "Préférences d’affichage",
       heading: "Affichage",
@@ -1430,6 +1478,12 @@ export const fr: TranslationResources = {
         status: "Statut",
         custom: "Ordre personnalisé",
         emptyProjects: "Trier les projets vides",
+      },
+      emptyWorkspaces: {
+        label: "Projets vides",
+        show: "Afficher",
+        group: "Regrouper",
+        hide: "Masquer",
       },
       projectVisibility: {
         label: "Filtre",
@@ -1460,7 +1514,7 @@ export const fr: TranslationResources = {
         none: "Masqué",
       },
       hostFilter: {
-        label: "Hôte",
+        label: "Hôtes",
         all: "Tous les hôtes",
       },
       projectFilter: {

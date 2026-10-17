@@ -26,17 +26,24 @@ export function togglePinnedCollapsed(state: CollapsedProjectsState): CollapsedP
   return { ...state, collapsedPinned: !state.collapsedPinned };
 }
 
+export interface ProjectCollapseOptions {
+  mode: "project" | "status";
+  oneProjectAtATime: boolean;
+  /** All known host-qualified project keys, without fetching hidden host directories. */
+  projectKeys: readonly string[];
+}
+
 export function toggleProjectCollapsed(
   state: CollapsedProjectsState,
   projectKey: string,
+  options?: ProjectCollapseOptions,
 ): CollapsedProjectsState {
-  const next = new Set(state.collapsedProjectKeys);
-  if (next.has(projectKey)) {
-    next.delete(projectKey);
-  } else {
-    next.add(projectKey);
-  }
-  return { ...state, collapsedProjectKeys: next };
+  return setProjectCollapsed(
+    state,
+    projectKey,
+    !state.collapsedProjectKeys.has(projectKey),
+    options,
+  );
 }
 
 export function toggleWorkspaceGroupCollapsed(
@@ -56,8 +63,12 @@ export function setProjectCollapsed(
   state: CollapsedProjectsState,
   projectKey: string,
   collapsed: boolean,
+  options?: ProjectCollapseOptions,
 ): CollapsedProjectsState {
   const next = new Set(state.collapsedProjectKeys);
+  if (!collapsed && options?.mode === "project" && options.oneProjectAtATime) {
+    for (const key of options.projectKeys) next.add(key);
+  }
   if (collapsed) {
     next.add(projectKey);
   } else {

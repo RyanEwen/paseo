@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { IncomingMessage, type RequestOptions } from "node:http";
 import { Socket } from "node:net";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { CancellationToken } from "builder-util-runtime";
@@ -116,19 +117,36 @@ function channelFilename(platform: "win32" | "linux"): string {
   return `preview-linux${suffix}.yml`;
 }
 
+const transitions = [
+  { stage: "legacy to final prerelease", installed: "0.11.2-preview.20", build: 77 },
+  { stage: "legacy directly to normal release", installed: "0.11.2-preview.20", build: 80 },
+  { stage: "bridge to normal release", installed: "0.11.2-preview.77", build: 80 },
+];
+const repositoryTransitions = (["win32", "linux"] as const).flatMap((platform) =>
+  transitions.flatMap(({ stage, installed, build }) =>
+    ["paseo", "paseo-plus-plus"].map((repository) => ({
+      platform,
+      stage,
+      installed,
+      build,
+      repository,
+    })),
+  ),
+);
+
 describe("desktop GitHub repository rename bridge", () => {
-  const transitions = [
-    { stage: "legacy to final prerelease", installed: "0.11.2-preview.20", build: 77 },
-    { stage: "legacy directly to normal release", installed: "0.11.2-preview.20", build: 80 },
-    { stage: "bridge to normal release", installed: "0.11.2-preview.77", build: 80 },
-  ];
-  it.each(
-    (["win32", "linux"] as const).flatMap((platform) =>
-      transitions.map(({ stage, installed, build }) => ({ platform, stage, installed, build })),
-    ),
-  )(
-    "follows the retained preview feed, repository and CDN redirects: $platform, $stage",
-    async ({ platform, installed, build }) => {
+  it("packages the current fork feed without requiring the legacy repository redirect", () => {
+    const config = readFileSync(
+      new URL("../../electron-builder.preview.yml", import.meta.url),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    expect(config).toContain("  owner: RyanEwen\n  repo: paseo-plus-plus\n  channel: preview\n");
+    expect(config).not.toMatch(/^\s+repo: paseo$/m);
+  });
+
+  it.each(repositoryTransitions)(
+    "follows the retained preview feed, repository and CDN redirects: $platform, $stage, $repository",
+    async ({ platform, installed, build, repository }) => {
       const updater = new NsisUpdater(null, { ...app, version: installed });
       updater.channel = "preview";
       updater.allowPrerelease = true;
@@ -173,7 +191,7 @@ describe("desktop GitHub repository rename bridge", () => {
         {
           provider: "github",
           owner: "RyanEwen",
-          repo: "paseo",
+          repo: repository,
           channel: "preview",
         },
         updater,
@@ -183,7 +201,7 @@ describe("desktop GitHub repository rename bridge", () => {
       expect(info.tag).toBe(tag);
       expect(info.version).toBe(version);
       const files = provider.resolveFiles(info);
-      expect(files[0].url.href).toBe(oldBinary);
+      expect(files[0].url.href).toBe(repository === "paseo" ? oldBinary : newBinary);
       expect(files[0].info.sha512).toBe(digest);
       const directory = await mkdtemp(path.join(tmpdir(), "paseo-updater-repository-test-"));
       try {
@@ -194,16 +212,18 @@ describe("desktop GitHub repository rename bridge", () => {
         });
         expect(await readFile(target)).toEqual(bytes);
         expect(executor.calls).toEqual([
-          oldFeed,
+          ...(repository === "paseo" ? [oldFeed] : []),
           newFeed,
-          oldManifest,
+          ...(repository === "paseo" ? [oldManifest] : []),
           newManifest,
           manifestCdn,
-          oldBinary,
+          ...(repository === "paseo" ? [oldBinary] : []),
           newBinary,
           binaryCdn,
         ]);
-        expect(executor.requests.filter((request) => request.aborted)).toHaveLength(5);
+        expect(executor.requests.filter((request) => request.aborted)).toHaveLength(
+          repository === "paseo" ? 5 : 2,
+        );
         await expect(
           executor.download(files[0].url, path.join(directory, "invalid-digest"), {
             cancellationToken: new CancellationToken(),
