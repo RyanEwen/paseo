@@ -139,7 +139,7 @@ describe("desktop GitHub repository rename bridge", () => {
     const config = readFileSync(
       new URL("../../electron-builder.preview.yml", import.meta.url),
       "utf8",
-    );
+    ).replace(/\r\n/g, "\n");
     expect(config).toContain("  owner: RyanEwen\n  repo: paseo-plus-plus\n  channel: preview\n");
     expect(config).not.toMatch(/^\s+repo: paseo$/m);
   });
