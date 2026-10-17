@@ -1,4 +1,10 @@
-import type { ReplicaHostRows, ReplicaRow, ReplicaRowChanges, ReplicaRowStore } from "./row-store";
+import type {
+  ReplicaHostRows,
+  ReplicaRow,
+  ReplicaRowChanges,
+  ReplicaRowExpectation,
+  ReplicaRowStore,
+} from "./row-store";
 
 export type SqliteValue = string | number | null;
 
@@ -130,7 +136,27 @@ export function createSqliteReplicaRowStore(
   }
 
   async function apply(changes: ReplicaRowChanges): Promise<void> {
+    await applyIfUnchanged(changes, []);
+  }
+
+  async function applyIfUnchanged(
+    changes: ReplicaRowChanges,
+    expected: readonly ReplicaRowExpectation[],
+  ): Promise<boolean> {
+    let applied = false;
     await getConnection().transaction(async (transaction) => {
+      for (const condition of expected) {
+        const current = await transaction.all<StoredRow>(
+          "SELECT server_id, kind, id, payload FROM rows WHERE server_id = ? AND kind = ? AND id = ?",
+          [condition.serverId, condition.kind, condition.id],
+        );
+        if (
+          condition.payload === null
+            ? current[0] !== undefined
+            : current[0] === undefined || current[0].payload !== condition.payload
+        )
+          return;
+      }
       for (const key of changes.deletes) {
         await transaction.run("DELETE FROM rows WHERE server_id = ? AND kind = ? AND id = ?", [
           key.serverId,
@@ -145,7 +171,9 @@ export function createSqliteReplicaRowStore(
           [row.serverId, row.kind, row.id, row.payload],
         );
       }
+      applied = true;
     });
+    return applied;
   }
 
   async function deleteHost(serverId: string): Promise<void> {
@@ -169,5 +197,5 @@ export function createSqliteReplicaRowStore(
     await getConnection().run("DELETE FROM rows");
   }
 
-  return { open, read, readAll, apply, deleteHost, renameHost, clear };
+  return { open, read, readAll, apply, applyIfUnchanged, deleteHost, renameHost, clear };
 }
