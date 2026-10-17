@@ -14,7 +14,7 @@ protocols:
 publish:
   provider: github
   owner: RyanEwen
-  repo: paseo
+  repo: paseo-plus-plus
   channel: preview
   releaseType: prerelease
   vPrefixedTagName: true

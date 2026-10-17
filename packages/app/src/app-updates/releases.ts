@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-// Keep the legacy discovery endpoint working through GitHub's repository redirect.
-const repository = "RyanEwen/paseo";
-const releaseRepositories = [repository, "RyanEwen/paseo-plus-plus"];
+// Discover through the current repository; retain canonical legacy asset URL compatibility.
+const repository = "RyanEwen/paseo-plus-plus";
+const releaseRepositories = [repository, "RyanEwen/paseo"];
 const assetSchema = z.object({ name: z.string(), browser_download_url: z.url() });
 export const releasesSchema = z.array(
   z.object({
