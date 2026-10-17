@@ -64,7 +64,7 @@ export function WorkspaceHoverCard({
   }
 
   return (
-    <HoverCard disabled={isDragging || disabled}>
+    <HoverCard openDelay={250} disabled={isDragging || disabled}>
       <HoverCardTrigger>{children}</HoverCardTrigger>
       <HoverCardContent
         placement="right"
