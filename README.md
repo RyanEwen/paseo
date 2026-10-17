@@ -184,7 +184,7 @@ Paseo++ apps and daemons keep separate identities, settings, and update sources 
 
 ## Install Paseo++
 
-Download desktop and Android builds from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage builds receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
+Download desktop and Android builds from [Paseo++ releases](https://github.com/RyanEwen/paseo-plus-plus/releases). New builds discover updates from this repository directly. The legacy repository redirect remains available for existing installations. Builds are available for Windows and Linux (x64 and ARM64), plus Android. Windows and Linux AppImage builds receive updates from Paseo++ releases. The desktop app includes its own daemon. macOS is deferred until Apple signing is available; iOS and hosted web are excluded. The upstream overview farther down retains upstream download links and installation commands.
 
 The planned transition to normal releases needs one final prerelease updater bridge for older Android apps and standalone hosts. That bridge has not been published by this change. The [release transition](docs/release.md#final-prerelease-bridge-and-normal-latest-releases) owns qualification, publication and bridge retention requirements.
 
